@@ -1,24 +1,55 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type FC } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { userApi, InviteValidationResponse, AcceptInviteResponse } from "@/api/user";
+import { userApi } from "@/api/user";
+import type { InviteValidationResponse, AcceptInviteResponse } from "@/api/user";
+import { setApiContext } from "@/api/client";
 
-const AcceptInvitePage: React.FC = () => {
+const AcceptInvitePage: FC = () => {
 	const { token: urlToken } = useParams<{
 		token: string;
 	}>();
 	const navigate = useNavigate();
-	const { loginWithRedirect, isAuthenticated, isLoading, user } = useAuth();
+	const { loginWithRedirect, isAuthenticated, isLoading, user, getAccessTokenSilently } = useAuth();
 
 	// get token from URL or localStorage
 	const token = urlToken || localStorage.getItem("pending_invite_token");
+
+	// On this public route (`/invite/:token`) we may not pass through the usual
+	// authenticated app entry (`RedirectedToProjectRoute`) that initializes `apiContext`.
+	// Ensure the API client can attach `Authorization: Bearer ...` in cloud mode.
+	useEffect(() => {
+		setApiContext({
+			getToken: async () => {
+				try {
+					return await getAccessTokenSilently();
+				} catch {
+					return "";
+				}
+			},
+			getOrgId: () => undefined,
+			getProjectId: () => undefined,
+		});
+	}, [getAccessTokenSilently]);
 
 	// state for checking the validity of the invite
 	const [inviteData, setInviteData] = useState<InviteValidationResponse | null>(null);
 	const [hasCheckedInvite, setHasCheckedInvite] = useState(false);
 	const [isInviteLoading, setIsInviteLoading] = useState(false);
 	const [inviteError, setInviteError] = useState<any>(null);
+
+	// Extra-robust: explicitly attach Bearer for invite calls.
+	// This avoids relying on global `apiContext` timing on this route.
+	const getInviteRequestConfig = useCallback(async () => {
+		try {
+			const accessToken = await getAccessTokenSilently();
+			if (!accessToken) return undefined;
+			return { headers: { Authorization: `Bearer ${accessToken}` } };
+		} catch {
+			return undefined;
+		}
+	}, [getAccessTokenSilently]);
 
 	// mutation state replacement
 	const [isProcessing, setIsProcessing] = useState(false);
@@ -31,7 +62,8 @@ const AcceptInvitePage: React.FC = () => {
 		setIsInviteLoading(true);
 		setInviteError(null);
 		try {
-			const data = await userApi.getInviteByToken(token);
+			const config = await getInviteRequestConfig();
+			const data = await userApi.getInviteByToken(token, config);
 			setInviteData(data);
 		} catch (error) {
 			console.error("Failed to validate invite:", error);
@@ -40,7 +72,7 @@ const AcceptInvitePage: React.FC = () => {
 			setIsInviteLoading(false);
 			setHasCheckedInvite(true);
 		}
-	}, [token]);
+	}, [token, getInviteRequestConfig]);
 
 	// check the invite only once after authentication
 	useEffect(() => {
@@ -69,7 +101,8 @@ const AcceptInvitePage: React.FC = () => {
 		setProcessError(null);
 
 		try {
-			const result = await userApi.acceptInvite(token);
+			const config = await getInviteRequestConfig();
+			const result = await userApi.acceptInvite(token, config);
 
 			setProcessSuccess(result);
 
