@@ -12,7 +12,6 @@ import ProtectedRoute from "@/app/router/ProtectedRoute";
 import Memory from "@/pages/prompt/playground-tabs/memory/Memory";
 import Versions from "@/pages/prompt/playground-tabs/version/Versions";
 import Compare from "@/pages/prompt/playground-tabs/version/compare/Compare";
-import LogsTable from "@/pages/prompt/playground-tabs/logs/LogsTab";
 import { LogsPage } from "@/pages/logs/LogsPage";
 
 import Api from "@/pages/prompt/playground-tabs/api/Api";

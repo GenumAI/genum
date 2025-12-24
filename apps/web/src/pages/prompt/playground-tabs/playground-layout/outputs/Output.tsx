@@ -254,6 +254,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		clearOutput,
 		setCurrentAssertionType,
 		setAssertionValue,
+		fetchStatusCounts,
 	} = usePlaygroundActions();
 	const { currentAssertionType, assertionValue, selectedMemoryId } = usePlaygroundTestcase();
 
@@ -446,6 +447,9 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		if (ok) {
 			setModifiedValue("");
 			setExpectedMetrics(undefined);
+			if (promptId) {
+				fetchStatusCounts(promptId);
+			}
 			onTestcaseAdded?.();
 		}
 

@@ -1,42 +1,19 @@
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
 import { useEffect } from "react";
-import { usePlaygroundActions } from "@/stores/playground.store";
-import { TestCase } from "@/types/TestСase";
-import { promptApi } from "@/api/prompt";
-
-type TestCaseList = {
-	testcases: TestCase[];
-};
+import { usePlaygroundActions, usePlaygroundTestcase } from "@/stores/playground.store";
 
 export const useTestcaseStatusCounts = (promptId?: number | string) => {
-	const { setTestcaseStatusCounts } = usePlaygroundActions();
-
-	const { data, refetch, isLoading } = useQueryWithAuth<TestCaseList>({
-		keys: ["testcasesForPromt", String(promptId || "none")],
-		enabled: !!promptId,
-		queryFn: async () => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			return await promptApi.getPromptTestcases(promptId);
-		},
-	});
+	const { fetchTestcases } = usePlaygroundActions();
+	const { testcaseStatusCounts } = usePlaygroundTestcase();
 
 	useEffect(() => {
-		if (data?.testcases) {
-			const counts = { ok: 0, nok: 0, needRun: 0 };
-			data.testcases.forEach((tc) => {
-				if (tc.status === "OK") {
-					counts.ok++;
-				} else if (tc.status === "NOK") {
-					counts.nok++;
-				} else if (tc.status === "NEED_RUN") {
-					counts.needRun++;
-				}
-			});
-			setTestcaseStatusCounts(counts);
-		} else {
-			setTestcaseStatusCounts({ ok: 0, nok: 0, needRun: 0 });
+		if (promptId) {
+			fetchTestcases(promptId);
 		}
-	}, [data, setTestcaseStatusCounts]);
+	}, [promptId, fetchTestcases]);
 
-	return { data, refetch, isLoading };
+	return {
+		data: testcaseStatusCounts, // Return the counts directly
+		refetch: () => promptId && fetchTestcases(promptId),
+		isLoading: false, // Loading state can be added to store if needed, but for now we simplify
+	};
 };

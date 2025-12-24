@@ -1,15 +1,27 @@
-import { createWithEqualityFn } from "zustand/traditional";
+import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { shallow } from "zustand/shallow";
-import { AuditData } from "@/types/audit";
-import { PromptResponse } from "@/hooks/useRunPrompt";
+import { useShallow } from "zustand/react/shallow";
+import { promptApi } from "@/api/prompt/prompt.api";
+import type { PromptResponse } from "@/api/prompt/prompt.api";
+import { testcasesApi } from "@/api/testcases/testcases.api";
+import { calculateTestcaseStatusCounts } from "@/lib/testcaseUtils";
+import type { AuditData } from "@/types/audit";
+import type { TestCase } from "@/types/TestСase";
 
 export const defaultPromptResponse: PromptResponse = {
 	answer: "",
-	tokens: { total: 0, prompt: 0, completion: 0 },
-	cost: { total: 0, prompt: 0, completion: 0 },
+	tokens: {
+		prompt: 0,
+		completion: 0,
+		total: 0,
+	},
+	cost: {
+		prompt: 0,
+		completion: 0,
+		total: 0,
+	},
 	response_time_ms: 0,
-	status: "success",
+	status: "",
 };
 
 // Interface for Data
@@ -26,6 +38,7 @@ interface PlaygroundData {
 	isUpdatingPromptContent: boolean;
 	isFormattingUpdate: boolean;
 	isUncommitted: boolean;
+	isStatusCountsLoading: boolean;
 
 	modalOpen: boolean;
 	showAuditModal: boolean;
@@ -53,6 +66,7 @@ interface PlaygroundData {
 		nok: number;
 		needRun: number;
 	};
+	testcases: TestCase[];
 }
 
 // Interface for Actions
@@ -60,7 +74,7 @@ interface PlaygroundActions {
 	setFlags: (flags: Partial<PlaygroundData>) => void;
 	setInputContent: (inputContent: string) => void;
 	setOutputContent: (outputContent: PromptResponse | null) => void;
-	setExpectedOutput: (outputContent: PromptResponse | null) => void;
+	setExpectedOutput: (expectedOutput: PromptResponse | null) => void;
 	setCurrentExpectedThoughts: (thoughts: string) => void;
 	setCurrentAssertionType: (type: string) => void;
 	setOriginalPromptContent: (content: string) => void;
@@ -72,6 +86,10 @@ interface PlaygroundActions {
 	setSelectedMemoryKeyName: (name: string) => void;
 	setPersistedMemoryId: (id: string) => void;
 	setTestcaseStatusCounts: (counts: { ok: number; nok: number; needRun: number }) => void;
+	setTestcases: (testcases: TestCase[]) => void;
+	updateSingleTestcase: (testcase: TestCase) => void;
+	fetchTestcases: (promptId: number | string) => Promise<void>;
+	fetchAllTestcases: () => Promise<void>;
 
 	clearOutput: () => void;
 	resetForNewTestcase: () => void;
@@ -79,7 +97,6 @@ interface PlaygroundActions {
 	clearAllState: () => void;
 }
 
-// Combined State Interface
 type PlaygroundState = PlaygroundData & PlaygroundActions;
 
 const initialState: PlaygroundData = {
@@ -95,6 +112,7 @@ const initialState: PlaygroundData = {
 	isUpdatingPromptContent: false,
 	isFormattingUpdate: false,
 	isUncommitted: false,
+	isStatusCountsLoading: false,
 
 	modalOpen: false,
 	showAuditModal: false,
@@ -122,10 +140,11 @@ const initialState: PlaygroundData = {
 		nok: 0,
 		needRun: 0,
 	},
+	testcases: [],
 };
 
 // Store creation
-const usePlaygroundStore = createWithEqualityFn<PlaygroundState>()(
+const usePlaygroundStore = create<PlaygroundState>()(
 	devtools(
 		(set, get) => ({
 			...initialState,
@@ -190,6 +209,62 @@ const usePlaygroundStore = createWithEqualityFn<PlaygroundState>()(
 			setTestcaseStatusCounts: (counts) => {
 				return set({ testcaseStatusCounts: counts }, false, "setTestcaseStatusCounts");
 			},
+			setTestcases: (testcases) => {
+				return set({ testcases }, false, "setTestcases");
+			},
+			updateSingleTestcase: (testcase: TestCase) => {
+				const { testcases } = get();
+				const newTestcases = testcases.map((tc: TestCase) =>
+					tc.id === testcase.id ? testcase : tc,
+				);
+				const counts = calculateTestcaseStatusCounts(newTestcases);
+				return set(
+					{ testcases: newTestcases, testcaseStatusCounts: counts },
+					false,
+					"updateSingleTestcase",
+				);
+			},
+			fetchTestcases: async (promptId) => {
+				if (!promptId) return;
+				set({ isStatusCountsLoading: true }, false, "fetchTestcases/loading");
+				try {
+					const result = await promptApi.getPromptTestcases(promptId);
+					if (result?.testcases) {
+						const counts = calculateTestcaseStatusCounts(result.testcases);
+						set(
+							{
+								testcaseStatusCounts: counts,
+								testcases: result.testcases,
+								isStatusCountsLoading: false,
+							},
+							false,
+							"fetchTestcases/success",
+						);
+					}
+				} catch (error) {
+					console.error("Failed to fetch testcases in store", error);
+					set({ isStatusCountsLoading: false }, false, "fetchTestcases/error");
+				}
+			},
+			fetchAllTestcases: async () => {
+				set({ isStatusCountsLoading: true }, false, "fetchAllTestcases/loading");
+				try {
+					const result = await testcasesApi.getTestcases();
+					if (result?.testcases) {
+						set(
+							{
+								testcases: result.testcases,
+								isStatusCountsLoading: false,
+							},
+							false,
+							"fetchAllTestcases/success",
+						);
+					}
+				} catch (error) {
+					console.error("Failed to fetch all testcases in store", error);
+					set({ isStatusCountsLoading: false }, false, "fetchAllTestcases/error");
+				}
+			},
 
 			clearOutput: () => {
 				return set({ outputContent: null, clearedOutput: null }, false, "clearOutput");
@@ -200,13 +275,11 @@ const usePlaygroundStore = createWithEqualityFn<PlaygroundState>()(
 					{
 						inputContent: "",
 						currentExpectedThoughts: "",
-						clearedOutput: null,
-						isTestcaseLoaded: false,
-						modalOpen: false,
-						status: "",
 						outputContent: null,
+						clearedOutput: null,
 						expectedOutput: null,
-						hasInputContent: false,
+						isTestcaseLoaded: false,
+						assertionValue: "",
 					},
 					false,
 					"resetForNewTestcase",
@@ -215,12 +288,7 @@ const usePlaygroundStore = createWithEqualityFn<PlaygroundState>()(
 
 			resetOutput: () => {
 				return set(
-					{
-						outputContent: null,
-						expectedOutput: null,
-						currentExpectedThoughts: "",
-						clearedOutput: null,
-					},
+					{ outputContent: null, clearedOutput: null, expectedOutput: null },
 					false,
 					"resetOutput",
 				);
@@ -229,21 +297,11 @@ const usePlaygroundStore = createWithEqualityFn<PlaygroundState>()(
 			clearAllState: () => {
 				return set(
 					{
-						inputContent: "",
-						outputContent: null,
-						clearedOutput: null,
-						expectedOutput: null,
-						currentExpectedThoughts: "",
-						originalPromptContent: "",
-						livePromptValue: "",
-						isTestcaseLoaded: false,
-						modalOpen: false,
-						status: "",
-						hasPromptContent: false,
-						hasInputContent: false,
+						...initialState,
 						selectedMemoryId: "",
 						selectedMemoryKeyName: "",
 						persistedMemoryId: "",
+						testcases: [],
 					},
 					false,
 					"clearAllState",
@@ -257,7 +315,7 @@ const usePlaygroundStore = createWithEqualityFn<PlaygroundState>()(
 // Grouped Selectors
 export const usePlaygroundUI = () =>
 	usePlaygroundStore(
-		(state) => ({
+		useShallow((state) => ({
 			modalOpen: state.modalOpen,
 			showAuditModal: state.showAuditModal,
 			diffModalInfo: state.diffModalInfo,
@@ -267,13 +325,13 @@ export const usePlaygroundUI = () =>
 			isAuditLoading: state.isAuditLoading,
 			isUpdatingPromptContent: state.isUpdatingPromptContent,
 			status: state.status,
-		}),
-		shallow,
+			isStatusCountsLoading: state.isStatusCountsLoading,
+		})),
 	);
 
 export const usePlaygroundContent = () =>
 	usePlaygroundStore(
-		(state) => ({
+		useShallow((state) => ({
 			inputContent: state.inputContent,
 			outputContent: state.outputContent,
 			clearedOutput: state.clearedOutput,
@@ -283,23 +341,21 @@ export const usePlaygroundContent = () =>
 			livePromptValue: state.livePromptValue,
 			hasPromptContent: state.hasPromptContent,
 			hasInputContent: state.hasInputContent,
-		}),
-		shallow,
+		})),
 	);
 
 export const usePlaygroundAudit = () =>
 	usePlaygroundStore(
-		(state) => ({
+		useShallow((state) => ({
 			currentAuditData: state.currentAuditData,
 			isAuditLoading: state.isAuditLoading,
 			isPromptChangedAfterAudit: state.isPromptChangedAfterAudit,
-		}),
-		shallow,
+		})),
 	);
 
 export const usePlaygroundTestcase = () =>
 	usePlaygroundStore(
-		(state) => ({
+		useShallow((state) => ({
 			currentAssertionType: state.currentAssertionType,
 			isTestcaseLoaded: state.isTestcaseLoaded,
 			assertionValue: state.assertionValue,
@@ -307,13 +363,13 @@ export const usePlaygroundTestcase = () =>
 			selectedMemoryKeyName: state.selectedMemoryKeyName,
 			persistedMemoryId: state.persistedMemoryId,
 			testcaseStatusCounts: state.testcaseStatusCounts,
-		}),
-		shallow,
+			testcases: state.testcases,
+		})),
 	);
 
 export const usePlaygroundActions = () =>
 	usePlaygroundStore(
-		(state) => ({
+		useShallow((state) => ({
 			setFlags: state.setFlags,
 			setInputContent: state.setInputContent,
 			setOutputContent: state.setOutputContent,
@@ -329,12 +385,15 @@ export const usePlaygroundActions = () =>
 			setSelectedMemoryKeyName: state.setSelectedMemoryKeyName,
 			setPersistedMemoryId: state.setPersistedMemoryId,
 			setTestcaseStatusCounts: state.setTestcaseStatusCounts,
+			setTestcases: state.setTestcases,
+			updateSingleTestcase: state.updateSingleTestcase,
+			fetchTestcases: state.fetchTestcases,
+			fetchAllTestcases: state.fetchAllTestcases,
 			clearOutput: state.clearOutput,
 			resetForNewTestcase: state.resetForNewTestcase,
 			resetOutput: state.resetOutput,
 			clearAllState: state.clearAllState,
-		}),
-		shallow,
+		})),
 	);
 
 export default usePlaygroundStore;

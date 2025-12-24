@@ -1,4 +1,4 @@
-import { testcasesApi, CreateTestcaseData } from "@/api/testcases/testcases.api";
+import { testcasesApi } from "@/api/testcases/testcases.api";
 import { useMutation } from "@tanstack/react-query";
 
 export interface TestcasePayload {

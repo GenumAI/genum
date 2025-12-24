@@ -5,32 +5,15 @@ import {
 	ChevronLeft,
 	ChevronDown,
 	SquareTerminal,
-	AlertTriangle,
-	CheckCircle,
-	XCircle,
 	BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate, useParams } from "react-router-dom";
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { promptApi } from "@/api/prompt";
 import { JSONTree } from "react-json-tree";
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import { RollBackButton } from "./RollbackButton";
-
-interface ModelType {
-	id: number;
-	name: string;
-	vendor: string;
-	promptPrice: number;
-	completionPrice: number;
-	contextTokensMax: number;
-	completionTokensMax: number;
-	description: string;
-	createdAt: string;
-	updatedAt: string;
-}
 
 interface AuditRisk {
 	type: string;
@@ -68,15 +51,15 @@ const jsonThemeLight = {
 
 const jsonThemeDark = {
 	scheme: "custom-dark",
-	base00: "#0b0c10", // background
-	base01: "#111318", // subtle bg
-	base02: "#171a20", // muted bg
-	base03: "#7f8791", // muted-foreground
+	base00: "#0b0c10", 
+	base01: "#111318", 
+	base02: "#171a20",
+	base03: "#7f8791", 
 	base04: "#a6adb7",
-	base05: "#e6e8eb", // foreground
+	base05: "#e6e8eb", 
 	base06: "#f2f4f7",
 	base07: "#ffffff",
-	base08: "#2b6cb0", // accent – той самий колір
+	base08: "#2b6cb0", 
 	base09: "#2b6cb0",
 	base0A: "#2b6cb0",
 	base0B: "#2b6cb0",
@@ -86,32 +69,6 @@ const jsonThemeDark = {
 	base0F: "#2b6cb0",
 };
 
-const getRiskLevelIcon = (level: string) => {
-	switch (level) {
-		case "high":
-			return <XCircle className="h-4 w-4 text-destructive" />;
-		case "medium":
-			return <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />;
-		case "low":
-			return <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />;
-		default:
-			return <AlertTriangle className="h-4 w-4 text-muted-foreground" />;
-	}
-};
-
-const getRiskLevelColor = (level: string) => {
-	switch (level) {
-		case "high":
-			return "text-destructive bg-destructive/10 border-destructive/30";
-		case "medium":
-			return "text-yellow-700 dark:text-yellow-400 bg-yellow-500/10 border-yellow-500/30";
-		case "low":
-			return "text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/30";
-		default:
-			return "text-muted-foreground bg-muted border-border";
-	}
-};
-
 export default function VersionDetails() {
 	const navigate = useNavigate();
 	const { id, versionId } = useParams<{ id: string; versionId: string }>();
@@ -119,31 +76,33 @@ export default function VersionDetails() {
 	const [toolsViewMode, setToolsViewMode] = useState<"tree" | "raw">("tree");
 	const [showAuditModal, setShowAuditModal] = useState(false);
 
-	const { data } = useQueryWithAuth({
-		keys: ["commitData"],
-		queryFn: async () => {
-			if (!id || !versionId) throw new Error("ID and versionId are required");
-			return await promptApi.getVersion(id, versionId);
-		},
-	});
+	const [data, setData] = useState<any>(null);
 
-	const { data: models } = useQueryWithAuth({
-		keys: ["prompts_models"],
-		queryFn: async () => {
-			return await promptApi.getModels();
-		},
-	});
+	const fetchData = useCallback(async () => {
+		if (!id || !versionId) return;
+		try {
+			const versionData = await promptApi.getVersion(id, versionId);
+			setData(versionData);
+		} catch (error) {
+			console.error("Failed to fetch version details", error);
+		}
+	}, [id, versionId]);
+
+	useEffect(() => {
+		fetchData();
+	}, [fetchData]);
 
 	const backHandler = () => {
 		navigate(-1);
 	};
 
-	const handleOpenAuditModal = () => setShowAuditModal(true);
-	const handleCloseAuditModal = () => setShowAuditModal(false);
+	const handleOpenAuditModal = useCallback(() => {
+		setShowAuditModal(true);
+	}, []);
 
-	const modelsForThisVersion = useMemo(() => {
-		return models?.models.find((item: ModelType) => item.id === data?.version.languageModelId);
-	}, [data, models]);
+	const handleCloseAuditModal = useCallback(() => {
+		setShowAuditModal(false);
+	}, []);
 
 	const parsedSchema = useMemo(() => {
 		try {
@@ -160,7 +119,7 @@ export default function VersionDetails() {
 	}, [data]);
 
 	const parsedTools = useMemo(() => {
-		const tools = data?.version.languageModelConfig?.tools;
+		const tools = data?.version?.languageModelConfig?.tools;
 		if (!tools || !Array.isArray(tools) || tools.length === 0) {
 			return null;
 		}
@@ -168,11 +127,11 @@ export default function VersionDetails() {
 	}, [data]);
 
 	const auditData: AuditData | null = useMemo(() => {
-		return data?.version.audit || null;
-	}, [data?.version.audit]);
+		return data?.version?.audit || null;
+	}, [data?.version?.audit]);
 
 	const modelConfigParams = useMemo(() => {
-		if (!data?.version.languageModelConfig) return [];
+		if (!data?.version?.languageModelConfig) return [];
 
 		const config = data.version.languageModelConfig;
 		return Object.entries(config)
@@ -192,13 +151,7 @@ export default function VersionDetails() {
 				}
 				return [key, displayValue] as [string, string];
 			});
-	}, [data?.version.languageModelConfig]);
-
-	const getScoreColor = (score: number) => {
-		if (score >= 80) return "text-green-600 dark:text-green-400";
-		if (score >= 60) return "text-yellow-600 dark:text-yellow-400";
-		return "text-destructive";
-	};
+	}, [data?.version?.languageModelConfig]);
 
 	// choose the theme for JSONTree under the current mode
 	const isDark =
@@ -218,19 +171,19 @@ export default function VersionDetails() {
 						<Card className="bg-muted rounded-md border border-border shadow-sm">
 							<CardContent className="p-6">
 								<div className="text-base leading-5 font-medium mb-6 text-foreground">
-									{data?.version.commitMsg}
+									{data?.version?.commitMsg}
 								</div>
 								<div className="flex items-center space-x-2.5 text-sm text-muted-foreground">
 									<span className="text-xs font-medium px-2.5 py-0 rounded-sm border border-border text-foreground">
-										{data?.version.commitHash
-											? data?.version.commitHash.substring(0, 8)
+										{data?.version?.commitHash
+											? data?.version?.commitHash.substring(0, 8)
 											: ""}
 									</span>
 									<span className="text-green-600 dark:text-green-400 text-xs font-medium px-2.5 py-0 rounded-sm border border-green-600/40 dark:border-green-400/40 bg-green-500/10">
-										{data?.version.branch?.name}
+										{data?.version?.branch?.name}
 									</span>
-									<span>{new Date(data.version.createdAt).toLocaleString()}</span>
-									<span>by {data?.version.author?.name}</span>
+									<span>{new Date(data?.version?.createdAt).toLocaleString()}</span>
+									<span>by {data?.version?.author?.name}</span>
 								</div>
 							</CardContent>
 						</Card>
@@ -245,14 +198,14 @@ export default function VersionDetails() {
 								<CardContent className="p-6">
 									<div className="inline-flex items-center mb-4">
 										<span className="text-xs text-[#b66ad6] border border-[#b66ad6] font-medium px-2 py-0.5 rounded-sm mr-2 bg-[#b66ad6]/10">
-											{data?.version.languageModel?.vendor}
+											{data?.version?.languageModel?.vendor}
 										</span>
 										<span className="text-sm text-foreground font-medium">
-											{data?.version.languageModel?.name}
+											{data?.version?.languageModel?.name}
 										</span>
 									</div>
 									<p className="text-sm text-muted-foreground mb-4">
-										{data?.version.languageModel?.description}
+										{data?.version?.languageModel?.description}
 									</p>
 									{modelConfigParams.length > 0 && (
 										<div className="overflow-hidden rounded-md border border-border">
@@ -310,7 +263,7 @@ export default function VersionDetails() {
 										</AccordionPrimitive.Header>
 										<AccordionPrimitive.Content className="bg-card">
 											<div className="mb-4 inline-flex overflow-hidden px-4 pt-4">
-												<button
+												<button type="button"
 													onClick={() => setSchemaViewMode("tree")}
 													className={cn(
 														"px-4 py-1.5 text-sm font-medium focus:outline-none rounded-l-md border",
@@ -321,7 +274,7 @@ export default function VersionDetails() {
 												>
 													Tree
 												</button>
-												<button
+												<button type="button"
 													onClick={() => setSchemaViewMode("raw")}
 													className={cn(
 														"px-4 py-1.5 text-sm font-medium focus:outline-none rounded-r-md border",
@@ -374,7 +327,7 @@ export default function VersionDetails() {
 										</AccordionPrimitive.Header>
 										<AccordionPrimitive.Content className="bg-card">
 											<div className="mb-4 inline-flex overflow-hidden px-4 pt-4">
-												<button
+												<button type="button"
 													onClick={() => setToolsViewMode("tree")}
 													className={cn(
 														"px-4 py-1.5 text-sm font-medium focus:outline-none rounded-l-md border",
@@ -385,7 +338,7 @@ export default function VersionDetails() {
 												>
 													Tree
 												</button>
-												<button
+												<button type="button"
 													onClick={() => setToolsViewMode("raw")}
 													className={cn(
 														"px-4 py-1.5 text-sm font-medium focus:outline-none rounded-r-md border",
@@ -467,7 +420,7 @@ export default function VersionDetails() {
 						)}
 
 						{/* Prompt Content */}
-						{data.version.value && data.version.value.trim() && (
+						{data?.version?.value?.trim() && (
 							<div>
 								<h3 className="text-lg font-semibold text-foreground mb-3">
 									Prompt Content
@@ -475,7 +428,7 @@ export default function VersionDetails() {
 								<Card className="bg-muted rounded-md border border-border shadow-sm max-h-[300px] overflow-auto">
 									<CardContent className="p-6">
 										<div className="text-sm text-foreground break-words break-all hyphens-auto whitespace-pre-line">
-											{data.version.value}
+											{data?.version?.value}
 										</div>
 									</CardContent>
 								</Card>
@@ -487,7 +440,7 @@ export default function VersionDetails() {
 					{auditData && (
 						<AuditResultsModal
 							promptId={id || ""}
-							promptValue={data?.version.value || ""}
+							promptValue={data?.version?.value || ""}
 							existingAuditData={auditData}
 							isOpen={showAuditModal}
 							onClose={handleCloseAuditModal}

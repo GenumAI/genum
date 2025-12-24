@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import clsx from "clsx";
 import type { Options } from "@/hooks/usePrompt";
@@ -13,9 +12,7 @@ import type { PromptResponse } from "@/hooks/useRunPrompt";
 import { useRunPrompt } from "@/hooks/useRunPrompt";
 import { Button } from "@/components/ui/button";
 import SettingsBar from "@/pages/prompt/playground-tabs/playground-layout/settings-block/SettingsBar";
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
 import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDialog";
-import useMutationWithAuth from "@/hooks/useMutationWithAuth";
 import useAuditDataModal from "@/hooks/useAuditDataModal";
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
@@ -23,7 +20,6 @@ import { InputTextArea } from "@/pages/prompt/playground-tabs/playground-layout/
 import { useSidebar } from "@/components/sidebar/sidebar";
 import type { AuditData } from "@/types/audit";
 import type { Model } from "@/types/AIModel";
-import type { TestCaseResponse } from "@/types/TestСase";
 import { usePromptStatus } from "@/contexts/PromptStatusContext";
 import {
 	usePlaygroundContent,
@@ -82,14 +78,15 @@ export default function Playground() {
 		setCurrentAssertionType,
 		resetForNewTestcase,
 		clearAllState,
+		fetchTestcases,
 	} = usePlaygroundActions();
 	const {
 		outputContent: storeOutputContent,
 		clearedOutput,
 		currentExpectedThoughts,
 	} = usePlaygroundContent();
-	const { currentAssertionType } = usePlaygroundTestcase();
-	const { modalOpen, status, wasRun, isTestcaseLoaded } = usePlaygroundUI();
+	const { currentAssertionType, testcases } = usePlaygroundTestcase();
+	const { modalOpen, status, wasRun, isStatusCountsLoading } = usePlaygroundUI();
 	const get = usePlaygroundStore.getState;
 
 	const [, setIsUncommitted] = useState(false);
@@ -120,9 +117,25 @@ export default function Playground() {
 	const { toast } = useToast();
 	const [searchParams] = useSearchParams();
 	const testcaseId = searchParams.get("testcaseId");
-	const queryClient = useQueryClient();
 	const { setAuditDataModal } = useAuditDataModal();
 	const navigate = useNavigate();
+
+	const [models, setModels] = useState<Model[]>([]);
+
+	const fetchModels = useCallback(async () => {
+		try {
+			const data = await promptApi.getModels();
+			if (data?.models) {
+				setModels(data.models);
+			}
+		} catch (error) {
+			console.error("Error fetching models:", error);
+		}
+	}, []);
+
+	useEffect(() => {
+		fetchModels();
+	}, [fetchModels]);
 
 	useTestcaseStatusCounts(promptId);
 
@@ -151,16 +164,7 @@ export default function Playground() {
 		if (prompt?.prompt?.assertionType) {
 			setCurrentAssertionType(prompt.prompt.assertionType);
 		}
-	}, [prompt?.prompt?.assertionType]);
-
-	const modelsQuery = useQueryWithAuth<{ models: Model[] }>({
-		keys: ["prompts", "models"],
-		queryFn: async () => {
-			return await promptApi.getModels();
-		},
-		onError: (err) => {},
-	});
-
+	}, [prompt?.prompt?.assertionType, setCurrentAssertionType]);
 
 	const { runPrompt, result: outputContent, loading: runLoading } = useRunPrompt();
 
@@ -168,23 +172,12 @@ export default function Playground() {
 		if (outputContent && outputContent.answer !== undefined && outputContent.answer !== null) {
 			setOutputContent(outputContent);
 		}
-	}, [outputContent, setOutputContent, testcaseId, get]);
+	}, [outputContent, setOutputContent]);
 
-	const {
-		data: testcaseData,
-		isLoading: testcaseQueryIsLoading,
-		refetch: refetchTestcase,
-	} = useQueryWithAuth<TestCaseResponse>({
-		url: testcaseId ? `/testcases/${testcaseId}` : "/testcases/null",
-		keys: ["testcaseById", testcaseId || "null"],
-		enabled: !!testcaseId,
-		options: {
-			gcTime: 0,
-			staleTime: 0,
-		},
-	});
-	const { mutation: saveAsExpectedMutation } = useMutationWithAuth<TestCaseResponse>();
-	const testcase = testcaseData?.testcase || null;
+	const testcase = useMemo(() => {
+		if (!testcaseId || !testcases.length) return null;
+		return testcases.find((tc) => tc.id === Number(testcaseId)) || null;
+	}, [testcases, testcaseId]);
 
 	useEffect(() => {
 		const prevTestcaseId = prevTestcaseIdRef.current;
@@ -195,10 +188,7 @@ export default function Playground() {
 		}
 
 		prevTestcaseIdRef.current = currentTestcaseId;
-	}, [
-		testcaseId,
-		resetForNewTestcase,
-	]);
+	}, [testcaseId, resetForNewTestcase]);
 
 	useEffect(() => {
 		if (testcase) {
@@ -242,7 +232,6 @@ export default function Playground() {
 		setFlags,
 	]);
 
-
 	useEffect(() => {
 		if (prompt?.prompt) {
 			const promptCommitted = prompt.prompt.commited || false;
@@ -252,7 +241,7 @@ export default function Playground() {
 				setIsUncommitted(!promptCommitted);
 			}
 		}
-	}, [prompt?.prompt?.commited, prompt?.prompt?.updatedAt, isFormattingUpdate, setIsCommitted]);
+	}, [prompt?.prompt, isFormattingUpdate, setIsCommitted]);
 
 	const auditPrompt = async () => {
 		if (!promptId || !prompt?.prompt?.value || isAuditLoading) return;
@@ -286,45 +275,16 @@ export default function Playground() {
 		setShowAuditModal(false);
 	};
 
-	const handleAuditComplete = useCallback(
-		(auditData: AuditData) => {
-			setCurrentAuditData(auditData);
-			setIsPromptChangedAfterAudit(false);
-			if (promptId) {
-				queryClient.setQueryData(["prompt", promptId], (oldData: any) => {
-					if (!oldData) return oldData;
-					return {
-						...oldData,
-						prompt: {
-							...oldData.prompt,
-							audit: {
-								data: auditData,
-							},
-						},
-					};
-				});
-			}
-		},
-		[promptId, queryClient],
-	);
+	const handleAuditComplete = useCallback((auditData: AuditData) => {
+		setCurrentAuditData(auditData);
+		setIsPromptChangedAfterAudit(false);
+	}, []);
 
 	const handleTestcaseAdded = useCallback(async () => {
 		resetForNewTestcase();
 		setInputContent("");
-
-		try {
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: ["prompt", promptId],
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ["testcasesForPromt", String(promptId)],
-				}),
-			]);
-		} catch (error) {
-			console.error("Error invalidating queries after adding testcase:", error);
-		}
-	}, [queryClient, promptId, resetForNewTestcase, setInputContent]);
+		window.dispatchEvent(new CustomEvent("testcaseUpdated"));
+	}, [resetForNewTestcase, setInputContent]);
 
 	const markAsUncommitted = useCallback(() => {}, []);
 
@@ -336,7 +296,7 @@ export default function Playground() {
 		markAsUncommittedRef.current = markAsUncommitted;
 	}, [markAsUncommitted]);
 
-	const isContentChangeSignificant = (oldContent: string, newContent: string): boolean => {
+	const isContentChangeSignificant = useCallback((oldContent: string, newContent: string): boolean => {
 		const normalize = (str: string) =>
 			str
 				.replace(/\s+/g, " ")
@@ -351,7 +311,7 @@ export default function Playground() {
 		const lengthDiff = Math.abs(normalizedOld.length - normalizedNew.length);
 
 		return normalizedOld !== normalizedNew && lengthDiff > 5;
-	};
+	}, []);
 
 	const [isUpdatingPromptContent, setIsUpdatingPromptContent] = useState(false);
 
@@ -371,17 +331,11 @@ export default function Playground() {
 
 	useEffect(() => {
 		const currentContent = prompt?.prompt?.value || "";
-		const isCommited = prompt?.prompt?.commited;
 
 		if (!isUpdatingPromptContent) {
 			setOriginalPromptContent(currentContent);
 		}
-	}, [
-		prompt?.prompt?.value,
-		prompt?.prompt?.commited,
-		isUpdatingPromptContent,
-		setOriginalPromptContent,
-	]);
+	}, [prompt?.prompt?.value, isUpdatingPromptContent, setOriginalPromptContent]);
 
 	const updatePromptContent = useCallback(
 		async (
@@ -415,23 +369,19 @@ export default function Playground() {
 					setIsCommitted(false);
 
 					await updatePromptName({ value: updateValue }, options as Options);
-
-					if (isSignificantChange || options?.isEmpty) {
-					}
 				}
 
 				if (options?.isFormattingOnly) {
 					setIsFormattingUpdate(false);
 				}
 			} catch (error) {
+				console.error("Failed to update prompt content:", error);
 			} finally {
 				setIsUpdatingPromptContent(false);
 			}
 		},
 		[
 			updatePromptName,
-			queryClient,
-			promptId,
 			isUpdatingPromptContent,
 			prompt?.prompt?.value,
 			isContentChangeSignificant,
@@ -448,28 +398,14 @@ export default function Playground() {
 				});
 				setCurrentAuditData(null);
 				setIsPromptChangedAfterAudit(true);
-
-				if (promptId) {
-					queryClient.setQueryData(["prompt", promptId], (oldData: any) => {
-						if (!oldData) return oldData;
-						return {
-							...oldData,
-							prompt: {
-								...oldData.prompt,
-								audit: undefined,
-							},
-						};
-					});
-				}
 			}
 			setDiffModalInfo(null);
 		},
-		[updatePromptContent, promptId, queryClient],
+		[updatePromptContent],
 	);
 
 	const handleSaveAsExpected = useCallback(
 		async (newExpectedContent: UpdateExpected) => {
-			// Update store with expected output even in prompt mode (without testcaseId)
 			const expectedOutputData = {
 				answer: newExpectedContent.answer,
 				tokens: storeOutputContent?.tokens || defaultPromptResponse.tokens,
@@ -490,40 +426,16 @@ export default function Playground() {
 					expectedChainOfThoughts: currentExpectedThoughts || "",
 				};
 
-				await saveAsExpectedMutation.mutateAsync({
-					url: `/testcases/${testcaseId}`,
-					method: "PUT",
-					data: updateData,
-				});
-
-				queryClient.setQueryData(["testcaseById", testcaseId], (oldData: any) => {
-					if (!oldData) {
-						return oldData;
-					}
-
-					const updatedTestcase = {
-						...oldData.testcase,
-						expectedOutput: newExpectedContent.answer,
-						expectedChainOfThoughts: currentExpectedThoughts || "",
-					};
-
-					return {
-						...oldData,
-						testcase: updatedTestcase,
-					};
-				});
-
-				setTimeout(() => {
-					queryClient.invalidateQueries({
-						queryKey: ["testcaseById", testcaseId],
-					});
-				}, 100);
-			} catch (error) {}
+				await testcasesApi.updateTestcase(testcaseId, updateData);
+				if (promptId) await fetchTestcases(promptId);
+			} catch (error) {
+				console.error("Failed to save as expected:", error);
+			}
 		},
 		[
 			testcaseId,
-			saveAsExpectedMutation,
-			queryClient,
+			promptId,
+			fetchTestcases,
 			setExpectedOutput,
 			storeOutputContent,
 			currentExpectedThoughts,
@@ -549,7 +461,7 @@ export default function Playground() {
 				});
 			}
 		},
-		[updatePromptContent, toast],
+		[updatePromptContent, toast, updatePromptError],
 	);
 
 	useEffect(() => {
@@ -577,12 +489,14 @@ export default function Playground() {
 						}),
 					);
 				}
-			} catch (error) {}
+			} catch (error) {
+				console.error("Failed to fetch latest prompt data:", error);
+			}
 		};
 
 		setTimeout(fetchLatestPromptData, 500);
 		setFlags({ wasRun: false });
-	}, [outputContent, testcaseId, testcase, wasRun, prompt, currentAssertionType, promptId]);
+	}, [outputContent, testcaseId, testcase, wasRun, prompt, currentAssertionType, promptId, setFlags]);
 
 	const handleRegisterClearFunction = useCallback((clearFn: () => void) => {
 		clearExpectedOutputRef.current = clearFn;
@@ -594,25 +508,13 @@ export default function Playground() {
 		if (inputContent !== lastSavedInputRef.current) {
 			try {
 				await testcasesApi.updateTestcase(testcaseId, { input: inputContent });
-
 				lastSavedInputRef.current = inputContent;
-
-				queryClient.setQueryData(["testcaseById", testcaseId], (oldData: any) => {
-					if (!oldData) return oldData;
-
-					return {
-						...oldData,
-						testcase: {
-							...oldData.testcase,
-							input: inputContent,
-						},
-					};
-				});
+				if (promptId) await fetchTestcases(promptId);
 			} catch (error) {
 				console.error("Failed to update testcase input:", error);
 			}
 		}
-	}, [testcaseId, inputContent, queryClient]);
+	}, [testcaseId, inputContent, promptId, fetchTestcases]);
 
 	const handleRun = async () => {
 		if (!promptId) return;
@@ -638,16 +540,14 @@ export default function Playground() {
 				setOutputContent(result);
 				setFlags({ wasRun: true });
 
-				await refetchTestcase();
-				await queryClient.invalidateQueries({
-					queryKey: ["testcasesForPromt", String(promptId)],
-				});
+				await fetchTestcases(promptId);
 
 				window.dispatchEvent(new CustomEvent("testcaseUpdated"));
 			}
 		} catch (error) {
+			console.error("Failed to run prompt/testcase:", error);
 			if (testcaseId) {
-				await refetchTestcase();
+				await fetchTestcases(promptId);
 			}
 		}
 	};
@@ -680,7 +580,7 @@ export default function Playground() {
 		<div className="h-full flex flex-grow-0 max-w-[1470px] ml-3 mr-3 lg:mr-6 w-full text-foreground">
 			<div className="flex flex-col lg:flex-row w-full h-full items-start">
 				<div className="flex w-full flex-col bg-card text-card-foreground border border-border rounded-[12px] mt-0 pt-3 pb-4 px-4 gap-8">
-					{testcaseId && !isTestcaseLoaded && testcaseQueryIsLoading ? (
+					{testcaseId && !testcase && isStatusCountsLoading ? (
 						<div className="flex items-center justify-center h-full">
 							<Loader2 className="animate-spin" />
 							<span className="ml-2">Loading testcase...</span>
@@ -752,7 +652,7 @@ export default function Playground() {
 				>
 					<SettingsBar
 						prompt={prompt?.prompt}
-						models={modelsQuery.data?.models}
+						models={models}
 						tokens={currentTokens}
 						cost={currentCost}
 						responseTime={currentResponseTime}
@@ -770,6 +670,7 @@ export default function Playground() {
 					// @ts-ignore
 					testcase={testcase}
 					status={status}
+					assertionType={currentAssertionType}
 				/>
 			)}
 

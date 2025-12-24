@@ -1,8 +1,5 @@
-import { useParams } from "react-router-dom";
-import { PromptSettings } from "@/types/Prompt";
-import useQueryWithAuth from "./useQueryWithAuth";
-import { useMutation } from "@tanstack/react-query";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useCallback } from "react";
+import type { PromptSettings } from "@/types/Prompt";
 import { promptApi } from "@/api/prompt";
 
 export type Options = { isWithoutUpdate: boolean };
@@ -12,50 +9,54 @@ type PromptResponse = {
 };
 
 export function usePromptById(promptId: number | string | undefined) {
-	const queryClient = useQueryClient();
-	const queryKey = ["prompt", String(promptId)];
+	const [data, setData] = useState<PromptResponse | null>(null);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-	const {
-		data,
-		isLoading: loading,
-		error: queryError,
-	} = useQueryWithAuth<PromptResponse>({
-		keys: queryKey,
-		enabled: !!promptId,
-		queryFn: async () => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			return await promptApi.getPrompt(promptId);
-		},
-	});
+	const fetchPrompt = useCallback(async () => {
+		if (!promptId) return;
+		setLoading(true);
+		setError(null);
+		try {
+			const result = await promptApi.getPrompt(promptId);
+			setData(result);
+		} catch (err: any) {
+			setError(err.message || "Failed to fetch prompt");
+		} finally {
+			setLoading(false);
+		}
+	}, [promptId]);
 
-	const updatePromptMutation = useMutation<PromptResponse, Error, Partial<PromptSettings>>({
-		mutationFn: async (updateData) => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			return await promptApi.updatePrompt(promptId, updateData);
-		},
-		onSuccess: (data) => {
-			if (data) {
-				queryClient.setQueryData(queryKey, (oldData: any) => {
-					if (!oldData) return data;
-					return { ...oldData, prompt: data.prompt || data };
-				});
-			}
-		},
-	});
+	useEffect(() => {
+		fetchPrompt();
+	}, [fetchPrompt]);
 
-	const updatePromptName = async (updateData: Partial<PromptSettings>, options?: Options) => {
+	const updatePromptName = async (updateData: Partial<PromptSettings>, _options?: Options) => {
 		if (!promptId) return;
 
-		const updated = await updatePromptMutation.mutateAsync(updateData);
-		return updated;
+		setLoading(true);
+		setError(null);
+		try {
+			const result = await promptApi.updatePrompt(promptId, updateData);
+			if (result) {
+				setData((oldData) => {
+					if (!oldData) return result;
+					return { ...oldData, prompt: result.prompt || result };
+				});
+			}
+			return result;
+		} catch (err: any) {
+			setError(err.message || "Failed to update prompt");
+			throw err;
+		} finally {
+			setLoading(false);
+		}
 	};
-
-	const error = queryError || updatePromptMutation.error;
 
 	return {
 		prompt: data,
 		loading,
-		error: error ? (error as Error).message : null,
+		error,
 		updatePromptName,
 	};
 }

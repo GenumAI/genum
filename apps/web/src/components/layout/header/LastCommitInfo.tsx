@@ -1,7 +1,7 @@
+import { useState, useEffect } from "react";
 import { Clock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
 import { promptApi } from "@/api/prompt";
 
 interface LastCommitInfoProps {
@@ -30,32 +30,35 @@ type BranchesData = {
 };
 
 const LastCommitInfo = ({ promptId }: LastCommitInfoProps) => {
-	const { data } = useQueryWithAuth<BranchesData>({
-		keys: ["branches", String(promptId)],
-		queryFn: async () => {
-			const result = await promptApi.getBranches(promptId);
-			// Transform API response to match expected type (author is required in BranchesData)
-			return {
-				branches: result.branches.map((branch) => ({
-					...branch,
-					promptVersions: branch.promptVersions.map((version) => ({
-						...version,
-						author: version.author || {
-							id: 0,
-							name: "Unknown",
-							email: "",
-							picture: "",
-						},
+	const [data, setData] = useState<BranchesData | null>(null);
+
+	useEffect(() => {
+		const fetchBranches = async () => {
+			if (!promptId) return;
+			try {
+				const result = await promptApi.getBranches(promptId);
+				const branchesData: BranchesData = {
+					branches: result.branches.map((branch) => ({
+						...branch,
+						promptVersions: branch.promptVersions.map((version) => ({
+							...version,
+							author: version.author || {
+								id: 0,
+								name: "Unknown",
+								email: "",
+								picture: "",
+							},
+						})),
 					})),
-				})),
-			} as BranchesData;
-		},
-		options: {
-			staleTime: 5 * 60 * 1000,
-			refetchOnMount: false,
-			refetchOnWindowFocus: false,
-		},
-	});
+				};
+				setData(branchesData);
+			} catch (error) {
+				console.error("❌ Failed to fetch branches:", error);
+			}
+		};
+
+		fetchBranches();
+	}, [promptId]);
 
 	const formatDate = (dateString: string) => {
 		const date = new Date(dateString);

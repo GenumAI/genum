@@ -1,9 +1,8 @@
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import { promptApi } from "@/api/prompt";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { GitFork, GitCompare, Loader2 } from "lucide-react";
@@ -13,7 +12,6 @@ import { SearchInput } from "@/components/ui/searchInput";
 import CommitDialog from "@/components/dialogs/CommitDialog";
 import { toast } from "@/hooks/useToast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useQueryClient } from "@tanstack/react-query";
 
 interface Author {
 	id: number;
@@ -65,18 +63,18 @@ export default function Versions() {
 	}>();
 	const navigate = useNavigate();
 	const [search, setSearch] = useState("");
-	const queryClient = useQueryClient();
+	const [data, setData] = useState<{ branches: Branch[] } | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
 
-	const { data, refetch } = useQueryWithAuth<{ branches: Branch[] }>({
-		keys: ["branches"],
-		queryFn: async () => {
-			if (!id) throw new Error("Prompt ID is required");
+	const fetchBranches = useCallback(async () => {
+		if (!id) return;
+		setIsLoading(true);
+		try {
 			const result = await promptApi.getBranches(id);
-			// Transform API response to match expected type (author is required)
-			return {
-				branches: result.branches.map((branch) => ({
+			const transformed = {
+				branches: result.branches.map((branch: any) => ({
 					...branch,
-					promptVersions: branch.promptVersions.map((version) => ({
+					promptVersions: branch.promptVersions.map((version: any) => ({
 						...version,
 						author: version.author || {
 							id: 0,
@@ -86,17 +84,32 @@ export default function Versions() {
 					})),
 				})),
 			} as { branches: Branch[] };
-		},
-	});
+			setData(transformed);
+		} catch (error) {
+			console.error("Error fetching branches:", error);
+		} finally {
+			setIsLoading(false);
+		}
+	}, [id]);
 
-	const promptQuery = useQueryWithAuth({
-		keys: ["prompt", id || "null"],
-		enabled: !!id,
-		queryFn: async () => {
-			if (!id) throw new Error("Prompt ID is required");
-			return await promptApi.getPrompt(id);
-		},
-	});
+	const fetchPrompt = useCallback(async () => {
+		if (!id) return;
+		try {
+			const result = await promptApi.getPrompt(id);
+			if (result?.prompt?.commited !== undefined) {
+				setIsCommitted(result.prompt.commited);
+			}
+		} catch (error) {
+			console.error("Error fetching prompt:", error);
+		}
+	}, [id]);
+
+	useEffect(() => {
+		fetchBranches();
+		fetchPrompt();
+	}, [fetchBranches, fetchPrompt]);
+
+
 
 	useEffect(() => {
 		if (data?.branches && data.branches.length > 0 && !branch) {
@@ -104,11 +117,6 @@ export default function Versions() {
 		}
 	}, [data, branch]);
 
-	useEffect(() => {
-		if (promptQuery?.data?.prompt?.commited !== undefined) {
-			setIsCommitted(promptQuery.data.prompt.commited);
-		}
-	}, [promptQuery?.data?.prompt?.commited]);
 
 	const dataSearched = useMemo(
 		() => searchBranchesByCommitMsg(data?.branches || [], search),
@@ -138,34 +146,8 @@ export default function Versions() {
 			setCommitDialogOpen(false);
 			setIsCommitted(true);
 
-			queryClient.setQueryData(["prompt", id], (oldData: any) => {
-				if (!oldData) return oldData;
-				return {
-					...oldData,
-					prompt: {
-						...oldData.prompt,
-						commited: true,
-						lastCommit: "committed",
-					},
-				};
-			});
-
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: ["prompt", id],
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ["branches"],
-				}),
-			]);
-
-			setTimeout(async () => {
-				await queryClient.refetchQueries({
-					queryKey: ["prompt", id],
-				});
-			}, 100);
-
-			refetch();
+			await fetchPrompt();
+			fetchBranches();
 			toast({
 				title: "Changes committed successfully",
 			});
@@ -260,7 +242,13 @@ export default function Versions() {
 					</div>
 				</div>
 
-				<CommitTimeline branches={selectedBranchData} />
+				{isLoading ? (
+					<div className="flex items-center justify-center p-8">
+						<Loader2 className="animate-spin" />
+					</div>
+				) : (
+					<CommitTimeline branches={selectedBranchData} />
+				)}
 			</div>
 
 			<CommitDialog

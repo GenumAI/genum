@@ -13,7 +13,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Slider } from "@/components/ui/Slider";
 import { usePromptsModels } from "@/hooks/usePromptsModels";
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
 import {
 	Form,
 	FormControl,
@@ -28,16 +27,12 @@ import { useToast } from "@/hooks/useToast";
 import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
 import SchemaEditDialog from "../../../../../../components/dialogs/SchemaEditDialog";
-import { PromptSettings } from "@/types/Prompt";
-import { Model } from "@/types/AIModel";
+import type { PromptSettings } from "@/types/Prompt";
+import type { Model } from "@/types/AIModel";
 import { TooltipArrow } from "@radix-ui/react-tooltip";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRefreshCommitStatus } from "@/hooks/useRefreshCommitStatus";
 import ToolsModal from "@/components/dialogs/ToolsDialog";
-import { EmptyState } from "@/pages/info-pages/EmptyState";
-import { Inbox } from "lucide-react";
 import { InputSelect, InputSelectTrigger } from "@/components/ui/InputSelect";
-import { cn } from "@/lib/utils";
 import { usePromptStatus } from "@/contexts/PromptStatusContext";
 import { promptApi } from "@/api/prompt";
 
@@ -45,10 +40,6 @@ const isReasoningModel = (modelName: string) => {
 	return (
 		modelName?.toLowerCase().includes("o3-mini") || modelName?.toLowerCase().includes("o4-mini")
 	);
-};
-
-const isGoogleModel = (model: Model | undefined) => {
-	return model?.vendor?.toLowerCase() === "google";
 };
 
 const formatPrice = (price: number) => {
@@ -326,7 +317,7 @@ const ModelsSettings = ({
 		usePromptsModels();
 	const { toast } = useToast();
 	const { id } = useParams<{ id: string; orgId: string; projectId: string }>();
-	const queryClient = useQueryClient();
+
 	const { setIsCommitted } = usePromptStatus();
 
 	const promptId = prompt?.id || (id ? Number(id) : propPromptId);
@@ -433,34 +424,20 @@ const ModelsSettings = ({
 		return base;
 	}, [isCurrentModelReasoning]);
 
-	const { refetch: refetchPrompt } = useQueryWithAuth<{ prompt?: { commited?: boolean } }>({
-		keys: ["prompt", String(promptId || "none")],
-		enabled: false,
-		queryFn: async () => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			return await promptApi.getPrompt(promptId);
-		},
-		onError: (error) => {
-			console.error("❌ Failed to get commit status:", error);
-		},
-	});
-
 	const getCommitStatus = useCallback(async () => {
+		if (!promptId) return null;
 		try {
-			const result = await refetchPrompt();
-			if (result.data) {
-				const commited = result.data.prompt?.commited || false;
-
-				queryClient.setQueryData(["prompt", promptId], result.data);
+			const result = await promptApi.getPrompt(promptId as number);
+			if (result.prompt) {
+				const commited = result.prompt.commited || false;
 				setIsCommitted(commited);
-
-				return commited;
+				return result.prompt;
 			}
 		} catch (error) {
 			console.error("❌ Failed to get commit status:", error);
 		}
 		return null;
-	}, [queryClient, promptId, refetchPrompt, setIsCommitted]);
+	}, [promptId, setIsCommitted]);
 
 	const debouncedUpdateSettings = useMemo(
 		() =>
@@ -548,12 +525,9 @@ const ModelsSettings = ({
 				const configResponse = await getModelConfig(model.id);
 				setCurrentModelConfig(configResponse);
 
-				await getCommitStatus();
+				const updatedPrompt = await getCommitStatus();
 
 				setTimeout(() => {
-					const newPromptData = queryClient.getQueryData(["prompt", promptId]) as any;
-					const updatedPrompt = newPromptData?.prompt;
-
 					if (
 						updatedPrompt?.languageModelConfig &&
 						updatedPrompt?.languageModel?.id === model.id
@@ -1265,7 +1239,7 @@ const ModelsSettings = ({
 																promptId as number,
 																payload,
 															);
-															await getCommitStatus();
+															const updatedPrompt = await getCommitStatus();
 															if (selectedModelId) {
 																await getModelConfig(
 																	selectedModelId,
@@ -1277,13 +1251,6 @@ const ModelsSettings = ({
 															);
 
 															isSyncingFromBackend.current = true;
-															const newPromptData =
-																queryClient.getQueryData([
-																	"prompt",
-																	promptId,
-																]) as any;
-															const updatedPrompt =
-																newPromptData?.prompt;
 															if (
 																updatedPrompt?.languageModelConfig &&
 																updatedPrompt?.languageModel
@@ -1364,7 +1331,7 @@ const ModelsSettings = ({
 										});
 										await updateModelSettings(promptId as number, payload);
 										setTools(updatedTools);
-										await getCommitStatus();
+										const updatedPrompt = await getCommitStatus();
 										if (selectedModelId) {
 											await getModelConfig(selectedModelId);
 										}
@@ -1372,11 +1339,6 @@ const ModelsSettings = ({
 										await new Promise((resolve) => setTimeout(resolve, 100));
 
 										isSyncingFromBackend.current = true;
-										const newPromptData = queryClient.getQueryData([
-											"prompt",
-											promptId,
-										]) as any;
-										const updatedPrompt = newPromptData?.prompt;
 										if (
 											updatedPrompt?.languageModelConfig &&
 											updatedPrompt?.languageModel
@@ -1413,7 +1375,7 @@ const ModelsSettings = ({
 										});
 										await updateModelSettings(promptId as number, payload);
 										setTools(updatedTools);
-										await getCommitStatus();
+										const updatedPrompt = await getCommitStatus();
 										if (selectedModelId) {
 											await getModelConfig(selectedModelId);
 										}
@@ -1421,11 +1383,6 @@ const ModelsSettings = ({
 										await new Promise((resolve) => setTimeout(resolve, 100));
 
 										isSyncingFromBackend.current = true;
-										const newPromptData = queryClient.getQueryData([
-											"prompt",
-											promptId,
-										]) as any;
-										const updatedPrompt = newPromptData?.prompt;
 										if (
 											updatedPrompt?.languageModelConfig &&
 											updatedPrompt?.languageModel

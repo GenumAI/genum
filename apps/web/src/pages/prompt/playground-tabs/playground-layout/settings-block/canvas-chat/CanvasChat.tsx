@@ -5,19 +5,11 @@ import { Button, ButtonWithLoader } from "@/components/ui/button";
 import Brush from "@/assets/brush.svg";
 import Expand from "@/assets/expand.svg";
 import Compress from "@/assets/compress.svg";
-import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
 import CanvasChatUI from "./CanvasChatUI";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
-import { useQueryClient } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt";
-import {
-	Action,
-	GetMessageResponse,
-	Message,
-	SendMessageAgentResponse as CanvasSendMessageAgentResponse,
-} from "@/types/Canvas";
+import type { Action, Message, SendMessageAgentResponse as CanvasSendMessageAgentResponse } from "@/types/Canvas";
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import useAuditDataModal from "@/hooks/useAuditDataModal";
@@ -41,6 +33,7 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 	const [isRecording, setIsRecording] = useState(false);
 	const messagesRef = useRef<HTMLDivElement>(null);
 	const [showAuditModal, setShowAuditModal] = useState(false);
+	const [messages, setMessages] = useState<Message[]>([]);
 
 	const { id } = useParams<{ id: string }>();
 	const promptId = id ? Number(id) : undefined;
@@ -48,73 +41,46 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 	const [diffModalInfo, setDiffModalInfo] = useState<DiffModalInfo | null>(null);
 	const { setAuditDataModal } = useAuditDataModal();
 
-	const { data: { messages = [] } = {} } = useQueryWithAuth<GetMessageResponse>({
-		keys: ["prompts", `${promptId}`, "agent"],
-		queryFn: async () => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			return await promptApi.getAgentChat(promptId);
-		},
-	});
+	useEffect(() => {
+		const fetchMessages = async () => {
+			if (!promptId) return;
+			try {
+				const response = await promptApi.getAgentChat(promptId);
+				if (response?.messages) {
+					setMessages(response.messages);
+				}
+			} catch (error) {
+				console.error("Error fetching agent chat:", error);
+			}
+		};
 
-	const queryClient = useQueryClient();
+		fetchMessages();
+	}, [promptId]);
 
-	const createNewChatMutation = useMutation({
-		mutationFn: async () => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			return await promptApi.createNewAgentChat(promptId);
-		},
-	});
 
-	const sendMessageMutation = useMutation<
-		CanvasSendMessageAgentResponse,
-		Error,
-		{ mode: string; query: string }
-	>({
-		mutationFn: async (data: { mode: string; query: string }) => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			const result = await promptApi.sendAgentMessage(promptId, data);
-			// Ensure response property exists
-			return result as CanvasSendMessageAgentResponse;
-		},
-	});
 
-	const setMessages = useCallback<React.Dispatch<React.SetStateAction<GetMessageResponse>>>(
-		(updaterMessages) => {
-			queryClient.setQueryData(
-				["prompts", `${promptId}`, "agent"],
-				(oldMessages: { messages: Message[] }) => {
-					if (typeof updaterMessages === "function") {
-						return updaterMessages(oldMessages || { messages: [] });
-					}
-
-					return updaterMessages || { messages: [] };
-				},
-			);
-		},
-		[queryClient, promptId],
-	);
-
-	const scrollToBottom = () => {
+	const scrollToBottom = useCallback(() => {
 		messagesRef.current?.scrollBy({
 			top: messagesRef.current.scrollHeight,
 			behavior: "smooth",
 		});
-	};
+	}, []);
 
 	useEffect(() => {
 		scrollToBottom();
-	}, [messages]);
+	}, [messages, scrollToBottom]);
 
 	const sendMessageWithAuth = async (
 		messageText: string,
 	): Promise<CanvasSendMessageAgentResponse> => {
+		if (!promptId) throw new Error("Prompt ID is required");
 		try {
-			const data = await sendMessageMutation.mutateAsync({
+			const result = await promptApi.sendAgentMessage(promptId, {
 				mode: mode,
 				query: messageText,
 			});
 
-			return data;
+			return result as CanvasSendMessageAgentResponse;
 		} catch (error) {
 			console.error("Error sending message:", error);
 			throw error;
@@ -145,9 +111,7 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 			type: "text",
 		};
 
-		setMessages((prev) => ({
-			messages: [...prev.messages, userMessage],
-		}));
+		setMessages((prev) => [...prev, userMessage]);
 		setIsLoading(true);
 
 		try {
@@ -191,9 +155,7 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 									}
 								: undefined,
 					};
-					setMessages((prev) => ({
-						messages: [...prev.messages, agentMessage],
-					}));
+					setMessages((prev) => [...prev, agentMessage]);
 				});
 			} else {
 				let messageText = "Sorry, I couldn't process your request.";
@@ -239,9 +201,7 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 						: undefined,
 				};
 
-				setMessages((prev) => ({
-					messages: [...prev.messages, agentMessage],
-				}));
+				setMessages((prev) => [...prev, agentMessage]);
 			}
 		} catch (error) {
 			console.error("Error sending message:", error);
@@ -254,9 +214,7 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 				type: "text",
 			};
 
-			setMessages((prev) => ({
-				messages: [...prev.messages, errorMessage],
-			}));
+			setMessages((prev) => [...prev, errorMessage]);
 		} finally {
 			setIsLoading(false);
 		}
@@ -285,9 +243,10 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 	};
 
 	const createNewChat = async (_event: React.MouseEvent<HTMLButtonElement>) => {
+		if (!promptId) return;
 		try {
-			await createNewChatMutation.mutateAsync();
-			setMessages({ messages: [] });
+			await promptApi.createNewAgentChat(promptId);
+			setMessages([]);
 		} catch (error) {
 			console.error("Error starting new chat:", error);
 			toast({
@@ -314,10 +273,6 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 		updatePromptContent(value);
 	};
 
-	const handleOpenAuditModal = () => {
-		setShowAuditModal(true);
-	};
-
 	const handleCloseAuditModal = () => {
 		setShowAuditModal(false);
 	};
@@ -328,7 +283,15 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 		<>
 			<div
 				onClick={() => setIsOpen(!isOpen)}
-				className="cursor-pointer flex items-center justify-between"
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.preventDefault();
+						setIsOpen(!isOpen);
+					}
+				}}
+				tabIndex={0}
+				role="button"
+				className="cursor-pointer flex items-center justify-between focus:outline-none"
 			>
 				<div className="flex items-center gap-[6px]">
 					<h2 className="text-foreground font-sans text-[14px] not-italic font-bold leading-[20px]">
@@ -366,6 +329,7 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 					)}
 
 					<button
+						type="button"
 						className="text-[#18181B] dark:text-white"
 						onClick={(e) => {
 							e.stopPropagation();

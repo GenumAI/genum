@@ -1,16 +1,12 @@
 import { ChevronLeft, ChevronDown } from "lucide-react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { useMemo, useState, useEffect, useCallback } from "react";
 
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
 import CompareDiffEditor from "@/components/ui/DiffEditor";
 import { Button } from "@/components/ui/button";
 import { promptApi } from "@/api/prompt";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useMemo, useState } from "react";
-import {
-	BranchesResponse,
-	VersionData,
-} from "@/pages/prompt/playground-tabs/version/compare/types";
+import type { BranchesResponse } from "@/pages/prompt/playground-tabs/version/compare/types";
 import { CommitDropdowns } from "@/pages/prompt/playground-tabs/version/compare/commit-select/CommitDropdowns";
 import { parseJson } from "@/lib/jsonUtils";
 import { diffLines } from "diff";
@@ -42,15 +38,6 @@ const Accordion = {
 	Tools: "languageModelConfig.tools",
 } as const;
 
-const getChangedLinesCount = (a: string, b: string) => {
-	const diff = diffLines(a, b);
-	return diff.reduce((acc, part) => {
-		if (part.added || part.removed) {
-			return acc + (part.count || 0);
-		}
-		return acc;
-	}, 0);
-};
 
 const getChangedLinesStats = (a: string, b: string) => {
 	const left = typeof a === "string" ? a : "";
@@ -78,17 +65,20 @@ const Compare = () => {
 	const { resolvedTheme } = useTheme();
 	const monacoTheme = resolvedTheme === "dark" ? "vs-dark" : "vs";
 
-	const { data: branchesRes, isLoading: branchesLoading } = useQueryWithAuth<BranchesResponse>({
-		keys: ["branches", id ?? ""],
-		enabled: !!id,
-		queryFn: async () => {
-			if (!id) throw new Error("Prompt ID is required");
+	const [branchesRes, setBranchesRes] = useState<BranchesResponse | undefined>(undefined);
+	const [branchesLoading, setBranchesLoading] = useState(false);
+	const [dataA, setDataA] = useState<any>(null);
+	const [dataB, setDataB] = useState<any>(null);
+
+	const fetchBranches = useCallback(async () => {
+		if (!id) return;
+		setBranchesLoading(true);
+		try {
 			const result = await promptApi.getBranches(id);
-			// Transform API response to match expected type (author is required)
-			return {
-				branches: result.branches.map((branch) => ({
+			const transformed: BranchesResponse = {
+				branches: result.branches.map((branch: any) => ({
 					...branch,
-					promptVersions: branch.promptVersions.map((version) => ({
+					promptVersions: branch.promptVersions.map((version: any) => ({
 						...version,
 						author: version.author || {
 							id: 0,
@@ -98,32 +88,56 @@ const Compare = () => {
 						},
 					})),
 				})),
-			} as BranchesResponse;
-		},
-	});
-	const { data: dataA } = useQueryWithAuth<any>({
-		keys: ["commit", id ?? "", commitA || "current"],
-		enabled: !!id,
-		queryFn: async () => {
-			if (!id) throw new Error("Prompt ID is required");
-			if (!commitA || commitA === "current") {
-				return await promptApi.getPrompt(id);
-			}
-			return await promptApi.getVersion(id, commitA);
-		},
-	});
+			};
+			setBranchesRes(transformed);
+		} catch (err: any) {
+			console.error("Failed to fetch branches", err);
+		} finally {
+			setBranchesLoading(false);
+		}
+	}, [id]);
 
-	const { data: dataB } = useQueryWithAuth<any>({
-		keys: ["commit", id ?? "", commitB],
-		enabled: !!id && !!commitB,
-		queryFn: async () => {
-			if (!id || !commitB) throw new Error("Prompt ID and commitB are required");
-			if (commitB === "current") {
-				return await promptApi.getPrompt(id);
+	const fetchDataA = useCallback(async () => {
+		if (!id) return;
+		try {
+			let result;
+			if (!commitA || commitA === "current") {
+				result = await promptApi.getPrompt(id);
+			} else {
+				result = await promptApi.getVersion(id, commitA);
 			}
-			return await promptApi.getVersion(id, commitB);
-		},
-	});
+			setDataA(result);
+		} catch (err: any) {
+			console.error("Failed to fetch dataA", err);
+		}
+	}, [id, commitA]);
+
+	const fetchDataB = useCallback(async () => {
+		if (!id || !commitB) return;
+		try {
+			let result;
+			if (commitB === "current") {
+				result = await promptApi.getPrompt(id);
+			} else {
+				result = await promptApi.getVersion(id, commitB);
+			}
+			setDataB(result);
+		} catch (err: any) {
+			console.error("Failed to fetch dataB", err);
+		}
+	}, [id, commitB]);
+
+	useEffect(() => {
+		fetchBranches();
+	}, [fetchBranches]);
+
+	useEffect(() => {
+		fetchDataA();
+	}, [fetchDataA]);
+
+	useEffect(() => {
+		fetchDataB();
+	}, [fetchDataB]);
 
 	const versions = useMemo(
 		() =>
@@ -247,7 +261,7 @@ const Compare = () => {
 							if (key === "languageModelConfig") {
 								const stripJsonSchemaAndTools = (obj: any) => {
 									if (!obj || typeof obj !== "object") return obj;
-									const { json_schema, tools, ...rest } = obj;
+									const { ...rest } = obj
 									return rest;
 								};
 								leftValue = stripJsonSchemaAndTools(leftValue);
@@ -293,7 +307,7 @@ const Compare = () => {
 								>
 									<CollapsibleTrigger asChild>
 										<div>
-											<button className=" bg-transparent flex w-full items-center justify-between py-3 text-left">
+											<button type="button" className=" bg-transparent flex w-full items-center justify-between py-3 text-left">
 												<span className="flex items-center gap-3 text-sm font-[500]">
 													{title.replaceAll("_", " ")}
 													{changed && (added > 0 || removed > 0) && (

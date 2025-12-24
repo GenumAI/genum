@@ -1,8 +1,7 @@
 import { useCallback, useState } from "react";
-import useQueryWithAuth from "./useQueryWithAuth";
-import { useMutation } from "@tanstack/react-query";
-import { ResponseModelConfig } from "@/types/AIModel";
-import { promptApi, ModelConfig } from "@/api/prompt";
+import type { ResponseModelConfig } from "@/types/AIModel";
+import { promptApi } from "@/api/prompt";
+import type { ModelConfig } from "@/api/prompt";
 
 // Define types for model and model configuration
 interface Model {
@@ -21,55 +20,31 @@ interface Model {
 export function usePromptsModels() {
 	const [models, setModels] = useState<Model[]>([]);
 	const [modelConfig, setModelConfig] = useState<ResponseModelConfig | null>(null);
-
-	const {
-		refetch: refetchModels,
-		isFetching: isLoadingModels,
-		error: modelsError,
-	} = useQueryWithAuth<{ models: Model[] }>({
-		keys: ["prompts", "models"],
-		enabled: false,
-		queryFn: async () => {
-			return await promptApi.getModels();
-		},
-		onError: (error) => {
-			console.error("❌ Fetch models error:", error);
-		},
-	});
-
-	const updatePromptModelMutation = useMutation({
-		mutationFn: async ({ promptId, modelId }: { promptId: number; modelId: number }) => {
-			return await promptApi.updatePromptModel(promptId, modelId);
-		},
-	});
-
-	const updateModelSettingsMutation = useMutation({
-		mutationFn: async ({
-			promptId,
-			payload,
-		}: {
-			promptId: number;
-			payload: Record<string, any>;
-		}) => {
-			return await promptApi.updateModelConfig(promptId, payload);
-		},
-	});
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const getModels = useCallback(async (): Promise<boolean> => {
+		setLoading(true);
+		setError(null);
 		try {
-			const result = await refetchModels();
-			if (result.data?.models) {
-				setModels(result.data.models);
+			const result = await promptApi.getModels();
+			if (result?.models) {
+				setModels(result.models);
 				return true;
 			}
 			return false;
 		} catch (err: any) {
 			console.error("❌ Fetch models error:", err);
+			setError(err.message || "Failed to fetch models");
 			return false;
+		} finally {
+			setLoading(false);
 		}
-	}, [refetchModels]);
+	}, []);
 
 	const getModelConfig = useCallback(async (id: number): Promise<ModelConfig | null> => {
+		setLoading(true);
+		setError(null);
 		try {
 			const data = await promptApi.getModelConfig(id);
 			// Convert ModelConfig to ResponseModelConfig format for state
@@ -82,7 +57,10 @@ export function usePromptsModels() {
 			return data.config;
 		} catch (err: any) {
 			console.error("❌ Fetch model configuration error:", err);
+			setError(err.message || "Failed to fetch model configuration");
 			return null;
+		} finally {
+			setLoading(false);
 		}
 	}, []);
 
@@ -90,41 +68,41 @@ export function usePromptsModels() {
 		async (promptId: number, modelId: number): Promise<boolean> => {
 			if (!promptId || !modelId) return false;
 
+			setLoading(true);
+			setError(null);
 			try {
-				await updatePromptModelMutation.mutateAsync({ promptId, modelId });
+				await promptApi.updatePromptModel(promptId, modelId);
 				return true;
 			} catch (err: any) {
 				console.error("❌ Error updating prompt model:", err);
+				setError(err.message || "Failed to update prompt model");
 				return false;
+			} finally {
+				setLoading(false);
 			}
 		},
-		[updatePromptModelMutation.mutateAsync],
+		[],
 	);
 
 	const updateModelSettings = useCallback(
 		async (promptId: number, payload: Record<string, any>): Promise<boolean> => {
 			if (!promptId) return false;
 
+			setLoading(true);
+			setError(null);
 			try {
-				await updateModelSettingsMutation.mutateAsync({ promptId, payload });
+				await promptApi.updateModelConfig(promptId, payload);
 				return true;
 			} catch (err: any) {
 				console.error("❌ Error updating model settings:", err);
+				setError(err.message || "Failed to update model settings");
 				return false;
+			} finally {
+				setLoading(false);
 			}
 		},
-		[updateModelSettingsMutation.mutateAsync],
+		[],
 	);
-
-	const loading =
-		isLoadingModels ||
-		updatePromptModelMutation.isPending ||
-		updateModelSettingsMutation.isPending;
-	const error =
-		modelsError?.message ||
-		updatePromptModelMutation.error?.message ||
-		updateModelSettingsMutation.error?.message ||
-		null;
 
 	return {
 		getModels,

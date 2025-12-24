@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, XCircle } from "lucide-react";
 import { useParams } from "react-router-dom";
 
@@ -13,15 +13,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
-import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
 import { promptApi } from "@/api/prompt";
 import { useCreateTestcase } from "@/hooks/useCreateTestcase";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
-import { LogsFilter, LogsFilterState } from "@/pages/logs/LogsFilter";
+import type { LogsFilterState } from "@/pages/logs/LogsFilter";
+import { LogsFilter } from "@/pages/logs/LogsFilter";
 import { LogDetailsDialog } from "@/components/dialogs/LogDetailsDialog";
-import { useTestcaseStatusCounts } from "@/hooks/useTestcaseStatusCounts";
+import { usePlaygroundActions } from "@/stores/playground.store";
 import { formatUserLocalDateTime } from "@/lib/formatUserLocalDateTime";
 
 interface Log {
@@ -62,8 +61,6 @@ export default function LogsTable() {
 
 	const { id } = useParams<{ id: string }>();
 	const promptId = id ? Number(id) : undefined;
-
-	useTestcaseStatusCounts(promptId);
 
 	const today = new Date();
 	const twoWeeksAgo = new Date();
@@ -108,23 +105,16 @@ export default function LogsTable() {
 		return "just now";
 	};
 
-	const url = useMemo(() => {
-		const p = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-		if (logsFilter.dateRange?.from)
-			p.append("fromDate", logsFilter.dateRange.from.toISOString());
-		if (logsFilter.dateRange?.to) p.append("toDate", logsFilter.dateRange.to.toISOString());
-		if (logsFilter.logLevel) p.append("logLevel", logsFilter.logLevel);
-		if (logsFilter.model) p.append("model", logsFilter.model);
-		if (logsFilter.source) p.append("source", logsFilter.source);
-		if (logsFilter.query) p.append("query", logsFilter.query);
-		return `/prompts/${promptId}/logs?${p.toString()}`;
-	}, [page, pageSize, logsFilter, promptId]);
+	// Fetch Logs
+	const [data, setData] = useState<LogsResponse | undefined>(undefined);
+	const [isFetching, setIsFetching] = useState(false);
+	const [isError, setIsError] = useState(false);
 
-	const { data, isFetching, isError, refetch } = useQueryWithAuth({
-		keys: [`logs-${page}-${pageSize}-${JSON.stringify({ logsFilter })}`],
-		enabled: !!promptId,
-		queryFn: async () => {
-			if (!promptId) throw new Error("Prompt ID is required");
+	const fetchLogs = useCallback(async () => {
+		if (!promptId) return;
+		setIsFetching(true);
+		setIsError(false);
+		try {
 			const params: any = {
 				page,
 				pageSize,
@@ -136,29 +126,39 @@ export default function LogsTable() {
 			if (logsFilter.model) params.model = logsFilter.model;
 			if (logsFilter.source) params.source = logsFilter.source;
 			if (logsFilter.query) params.query = logsFilter.query;
-			return await promptApi.getLogs(promptId, params);
-		},
-	}) as {
-		data: LogsResponse | undefined;
-		isFetching: boolean;
-		isError: boolean;
-		refetch: () => void;
-	};
 
-	const { data: memoriesData } = useQueryWithAuth<{
+			const result = await promptApi.getLogs(promptId, params);
+			setData(result);
+		} catch (err) {
+			setIsError(true);
+			console.error("Failed to fetch logs", err);
+		} finally {
+			setIsFetching(false);
+		}
+	}, [promptId, page, pageSize, logsFilter]);
+
+	// Fetch Memories
+	const [memoriesData, setMemoriesData] = useState<{
 		memories: Array<{ id: number; key: string }>;
-	}>({
-		keys: ["memoriesForPromt", String(promptId || "none")],
-		enabled: !!promptId,
-		queryFn: async () => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			return await promptApi.getMemories(promptId);
-		},
-	});
+	} | undefined>(undefined);
+
+	const fetchMemories = useCallback(async () => {
+		if (!promptId) return;
+		try {
+			const result = await promptApi.getMemories(promptId);
+			setMemoriesData(result);
+		} catch (err) {
+			console.error("Failed to fetch memories", err);
+		}
+	}, [promptId]);
 
 	useEffect(() => {
-		refetch();
-	}, [logsFilter, page, pageSize, refetch]);
+		fetchLogs();
+	}, [fetchLogs]);
+
+	useEffect(() => {
+		fetchMemories();
+	}, [fetchMemories]);
 
 	useEffect(() => {
 		if (logsFilter.query !== undefined) {
@@ -193,9 +193,9 @@ export default function LogsTable() {
 		setPage(1); // Reset to first page when changing page size
 	};
 
-	const queryClient = useQueryClient();
 	const { toast } = useToast();
 	const { createTestcase, loading: creatingTestcase } = useCreateTestcase();
+	const { fetchStatusCounts } = usePlaygroundActions();
 
 	const handleAddTestcaseFromLog = async () => {
 		if (!selectedLog || !promptId) return;
@@ -223,12 +223,9 @@ export default function LogsTable() {
 					description: "Testcase was created from log.",
 					variant: "default",
 				});
-				await Promise.all([
-					queryClient.invalidateQueries({ queryKey: ["prompt", Number(promptId)] }),
-					queryClient.invalidateQueries({
-						queryKey: ["testcasesForPromt", String(promptId)],
-					}),
-				]);
+				if (promptId) {
+					await fetchStatusCounts(promptId);
+				}
 			} else {
 				toast({
 					title: "Failed to add testcase",

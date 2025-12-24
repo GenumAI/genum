@@ -11,15 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { CircleAlert, CircleCheck, CirclePlus } from "lucide-react";
 
-import { TestStatus } from "@/types/TestСase";
+import type { TestStatus } from "@/types/TestСase";
 
 interface Testcase {
 	id: number;
 	name: string;
-	status: "OK" | "NOK";
+	status: "OK" | "NOK" | "NEED_RUN";
 	assertionThoughts: string;
 	promptRunStatus: string;
-	prompt: {
+	prompt?: {
 		assertionType: "STRICT" | "MANUAL" | "AI";
 	};
 }
@@ -80,10 +80,7 @@ export const TestcaseAssertionModal = ({
 	status,
 	assertionType,
 }: TestcaseAssertionModalProps) => {
-	const isPassed = testcase.status === "OK";
-	const runSuccess = testcase?.promptRunStatus?.toLowerCase().includes("success") ?? false;
-
-	const currentAssertionType = assertionType || testcase.prompt.assertionType;
+	const currentAssertionType = assertionType || testcase?.prompt?.assertionType || "";
 	const showAssertionFields = currentAssertionType === "AI";
 
 	return (
@@ -97,8 +94,8 @@ export const TestcaseAssertionModal = ({
 					<div className="flex justify-start gap-2 items-center text-[14px] h-[30px]">
 						<span className="font-semibold">Status</span>
 						<span className="[&_svg]:size-4 flex flex-row gap-1 items-center text-[#18181B] dark:text-muted-foreground">
-							{getTestCaseIcon(testcase.status)}
-							{getTestCaseTooltip(testcase.status)}
+							{getTestCaseIcon(testcase.status as TestStatus)}
+							{getTestCaseTooltip(testcase.status as TestStatus)}
 						</span>
 					</div>
 
@@ -122,23 +119,25 @@ export const TestcaseAssertionModal = ({
 						<span className="font-semibold">Assertion Type</span>
 						<Badge
 							className={
-								{
-									STRICT: "bg-[#2A9D90] text-white rounded-xl",
-									MANUAL: "bg-[#6C98F2] text-white rounded-xl",
-									AI: "bg-[#B66AD6] text-white rounded-xl",
-								}[currentAssertionType] || "bg-gray-200 text-black"
+								(currentAssertionType === "STRICT"
+									? "bg-[#2A9D90] text-white rounded-xl"
+									: currentAssertionType === "MANUAL"
+										? "bg-[#6C98F2] text-white rounded-xl"
+										: currentAssertionType === "AI"
+											? "bg-[#B66AD6] text-white rounded-xl"
+											: "bg-gray-200 text-black") + " border-none"
 							}
 						>
 							{currentAssertionType}
 						</Badge>
 					</div>
 
-					{/* show these fields only for AI assertion type */}
 					{showAssertionFields && (
 						<>
 							<div className="mt-4 flex flex-col gap-2 text-[14px]">
-								<label className="font-semibold">Reasoning</label>
+								<label className="font-semibold" htmlFor="assertion-thoughts">Reasoning</label>
 								<Textarea
+									id="assertion-thoughts"
 									value={testcase.assertionThoughts}
 									readOnly
 									className="h-[100px]"

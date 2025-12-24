@@ -21,17 +21,14 @@ import TestCasesFilter from "@/pages/prompt/playground-tabs/testcases/TestCasesF
 import { testcasesFilter } from "@/lib/testcasesFilter";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import type { TestCase, TestStatus } from "@/types/TestСase";
 import { SearchInput } from "@/components/ui/searchInput";
-import ButtonWithDropdown from "@/components/ui/buttonWithDropdown";
-import { TestCase, TestStatus } from "@/types/TestСase";
+import { usePlaygroundActions, usePlaygroundTestcase } from "@/stores/playground.store";
+import ActiveFilterChips from "./ActiveFilterChips";
 import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
+import ButtonWithDropdown from "@/components/ui/buttonWithDropdown";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
-import ActiveFilterChips from "@/pages/prompt/playground-tabs/testcases/ActiveFilterChips";
-import { useTestcaseStatusCounts } from "@/hooks/useTestcaseStatusCounts";
-
-type TestCaseList = {
-	testcases: TestCase[];
-};
+import { useCallback } from "react";
 
 type UsedOptionValue = "all" | "nok" | "selected" | "need_run" | "passed";
 
@@ -79,8 +76,19 @@ export default function Testcases() {
 
 	const navigate = useNavigate();
 	const addParamsToUrl = useAddParamsToUrl();
+	const { fetchTestcases, updateSingleTestcase } = usePlaygroundActions();
+	const { testcases } = usePlaygroundTestcase();
+	const handleFetchTestcases = useCallback(async () => {
+		if (id) await fetchTestcases(id);
+	}, [id, fetchTestcases]);
 
-	const { data, refetch } = useTestcaseStatusCounts(id);
+	useEffect(() => {
+		handleFetchTestcases();
+	}, [handleFetchTestcases]);
+
+	const refetch = async () => {
+		await handleFetchTestcases();
+	};
 
 	const isCheckboxesDisabled =
 		selectedValues[0] === "nok" ||
@@ -102,10 +110,7 @@ export default function Testcases() {
 	});
 
 	const testcasesFiltered = useMemo(() => {
-		if (!data) {
-			return [];
-		}
-		const filtered = testcasesFilter(data.testcases, search, filterState);
+		const filtered = testcasesFilter(testcases, search, filterState);
 
 		if (currentTestcaseId) {
 			const currentTestcase = filtered.find((tc) => tc.id === Number(currentTestcaseId));
@@ -116,7 +121,7 @@ export default function Testcases() {
 		}
 
 		return filtered;
-	}, [data, filterState, search, currentTestcaseId]);
+	}, [testcases, filterState, search, currentTestcaseId]);
 
 	const table = useReactTable({
 		data: testcasesFiltered,
@@ -192,8 +197,8 @@ export default function Testcases() {
 					const item = testcasesForRun[i];
 
 					try {
-						await testcasesApi.runTestcase(item.id);
-						refetch();
+						const updatedTestcase = await testcasesApi.runTestcase(item.id);
+						updateSingleTestcase(updatedTestcase);
 
 						setRunningRows((prevState) =>
 							prevState.filter((state) => state !== item.id),
@@ -219,7 +224,7 @@ export default function Testcases() {
 			setIsDeleting(true);
 			try {
 				await testcasesApi.deleteTestcase(selectedTestcase.id);
-				refetch();
+				await refetch();
 				setConfirmModalOpen(false);
 				setSelectedTestcase(null);
 			} catch (error) {
@@ -317,7 +322,7 @@ export default function Testcases() {
 						options={usedOptions}
 						selectedValues={selectedValues}
 						rowLength={getRowCount()}
-						onChange={(value) => onChange(value as UsedOptionValue)}
+						onChange={(value: string) => onChange(value as UsedOptionValue)}
 						loading={isRunning || runningRows.length > 0}
 					/>
 				</div>
