@@ -283,6 +283,7 @@ export default function Playground() {
 	const handleTestcaseAdded = useCallback(async () => {
 		resetForNewTestcase();
 		setInputContent("");
+		clearExpectedOutputRef.current?.();
 		window.dispatchEvent(new CustomEvent("testcaseUpdated"));
 	}, [resetForNewTestcase, setInputContent]);
 
@@ -296,22 +297,25 @@ export default function Playground() {
 		markAsUncommittedRef.current = markAsUncommitted;
 	}, [markAsUncommitted]);
 
-	const isContentChangeSignificant = useCallback((oldContent: string, newContent: string): boolean => {
-		const normalize = (str: string) =>
-			str
-				.replace(/\s+/g, " ")
-				.replace(/[""]/g, '"')
-				.replace(/['']/g, "'")
-				.trim()
-				.toLowerCase();
+	const isContentChangeSignificant = useCallback(
+		(oldContent: string, newContent: string): boolean => {
+			const normalize = (str: string) =>
+				str
+					.replace(/\s+/g, " ")
+					.replace(/[""]/g, '"')
+					.replace(/['']/g, "'")
+					.trim()
+					.toLowerCase();
 
-		const normalizedOld = normalize(oldContent);
-		const normalizedNew = normalize(newContent);
+			const normalizedOld = normalize(oldContent);
+			const normalizedNew = normalize(newContent);
 
-		const lengthDiff = Math.abs(normalizedOld.length - normalizedNew.length);
+			const lengthDiff = Math.abs(normalizedOld.length - normalizedNew.length);
 
-		return normalizedOld !== normalizedNew && lengthDiff > 5;
-	}, []);
+			return normalizedOld !== normalizedNew && lengthDiff > 5;
+		},
+		[],
+	);
 
 	const [isUpdatingPromptContent, setIsUpdatingPromptContent] = useState(false);
 
@@ -496,7 +500,16 @@ export default function Playground() {
 
 		setTimeout(fetchLatestPromptData, 500);
 		setFlags({ wasRun: false });
-	}, [outputContent, testcaseId, testcase, wasRun, prompt, currentAssertionType, promptId, setFlags]);
+	}, [
+		outputContent,
+		testcaseId,
+		testcase,
+		wasRun,
+		prompt,
+		currentAssertionType,
+		promptId,
+		setFlags,
+	]);
 
 	const handleRegisterClearFunction = useCallback((clearFn: () => void) => {
 		clearExpectedOutputRef.current = clearFn;

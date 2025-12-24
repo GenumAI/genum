@@ -11,11 +11,12 @@ import {
 	DialogFooter,
 	DialogClose,
 } from "@/components/ui/dialog";
-import useMutationWithAuth from "@/hooks/useMutationWithAuth";
 import { cn } from "@/lib/utils";
-import useAuditDataModal from "@/hooks/useAuditDataModal";
+import { usePlaygroundAudit, usePlaygroundActions } from "@/stores/playground.store";
+import { helpersApi } from "@/api/helpers/helpers.api";
+import { promptApi } from "@/api/prompt";
 import { Separator } from "@/components/ui/separator";
-import { AuditRisk, AuditData } from "@/types/audit";
+import type { AuditRisk, AuditData } from "@/types/audit";
 
 const getBadgeClass = (level: string): string => {
 	switch (level.toLowerCase()) {
@@ -55,17 +56,12 @@ const AuditResultsModal = ({
 	onAuditComplete,
 	setDiffModalInfo,
 }: AuditResultsModalProps) => {
-	const {
-		auditDataModal: auditData,
-		setAuditDataModal,
-		runAudit,
-		isAuditApiLoading,
-		auditApiError,
-	} = useAuditDataModal();
+	const { currentAuditData: auditData, isAuditLoading: isStoreAuditLoading } =
+		usePlaygroundAudit();
+	const { setCurrentAuditData, setFlags } = usePlaygroundActions();
 
-	const { mutation: promptTuneMutation } = useMutationWithAuth<{
-		prompt: string;
-	}>();
+	const [isLocalAuditLoading, setIsLocalAuditLoading] = useState(false);
+	const isAuditApiLoading = isLocalAuditLoading || isStoreAuditLoading;
 
 	const [selectedRiskIndices, setAuditSelectedRiskIndices] = useState<number[]>([]);
 	const [isFixing, setAuditIsFixing] = useState(false);
@@ -84,12 +80,25 @@ const AuditResultsModal = ({
 	}, [displayAuditData, allRisks.length]);
 
 	const handleCloseModal = () => {
-		setAuditDataModal(null);
+		setCurrentAuditData(null);
 		onClose();
 	};
 
-	const handleRunAudit = () => {
-		runAudit(promptId);
+	const handleRunAudit = async () => {
+		setIsLocalAuditLoading(true);
+		setFlags({ isAuditLoading: true });
+		try {
+			const data = await promptApi.auditPrompt(promptId);
+			if (data?.audit) {
+				setCurrentAuditData(data.audit);
+				onAuditComplete?.(data.audit);
+			}
+		} catch (error) {
+			console.error("Audit failed:", error);
+		} finally {
+			setIsLocalAuditLoading(false);
+			setFlags({ isAuditLoading: false });
+		}
 	};
 
 	useEffect(() => {
@@ -112,37 +121,29 @@ const AuditResultsModal = ({
 			.join("\\n\\n---\\n\\n");
 	};
 
-	const handleProceedToTune = () => {
+	const handleProceedToTune = async () => {
 		if (selectedRiskIndices.length === 0) return;
 		const context = generateContextFromRisks(selectedRiskIndices);
 		setAuditIsFixing(true);
 
-		promptTuneMutation.mutate(
-			{
-				url: `/helpers/prompt-tune`,
-				data: {
-					context,
-					instruction: promptValue,
-				},
-			},
-			{
-				onSuccess: (response) => {
-					if (response && response.prompt) {
-						setDiffModalInfo({
-							prompt: response.prompt,
-						});
+		try {
+			const response = await helpersApi.promptTune({
+				context,
+				instruction: promptValue,
+			});
 
-						handleCloseModal();
-					}
-				},
-				onError: (error) => {
-					console.error("Error tuning prompt:", error);
-				},
-				onSettled: () => {
-					setAuditIsFixing(false);
-				},
-			},
-		);
+			if (response && response.prompt) {
+				setDiffModalInfo({
+					prompt: response.prompt,
+				});
+
+				handleCloseModal();
+			}
+		} catch (error) {
+			console.error("Error tuning prompt:", error);
+		} finally {
+			setAuditIsFixing(false);
+		}
 	};
 
 	const renderFooter = () => {
