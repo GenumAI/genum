@@ -8,18 +8,17 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useParams, useSearchParams } from "react-router-dom";
-import { PromptResponse } from "@/hooks/useRunPrompt";
-import { TestcasePayload, useCreateTestcase } from "@/hooks/useCreateTestcase";
+import type { PromptResponse } from "@/hooks/useRunPrompt";
+import type { TestcasePayload } from "@/hooks/useCreateTestcase";
 import { useToast } from "@/hooks/useToast";
 import { useAuth0 } from "@auth0/auth0-react";
 import { checkIsJson, parseJson } from "@/lib/jsonUtils";
 import CompareDiffEditor from "@/components/ui/DiffEditor";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
-import { useMutation } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt";
-import { useQueryClient } from "@tanstack/react-query";
+import { testcasesApi } from "@/api/testcases/testcases.api";
+import { helpersApi } from "@/api/helpers/helpers.api";
 import { capitalizeFirstLetter } from "@/lib/capitalizeFirstLetter";
-import useMutationWithAuth from "@/hooks/useMutationWithAuth";
 import { CornersOut } from "phosphor-react";
 import {
 	usePlaygroundContent,
@@ -254,16 +253,17 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		clearOutput,
 		setCurrentAssertionType,
 		setAssertionValue,
-		fetchStatusCounts,
+		fetchTestcases,
 	} = usePlaygroundActions();
 	const { currentAssertionType, assertionValue, selectedMemoryId } = usePlaygroundTestcase();
 
 	const isShowTunePrompt = !!onPromptUpdate;
-	const queryClient = useQueryClient();
-	const { createTestcase, loading, error } = useCreateTestcase();
 	const [tuneText, setTuneText] = useState("");
+	const [isTuneLoading, setIsTuneLoading] = useState(false);
+	const [isTestcaseLoading, setIsTestcaseLoading] = useState(false);
 	const [isTunePopoverOpen, setIsTunePopoverOpen] = useState(false);
 	const [isOpenPromptDiff, setIsOpenPromptDiff] = useState(false);
+	const [tunedPrompt, setTunedPrompt] = useState<string | null>(null);
 	const [isExpanded, setIsExpanded] = useState(false);
 	const { toast } = useToast();
 	const [modifiedValue, setModifiedValue] = useState(initialExpectedContent?.answer || "");
@@ -281,12 +281,21 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 
 	const { prompt } = usePromptById(promptId);
 
-	const updatePromptMutation = useMutation({
-		mutationFn: async (data: Partial<any>) => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			return await promptApi.updatePrompt(promptId, data);
+	const handleUpdatePrompt = useCallback(
+		async (data: Partial<any>) => {
+			if (!promptId) return;
+			try {
+				await promptApi.updatePrompt(promptId, data);
+			} catch (error) {
+				console.error("Failed to update prompt:", error);
+				toast({
+					title: "Something went wrong",
+					variant: "destructive",
+				});
+			}
 		},
-	});
+		[promptId, toast],
+	);
 
 	const prevPromptIdRef = useRef<number | undefined>(promptId);
 	const prevTestcaseIdRef = useRef<string | null>(testcaseId);
@@ -304,13 +313,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		}
 
 		prevPromptIdRef.current = currentPromptId;
-	}, [
-		promptId,
-		testcaseId,
-		setExpectedOutput,
-	]);
-
-	const { mutation: promptTuneMutation } = useMutationWithAuth<{ prompt: string }>();
+	}, [promptId, testcaseId, setExpectedOutput]);
 
 	const clearExpectedOutput = useCallback(() => {
 		setModifiedValue("");
@@ -379,27 +382,12 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 
 	const debouncedUpdateAssertionValue = useMemo(
 		() =>
-			debounce((value: string) => {
+			debounce(async (value: string) => {
 				if (promptId && currentAssertionType === "AI") {
-					updatePromptMutation.mutate(
-						{ assertionValue: value },
-						{
-							onSuccess: () => {
-								queryClient.invalidateQueries({
-									queryKey: ["prompt", promptId],
-								});
-							},
-							onError: () => {
-								toast({
-									title: "Something went wrong",
-									variant: "destructive",
-								});
-							},
-						},
-					);
+					await handleUpdatePrompt({ assertionValue: value });
 				}
 			}, 500),
-		[promptId, currentAssertionType, updatePromptMutation, queryClient, toast],
+		[promptId, currentAssertionType, handleUpdatePrompt],
 	);
 
 	const handleAssertionTypeChange = (value: string) => {
@@ -412,22 +400,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		);
 
 		if (promptId) {
-			updatePromptMutation.mutate(
-				{ assertionType: value },
-				{
-					onSuccess: () => {
-						queryClient.invalidateQueries({
-							queryKey: ["prompt", promptId],
-						});
-					},
-					onError: () => {
-						toast({
-							title: "Something went wrong",
-							variant: "destructive",
-						});
-					},
-				},
-			);
+			handleUpdatePrompt({ assertionType: value });
 		}
 	};
 
@@ -442,24 +415,31 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 			memoryId: selectedMemoryId ? Number(selectedMemoryId) : undefined,
 		};
 
-		const ok = await createTestcase(createPayload);
+		setIsTestcaseLoading(true);
+		let ok = false;
+		try {
+			await testcasesApi.createTestcase(createPayload);
+			ok = true;
 
-		if (ok) {
 			setModifiedValue("");
 			setExpectedMetrics(undefined);
 			if (promptId) {
-				fetchStatusCounts(promptId);
+				fetchTestcases(promptId);
 			}
 			onTestcaseAdded?.();
+		} catch (err: any) {
+			console.error("Create testcase error:", err);
+			ok = false;
+		} finally {
+			toast({
+				title: ok ? "Test case added" : "Failed to add test case",
+				description: ok
+					? "Your test case was saved successfully."
+					: "Unknown error, try again.",
+				variant: ok ? "default" : "destructive",
+			});
+			setIsTestcaseLoading(false);
 		}
-
-		toast({
-			title: ok ? "Test case added" : "Failed to add test case",
-			description: ok
-				? "Your test case was saved successfully."
-				: (error ?? "Unknown error, try again."),
-			variant: ok ? "default" : "destructive",
-		});
 	};
 
 	const saveModifiedValue = async (value: string) => {
@@ -517,29 +497,30 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 			return;
 		}
 
+		setIsTuneLoading(true);
 		try {
-			await promptTuneMutation.mutateAsync({
-				url: `/helpers/prompt-tune`,
-				data: {
-					instruction: systemPrompt || "",
-					input: inputValue || "",
-					output: content?.answer || "",
-					expectedOutput: modifiedValue,
-					context: tuneText.trim(),
-				},
+			const res = await helpersApi.promptTune({
+				instruction: systemPrompt || "",
+				input: inputValue || "",
+				output: content?.answer || "",
+				expectedOutput: modifiedValue,
+				context: tuneText.trim(),
 			});
 
-			setIsOpenPromptDiff(true);
-			setIsTunePopoverOpen(false);
-			setTuneText("");
-		} catch (err) {
+			if (res?.prompt) {
+				setTunedPrompt(res.prompt);
+				setIsOpenPromptDiff(true);
+				setIsTunePopoverOpen(false);
+				setTuneText("");
+			}
+		} catch (err: any) {
 			toast({
 				title: "Tuning failed",
-				description:
-					promptTuneMutation.error?.message ||
-					"Failed to tune the prompt. Please try again.",
+				description: err.message || "Failed to tune the prompt. Please try again.",
 				variant: "destructive",
 			});
+		} finally {
+			setIsTuneLoading(false);
 		}
 	};
 
@@ -705,10 +686,10 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 										<Button
 											size="sm"
 											onClick={handleSave}
-											disabled={loading || !modifiedValue.trim()}
+											disabled={isTestcaseLoading || !modifiedValue.trim()}
 											className="text-[14px] h-[32px] w-[138px]"
 										>
-											{loading && (
+											{isTestcaseLoading && (
 												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 											)}
 											Add testcase
@@ -772,10 +753,12 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 												<Button
 													size="sm"
 													onClick={handleSave}
-													disabled={loading || !modifiedValue.trim()}
+													disabled={
+														isTestcaseLoading || !modifiedValue.trim()
+													}
 													className="text-[14px] h-[36px]"
 												>
-													{loading && (
+													{isTestcaseLoading && (
 														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 													)}
 													Add testcase
@@ -807,7 +790,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 					isTunePopoverOpen={isTunePopoverOpen}
 					setIsTunePopoverOpen={setIsTunePopoverOpen}
 					onTune={handleTune}
-					isTuning={promptTuneMutation.isPending}
+					isTuning={isTuneLoading}
 				/>
 			)}
 
@@ -816,7 +799,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 					isOpen={isOpenPromptDiff}
 					onOpenChange={setIsOpenPromptDiff}
 					original={systemPrompt ?? ""}
-					modified={promptTuneMutation.data?.prompt ?? ""}
+					modified={tunedPrompt ?? ""}
 					isLoading={false}
 					onSave={onSavePromptDiff}
 				/>
