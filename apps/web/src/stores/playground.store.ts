@@ -57,6 +57,8 @@ interface PlaygroundData {
 
 	currentAssertionType: string;
 
+	commitMessage: string;
+
 	assertionValue: string;
 	selectedMemoryId: string;
 	selectedMemoryKeyName: string;
@@ -82,6 +84,7 @@ interface PlaygroundActions {
 	setCurrentAuditData: (data: AuditData | null) => void;
 	setDiffModalInfo: (info: { prompt: string } | null) => void;
 	setAssertionValue: (value: string) => void;
+	setCommitMessage: (message: string) => void;
 	setSelectedMemoryId: (id: string) => void;
 	setSelectedMemoryKeyName: (name: string) => void;
 	setPersistedMemoryId: (id: string) => void;
@@ -130,6 +133,8 @@ const initialState: PlaygroundData = {
 	hasInputContent: false,
 
 	currentAssertionType: "AI",
+
+	commitMessage: "",
 
 	assertionValue: "",
 	selectedMemoryId: "",
@@ -196,6 +201,9 @@ const usePlaygroundStore = create<PlaygroundState>()(
 			},
 			setAssertionValue: (assertionValue) => {
 				return set({ assertionValue }, false, "setAssertionValue");
+			},
+			setCommitMessage: (commitMessage) => {
+				return set({ commitMessage }, false, "setCommitMessage");
 			},
 			setSelectedMemoryId: (selectedMemoryId) => {
 				return set({ selectedMemoryId }, false, "setSelectedMemoryId");
@@ -280,6 +288,7 @@ const usePlaygroundStore = create<PlaygroundState>()(
 						expectedOutput: null,
 						isTestcaseLoaded: false,
 						assertionValue: "",
+						commitMessage: "",
 					},
 					false,
 					"resetForNewTestcase",
@@ -301,6 +310,7 @@ const usePlaygroundStore = create<PlaygroundState>()(
 						selectedMemoryId: "",
 						selectedMemoryKeyName: "",
 						persistedMemoryId: "",
+						commitMessage: "",
 						testcases: [],
 					},
 					false,

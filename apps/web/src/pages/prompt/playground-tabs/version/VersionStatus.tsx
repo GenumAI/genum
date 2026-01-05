@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { promptApi } from "@/api/prompt";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { toast } from "@/hooks/useToast";
 import CommitDialog from "@/components/dialogs/CommitDialog";
 import LastCommitInfo from "@/components/layout/header/LastCommitInfo";
+import { useCommitDialog } from "@/hooks/useCommitDialog";
 
 const VersionStatus = ({
 	promptId,
@@ -19,10 +17,21 @@ const VersionStatus = ({
 	onCommitStatusUpdate?: (callback: (commited: boolean) => void) => void;
 	onCommitStatusChange?: (commited: boolean) => void;
 }) => {
-	const [commitDialogOpen, setCommitDialogOpen] = useState(false);
-
-	const queryClient = useQueryClient();
-	const [isLoading, setIsLoading] = useState(false);
+	const {
+		isOpen: commitDialogOpen,
+		setIsOpen: setCommitDialogOpen,
+		value: commitMessage,
+		setValue: setCommitMessage,
+		isGenerating,
+		isCommitting,
+		handleGenerate,
+		handleCommit,
+	} = useCommitDialog({
+		promptId: promptId,
+		onSuccess: async () => {
+			if (onCommitStatusChange) onCommitStatusChange(true);
+		},
+	});
 
 	useEffect(() => {
 		if (onCommitStatusUpdate) {
@@ -34,62 +43,6 @@ const VersionStatus = ({
 			onCommitStatusUpdate(updateCommitStatus);
 		}
 	}, [onCommitStatusUpdate, onCommitStatusChange]);
-
-	const commitHandler = async (value: string) => {
-		setIsLoading(true);
-		try {
-			await promptApi.commitPrompt(promptId, { commitMessage: value });
-			setCommitDialogOpen(false);
-
-			if (onCommitStatusChange) {
-				onCommitStatusChange(true);
-			}
-
-			queryClient.setQueryData(["prompt", promptId], (oldData: any) => {
-				if (!oldData) return oldData;
-				return {
-					...oldData,
-					prompt: {
-						...oldData.prompt,
-						commited: true,
-						lastCommit: "committed",
-					},
-				};
-			});
-
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: ["prompt", promptId],
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ["prompts"],
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ["branches", String(promptId)],
-				}),
-			]);
-
-			setTimeout(async () => {
-				await queryClient.refetchQueries({
-					queryKey: ["prompt", promptId],
-				});
-			}, 100);
-
-			toast({
-				title: "Changes committed successfully",
-			});
-		} catch (error) {
-			if (onCommitStatusChange) {
-				onCommitStatusChange(false);
-			}
-			toast({
-				title: "Something went wrong",
-				variant: "destructive",
-			});
-		} finally {
-			setIsLoading(false);
-		}
-	};
 
 	const isCommitted = Boolean(commited);
 
@@ -105,9 +58,9 @@ const VersionStatus = ({
 								onClick={() => {
 									setCommitDialogOpen(true);
 								}}
-								disabled={isCommitted || isLoading}
+								disabled={isCommitted || isCommitting}
 							>
-								{isLoading ? "Committing..." : "Commit"}
+								{isCommitting ? "Committing..." : "Commit"}
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -119,10 +72,13 @@ const VersionStatus = ({
 
 			<CommitDialog
 				open={commitDialogOpen}
-				setOpen={setCommitDialogOpen}
-				confirmationHandler={commitHandler}
-				loading={isLoading}
-				promptId={promptId}
+				onOpenChange={setCommitDialogOpen}
+				value={commitMessage}
+				onChange={setCommitMessage}
+				onCommit={handleCommit}
+				onGenerate={handleGenerate}
+				isGenerating={isGenerating}
+				isCommitting={isCommitting}
 			/>
 		</>
 	);

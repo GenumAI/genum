@@ -10,8 +10,8 @@ import { capitalizeFirstLetter } from "@/lib/capitalizeFirstLetter";
 import CommitTimeline from "@/pages/prompt/playground-tabs/version/CommitTimeline";
 import { SearchInput } from "@/components/ui/searchInput";
 import CommitDialog from "@/components/dialogs/CommitDialog";
-import { toast } from "@/hooks/useToast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCommitDialog } from "@/hooks/useCommitDialog";
 
 interface Author {
 	id: number;
@@ -35,25 +35,8 @@ export interface Branch {
 	promptVersions: PromptVersion[];
 }
 
-function searchBranchesByCommitMsg(branches: Branch[], query: string): Branch[] {
-	if (!branches) return [];
-	return branches
-		.map((branch) => ({
-			...branch,
-			promptVersions: branch.promptVersions.filter((version) => {
-				const queryLower = query.toLowerCase();
-				return (
-					version.commitMsg.toLowerCase().includes(queryLower) ||
-					version.commitHash.toLowerCase().includes(queryLower)
-				);
-			}),
-		}))
-		.filter((branch) => branch.promptVersions.length > 0);
-}
-
 export default function Versions() {
 	const [branch, setBranch] = useState("");
-	const [commitDialogOpen, setCommitDialogOpen] = useState(false);
 	const [isCommitted, setIsCommitted] = useState(false);
 
 	const { id, orgId, projectId } = useParams<{
@@ -117,11 +100,23 @@ export default function Versions() {
 		}
 	}, [data, branch]);
 
-
-	const dataSearched = useMemo(
-		() => searchBranchesByCommitMsg(data?.branches || [], search),
-		[data, search],
-	);
+	const {
+		isOpen: commitDialogOpen,
+		setIsOpen: setCommitDialogOpen,
+		value: commitMessage,
+		setValue: setCommitMessage,
+		isGenerating,
+		isCommitting,
+		handleGenerate,
+		handleCommit,
+	} = useCommitDialog({
+		promptId: id || "",
+		onSuccess: () => {
+			setIsCommitted(true);
+			fetchPrompt();
+			fetchBranches();
+		},
+	});
 
 	const selectedBranchData = useMemo(() => {
 		if (!data?.branches) return [];
@@ -138,27 +133,6 @@ export default function Versions() {
 		});
 		return [{ ...found, promptVersions: filteredVersions, productiveCommitId }];
 	}, [data, branch, search]);
-
-	const commitHandler = async (value: string) => {
-		if (!id) return;
-		try {
-			await promptApi.commitPrompt(id, { commitMessage: value });
-			setCommitDialogOpen(false);
-			setIsCommitted(true);
-
-			await fetchPrompt();
-			fetchBranches();
-			toast({
-				title: "Changes committed successfully",
-			});
-		} catch (error) {
-			setIsCommitted(false);
-			toast({
-				title: "Something went wrong",
-				variant: "destructive",
-			});
-		}
-	};
 
 	const handleCompare = () => {
 		if (id && orgId && projectId) {
@@ -253,10 +227,13 @@ export default function Versions() {
 
 			<CommitDialog
 				open={commitDialogOpen}
-				setOpen={setCommitDialogOpen}
-				confirmationHandler={commitHandler}
-				loading={false}
-				promptId={id || ""}
+				onOpenChange={setCommitDialogOpen}
+				value={commitMessage}
+				onChange={setCommitMessage}
+				onCommit={handleCommit}
+				onGenerate={handleGenerate}
+				isGenerating={isGenerating}
+				isCommitting={isCommitting}
 			/>
 		</>
 	);
