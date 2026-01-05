@@ -13,12 +13,11 @@ import { useRunPrompt } from "@/hooks/useRunPrompt";
 import { Button } from "@/components/ui/button";
 import SettingsBar from "@/pages/prompt/playground-tabs/playground-layout/settings-block/SettingsBar";
 import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDialog";
-import useAuditDataModal from "@/hooks/useAuditDataModal";
+import { useAudit } from "@/hooks/useAudit";
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import { InputTextArea } from "@/pages/prompt/playground-tabs/playground-layout/InputTextArea";
 import { useSidebar } from "@/components/sidebar/sidebar";
-import type { AuditData } from "@/types/audit";
 import type { Model } from "@/types/AIModel";
 import { usePromptStatus } from "@/contexts/PromptStatusContext";
 import {
@@ -90,8 +89,6 @@ export default function Playground() {
 	const get = usePlaygroundStore.getState;
 
 	const [, setIsUncommitted] = useState(false);
-	const [isAuditLoading, setIsAuditLoading] = useState(false);
-	const [currentAuditData, setCurrentAuditData] = useState<AuditData | null>(null);
 	const [isPromptChangedAfterAudit, setIsPromptChangedAfterAudit] = useState(false);
 	const clearExpectedOutputRef = useRef<(() => void) | null>(null);
 	const lastSavedInputRef = useRef<string>("");
@@ -117,8 +114,18 @@ export default function Playground() {
 	const { toast } = useToast();
 	const [searchParams] = useSearchParams();
 	const testcaseId = searchParams.get("testcaseId");
-	const { setAuditDataModal } = useAuditDataModal();
+	const { currentAuditData, runAudit, isAuditLoading, setCurrentAuditData, fixRisks } = useAudit({
+		onAuditSuccess: () => {
+			setIsPromptChangedAfterAudit(false);
+			setShowAuditModal(true);
+		},
+		onFixSuccess: (fixedPrompt) => {
+			setDiffModalInfo({ prompt: fixedPrompt });
+			setShowAuditModal(false);
+		},
+	});
 	const navigate = useNavigate();
+	const [isFixing, setIsFixing] = useState(false);
 
 	const [models, setModels] = useState<Model[]>([]);
 
@@ -245,26 +252,7 @@ export default function Playground() {
 
 	const auditPrompt = async () => {
 		if (!promptId || !prompt?.prompt?.value || isAuditLoading) return;
-
-		setIsAuditLoading(true);
-		try {
-			const data = await promptApi.auditPrompt(promptId);
-
-			if (data && data.audit) {
-				setCurrentAuditData(data.audit);
-				setIsPromptChangedAfterAudit(false);
-				setAuditDataModal(data.audit);
-				setShowAuditModal(true);
-			}
-		} catch (error) {
-			toast({
-				title: "Audit failed",
-				description: "Failed to audit the prompt. Please try again.",
-				variant: "destructive",
-			});
-		} finally {
-			setIsAuditLoading(false);
-		}
+		await runAudit(promptId);
 	};
 
 	const handleOpenAuditModal = () => {
@@ -275,10 +263,18 @@ export default function Playground() {
 		setShowAuditModal(false);
 	};
 
-	const handleAuditComplete = useCallback((auditData: AuditData) => {
-		setCurrentAuditData(auditData);
-		setIsPromptChangedAfterAudit(false);
-	}, []);
+	const handleRunAudit = async () => {
+		if (promptId) {
+			await runAudit(promptId);
+		}
+	};
+
+	const handleFixRisks = async (recommendations: string[]) => {
+		if (!prompt?.prompt?.value) return;
+		setIsFixing(true);
+		await fixRisks(prompt.prompt.value, recommendations);
+		setIsFixing(false);
+	};
 
 	const handleTestcaseAdded = useCallback(async () => {
 		resetForNewTestcase();
@@ -405,7 +401,7 @@ export default function Playground() {
 			}
 			setDiffModalInfo(null);
 		},
-		[updatePromptContent],
+		[updatePromptContent, setCurrentAuditData],
 	);
 
 	const handleSaveAsExpected = useCallback(
@@ -688,14 +684,14 @@ export default function Playground() {
 			)}
 
 			<AuditResultsModal
-				promptId={promptId || ""}
-				promptValue={prompt?.prompt?.value || ""}
-				existingAuditData={currentAuditData || prompt?.prompt?.audit?.data}
+				auditData={currentAuditData || prompt?.prompt?.audit?.data || null}
+				isLoading={isAuditLoading}
+				isFixing={isFixing}
 				isOpen={showAuditModal}
 				onClose={handleCloseAuditModal}
-				onAuditComplete={handleAuditComplete}
+				onRunAudit={handleRunAudit}
+				onFixRisks={handleFixRisks}
 				isDisabledFix={false}
-				setDiffModalInfo={setDiffModalInfo}
 			/>
 
 			{diffModalInfo && (
