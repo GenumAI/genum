@@ -1,43 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { ClipboardCopyIcon } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useParams } from "react-router-dom";
-import { runtimeConfig } from "@/lib/runtime-config";
+import { Copy, Check } from "phosphor-react";
+import { useApiEndpoint } from "./useApiEndpoint";
 
 export default function ApiEndpoint() {
-	const { id } = useParams<{ id: string }>();
-	const promptId = id ? Number(id) : undefined;
-
-	const [copied, setCopied] = useState(false);
-	const [copiedURL, setCopiedURL] = useState(false);
-
-	const apiUrl = `${runtimeConfig.API_URL}/api/v1/prompts/run`;
-
-	const handleCopy = async () => {
-		try {
-			await navigator.clipboard.writeText(promptId?.toString() || "");
-			setCopied(true);
-			setTimeout(() => setCopied(false), 3000);
-		} catch (e) {
-			console.error("Clipboard error", e);
-		}
-	};
-
-	const handleCopyURL = async () => {
-		try {
-			await navigator.clipboard.writeText(apiUrl);
-			setCopiedURL(true);
-			setTimeout(() => setCopiedURL(false), 3000);
-		} catch (e) {
-			console.error("Clipboard error", e);
-		}
-	};
+	const { promptId, apiUrl, copiedId, copiedURL, handleCopyId, handleCopyURL } =
+		useApiEndpoint();
 
 	return (
 		<Card className="max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] ml-3 mr-6 w-full my-8 shadow-none bg-card text-card-foreground">
@@ -58,17 +31,20 @@ export default function ApiEndpoint() {
 							/>
 							<Button
 								size="sm"
-								disabled={copied}
-								onClick={handleCopy}
+								disabled={copiedId}
+								onClick={handleCopyId}
 								className="absolute right-3 top-1/2 -translate-y-1/2"
 							>
-								{!copied ? (
+								{copiedId ? (
 									<>
-										<ClipboardCopyIcon className="mr-2 h-4 w-4" />
-										Copy ID
+										<Check className="mr-2 h-4 w-4" />
+										Copied
 									</>
 								) : (
-									"Copied"
+									<>
+										<Copy className="mr-2 h-4 w-4" />
+										Copy ID
+									</>
 								)}
 							</Button>
 						</div>
@@ -93,13 +69,16 @@ export default function ApiEndpoint() {
 								onClick={handleCopyURL}
 								className="absolute right-3 top-1/2 -translate-y-1/2"
 							>
-								{!copiedURL ? (
+								{copiedURL ? (
 									<>
-										<ClipboardCopyIcon className="mr-2 h-4 w-4" />
-										Copy URL
+										<Check className="mr-2 h-4 w-4" />
+										Copied
 									</>
 								) : (
-									"Copied"
+									<>
+										<Copy className="mr-2 h-4 w-4" />
+										Copy URL
+									</>
 								)}
 							</Button>
 						</div>
