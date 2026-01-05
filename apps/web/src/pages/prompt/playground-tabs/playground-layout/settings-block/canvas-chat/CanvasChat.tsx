@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import type React from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { Button, ButtonWithLoader } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { promptApi } from "@/api/prompt";
 import type { Action, Message, SendMessageAgentResponse as CanvasSendMessageAgentResponse } from "@/types/Canvas";
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
-import useAuditDataModal from "@/hooks/useAuditDataModal";
+import { useAudit } from "@/hooks/useAudit";
 
 interface DiffModalInfo {
 	prompt: string;
@@ -39,7 +40,13 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 	const promptId = id ? Number(id) : undefined;
 	const { toast } = useToast();
 	const [diffModalInfo, setDiffModalInfo] = useState<DiffModalInfo | null>(null);
-	const { setAuditDataModal } = useAuditDataModal();
+	const { currentAuditData, setCurrentAuditData, runAudit, isAuditLoading, fixRisks } = useAudit({
+		onFixSuccess: (fixedPrompt) => {
+			setDiffModalInfo({ prompt: fixedPrompt });
+			setShowAuditModal(false);
+		},
+	});
+	const [isFixing, setIsFixing] = useState(false);
 
 	useEffect(() => {
 		const fetchMessages = async () => {
@@ -68,7 +75,7 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 
 	useEffect(() => {
 		scrollToBottom();
-	}, [messages, scrollToBottom]);
+	}, [scrollToBottom]);
 
 	const sendMessageWithAuth = async (
 		messageText: string,
@@ -227,7 +234,7 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 					prompt: action.value,
 				});
 			} else if (action.type === "audit_prompt") {
-				setAuditDataModal(action.value);
+				setCurrentAuditData(action.value);
 				setShowAuditModal(true);
 			}
 		} catch (error) {
@@ -277,7 +284,18 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 		setShowAuditModal(false);
 	};
 
-	const handleAuditComplete = useCallback((auditData: any) => {}, []);
+	const handleRunAudit = async () => {
+		if (promptId) {
+			await runAudit(promptId);
+		}
+	};
+
+	const handleFixRisks = async (recommendations: string[]) => {
+		if (!systemPrompt) return;
+		setIsFixing(true);
+		await fixRisks(systemPrompt, recommendations);
+		setIsFixing(false);
+	};
 
 	return (
 		<>
@@ -419,14 +437,14 @@ const CanvasChat = ({ systemPrompt, updatePromptContent }: CanvasChatProps) => {
 
 			{promptId !== undefined && (
 				<AuditResultsModal
-					promptId={promptId}
-					promptValue={systemPrompt ?? ""}
-					existingAuditData={null}
+					auditData={currentAuditData}
+					isLoading={isAuditLoading}
+					isFixing={isFixing}
 					isOpen={showAuditModal}
 					onClose={handleCloseAuditModal}
-					onAuditComplete={handleAuditComplete}
+					onRunAudit={handleRunAudit}
+					onFixRisks={handleFixRisks}
 					isDisabledFix={false}
-					setDiffModalInfo={setDiffModalInfo}
 				/>
 			)}
 		</>
