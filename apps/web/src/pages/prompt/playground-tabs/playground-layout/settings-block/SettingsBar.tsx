@@ -19,7 +19,6 @@ interface SettingsBarProps {
 	cost?: TimeParam | null;
 	responseTime?: number | null;
 	updatePromptContent: (value: string) => void;
-	onMarkAsUncommittedCallback?: (markAsUncommitted: () => void) => void;
 	isUpdatingPromptContent?: boolean;
 }
 
