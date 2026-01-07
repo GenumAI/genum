@@ -11,7 +11,7 @@ import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import { InputTextArea } from "@/pages/prompt/playground-tabs/playground-layout/InputTextArea";
 import { useSidebar } from "@/components/sidebar/sidebar";
-import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playground-layout/usePlayground";
+import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playground-layout/hooks/usePlayground";
 
 export default function Playground() {
 	const { orgId, projectId, id } = useParams<{

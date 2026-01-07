@@ -7,7 +7,7 @@ import { testcasesApi } from "@/api/testcases/testcases.api";
 import { calculateTestcaseStatusCounts } from "@/lib/testcaseUtils";
 import type { AuditData } from "@/types/audit";
 import type { TestCase } from "@/types/TestСase";
-import type { RunState, TestcaseLoadState } from "@/pages/prompt/playground-tabs/playground-layout/types";
+import type { RunState, TestcaseLoadState } from "@/pages/prompt/playground-tabs/playground-layout/hooks/types";
 
 export const defaultPromptResponse: PromptResponse = {
 	answer: "",
