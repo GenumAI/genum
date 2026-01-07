@@ -71,7 +71,8 @@ export const TestcaseAssertionModal = ({
 	assertionType,
 }: TestcaseAssertionModalProps) => {
 	const currentAssertionType = assertionType || "AI";
-	const showAssertionFields = currentAssertionType === "AI";
+	const hasAssertionThoughts = testcase.assertionThoughts && testcase.assertionThoughts.trim().length > 0;
+	const showAssertionFields = hasAssertionThoughts && (currentAssertionType === "AI" || currentAssertionType === "STRICT");
 
 	return (
 		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
