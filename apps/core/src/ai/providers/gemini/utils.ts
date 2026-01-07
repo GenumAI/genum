@@ -108,10 +108,7 @@ export function mapConfigToGemini(request: ProviderRequest): GenerateContentConf
 		maxOutputTokens: request.parameters.max_tokens,
 		responseMimeType: request.parameters.json_schema ? "application/json" : undefined,
 		responseSchema: request.parameters.json_schema
-			? {
-					type: "json_schema",
-					jsonSchema: mapSchemaToGeminiFormat(request.parameters.json_schema),
-				}
+			? mapSchemaToGeminiFormat(request.parameters.json_schema)
 			: undefined,
 		tools:
 			request.parameters.tools && request.parameters.tools.length > 0
