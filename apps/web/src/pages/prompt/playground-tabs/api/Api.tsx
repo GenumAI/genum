@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Check } from "phosphor-react";
+import { ClipboardText, Check } from "phosphor-react";
 import { useApiEndpoint } from "./useApiEndpoint";
 
 export default function ApiEndpoint() {
@@ -42,7 +42,7 @@ export default function ApiEndpoint() {
 									</>
 								) : (
 									<>
-										<Copy className="mr-2 h-4 w-4" />
+										<ClipboardText className="mr-2 h-4 w-4" />
 										Copy ID
 									</>
 								)}
@@ -76,7 +76,7 @@ export default function ApiEndpoint() {
 									</>
 								) : (
 									<>
-										<Copy className="mr-2 h-4 w-4" />
+										<ClipboardText className="mr-2 h-4 w-4" />
 										Copy URL
 									</>
 								)}
