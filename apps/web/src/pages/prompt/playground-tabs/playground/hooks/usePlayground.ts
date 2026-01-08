@@ -7,12 +7,12 @@ import usePlaygroundStore, {
 	usePlaygroundTestcase,
 	usePlaygroundUI,
 } from "@/stores/playground.store";
-import { usePlaygroundModels } from "@/pages/prompt/playground-tabs/playground-layout/hooks/usePlaygroundModels";
-import { usePlaygroundPrompt } from "@/pages/prompt/playground-tabs/playground-layout/hooks/usePlaygroundPrompt";
-import { usePlaygroundTestcaseController } from "@/pages/prompt/playground-tabs/playground-layout/hooks/usePlaygroundTestcase";
-import { usePlaygroundRunController } from "@/pages/prompt/playground-tabs/playground-layout/hooks/usePlaygroundRun";
-import { usePlaygroundAuditController } from "@/pages/prompt/playground-tabs/playground-layout/hooks/usePlaygroundAudit";
-import type { PlaygroundControllerReturn } from "@/pages/prompt/playground-tabs/playground-layout/hooks/types";
+import { usePlaygroundModels } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundModels";
+import { usePlaygroundPrompt } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundPrompt";
+import { usePlaygroundTestcaseController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundTestcase";
+import { usePlaygroundRunController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundRun";
+import { usePlaygroundAuditController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAudit";
+import type { PlaygroundControllerReturn } from "@/pages/prompt/playground-tabs/playground/hooks/types";
 
 export function usePlaygroundController({
 	promptId,
@@ -228,5 +228,3 @@ export function usePlaygroundController({
 		},
 	} satisfies PlaygroundControllerReturn;
 }
-
-

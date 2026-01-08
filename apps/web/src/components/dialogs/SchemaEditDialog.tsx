@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Editor, { OnMount } from "@monaco-editor/react";
-import VisualSchemaEditor from "@/pages/prompt/playground-tabs/playground-layout/settings-block/models-settings/misc/JSON Modal/VisualSchemaEditor";
-import validator from "@/pages/prompt/playground-tabs/playground-layout/settings-block/models-settings/misc/JSON Modal/validator";
+import VisualSchemaEditor from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/misc/JSON Modal/VisualSchemaEditor";
+import validator from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/misc/JSON Modal/validator";
 import { useTheme } from "@/components/theme/theme-provider";
 import {
 	transformToJsonSchema,
@@ -10,7 +10,7 @@ import {
 	baseSchema,
 	VisualSchema,
 	VisualProperty,
-} from "@/pages/prompt/playground-tabs/playground-layout/settings-block/models-settings/misc/JSON Modal/schemaHelpers";
+} from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/misc/JSON Modal/schemaHelpers";
 
 import {
 	Dialog,
@@ -24,7 +24,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TriangleAlert } from "lucide-react";
 import { PromptSettings } from "@/types/Prompt";
-import AISchemaButton from "@/pages/prompt/playground-tabs/playground-layout/settings-block/models-settings/misc/AISchemaButton";
+import AISchemaButton from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/misc/AISchemaButton";
 
 // Re-export types for external use if needed
 export type { VisualSchema, VisualProperty };

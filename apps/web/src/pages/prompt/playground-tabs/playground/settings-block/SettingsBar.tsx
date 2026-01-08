@@ -1,6 +1,6 @@
 import { Separator } from "@/components/ui/separator";
 import { Clock, Ticket, Coins, ChevronDown, ChevronUp } from "lucide-react";
-import ModelsSettings from "@/pages/prompt/playground-tabs/playground-layout/settings-block/models-settings/ModelsSettings";
+import ModelsSettings from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/ModelsSettings";
 import { useMemo, useState, useEffect, ReactElement } from "react";
 import CanvasChat from "./canvas-chat/CanvasChat";
 import { PromptSettings, TLanguageModel } from "@/types/Prompt";

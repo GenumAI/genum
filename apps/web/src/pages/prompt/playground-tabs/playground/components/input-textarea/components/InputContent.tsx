@@ -1,7 +1,7 @@
 import { ChangeEvent, forwardRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/useToast";
-import AIPreview from "@/pages/prompt/playground-tabs/playground-layout/components/input-textarea/components/AIPreview";
+import AIPreview from "@/pages/prompt/playground-tabs/playground/components/input-textarea/components/AIPreview";
 import { ResizeHandle } from "./ResizeHandle";
 
 interface InputContentProps {

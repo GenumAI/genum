@@ -7,7 +7,7 @@ import Prompts from "@/pages/prompt/Prompts";
 import Testcases from "@/pages/testcases/TestcasesPage";
 import PromptTestcases from "@/pages/prompt/playground-tabs/testcases/Testcases";
 import Settings from "@/pages/settings/Settings";
-import Playground from "@/pages/prompt/playground-tabs/playground-layout/Playground";
+import Playground from "@/pages/prompt/playground-tabs/playground/Playground";
 import ProtectedRoute from "@/app/router/ProtectedRoute";
 import Memory from "@/pages/prompt/playground-tabs/memory/Memory";
 import Versions from "@/pages/prompt/playground-tabs/version/Versions";

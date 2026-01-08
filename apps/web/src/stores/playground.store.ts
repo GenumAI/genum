@@ -7,7 +7,10 @@ import { testcasesApi } from "@/api/testcases/testcases.api";
 import { calculateTestcaseStatusCounts } from "@/lib/testcaseUtils";
 import type { AuditData } from "@/types/audit";
 import type { TestCase } from "@/types/TestСase";
-import type { RunState, TestcaseLoadState } from "@/pages/prompt/playground-tabs/playground-layout/hooks/types";
+import type {
+	RunState,
+	TestcaseLoadState,
+} from "@/pages/prompt/playground-tabs/playground/hooks/types";
 
 export const defaultPromptResponse: PromptResponse = {
 	answer: "",
@@ -178,10 +181,10 @@ const initialState: PlaygroundData = {
 const usePlaygroundStore = create<PlaygroundState>()(
 	devtools(
 		(set, get) => ({
-		...initialState,
+			...initialState,
 
-		// Content setters
-		setInputContent: (inputContent) => {
+			// Content setters
+			setInputContent: (inputContent) => {
 				return set(
 					{ inputContent, hasInputContent: !!inputContent?.trim() },
 					false,
@@ -215,10 +218,10 @@ const usePlaygroundStore = create<PlaygroundState>()(
 			setLivePromptValue: (livePromptValue) => {
 				return set({ livePromptValue }, false, "setLivePromptValue");
 			},
-		setCurrentAuditData: (currentAuditData) => {
-			return set({ currentAuditData }, false, "setCurrentAuditData");
-		},
-		setAssertionValue: (assertionValue) => {
+			setCurrentAuditData: (currentAuditData) => {
+				return set({ currentAuditData }, false, "setCurrentAuditData");
+			},
+			setAssertionValue: (assertionValue) => {
 				return set({ assertionValue }, false, "setAssertionValue");
 			},
 			setCommitMessage: (commitMessage) => {
@@ -306,9 +309,9 @@ const usePlaygroundStore = create<PlaygroundState>()(
 			closeAuditModal: () => {
 				return set({ showAuditModal: false }, false, "closeAuditModal");
 			},
-		setDiffModal: (diffModalInfo: { prompt: string } | null) => {
-			return set({ diffModalInfo }, false, "setDiffModal");
-		},
+			setDiffModal: (diffModalInfo: { prompt: string } | null) => {
+				return set({ diffModalInfo }, false, "setDiffModal");
+			},
 
 			// Loading state actions
 			setRunLoading: (runLoading) => {
@@ -333,7 +336,9 @@ const usePlaygroundStore = create<PlaygroundState>()(
 					{
 						runLoading: state.loading,
 						...(state.wasRun !== undefined && { wasRun: state.wasRun }),
-						...(state.clearedOutput !== undefined && { clearedOutput: state.clearedOutput }),
+						...(state.clearedOutput !== undefined && {
+							clearedOutput: state.clearedOutput,
+						}),
 					},
 					false,
 					"setRunState",
