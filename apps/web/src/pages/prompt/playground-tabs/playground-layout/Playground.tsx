@@ -2,14 +2,14 @@ import { useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import clsx from "clsx";
-import TextEditor from "@/pages/prompt/playground-tabs/playground-layout/prompt-editor/TextEditor";
-import OutputBlock from "@/pages/prompt/playground-tabs/playground-layout/outputs/Output";
+import TextEditor from "@/pages/prompt/playground-tabs/playground-layout/components/prompt-editor/TextEditor";
+import OutputBlock from "@/pages/prompt/playground-tabs/playground-layout/components/outputs/Output";
 import { Button } from "@/components/ui/button";
-import SettingsBar from "@/pages/prompt/playground-tabs/playground-layout/settings-block/SettingsBar";
+import SettingsBar from "@/pages/prompt/playground-tabs/playground-layout/components/settings-block/SettingsBar";
 import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDialog";
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
-import { InputTextArea } from "@/pages/prompt/playground-tabs/playground-layout/InputTextArea";
+import { InputTextArea } from "@/pages/prompt/playground-tabs/playground-layout/components/input-textarea/InputTextArea";
 import { useSidebar } from "@/components/sidebar/sidebar";
 import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playground-layout/hooks/usePlayground";
 
@@ -43,13 +43,10 @@ export default function Playground() {
 					) : (
 						<>
 							<TextEditor
-								isPromptInstructionsEditor
 								title="System Instructions"
 								main={true}
 								onUpdatePrompt={actions.prompt.update}
-								tokens={metrics.tokens}
-								cost={metrics.cost}
-								responseTime={metrics.responseTime}
+								metrics={metrics}
 								testcaseInput={testcase.data?.input}
 								expectedContent={testcase.expectedContent}
 								onAuditPrompt={actions.audit.run}
