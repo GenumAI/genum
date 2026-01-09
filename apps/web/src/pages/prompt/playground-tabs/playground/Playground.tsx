@@ -85,10 +85,7 @@ export default function Playground() {
 
 							<OutputBlock
 								key={testcaseId}
-								promptName={prompt.data?.prompt?.name || ""}
 								onSaveAsExpected={actions.testcase.saveAsExpected}
-								systemPrompt={prompt.content}
-								onPromptUpdate={actions.prompt.handleUpdate}
 								onTestcaseAdded={actions.testcase.onAdded}
 								onRegisterClearFunction={actions.testcase.registerClearFn}
 							/>
