@@ -617,7 +617,7 @@ export const promptApi = {
 	 */
 	generateJsonSchema: async (
 		promptId: number | string,
-		data: { query?: string; existingSchema?: any },
+		data: { query?: string; jsonSchema?: any },
 		config?: ApiRequestConfig,
 	): Promise<{ jsonSchema: any }> => {
 		const response = await apiClient.post<{ jsonSchema: any }>(

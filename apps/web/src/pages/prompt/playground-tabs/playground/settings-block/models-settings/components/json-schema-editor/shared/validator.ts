@@ -83,7 +83,7 @@ const validator = {
 		if (schema.enum) {
 			if (!Array.isArray(schema.enum)) {
 				errors.push('Schema "enum" must be an array');
-			} else if (schema.enum.length === 0) {
+			} else if (strict && schema.enum.length === 0) {
 				errors.push('Schema "enum" must have at least one value');
 			}
 		}

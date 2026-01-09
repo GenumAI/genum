@@ -12,16 +12,16 @@ import { TriangleAlert } from "lucide-react";
 import Editor, { OnMount } from "@monaco-editor/react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/theme/theme-provider";
-import AIToolsButton from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/misc/AIToolsButton";
-import VisualSchemaEditor from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/misc/JSON Modal/VisualSchemaEditor";
+import AIToolsButton from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/components/AIToolsButton";
+import VisualSchemaEditor from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/components/json-schema-editor/visual-editor/VisualSchemaEditor";
 import {
 	transformToJsonSchema,
 	transformToVisualSchema,
 	checkVisualDuplicates,
 	VisualSchema,
 	baseSchema,
-} from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/misc/JSON Modal/schemaHelpers";
-import validator from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/misc/JSON Modal/validator";
+} from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/components/json-schema-editor/shared/schemaHelpers";
+import validator from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/components/json-schema-editor/shared/validator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ToolsModalProps {

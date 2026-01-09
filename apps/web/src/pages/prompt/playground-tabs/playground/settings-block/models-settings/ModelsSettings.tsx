@@ -26,7 +26,7 @@ import { Info } from "phosphor-react";
 import { useToast } from "@/hooks/useToast";
 import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
-import SchemaEditDialog from "../../../../../../components/dialogs/SchemaEditDialog";
+import JsonSchemaModal from "./components/json-schema-editor/JsonSchemaModal";
 import type { PromptSettings } from "@/types/Prompt";
 import type { Model } from "@/types/AIModel";
 import { TooltipArrow } from "@radix-ui/react-tooltip";
@@ -1239,7 +1239,8 @@ const ModelsSettings = ({
 																promptId as number,
 																payload,
 															);
-															const updatedPrompt = await getCommitStatus();
+															const updatedPrompt =
+																await getCommitStatus();
 															if (selectedModelId) {
 																await getModelConfig(
 																	selectedModelId,
@@ -1642,7 +1643,7 @@ const ModelsSettings = ({
 				</form>
 
 				{responseFormat === "json_schema" && !!prompt && (
-					<SchemaEditDialog
+					<JsonSchemaModal
 						open={schemaDialogOpen}
 						setOpen={setSchemaDialogOpen}
 						promptId={promptId}
