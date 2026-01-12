@@ -81,10 +81,11 @@ export function xmlToObj(xml: string): Record<string, any> {
 			const result: Record<string, any> = {};
 
 			const tagRegex = /<(\w+)([^>]*)>(.*?)<\/\1>/g;
-			let match;
+			let match: RegExpExecArray | null;
 
-			while ((match = tagRegex.exec(xmlString)) !== null) {
-				const [, tagName, attributes, content] = match;
+			match = tagRegex.exec(xmlString);
+			while (match !== null) {
+				const [, tagName, _attributes, content] = match;
 				const hasNestedTags = /<[^>]+>/.test(content);
 
 				if (hasNestedTags) {
@@ -92,6 +93,8 @@ export function xmlToObj(xml: string): Record<string, any> {
 				} else {
 					result[tagName] = content.trim();
 				}
+
+				match = tagRegex.exec(xmlString);
 			}
 
 			return result;
