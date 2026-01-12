@@ -24,6 +24,7 @@ const contextSchema = z.object({
 
 const editPromptToolV2 = tool(
 	async (
+		// biome-ignore lint/correctness/noUnusedFunctionParameters: we need to pass the description to the tool
 		{ edit, description }: { edit: string; description: string },
 		config: LangGraphRunnableConfig,
 	) => {
@@ -64,6 +65,7 @@ const editPromptToolV2 = tool(
 );
 
 const auditPromptToolV2 = tool(
+	// biome-ignore lint/correctness/noUnusedFunctionParameters: we need to pass the description to the tool
 	async ({ description }: { description: string }, config: LangGraphRunnableConfig) => {
 		const context = config.context as z.infer<typeof contextSchema>;
 
