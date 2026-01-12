@@ -827,8 +827,9 @@ export async function getOrganizationDailyUsageStats(
 		for (const row of data) {
 			const date = moment(row.date).format("YYYY-MM-DD");
 
-			if (!dailyMap.has(date)) {
-				dailyMap.set(date, {
+			let dayData = dailyMap.get(date);
+			if (!dayData) {
+				dayData = {
 					date,
 					total_requests: 0,
 					total_tokens: 0,
@@ -836,24 +837,25 @@ export async function getOrganizationDailyUsageStats(
 					projects: new Map(),
 					sources: new Map(),
 					modelVendorStats: [],
-				});
+				};
+				dailyMap.set(date, dayData);
 			}
 
-			const dayData = dailyMap.get(date)!;
 			dayData.total_requests += Number(row.total_requests || 0);
 			dayData.total_tokens += Number(row.total_tokens || 0);
 			dayData.total_cost += Number(row.total_cost || 0);
 
 			// Aggregate by project
 			const projectKey = String(row.project_id);
-			if (!dayData.projects.has(projectKey)) {
-				dayData.projects.set(projectKey, {
+			let projectData = dayData.projects.get(projectKey);
+			if (!projectData) {
+				projectData = {
 					project_id: Number(row.project_id),
 					requests: 0,
 					tokens: 0,
-				});
+				};
+				dayData.projects.set(projectKey, projectData);
 			}
-			const projectData = dayData.projects.get(projectKey)!;
 			projectData.requests += Number(row.requests || 0);
 			projectData.tokens += Number(row.tokens || 0);
 
@@ -958,8 +960,9 @@ export async function getProjectDetailedUsageStatsV2(
 
 		while (currentDate.isSameOrBefore(endDate, "day")) {
 			const dateStr = currentDate.format("YYYY-MM-DD");
-			if (dailyDataMap.has(dateStr)) {
-				daily_stats.push(dailyDataMap.get(dateStr)!);
+			const existingData = dailyDataMap.get(dateStr);
+			if (existingData) {
+				daily_stats.push(existingData);
 			} else {
 				daily_stats.push({
 					date: dateStr,
