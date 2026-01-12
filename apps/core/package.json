@@ -4,7 +4,7 @@
   "version": "1.0.2",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "build:alias": "tsc-alias",
     "build:full": "npm run build && npm run build:alias",
     "type-check": "tsc --noEmit",
@@ -33,6 +33,7 @@
     "nodemon": "^3.1.11",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3",
+    "vite-tsconfig-paths": "^6.0.4",
     "vitest": "^4.0.17"
   },
   "dependencies": {
