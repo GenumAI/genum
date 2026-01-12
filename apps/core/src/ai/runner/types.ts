@@ -1,6 +1,6 @@
 import type { Project } from "@/prisma";
-import type { SourceType } from "../../services/logger/logger";
 import type { Prompt, Organization } from "@/prisma";
+import type { SourceType } from "@/services/logger/types";
 import type { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "langchain";
 import type OpenAI from "openai";
 

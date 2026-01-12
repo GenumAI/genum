@@ -41,7 +41,7 @@ export function calculateCost(
 }
 
 // Function to handle JSON schema that might be stored as a string
-function parseJsonSchema(schema: any): any {
+function parseJsonSchema(schema: string | unknown): unknown {
 	if (typeof schema === "string") {
 		try {
 			// Parse the string representation of JSON while preserving order
@@ -57,7 +57,7 @@ function parseJsonSchema(schema: any): any {
 }
 
 // Function to preserve order in JSON schema
-function preserveJsonOrder(jsonObj: any): any {
+function preserveJsonOrder(jsonObj: unknown): unknown {
 	// If it's null or not an object, return as is
 	if (jsonObj === null || typeof jsonObj !== "object") {
 		return jsonObj;
@@ -69,20 +69,23 @@ function preserveJsonOrder(jsonObj: any): any {
 	}
 
 	// For objects, use Map to maintain insertion order
-	const orderedMap = new Map();
+	const orderedMap = new Map<string, unknown>();
 
 	// First add all keys in their original order
-	Object.keys(jsonObj).forEach((key) => {
-		orderedMap.set(key, preserveJsonOrder(jsonObj[key]));
+	// Type assertion: we know jsonObj is an object (not array, not null) at this point
+	const recordObj = jsonObj as Record<string, unknown>;
+	Object.keys(recordObj).forEach((key) => {
+		orderedMap.set(key, preserveJsonOrder(recordObj[key]));
 	});
 
 	// Convert Map back to object while preserving order
 	return Object.fromEntries(orderedMap);
 }
 
-export function normalizeJsonSchema(schema: string): Record<string, any> {
+export function normalizeJsonSchema(schema: string): Record<string, unknown> {
 	const parsedSchema = parseJsonSchema(schema);
 
 	// Preserve the property order
-	return preserveJsonOrder(parsedSchema);
+	// Type assertion: JSON schema should be an object, not a primitive or array
+	return preserveJsonOrder(parsedSchema) as Record<string, unknown>;
 }

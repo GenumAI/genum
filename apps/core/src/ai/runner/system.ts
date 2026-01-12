@@ -122,8 +122,8 @@ async function testcaseAssertionV2(
 	const obj = xmlToObj(result.answer);
 
 	const assertionStatus: testcaseAssertion = {
-		assertionStatus: obj.assertion.status === "OK" ? "OK" : "NOK",
-		assertionThoughts: obj.assertion.assertionThoughts,
+		assertionStatus: (obj.assertion as { status: "OK" | "NOK" }).status === "OK" ? "OK" : "NOK",
+		assertionThoughts: (obj.assertion as { assertionThoughts: string }).assertionThoughts,
 	};
 
 	return assertionStatus;

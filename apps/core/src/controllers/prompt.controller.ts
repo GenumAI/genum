@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { db } from "@/database/db";
 import { runPrompt } from "../ai/runner/run";
 import type { AiVendor, Prompt, PromptChat } from "@/prisma";
-import { SourceType, getPromptLogs } from "../services/logger/logger";
+import { getPromptLogs } from "../services/logger/logger";
 import { ModelConfigService } from "../ai/models/modelConfigService";
 import { mdToXml, objToXml } from "@/utils/xml";
 import {
@@ -35,6 +35,8 @@ import { checkMemoryAccess, checkPromptAccess } from "@/services/access/AccessSe
 import type { CanvasAgentMessage, CanvasAgentParams, CanvasMessage } from "@/ai/runner/types";
 import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
+import type { ModelConfigParameters } from "@/ai/models/types";
+import { SourceType } from "@/services/logger/types";
 
 export class PromptsController {
 	private modelConfigService: ModelConfigService;
@@ -451,7 +453,7 @@ export class PromptsController {
 		const defaultConfigForNewModel = this.modelConfigService.getDefaultValues(
 			newModel.name,
 			newModel.vendor as AiVendor,
-		) as Record<string, any>;
+		) as ModelConfigParameters;
 
 		// Start with the new model's defaults
 		const candidateConfig: Record<string, any> = { ...defaultConfigForNewModel };
@@ -730,13 +732,13 @@ export class PromptsController {
 
 			const oldState: PromptState = {
 				value: lastCommit.value,
-				languageModelConfig: lastCommit.languageModelConfig as Record<string, any>,
+				languageModelConfig: lastCommit.languageModelConfig as ModelConfigParameters,
 				languageModelId: lastCommit.languageModelId,
 			};
 
 			const newState: PromptState = {
 				value: prompt.value,
-				languageModelConfig: prompt.languageModelConfig as Record<string, any>,
+				languageModelConfig: prompt.languageModelConfig as ModelConfigParameters,
 				languageModelId: prompt.languageModelId,
 			};
 

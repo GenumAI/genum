@@ -1,6 +1,5 @@
 import type { Request, Response } from "express";
 import { type Memory, TestCaseStatus } from "@/prisma";
-import { SourceType } from "../services/logger/logger";
 import {
 	type TestcasesCreateType,
 	TestcasesCreateWithoutNameSchema,
@@ -12,6 +11,7 @@ import { checkPromptAccess, checkTestcaseAccess } from "@/services/access/Access
 import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
 import { system_prompt } from "@/ai/runner/system";
+import { SourceType } from "@/services/logger/types";
 
 export class TestcasesController {
 	async getAllTestcases(req: Request, res: Response) {

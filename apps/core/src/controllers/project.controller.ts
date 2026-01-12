@@ -4,8 +4,8 @@ import {
 	getProjectDetailedUsageStats,
 	getProjectDetailedUsageStatsV2,
 	getProjectLogs,
-	type LogLevel,
-	type SourceType,
+	type LogDocument,
+	type PromptUsageStats,
 } from "../services/logger/logger";
 import {
 	numberSchema,
@@ -15,6 +15,7 @@ import {
 	ProjectLogsQuerySchema,
 	ProjectUpdateSchema,
 } from "@/services/validate";
+import type { LogLevel, SourceType } from "@/services/logger/types";
 
 export class ProjectController {
 	public async getProjectDetails(req: Request, res: Response) {
@@ -178,8 +179,10 @@ export class ProjectController {
 		);
 
 		const promptNamesAll = await db.prompts.getPromptNames(metadata.projID);
-		const usedPromptIds = new Set((stats.prompts || []).map((p: any) => p.prompt_id));
-		const promptNames = promptNamesAll.filter((p: any) => usedPromptIds.has(p.id));
+		const usedPromptIds = new Set(
+			(stats.prompts || []).map((p: PromptUsageStats) => p.prompt_id),
+		);
+		const promptNames = promptNamesAll.filter((p) => usedPromptIds.has(p.id));
 
 		res.status(200).json({
 			...stats,
@@ -199,8 +202,10 @@ export class ProjectController {
 		);
 
 		const promptNamesAll = await db.prompts.getPromptNames(metadata.projID);
-		const usedPromptIds = new Set((stats.prompts || []).map((p: any) => p.prompt_id));
-		const promptNames = promptNamesAll.filter((p: any) => usedPromptIds.has(p.id));
+		const usedPromptIds = new Set(
+			(stats.prompts || []).map((p: PromptUsageStats) => p.prompt_id),
+		);
+		const promptNames = promptNamesAll.filter((p) => usedPromptIds.has(p.id));
 
 		res.status(200).json({
 			...stats,
@@ -224,9 +229,11 @@ export class ProjectController {
 
 		const promptNamesAll = await db.prompts.getPromptNames(metadata.projID);
 		const usedPromptIds = new Set(
-			(logs.logs || []).map((log: any) => log.prompt_id).filter((id: any) => id != null),
+			(logs.logs || [])
+				.map((log: LogDocument) => log.prompt_id)
+				.filter((id: number | undefined) => id != null),
 		);
-		const promptNames = promptNamesAll.filter((p: any) => usedPromptIds.has(p.id));
+		const promptNames = promptNamesAll.filter((p) => usedPromptIds.has(p.id));
 
 		res.status(200).json({
 			...logs,
