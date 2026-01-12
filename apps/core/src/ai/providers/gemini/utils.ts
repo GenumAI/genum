@@ -24,12 +24,13 @@ function mapSchemaToGeminiFormat(schemaStr: string): GeminiSchema {
 
 	// Recursively map nested properties
 	if (mappedSchema.properties) {
-		Object.entries(mappedSchema.properties).forEach(([key, value]: [string, any]) => {
+		const properties = mappedSchema.properties;
+		Object.entries(properties).forEach(([key, value]: [string, any]) => {
 			if (value.type) {
 				value.type = value.type.toLowerCase();
 			}
 			if (value.properties) {
-				mappedSchema.properties![key] = mapSchemaToGeminiFormat(JSON.stringify(value));
+				properties[key] = mapSchemaToGeminiFormat(JSON.stringify(value));
 			}
 		});
 	}
@@ -71,14 +72,20 @@ function mapFunctionToGeminiFormat(func: {
 		parameters: {
 			type: Type.OBJECT,
 			properties: Object.entries(func.parameters.properties).reduce(
-				(acc, [key, value]) => ({
-					...acc,
-					[key]: {
+				(acc, [key, value]) => {
+					acc[key] = {
 						type: mapTypeToGeminiType(value.type),
 						description: value.description || "",
-					},
-				}),
-				{},
+					};
+					return acc;
+				},
+				{} as Record<
+					string,
+					{
+						type: Type;
+						description: string;
+					}
+				>,
 			),
 		},
 	};
