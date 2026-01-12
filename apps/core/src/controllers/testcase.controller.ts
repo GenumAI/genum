@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { TestCaseStatus } from "@/prisma";
+import { type Memory, TestCaseStatus } from "@/prisma";
 import { SourceType } from "../services/logger/logger";
 import {
 	type TestcasesCreateType,
@@ -35,7 +35,7 @@ export class TestcasesController {
 
 		const prompt = await checkPromptAccess(data.promptId, metadata.projID);
 
-		let memory = undefined;
+		let memory: Memory | undefined;
 		if (data.memoryId) {
 			const testcaseMemory = await db.memories.getMemoryByIDAndPromptId(
 				data.memoryId,
