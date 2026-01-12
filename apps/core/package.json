@@ -17,7 +17,11 @@
     "dev:db-init": "npm run db:generate && dotenv -e ../../.env prisma migrate dev && dotenv -e ../../.env npm run seed:dev",
     "db-init": "prisma migrate deploy && npm run seed:prod",
     "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --ext .ts --fix"
+    "lint:fix": "eslint . --ext .ts --fix",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -25,9 +29,11 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^24.10.1",
+    "@vitest/ui": "^4.0.17",
     "nodemon": "^3.1.11",
     "tsc-alias": "^1.8.16",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.58.0",
