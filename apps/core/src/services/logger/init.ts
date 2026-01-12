@@ -72,9 +72,9 @@ export async function initializeClickHouse(): Promise<void> {
 							wait_end_of_query: 1,
 						},
 					});
-				} catch (error: any) {
+				} catch (error: unknown) {
 					// Ignore "already exists" errors, but log others
-					const errorMsg = error?.message || String(error);
+					const errorMsg = error instanceof Error ? error.message : String(error);
 					if (
 						!errorMsg.includes("already exists") &&
 						!errorMsg.includes("Table") &&

@@ -162,7 +162,7 @@ export async function runAgent(params: CanvasAgentParams): Promise<CanvasMessage
 						id: params.prompt.id,
 						value: params.prompt.value,
 						languageModelConfig: objToXml(
-							params.prompt.languageModelConfig as Record<string, any>,
+							params.prompt.languageModelConfig as Record<string, unknown>,
 						),
 					},
 				},

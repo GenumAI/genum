@@ -46,8 +46,9 @@ export function auth0AuthMiddleware(req: Request, res: Response, next: NextFunct
 			req.genumMeta = {} as GenumMetadata;
 			req.genumMeta.ids = getMetadata(req);
 			next();
-		} catch (error: any) {
-			res.status(401).json({ error: error.message });
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : "Unknown error";
+			res.status(401).json({ error: message });
 		}
 	});
 }

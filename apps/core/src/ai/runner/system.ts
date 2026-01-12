@@ -1,4 +1,4 @@
-import { SourceType } from "@/services/logger/logger";
+import { SourceType } from "@/services/logger/types";
 import { getSystemOrganization, runPrompt } from "./run";
 import {
 	assertionEditorFormat,

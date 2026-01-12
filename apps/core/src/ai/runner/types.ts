@@ -49,7 +49,7 @@ type CanvasAgentMessageAction = {
 	message: string;
 	action: {
 		type: string;
-		value: string | Record<string, any>;
+		value: string | Record<string, unknown>;
 	};
 };
 
@@ -118,7 +118,7 @@ type AgentResponseAction = {
 	message: string;
 	function: {
 		name: string;
-		arguments: Record<string, any>;
+		arguments: Record<string, unknown>;
 		callId: string;
 	};
 };

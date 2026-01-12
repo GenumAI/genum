@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ProjectMemberSchema, ProjectSchema as ProjectSchemaGenerated } from "@/prisma-types";
 import { ProjectRole } from "@/prisma";
-import { LogLevel, SourceType } from "@/services/logger/logger";
+import { LogLevel, SourceType } from "@/services/logger/types";
 
 const ProjectSchema = ProjectSchemaGenerated.extend({
 	name: z.string().trim().min(1).max(128),

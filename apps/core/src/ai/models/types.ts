@@ -91,8 +91,8 @@ export type ModelsConfig = z.infer<typeof ModelsConfigSchema>;
 // }
 
 // Function to get default parameters for a model
-export function getDefaultParameters(modelConfig: ModelConfig): Record<string, any> {
-	const defaults: Record<string, any> = {};
+export function getDefaultParameters(modelConfig: ModelConfig): Record<string, unknown> {
+	const defaults: Record<string, unknown> = {};
 
 	for (const [paramName, constraints] of Object.entries(modelConfig.parameters)) {
 		if (constraints && constraints.default !== undefined) {
