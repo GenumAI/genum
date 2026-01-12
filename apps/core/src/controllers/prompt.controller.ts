@@ -458,10 +458,7 @@ export class PromptsController {
 
 		// Overlay values from the old configuration if the parameter exists in the new model's schema
 		for (const key in oldConfig) {
-			if (
-				Object.prototype.hasOwnProperty.call(oldConfig, key) &&
-				Object.prototype.hasOwnProperty.call(defaultConfigForNewModel, key)
-			) {
+			if (Object.hasOwn(oldConfig, key) && Object.hasOwn(defaultConfigForNewModel, key)) {
 				candidateConfig[key] = oldConfig[key];
 			}
 		}
