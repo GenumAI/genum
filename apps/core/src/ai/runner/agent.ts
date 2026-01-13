@@ -74,7 +74,7 @@ const auditPromptToolV2 = tool(
 			context.userOrgId,
 			context.userProjectId,
 		);
-		return audit.answer;
+		return audit;
 	},
 	{
 		name: "audit_prompt",
