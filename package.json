@@ -17,6 +17,7 @@
     "format": "biome check --write .",
     "format:check": "biome check .",
     "test": "turbo run test",
+    "test:run": "turbo run test:run",
     "lint:staged": "lint-staged",
     "prepare": "node scripts/prepare.mjs"
   },

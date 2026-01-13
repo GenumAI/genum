@@ -9,8 +9,37 @@ env:
   DOCKER_IMAGE_PREFIX: ${{ secrets.DOCKER_HUB_USERNAME || 'genum' }}
 
 jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    if: github.event.repository.fork == false && (github.event.release.target_commitish == 'main' || github.event.release.target_commitish == 'refs/heads/main')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Biome linter
+        run: pnpm format:check
+
+      - name: Run unit tests
+        run: pnpm test:run
+
   build-and-push:
     runs-on: ubuntu-latest
+    needs: test-and-lint
     if: github.event.repository.fork == false && (github.event.release.target_commitish == 'main' || github.event.release.target_commitish == 'refs/heads/main')
     permissions:
       contents: read
