@@ -8,18 +8,18 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useSchemaState } from "./code-editor/hooks/useSchemaState";
+import { useSchemaState } from "./hooks/useSchemaState";
 import { useSchemaValidation } from "./hooks/useSchemaValidation";
 import { useTabSwitch } from "./hooks/useTabSwitch";
 import { useSchemaSave } from "./hooks/useSchemaSave";
-import { useAISchema } from "./code-editor/hooks/useAISchema";
+import { useAISchema } from "./hooks/useAISchema";
 
-import VisualSchemaEditor from "./visual-editor/VisualSchemaEditor";
-import CodeSchemaEditor from "./code-editor/CodeSchemaEditor";
-import { TabsValue, type SchemaEditDialogProps } from "./hooks/types";
-import { transformToJsonSchema, type VisualSchema } from "./shared/schemaHelpers";
-import { ValidationAlert } from "./code-editor/components/ValidationAlert";
-import AISchemaButton from "../AISchemaButton";
+import VisualSchemaEditor from "../shared/visual-editor/VisualSchemaEditor";
+import CodeSchemaEditor from "./../shared/code-editor/CodeSchemaEditor";
+import { TabsValue, type SchemaEditDialogProps } from "../shared/utils/types";
+import { transformToJsonSchema, type VisualSchema } from "../shared/utils/schemaHelpers";
+import { ValidationAlert } from "./../shared/code-editor/components/ValidationAlert";
+import AIGenerateButton from "../shared/AIGenerateButton";
 
 const JsonSchemaModal = ({
 	open,
@@ -78,18 +78,16 @@ const JsonSchemaModal = ({
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogContent 
-				className="max-w-[800px] h-[700px] max-h-[90vh] flex flex-col"
-			>
+			<DialogContent className="max-w-[800px] h-[800px] max-h-[90vh] flex flex-col">
 				<DialogHeader>
 					<DialogTitle>JSON Schema</DialogTitle>
 				</DialogHeader>
 
 				<div className="flex-1 flex flex-col overflow-hidden">
 					<ValidationAlert errors={validationErrors} />
-					
-					<Tabs 
-						value={activeTab} 
+
+					<Tabs
+						value={activeTab}
 						onValueChange={handleTabChange}
 						className="flex-1 flex flex-col overflow-hidden"
 					>
@@ -99,33 +97,36 @@ const JsonSchemaModal = ({
 								<TabsTrigger value={TabsValue.CODE}>Code Editor</TabsTrigger>
 							</TabsList>
 							{promptId && (
-								<AISchemaButton
+								<AIGenerateButton
+									mode="schema"
 									promptId={promptId}
-									onSchemaReceived={handleSchemaReceived}
-									existingSchema={transformToJsonSchema(schema)}
+									onReceived={handleSchemaReceived}
+									existingData={transformToJsonSchema(schema)}
 								/>
 							)}
 						</div>
 
-						<TabsContent 
-							value={TabsValue.VISUAL} 
+						<TabsContent
+							value={TabsValue.VISUAL}
 							className="flex-1 min-h-0 data-[state=active]:flex flex-col"
 						>
 							<VisualSchemaEditor
 								schema={schema}
-								onChange={(newSchema: VisualSchema) => handleVisualChange(newSchema, setSchema)}
+								onChange={(newSchema: VisualSchema) =>
+									handleVisualChange(newSchema, setSchema)
+								}
 								enableChainOfThoughts={true}
 								enablePromptStatus={true}
 							/>
 						</TabsContent>
 
-						<TabsContent 
-							value={TabsValue.CODE} 
+						<TabsContent
+							value={TabsValue.CODE}
 							className="flex-1 min-h-0 data-[state=active]:flex flex-col"
 						>
-							<CodeSchemaEditor 
-								code={code} 
-								onChange={(val) => handleCodeChange(val, setCode)} 
+							<CodeSchemaEditor
+								code={code}
+								onChange={(val) => handleCodeChange(val, setCode)}
 								height="100%"
 							/>
 						</TabsContent>

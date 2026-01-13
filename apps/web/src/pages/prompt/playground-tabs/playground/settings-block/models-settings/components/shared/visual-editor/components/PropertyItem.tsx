@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/select";
 import { Trash2, MessageCircle, CirclePlus, Asterisk } from "lucide-react";
 import type { PropertyItemProps } from "../../hooks/types";
-import type { VisualProperty, FieldType } from "../../shared/schemaHelpers";
-import { generateId } from "../../shared/schemaHelpers";
+import type { VisualProperty, FieldType } from "../../utils/schemaHelpers";
+import { generateId } from "../../utils/schemaHelpers";
 
 export const PropertyItem = ({
 	property,
@@ -81,7 +81,9 @@ export const PropertyItem = ({
 	};
 
 	const handleNestedRemove = (index: number) => {
-		const updated = (property.properties || []).filter((_: VisualProperty, i: number) => i !== index);
+		const updated = (property.properties || []).filter(
+			(_: VisualProperty, i: number) => i !== index,
+		);
 		onUpdate({ ...property, properties: updated });
 	};
 
@@ -207,10 +209,7 @@ export const PropertyItem = ({
 			{property.type === "object" && (
 				<>
 					{(property.properties || []).map((p: VisualProperty, i: number) => (
-						<div
-							key={p.id || `nested-${level}-${i}`}
-							className="mt-4"
-						>
+						<div key={p.id || `nested-${level}-${i}`} className="mt-4">
 							<div
 								className="text-[12px] mb-1"
 								style={{ marginLeft: `${(level + 1) * 24}px` }}

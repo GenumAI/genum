@@ -1,5 +1,5 @@
 import type { PromptSettings } from "@/types/Prompt";
-import type { VisualSchema, VisualProperty } from "../shared/schemaHelpers";
+import type { VisualSchema, VisualProperty } from "../../shared/utils/schemaHelpers";
 
 export enum TabsValue {
 	VISUAL = "VISUAL",
@@ -46,6 +46,8 @@ export interface VisualSchemaEditorProps {
 	showExtraOptions?: boolean;
 	enableChainOfThoughts?: boolean;
 	enablePromptStatus?: boolean;
+	emptyTitle?: string;
+	emptyDescription?: string;
 }
 
 export interface SchemaOptionsProps {

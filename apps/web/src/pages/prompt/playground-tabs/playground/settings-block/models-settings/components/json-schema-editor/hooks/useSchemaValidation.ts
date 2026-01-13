@@ -1,9 +1,9 @@
-import validator from "../shared/validator";
+import validator from "../../shared/utils/validator";
 import {
 	transformToJsonSchema,
 	checkVisualDuplicates,
 	type VisualSchema,
-} from "../shared/schemaHelpers";
+} from "../../shared/utils/schemaHelpers";
 
 interface UseSchemaValidationProps {
 	setValidationErrors: (errors: string[]) => void;

@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import type { PromptSettings } from "@/types/Prompt";
-import { transformToVisualSchema, baseSchema, type VisualSchema } from "../shared/schemaHelpers";
-import { TabsValue } from "./types";
-import { validateStrictMode } from "../shared/schemaHelpers";
+import {
+	transformToVisualSchema,
+	baseSchema,
+	type VisualSchema,
+} from "../../shared/utils/schemaHelpers";
+import { TabsValue } from "../../shared/utils/types";
+import { validateStrictMode } from "../../shared/utils/schemaHelpers";
 
 interface UseSchemaStateProps {
 	modelParameters: PromptSettings["languageModelConfig"];

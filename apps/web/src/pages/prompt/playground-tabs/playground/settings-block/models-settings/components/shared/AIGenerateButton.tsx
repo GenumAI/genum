@@ -1,35 +1,29 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import PromptActionPopover from "@/components/popovers/PromptActionPopover";
-import { useMutation } from "@tanstack/react-query";
-import { useToast } from "@/hooks/useToast";
-import { promptApi } from "@/api/prompt";
+import { useAIGeneration } from "./hooks/useAIGeneration";
 
-interface AISchemaButtonProps {
+type AIGenerateMode = "schema" | "tool";
+
+interface AIGenerateButtonProps {
+	mode: AIGenerateMode;
 	promptId?: number | string;
-	onSchemaReceived: (schema: any) => void;
-	existingSchema?: any; // existing schema to use as reference
+	onReceived: (data: any) => void;
+	existingData?: any;
 }
 
-export default function AISchemaButton({
+export default function AIGenerateButton({
+	mode,
 	promptId,
-	onSchemaReceived,
-	existingSchema,
-}: AISchemaButtonProps) {
-	const [input, setInput] = useState("");
-	const [isOpen, setIsOpen] = useState(false);
-	const { toast } = useToast();
-
-	const schemaMutation = useMutation({
-		mutationFn: async (data: { query: string; jsonSchema?: string }) => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			return await promptApi.generateJsonSchema(promptId, data);
-		},
+	onReceived,
+	existingData,
+}: AIGenerateButtonProps) {
+	const { input, setInput, isOpen, setIsOpen, handleAction, isLoading, label } = useAIGeneration({
+		mode,
+		promptId,
+		onReceived,
 	});
-
-	const isLoading = schemaMutation.isPending;
 
 	const TuneIcon = ({
 		className = "",
@@ -63,7 +57,9 @@ export default function AISchemaButton({
 			</g>
 			<defs>
 				<clipPath id="clip0_6861_24864">
-					<rect width="14" height="14" fill={stroke} transform="translate(1.5 2.25293)" />
+					<rect width="14" height="14" fill={stroke} transform="translate(1.5 2.25293)">
+						<title>AI Tune Icon</title>
+					</rect>
 				</clipPath>
 			</defs>
 		</svg>
@@ -79,49 +75,20 @@ export default function AISchemaButton({
 								variant="ghost"
 								size="icon"
 								className="h-6 w-6 text-[#437BEF] hover:bg-accent hover:text-accent-foreground dark:hover:text-white [&_svg]:size-5"
-								onClick={() => {
-									console.log("AI Schema button clicked, isOpen:", isOpen);
-									setIsOpen(!isOpen);
-								}}
+								onClick={() => setIsOpen(!isOpen)}
 							>
 								<TuneIcon />
 							</Button>
 						</TooltipTrigger>
 					</PopoverTrigger>
 					<TooltipContent>
-						<p>Generate schema with AI</p>
+						<p>Generate {label} with AI</p>
 					</TooltipContent>
 					<PromptActionPopover
-						placeholder="What JSON schema do you need?"
+						placeholder={`What ${label} do you need?`}
 						value={input}
 						onChange={setInput}
-						onAction={async () => {
-							if (!input.trim() || !promptId) return;
-							try {
-								const response = await schemaMutation.mutateAsync({
-									query: input,
-									jsonSchema: existingSchema
-										? JSON.stringify(existingSchema)
-										: undefined,
-								});
-								if (response && response.jsonSchema) {
-									onSchemaReceived(response.jsonSchema);
-									toast({
-										title: "Schema generated",
-										description: "JSON schema was generated successfully",
-										variant: "default",
-									});
-									setIsOpen(false);
-									setInput("");
-								}
-							} catch (e) {
-								toast({
-									title: "Error",
-									description: "Failed to generate schema",
-									variant: "destructive",
-								});
-							}
-						}}
+						onAction={() => handleAction(existingData)}
 						buttonText="Generate"
 						buttonIcon={<TuneIcon stroke="currentColor" />}
 						loading={isLoading}

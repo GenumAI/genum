@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import type { VisualSchemaEditorProps } from "../hooks/types";
+import type { VisualSchemaEditorProps } from "../utils/types";
 import { PropertyItem } from "./components/PropertyItem";
 import { SchemaOptions } from "./components/SchemaOptions";
-import { useSchemaEditor } from "../hooks/useSchemaEditor";
-import type { VisualProperty } from "../shared/schemaHelpers";
+import { useSchemaEditor } from "../../json-schema-editor/hooks/useSchemaEditor";
+import type { VisualProperty } from "../utils/schemaHelpers";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 
 const VisualSchemaEditor = ({
@@ -13,6 +13,8 @@ const VisualSchemaEditor = ({
 	showExtraOptions = true,
 	enableChainOfThoughts,
 	enablePromptStatus,
+	emptyTitle = "No properties defined",
+	emptyDescription = "Add properties to define the structure of the JSON schema output",
 }: VisualSchemaEditorProps) => {
 	const showCoT = enableChainOfThoughts !== undefined ? enableChainOfThoughts : showExtraOptions;
 	const showStatus = enablePromptStatus !== undefined ? enablePromptStatus : showExtraOptions;
@@ -35,7 +37,9 @@ const VisualSchemaEditor = ({
 			</div>
 
 			<div className="flex-1 overflow-y-auto my-4 min-h-0 flex flex-col">
-				{properties.length > 0 || (showCoT && schema.chainOfThoughts) || (showStatus && schema.promptStatus) ? (
+				{properties.length > 0 ||
+				(showCoT && schema.chainOfThoughts) ||
+				(showStatus && schema.promptStatus) ? (
 					<div className="space-y-4">
 						{properties.map((p: VisualProperty, i: number) => (
 							<PropertyItem
@@ -80,8 +84,8 @@ const VisualSchemaEditor = ({
 				) : (
 					<div className="flex-1 flex items-center justify-center">
 						<EmptyState
-							title="No properties defined"
-							description="Add properties to define the structure of the JSON schema output"
+							title={emptyTitle}
+							description={emptyDescription}
 							minHeight="200px"
 							className="border-none"
 						/>

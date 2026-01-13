@@ -31,7 +31,7 @@ import type { PromptSettings } from "@/types/Prompt";
 import type { Model } from "@/types/AIModel";
 import { TooltipArrow } from "@radix-ui/react-tooltip";
 import { useRefreshCommitStatus } from "@/hooks/useRefreshCommitStatus";
-import ToolsModal from "@/components/dialogs/ToolsDialog";
+import ToolsModal from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/components/tools-schema-editor/ToolsDialog";
 import { InputSelect, InputSelectTrigger } from "@/components/ui/InputSelect";
 import { usePromptStatus } from "@/contexts/PromptStatusContext";
 import { promptApi } from "@/api/prompt";

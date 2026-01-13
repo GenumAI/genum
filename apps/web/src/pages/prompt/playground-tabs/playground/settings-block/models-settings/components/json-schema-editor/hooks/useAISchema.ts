@@ -1,6 +1,6 @@
-import { transformToVisualSchema, type VisualSchema } from "../shared/schemaHelpers";
-import { TabsValue } from "./types";
-import { validateStrictMode } from "../shared/schemaHelpers";
+import { transformToVisualSchema, type VisualSchema } from "../../shared/utils/schemaHelpers";
+import { TabsValue } from "../../shared/utils/types";
+import { validateStrictMode } from "../../shared/utils/schemaHelpers";
 
 interface UseAISchemaProps {
 	setSchema: (schema: VisualSchema) => void;

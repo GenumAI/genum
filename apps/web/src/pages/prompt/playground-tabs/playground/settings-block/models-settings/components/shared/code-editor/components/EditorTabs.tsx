@@ -1,9 +1,9 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import MonacoEditor from "@/components/ui/MonacoEditor";
-import VisualSchemaEditor from "../../visual-editor/VisualSchemaEditor";
+import VisualSchemaEditor from "../../../shared/visual-editor/VisualSchemaEditor";
 import AISchemaButton from "../../../AISchemaButton";
-import { transformToJsonSchema } from "../../shared/schemaHelpers";
-import { TabsValue, type EditorTabsProps } from "../../hooks/types";
+import { transformToJsonSchema } from "../../../shared/utils/schemaHelpers";
+import { TabsValue, type EditorTabsProps } from "../../../shared/utils/types";
 
 export const EditorTabs = ({
 	activeTab,

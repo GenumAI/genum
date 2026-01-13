@@ -1,6 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TriangleAlert } from "lucide-react";
-import type { ValidationAlertProps } from "../../hooks/types";
+import type { ValidationAlertProps } from "../../../shared/utils/types";
 
 export const ValidationAlert = ({ errors }: ValidationAlertProps) => {
 	if (!errors.length) return null;

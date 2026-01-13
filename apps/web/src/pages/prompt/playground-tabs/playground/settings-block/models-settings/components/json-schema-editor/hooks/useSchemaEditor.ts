@@ -1,7 +1,7 @@
 import { useCallback } from "react";
-import type { VisualSchema, VisualProperty } from "../shared/schemaHelpers";
-import { checkAllRequired, setAllRequired, hasDuplicates } from "../shared/schemaHelpers";
-import { generateId } from "../shared/schemaHelpers";
+import type { VisualSchema, VisualProperty } from "../../shared/utils/schemaHelpers";
+import { checkAllRequired, setAllRequired, hasDuplicates } from "../../shared/utils/schemaHelpers";
+import { generateId } from "../../shared/utils/schemaHelpers";
 
 interface UseSchemaEditorProps {
 	schema: VisualSchema;

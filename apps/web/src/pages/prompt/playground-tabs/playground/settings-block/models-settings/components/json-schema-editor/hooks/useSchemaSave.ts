@@ -2,8 +2,8 @@ import {
 	transformToJsonSchema,
 	type VisualSchema,
 	type JsonSchemaRoot,
-} from "../shared/schemaHelpers";
-import { TabsValue } from "./types";
+} from "../../shared/utils/schemaHelpers";
+import { TabsValue } from "../../shared/utils/types";
 
 interface UseSchemaSaveProps {
 	promptId: number | undefined;

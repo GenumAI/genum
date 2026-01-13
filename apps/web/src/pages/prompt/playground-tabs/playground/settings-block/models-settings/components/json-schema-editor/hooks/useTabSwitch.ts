@@ -3,9 +3,9 @@ import {
 	transformToVisualSchema,
 	checkVisualDuplicates,
 	type VisualSchema,
-} from "../shared/schemaHelpers";
-import validator from "../shared/validator";
-import { TabsValue } from "./types";
+} from "../../shared/utils/schemaHelpers";
+import validator from "../../shared/utils/validator";
+import { TabsValue } from "../../shared/utils/types";
 
 interface UseTabSwitchProps {
 	schema: VisualSchema;
