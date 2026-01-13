@@ -9,8 +9,37 @@ env:
   DOCKER_IMAGE_PREFIX: ${{ secrets.DOCKER_HUB_USERNAME || 'genum' }}
 
 jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    if: github.event.repository.fork == false && (github.event.release.target_commitish == 'main' || github.event.release.target_commitish == 'refs/heads/main')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Biome linter
+        run: pnpm format:check
+
+      - name: Run unit tests
+        run: pnpm test:run
+
   build-and-push:
     runs-on: ubuntu-latest
+    needs: test-and-lint
     if: github.event.repository.fork == false && (github.event.release.target_commitish == 'main' || github.event.release.target_commitish == 'refs/heads/main')
     permissions:
       contents: read
@@ -31,6 +60,24 @@ jobs:
             exit 1
           fi
           echo "✓ Tag $TAG is on main branch"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Web (for source maps)
+        run: pnpm --filter web build
+
+      - name: Build Core (for source maps)
+        run: pnpm --filter core build
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -87,6 +134,30 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Create Sentry release for Web
+        continue-on-error: true
+        uses: getsentry/action-release@v3
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WEB }}
+        with:
+          environment: production
+          version: ${{ steps.release_version.outputs.tag }}
+          sourcemaps: ./apps/web/dist
+
+      - name: Create Sentry release for Core
+        continue-on-error: true
+        uses: getsentry/action-release@v3
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_CORE }}
+        with:
+          environment: production
+          version: ${{ steps.release_version.outputs.tag }}
+          sourcemaps: ./apps/core/dist
+
       - name: Summary
         run: |
           echo "## 🐳 Docker Images Published" >> $GITHUB_STEP_SUMMARY
@@ -98,4 +169,7 @@ jobs:
           echo "### Web" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:latest\`" >> $GITHUB_STEP_SUMMARY
-
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 Sentry Releases" >> $GITHUB_STEP_SUMMARY
+          echo "- **Web**: \`${{ steps.release_version.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Core**: \`${{ steps.release_version.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
