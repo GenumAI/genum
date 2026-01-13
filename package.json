@@ -38,6 +38,11 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.49.0"
   },
+  "pnpm": {
+    "overrides": {
+      "qs": "6.14.1"
+    }
+  },
   "release-it": {
     "git": {
       "commitMessage": "chore: release v${version}",
