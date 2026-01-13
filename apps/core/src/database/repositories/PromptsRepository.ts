@@ -9,12 +9,15 @@ import type {
 import type { StoredMessage } from "@langchain/core/messages";
 import type { LanguageModelData } from "../seed/models";
 import type { SystemRepository } from "./SystemRepository";
+import type { ModelConfigParameters } from "@/ai/models/types";
+import type { InputJsonValue } from "@prisma/client/runtime/client";
+import type { PromptAuditResponse } from "@/ai/runner/types";
 
 type DefaultLanguageModel = {
 	id: number;
 	name: string;
 	vendor: AiVendor;
-	config: Record<string, any>;
+	config: ModelConfigParameters;
 };
 
 export class PromptsRepository {
@@ -515,7 +518,7 @@ export class PromptsRepository {
 		return await this.prisma.promptChatMessage.createMany({
 			data: messages.map((message) => ({
 				promptChatId: chatId,
-				message: message as any,
+				message: message as unknown as InputJsonValue,
 			})),
 		});
 	}
@@ -529,7 +532,7 @@ export class PromptsRepository {
 		});
 	}
 
-	public async updatePromptAudit(promptId: number, data: Record<string, any>) {
+	public async updatePromptAudit(promptId: number, data: PromptAuditResponse) {
 		return await this.prisma.audit.upsert({
 			where: { promptId },
 			update: {

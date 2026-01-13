@@ -30,6 +30,7 @@ import { AIMessage, HumanMessage, ToolMessage } from "langchain";
 import {
 	mapChatMessagesToStoredMessages,
 	mapStoredMessagesToChatMessages,
+	type StoredMessage,
 } from "@langchain/core/messages";
 import { checkMemoryAccess, checkPromptAccess } from "@/services/access/AccessService";
 import type { CanvasAgentMessage, CanvasAgentParams, CanvasMessage } from "@/ai/runner/types";
@@ -447,7 +448,7 @@ export class PromptsController {
 		}
 
 		// Get the current prompt's configuration (old configuration)
-		const oldConfig = (prompt.languageModelConfig || {}) as Record<string, any>;
+		const oldConfig = prompt.languageModelConfig as ModelConfigParameters;
 
 		// Get default configuration for the new model
 		const defaultConfigForNewModel = this.modelConfigService.getDefaultValues(
@@ -456,12 +457,13 @@ export class PromptsController {
 		) as ModelConfigParameters;
 
 		// Start with the new model's defaults
-		const candidateConfig: Record<string, any> = { ...defaultConfigForNewModel };
+		const candidateConfig = { ...defaultConfigForNewModel };
 
 		// Overlay values from the old configuration if the parameter exists in the new model's schema
 		for (const key in oldConfig) {
 			if (Object.hasOwn(oldConfig, key) && Object.hasOwn(defaultConfigForNewModel, key)) {
-				candidateConfig[key] = oldConfig[key];
+				const k = key as keyof ModelConfigParameters;
+				(candidateConfig as Record<string, unknown>)[k] = oldConfig[k];
 			}
 		}
 
@@ -505,7 +507,7 @@ export class PromptsController {
 
 			const raw_chat_messages = await db.prompts.getChatMessages(chat.id);
 			const chat_messages = mapStoredMessagesToChatMessages(
-				raw_chat_messages.map((message) => message.message as any),
+				raw_chat_messages.map((message) => message.message as unknown as StoredMessage),
 			);
 			messages = chatMessagesToHuman(chat_messages as unknown as CanvasMessage[]);
 		}
@@ -534,7 +536,7 @@ export class PromptsController {
 
 		const raw_chat_messages = await db.prompts.getChatMessages(chat.id);
 		const chat_messages = mapStoredMessagesToChatMessages(
-			raw_chat_messages.map((message) => message.message as any),
+			raw_chat_messages.map((message) => message.message as unknown as StoredMessage),
 		);
 
 		const promptTestcases = await db.testcases.getTestcasesByPromptId(promptId);
@@ -570,7 +572,6 @@ export class PromptsController {
 		const stored = mapChatMessagesToStoredMessages(
 			response as unknown as Parameters<typeof mapChatMessagesToStoredMessages>[0],
 		);
-		console.log("stored", stored);
 
 		// // write messages to db
 		await db.prompts.saveChatMessages(chat.id, stored);
@@ -599,16 +600,12 @@ export class PromptsController {
 
 		const prompt = await checkPromptAccess(promptId, metadata.projID);
 
-		const result = await system_prompt.promptAuditor(
-			prompt.id,
-			metadata.orgID,
-			metadata.projID,
-		);
+		const audit = await system_prompt.promptAuditor(prompt.id, metadata.orgID, metadata.projID);
 
 		// update prompt audit
-		await db.prompts.updatePromptAudit(promptId, JSON.parse(result.answer));
+		await db.prompts.updatePromptAudit(promptId, audit);
 
-		res.status(200).json({ audit: JSON.parse(result.answer) });
+		res.status(200).json({ audit });
 	}
 
 	public async editAssertion(req: Request, res: Response) {
@@ -804,7 +801,7 @@ function chatMessagesToHuman(messages: CanvasMessage[]): CanvasAgentMessage[] {
 				} else {
 					// if content is an array, take the first item
 					result = content
-						.map((item: any) => (item.type === "text" ? item.text : ""))
+						.map((item) => (item.type === "text" ? item.text : ""))
 						.join("\n");
 				}
 			}

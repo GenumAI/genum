@@ -129,3 +129,16 @@ export enum ChatMode {
 }
 
 export type AgentResponse = AgentResponseMessage | AgentResponseAction;
+
+export type PromptAuditResponse = {
+	summary: string;
+	rate: number;
+	status?: "OK" | "NOK";
+	chainOfThoughts?: string;
+	risks: {
+		type: string;
+		comment: string;
+		recommendation: string;
+		level: "low" | "medium" | "high";
+	}[];
+};
