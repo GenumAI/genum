@@ -135,7 +135,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Create Sentry release for Web
-        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        continue-on-error: true
         uses: getsentry/action-release@v3
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -147,7 +147,7 @@ jobs:
           sourcemaps: ./apps/web/dist
 
       - name: Create Sentry release for Core
-        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        continue-on-error: true
         uses: getsentry/action-release@v3
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
