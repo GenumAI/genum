@@ -1,5 +1,6 @@
 import type {
 	ResponseFormatTextConfig,
+	ResponseFormatTextJSONSchemaConfig,
 	ResponseOutputItem,
 } from "openai/resources/responses/responses.js";
 import { normalizeJsonSchema, type ProviderRequest } from "..";
@@ -52,9 +53,10 @@ function responsesFormatConfig(
 			type: "text",
 		};
 	} else if (response_format === "json_schema") {
+		const normalizedSchema = normalizeJsonSchema(json_schema || "");
 		return {
 			type: "json_schema",
-			...(normalizeJsonSchema(json_schema || "") as any),
+			...(normalizedSchema as Omit<ResponseFormatTextJSONSchemaConfig, "type">), // include json schema types, omit type
 		};
 	} else if (response_format === "json_object") {
 		return {

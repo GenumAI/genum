@@ -8,8 +8,8 @@
  */
 export function mdToXml(md: string): string {
 	const lines = md.split("\n");
-	const stack = []; // stack of open sections { level, tag }
-	const output = [];
+	const stack: Array<{ level: number; tag: string }> = []; // stack of open sections { level, tag }
+	const output: string[] = [];
 
 	for (const line of lines) {
 		const headerMatch = line.match(/^(#{1,6})\s+(.*)$/);
@@ -60,31 +60,32 @@ function escapeXml(str: string) {
 		.replace(/'/g, "&apos;");
 }
 
-export function objToXml(obj: Record<string, any>): string {
+export function objToXml(obj: Record<string, unknown>): string {
 	return Object.entries(obj)
 		.filter(([, value]) => value !== undefined)
 		.map(([key, value]) => {
-			if (typeof value === "object" && value !== null) {
-				return `<${key}>${objToXml(value)}</${key}>`;
+			if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+				return `<${key}>${objToXml(value as Record<string, unknown>)}</${key}>`;
 			} else {
-				return `<${key}>${value}</${key}>`;
+				return `<${key}>${String(value)}</${key}>`;
 			}
 		})
 		.join(" ");
 }
 
-export function xmlToObj(xml: string): Record<string, any> {
+export function xmlToObj(xml: string): Record<string, unknown> {
 	try {
 		const cleanXml = xml.trim().replace(/\s+/g, " ");
 
-		function parseXml(xmlString: string): Record<string, any> {
-			const result: Record<string, any> = {};
+		function parseXml(xmlString: string): Record<string, unknown> {
+			const result: Record<string, unknown> = {};
 
 			const tagRegex = /<(\w+)([^>]*)>(.*?)<\/\1>/g;
-			let match;
+			let match: RegExpExecArray | null;
 
-			while ((match = tagRegex.exec(xmlString)) !== null) {
-				const [, tagName, attributes, content] = match;
+			match = tagRegex.exec(xmlString);
+			while (match !== null) {
+				const [, tagName, _attributes, content] = match;
 				const hasNestedTags = /<[^>]+>/.test(content);
 
 				if (hasNestedTags) {
@@ -92,6 +93,8 @@ export function xmlToObj(xml: string): Record<string, any> {
 				} else {
 					result[tagName] = content.trim();
 				}
+
+				match = tagRegex.exec(xmlString);
 			}
 
 			return result;

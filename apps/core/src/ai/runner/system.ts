@@ -1,4 +1,4 @@
-import { SourceType } from "@/services/logger/logger";
+import { SourceType } from "@/services/logger/types";
 import { getSystemOrganization, runPrompt } from "./run";
 import {
 	assertionEditorFormat,
@@ -14,6 +14,7 @@ import type {
 	AssertionEditorParams,
 	InputGeneratorParams,
 	JsonSchemaEditorParams,
+	PromptAuditResponse,
 	testcaseAssertion,
 	ToolEditorParams,
 } from "./types";
@@ -122,14 +123,18 @@ async function testcaseAssertionV2(
 	const obj = xmlToObj(result.answer);
 
 	const assertionStatus: testcaseAssertion = {
-		assertionStatus: obj.assertion.status === "OK" ? "OK" : "NOK",
-		assertionThoughts: obj.assertion.assertionThoughts,
+		assertionStatus: (obj.assertion as { status: "OK" | "NOK" }).status === "OK" ? "OK" : "NOK",
+		assertionThoughts: (obj.assertion as { assertionThoughts: string }).assertionThoughts,
 	};
 
 	return assertionStatus;
 }
 
-async function promptAuditor(promptId: number, userOrgId: number, userProjectId: number) {
+async function promptAuditor(
+	promptId: number,
+	userOrgId: number,
+	userProjectId: number,
+): Promise<PromptAuditResponse> {
 	const prompt = await db.prompts.getPromptById(promptId);
 	if (prompt === null) {
 		throw new Error(`Prompt with id ${promptId} not found`);
@@ -138,7 +143,7 @@ async function promptAuditor(promptId: number, userOrgId: number, userProjectId:
 	const promptTestcases = await db.testcases.getTestcasesByPromptId(prompt.id);
 	const testcaseContext = testcaseSummaryFormatter(promptTestcases);
 
-	return await runSystemPrompt(
+	const result = await runSystemPrompt(
 		SYSTEM_PROMPTS.PROMPT_AUDITOR,
 		promptAuditorFormat({
 			do_not_execute_user_draft: prompt.value,
@@ -148,6 +153,8 @@ async function promptAuditor(promptId: number, userOrgId: number, userProjectId:
 		userOrgId,
 		userProjectId,
 	);
+
+	return JSON.parse(result.answer) as PromptAuditResponse;
 }
 
 async function assertionEditor(data: AssertionEditorParams) {

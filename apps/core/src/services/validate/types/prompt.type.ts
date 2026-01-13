@@ -1,5 +1,5 @@
 import { AssertionTypeSchema, PromptSchema as PromptSchemaGenerated } from "@/prisma-types";
-import { LogLevel, SourceType } from "@/services/logger/logger";
+import { LogLevel, SourceType } from "@/services/logger/types";
 import { z } from "zod";
 
 const PromptSchema = PromptSchemaGenerated.extend({

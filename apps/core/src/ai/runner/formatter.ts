@@ -50,7 +50,7 @@ export function assertionEditorFormat(data: AssertionEditorFormatParams) {
 }
 
 // generic function to format data to XML
-export function formatToXml<T extends Record<string, any>>(data: T): string {
+export function formatToXml<T extends Record<string, unknown>>(data: T): string {
 	return objToXml(data);
 }
 

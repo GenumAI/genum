@@ -229,16 +229,12 @@ export class UsersRepository {
 			return null;
 		}
 
-		// if userId is passed, add read field
-		if ("NotificationRead" in notification) {
-			return {
-				...notification,
-				read: (notification as any).NotificationRead.length > 0,
-				NotificationRead: undefined,
-			};
-		}
-
-		return notification;
+		// Add read field and remove NotificationRead from result
+		const { NotificationRead, ...rest } = notification;
+		return {
+			...rest,
+			read: NotificationRead.length > 0,
+		};
 	}
 
 	public async markNotificationAsRead(userId: number, notificationId: string) {

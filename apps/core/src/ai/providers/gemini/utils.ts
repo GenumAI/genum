@@ -1,9 +1,10 @@
 import { type GenerateContentConfig, Type } from "@google/genai";
+import type { FunctionCall } from "../../models/types";
 import type { ProviderRequest } from "..";
 
 interface GeminiSchema {
 	type: string;
-	properties?: Record<string, any>;
+	properties?: Record<string, unknown>;
 	required?: string[];
 	additionalProperties?: boolean;
 }
@@ -24,12 +25,19 @@ function mapSchemaToGeminiFormat(schemaStr: string): GeminiSchema {
 
 	// Recursively map nested properties
 	if (mappedSchema.properties) {
-		Object.entries(mappedSchema.properties).forEach(([key, value]: [string, any]) => {
-			if (value.type) {
-				value.type = value.type.toLowerCase();
+		const properties = mappedSchema.properties;
+		Object.entries(properties).forEach(([key, value]) => {
+			if (
+				typeof value === "object" &&
+				value !== null &&
+				"type" in value &&
+				typeof value.type === "string"
+			) {
+				// Type assertion: we know value has a mutable type property at this point
+				(value as { type: string }).type = value.type.toLowerCase();
 			}
-			if (value.properties) {
-				mappedSchema.properties![key] = mapSchemaToGeminiFormat(JSON.stringify(value));
+			if (typeof value === "object" && value !== null && "properties" in value) {
+				properties[key] = mapSchemaToGeminiFormat(JSON.stringify(value));
 			}
 		});
 	}
@@ -37,21 +45,7 @@ function mapSchemaToGeminiFormat(schemaStr: string): GeminiSchema {
 	return mappedSchema;
 }
 
-function mapFunctionToGeminiFormat(func: {
-	name: string;
-	parameters: {
-		type: string;
-		required?: string[];
-		properties: Record<
-			string,
-			{
-				type: string;
-				description?: string;
-			}
-		>;
-	};
-	description?: string;
-}): {
+function mapFunctionToGeminiFormat(func: FunctionCall): {
 	name: string;
 	description: string;
 	parameters: {
@@ -70,16 +64,24 @@ function mapFunctionToGeminiFormat(func: {
 		description: func.description || "",
 		parameters: {
 			type: Type.OBJECT,
-			properties: Object.entries(func.parameters.properties).reduce(
-				(acc, [key, value]) => ({
-					...acc,
-					[key]: {
-						type: mapTypeToGeminiType(value.type),
-						description: value.description || "",
-					},
-				}),
-				{},
-			),
+			properties: func.parameters.properties
+				? Object.entries(func.parameters.properties).reduce(
+						(acc, [key, value]) => {
+							acc[key] = {
+								type: mapTypeToGeminiType(value.type),
+								description: value.description || "",
+							};
+							return acc;
+						},
+						{} as Record<
+							string,
+							{
+								type: Type;
+								description: string;
+							}
+						>,
+					)
+				: {},
 		},
 	};
 }
@@ -114,8 +116,8 @@ export function mapConfigToGemini(request: ProviderRequest): GenerateContentConf
 			request.parameters.tools && request.parameters.tools.length > 0
 				? [
 						{
-							functionDeclarations: request.parameters.tools.map((func: any) =>
-								mapFunctionToGeminiFormat(func),
+							functionDeclarations: request.parameters.tools.map(
+								(func: FunctionCall) => mapFunctionToGeminiFormat(func),
 							),
 						},
 					]

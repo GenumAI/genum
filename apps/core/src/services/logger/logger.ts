@@ -13,6 +13,59 @@
 import { createClient } from "@clickhouse/client";
 import moment from "moment";
 import { env } from "@/env";
+import type {
+	LogDocument,
+	LogSearchResult,
+	ProjectUsageStats,
+	PromptUsageStats,
+	ModelUsageStats,
+	UserActivityStats,
+	ProjectDetailedUsageStats,
+	ProjectDailyUsageStats,
+	ProjectDetailedUsageStatsV2,
+	ProjectLogsFilter,
+	OrganizationUsageStats,
+	OrganizationDetailedUsageStats,
+	ClickHouseLogRow,
+	ClickHouseCountRow,
+	ClickHouseProjectStatsRow,
+	ClickHousePromptStatsRow,
+	ClickHouseModelStatsRow,
+	ClickHouseUserStatsRow,
+	ClickHouseDailyStatsRow,
+	ClickHouseProjectDailyStatsRow,
+	DailyStatsAggregation,
+	OrganizationDailyUsageStats,
+	SourceType,
+	LogLevel,
+	LogType,
+} from "./types";
+
+// Export types for external use
+export type {
+	LogDocument,
+	LogSearchResult,
+	ProjectUsageStats,
+	PromptUsageStats,
+	ModelUsageStats,
+	UserActivityStats,
+	ProjectDetailedUsageStats,
+	ProjectDailyUsageStats,
+	ProjectDetailedUsageStatsV2,
+	ProjectLogsFilter,
+	OrganizationUsageStats,
+	OrganizationDetailedUsageStats,
+	ClickHouseLogRow,
+	ClickHouseCountRow,
+	ClickHouseProjectStatsRow,
+	ClickHousePromptStatsRow,
+	ClickHouseModelStatsRow,
+	ClickHouseUserStatsRow,
+	ClickHouseDailyStatsRow,
+	ClickHouseProjectDailyStatsRow,
+	DailyStatsAggregation,
+	OrganizationDailyUsageStats,
+};
 
 export const clickhouseUrl = env.CLICKHOUSE_URL;
 export const clickhouseDatabase = env.CLICKHOUSE_DB;
@@ -29,167 +82,6 @@ export const clickhouseClient = createClient({
 	username: clickhouseUsername,
 	password: clickhousePassword,
 });
-
-export enum SourceType {
-	ui = "ui",
-	testcase = "testcase",
-	api = "api",
-}
-
-export enum LogLevel {
-	success = "SUCCESS",
-	info = "INFO",
-	warn = "WARN",
-	error = "ERROR",
-}
-
-export enum LogType {
-	PromptRunSuccess = "prs",
-	PromptRunError = "pre",
-
-	AIError = "ae",
-	TechnicalError = "te",
-}
-
-export interface LogDocument {
-	// metadata
-	timestamp?: Date;
-	source: SourceType;
-
-	// response
-	log_lvl: LogLevel;
-	log_type: LogType;
-	description?: string;
-
-	// project info
-	orgId: number;
-	project_id: number;
-	prompt_id: number;
-	user_id?: number;
-	api_key_id?: number;
-	testcase_id?: number;
-
-	// AI info
-	vendor: string;
-	model: string;
-	tokens_in: number;
-	tokens_out: number;
-	tokens_sum: number;
-	cost: number;
-	response_ms: number;
-
-	// payload
-	in: string;
-	out: string;
-	memory_key?: string;
-}
-
-export interface LogSearchResult {
-	logs: LogDocument[];
-	total: number;
-	page: number;
-	pageSize: number;
-}
-
-export interface ProjectUsageStats {
-	project_id: number;
-	orgId: number;
-	total_requests: number;
-	total_tokens_in: number;
-	total_tokens_out: number;
-	total_tokens_sum: number;
-	average_response_ms: number;
-	total_cost: number;
-	from_date: string;
-	to_date: string;
-}
-
-export interface PromptUsageStats {
-	prompt_id: number;
-	total_requests: number;
-	total_tokens_in: number;
-	total_tokens_out: number;
-	total_tokens_sum: number;
-	average_response_ms: number;
-	total_cost: number;
-	success_rate: number;
-	error_rate: number;
-	last_used: string | null;
-	first_used: string | null;
-}
-
-export interface ModelUsageStats {
-	model: string;
-	vendor: string;
-	total_requests: number;
-	total_tokens_in: number;
-	total_tokens_out: number;
-	total_tokens_sum: number;
-	total_cost: number;
-	average_response_ms: number;
-}
-
-export interface UserActivityStats {
-	user_id: number;
-	total_requests: number;
-	total_tokens_sum: number;
-	total_cost: number;
-	last_activity: string | null;
-	first_activity: string | null;
-}
-
-export interface ProjectDetailedUsageStats {
-	project_id: number;
-	orgId: number;
-	from_date: string;
-	to_date: string;
-	total_requests: number;
-	total_tokens_in: number;
-	total_tokens_out: number;
-	total_tokens_sum: number;
-	average_response_ms: number;
-	total_cost: number;
-	prompts: PromptUsageStats[];
-	models: ModelUsageStats[];
-	users: UserActivityStats[];
-}
-
-export interface ProjectDailyUsageStats {
-	date: string;
-	total_requests: number;
-	total_tokens_sum: number;
-	total_cost: number;
-}
-
-export interface ProjectDetailedUsageStatsV2 extends ProjectDetailedUsageStats {
-	daily_stats: ProjectDailyUsageStats[];
-}
-
-export interface ProjectLogsFilter {
-	logLevel?: LogLevel;
-	promptId?: number;
-	fromDate?: Date;
-	toDate?: Date;
-	source?: SourceType;
-	query?: string;
-}
-
-export interface OrganizationUsageStats {
-	orgId: number;
-	total_requests: number;
-	total_tokens_in: number;
-	total_tokens_out: number;
-	total_tokens_sum: number;
-	average_response_ms: number;
-	total_cost: number;
-	from_date: string;
-	to_date: string;
-	projects: ProjectUsageStats[];
-}
-
-export interface OrganizationDetailedUsageStats extends OrganizationUsageStats {
-	projects: ProjectDetailedUsageStats[];
-}
 
 // Helper function to build WHERE conditions
 function buildWhereConditions(
@@ -247,12 +139,12 @@ function buildWhereConditions(
 }
 
 // Helper function to transform ClickHouse row to LogDocument
-function transformRowToLogDocument(row: any): LogDocument {
+function transformRowToLogDocument(row: ClickHouseLogRow): LogDocument {
 	return {
 		timestamp: row.timestamp ? new Date(row.timestamp) : new Date(),
-		source: row.source,
-		log_lvl: row.log_lvl,
-		log_type: row.log_type,
+		source: row.source as SourceType,
+		log_lvl: row.log_lvl as LogLevel,
+		log_type: row.log_type as LogType,
 		description: row.description || undefined,
 		orgId: row.orgId,
 		project_id: row.project_id,
@@ -351,7 +243,7 @@ export async function getPromptLogs(
 			format: "JSONEachRow",
 		});
 
-		const countData = (await countResult.json()) as Array<{ total: number }>;
+		const countData = (await countResult.json()) as ClickHouseCountRow[];
 		const total = countData[0]?.total || 0;
 
 		// Get logs with pagination
@@ -366,7 +258,7 @@ export async function getPromptLogs(
 			format: "JSONEachRow",
 		});
 
-		const logsData = await logsResult.json();
+		const logsData = (await logsResult.json()) as ClickHouseLogRow[];
 		const logs = logsData.map(transformRowToLogDocument);
 
 		return {
@@ -416,14 +308,7 @@ export async function getProjectUsageStats(
 			format: "JSONEachRow",
 		});
 
-		const data = (await result.json()) as Array<{
-			total_requests: number;
-			total_tokens_in: number;
-			total_tokens_out: number;
-			total_tokens_sum: number;
-			average_response_ms: number;
-			total_cost: number;
-		}>;
+		const data = (await result.json()) as ClickHouseProjectStatsRow[];
 		const row = data[0] || {
 			total_requests: 0,
 			total_tokens_in: 0,
@@ -499,8 +384,8 @@ export async function getProjectDetailedUsageStats(
 			format: "JSONEachRow",
 		});
 
-		const promptsData = await promptsResult.json();
-		const prompts: PromptUsageStats[] = promptsData.map((row: any) => {
+		const promptsData = (await promptsResult.json()) as ClickHousePromptStatsRow[];
+		const prompts: PromptUsageStats[] = promptsData.map((row) => {
 			const totalRequests = Number(row.total_requests || 0);
 			const successCount = Number(row.success_count || 0);
 			const errorCount = Number(row.error_count || 0);
@@ -541,8 +426,8 @@ export async function getProjectDetailedUsageStats(
 			format: "JSONEachRow",
 		});
 
-		const modelsData = await modelsResult.json();
-		const models: ModelUsageStats[] = modelsData.map((row: any) => ({
+		const modelsData = (await modelsResult.json()) as ClickHouseModelStatsRow[];
+		const models: ModelUsageStats[] = modelsData.map((row) => ({
 			model: row.model,
 			vendor: row.vendor,
 			total_requests: Number(row.total_requests || 0),
@@ -572,8 +457,8 @@ export async function getProjectDetailedUsageStats(
 			format: "JSONEachRow",
 		});
 
-		const usersData = await usersResult.json();
-		const users: UserActivityStats[] = usersData.map((row: any) => ({
+		const usersData = (await usersResult.json()) as ClickHouseUserStatsRow[];
+		const users: UserActivityStats[] = usersData.map((row) => ({
 			user_id: Number(row.user_id),
 			total_requests: Number(row.total_requests || 0),
 			total_tokens_sum: Number(row.total_tokens_sum || 0),
@@ -627,7 +512,7 @@ export async function getProjectLogs(
 			format: "JSONEachRow",
 		});
 
-		const countData = (await countResult.json()) as Array<{ total: number }>;
+		const countData = (await countResult.json()) as ClickHouseCountRow[];
 		const total = countData[0]?.total || 0;
 
 		// Get logs with pagination
@@ -642,7 +527,7 @@ export async function getProjectLogs(
 			format: "JSONEachRow",
 		});
 
-		const logsData = await logsResult.json();
+		const logsData = (await logsResult.json()) as ClickHouseLogRow[];
 		const logs = logsData.map(transformRowToLogDocument);
 
 		return {
@@ -696,14 +581,7 @@ export async function getOrganizationUsageStats(
 			format: "JSONEachRow",
 		});
 
-		const orgData = (await orgResult.json()) as Array<{
-			total_requests: number;
-			total_tokens_in: number;
-			total_tokens_out: number;
-			total_tokens_sum: number;
-			average_response_ms: number;
-			total_cost: number;
-		}>;
+		const orgData = (await orgResult.json()) as ClickHouseProjectStatsRow[];
 		const orgRow = orgData[0] || {
 			total_requests: 0,
 			total_tokens_in: 0,
@@ -743,30 +621,7 @@ export async function getOrganizationDailyUsageStats(
 	projectIds: number[],
 	fromDate?: Date,
 	toDate?: Date,
-): Promise<
-	Array<{
-		date: string;
-		total_requests: number;
-		total_tokens: number;
-		total_cost: number;
-		projects: Array<{
-			project_id: number;
-			requests: number;
-			tokens: number;
-		}>;
-		sources: Array<{
-			source: string;
-			count: number;
-		}>;
-		modelVendorStats: Array<{
-			model: string;
-			vendor: string;
-			requests: number;
-			tokens: number;
-			cost: number;
-		}>;
-	}>
-> {
+): Promise<OrganizationDailyUsageStats[]> {
 	const fromDateStr = fromDate
 		? moment(fromDate).format("YYYY-MM-DD")
 		: moment().subtract(30, "days").format("YYYY-MM-DD");
@@ -807,53 +662,46 @@ export async function getOrganizationDailyUsageStats(
 			format: "JSONEachRow",
 		});
 
-		const data = (await result.json()) as Array<{
-			date: string;
-			total_requests: number;
-			total_tokens: number;
-			total_cost: number;
-			project_id: number;
-			source: string;
-			vendor: string;
-			model: string;
-			requests: number;
-			tokens: number;
-			cost: number;
-		}>;
+		const data = (await result.json()) as ClickHouseDailyStatsRow[];
 
 		// Group by date
-		const dailyMap = new Map<string, any>();
+		const dailyMap = new Map<string, DailyStatsAggregation>();
 
 		for (const row of data) {
 			const date = moment(row.date).format("YYYY-MM-DD");
 
-			if (!dailyMap.has(date)) {
-				dailyMap.set(date, {
+			let dayData = dailyMap.get(date);
+			if (!dayData) {
+				dayData = {
 					date,
 					total_requests: 0,
 					total_tokens: 0,
 					total_cost: 0,
-					projects: new Map(),
-					sources: new Map(),
+					projects: new Map<
+						string,
+						{ project_id: number; requests: number; tokens: number }
+					>(),
+					sources: new Map<string, number>(),
 					modelVendorStats: [],
-				});
+				};
+				dailyMap.set(date, dayData);
 			}
 
-			const dayData = dailyMap.get(date)!;
 			dayData.total_requests += Number(row.total_requests || 0);
 			dayData.total_tokens += Number(row.total_tokens || 0);
 			dayData.total_cost += Number(row.total_cost || 0);
 
 			// Aggregate by project
 			const projectKey = String(row.project_id);
-			if (!dayData.projects.has(projectKey)) {
-				dayData.projects.set(projectKey, {
+			let projectData = dayData.projects.get(projectKey);
+			if (!projectData) {
+				projectData = {
 					project_id: Number(row.project_id),
 					requests: 0,
 					tokens: 0,
-				});
+				};
+				dayData.projects.set(projectKey, projectData);
 			}
-			const projectData = dayData.projects.get(projectKey)!;
 			projectData.requests += Number(row.requests || 0);
 			projectData.tokens += Number(row.tokens || 0);
 
@@ -875,7 +723,7 @@ export async function getOrganizationDailyUsageStats(
 		}
 
 		// Convert to array format
-		return Array.from(dailyMap.values()).map((dayData) => {
+		return Array.from(dailyMap.values()).map((dayData): OrganizationDailyUsageStats => {
 			const sourcesArray: Array<{ source: string; count: number }> = [];
 			for (const [source, count] of dayData.sources.entries()) {
 				sourcesArray.push({ source, count: Number(count) });
@@ -936,11 +784,11 @@ export async function getProjectDetailedUsageStatsV2(
 			format: "JSONEachRow",
 		});
 
-		const dailyData = await dailyResult.json();
+		const dailyData = (await dailyResult.json()) as ClickHouseProjectDailyStatsRow[];
 
 		// Create a map of dates with data
 		const dailyDataMap = new Map<string, ProjectDailyUsageStats>();
-		dailyData.forEach((row: any) => {
+		dailyData.forEach((row) => {
 			const date = moment(row.date).format("YYYY-MM-DD");
 			dailyDataMap.set(date, {
 				date,
@@ -958,8 +806,9 @@ export async function getProjectDetailedUsageStatsV2(
 
 		while (currentDate.isSameOrBefore(endDate, "day")) {
 			const dateStr = currentDate.format("YYYY-MM-DD");
-			if (dailyDataMap.has(dateStr)) {
-				daily_stats.push(dailyDataMap.get(dateStr)!);
+			const existingData = dailyDataMap.get(dateStr);
+			if (existingData) {
+				daily_stats.push(existingData);
 			} else {
 				daily_stats.push({
 					date: dateStr,
@@ -995,7 +844,7 @@ export async function countRunsByDate(startDate: Date, endDate: Date): Promise<n
 			format: "JSONEachRow",
 		});
 
-		const data = (await result.json()) as Array<{ total: number }>;
+		const data = (await result.json()) as ClickHouseCountRow[];
 		return Number(data[0]?.total || 0);
 	} catch (error) {
 		console.error("Error counting runs by date from ClickHouse:", error);

@@ -1,6 +1,7 @@
 {
 	"compilerOptions": {
-		"target": "ES2020",
+		"target": "ES2022",
+		"lib": ["ES2023"],
 		"module": "NodeNext",
 		"moduleResolution": "nodenext",
 		"types": ["node"],
@@ -11,7 +12,7 @@
 		"rootDir": "./src",
 		"baseUrl": ".",
 		"paths": {
-			"@/*": ["src/*"],
+			"@/*": ["./src/*"],
 			"@/prisma": ["src/.generated/prisma-client/client"],
 			"@/prisma-types": ["src/.generated/zod/schemas"],
 			"@/database": ["src/database"]
@@ -22,12 +23,5 @@
 		"skipLibCheck": true
 	},
 	"include": ["src/**/*"],
-	"exclude": [
-		"node_modules",
-		"dist",
-		"**/*.test.ts",
-		"**/*.spec.ts",
-		"src/.generated/**/*",
-		"prisma.config.ts"
-	]
+	"exclude": ["node_modules", "dist", "src/.generated/**/*", "prisma.config.ts"]
 }

@@ -1,5 +1,6 @@
 // diff between two str values. for git commit generator
 
+import type { ModelConfigParameters } from "@/ai/models/types";
 import { objToXml } from "@/utils/xml";
 
 interface LineDiff {
@@ -9,7 +10,7 @@ interface LineDiff {
 
 export type PromptState = {
 	value: string;
-	languageModelConfig: Record<string, any>;
+	languageModelConfig: ModelConfigParameters;
 	languageModelId: number;
 };
 

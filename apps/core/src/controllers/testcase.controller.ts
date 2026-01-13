@@ -1,6 +1,5 @@
 import type { Request, Response } from "express";
-import { TestCaseStatus } from "@/prisma";
-import { SourceType } from "../services/logger/logger";
+import { type Memory, TestCaseStatus } from "@/prisma";
 import {
 	type TestcasesCreateType,
 	TestcasesCreateWithoutNameSchema,
@@ -12,6 +11,7 @@ import { checkPromptAccess, checkTestcaseAccess } from "@/services/access/Access
 import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
 import { system_prompt } from "@/ai/runner/system";
+import { SourceType } from "@/services/logger/types";
 
 export class TestcasesController {
 	async getAllTestcases(req: Request, res: Response) {
@@ -35,7 +35,7 @@ export class TestcasesController {
 
 		const prompt = await checkPromptAccess(data.promptId, metadata.projID);
 
-		let memory = undefined;
+		let memory: Memory | undefined;
 		if (data.memoryId) {
 			const testcaseMemory = await db.memories.getMemoryByIDAndPromptId(
 				data.memoryId,

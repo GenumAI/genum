@@ -1,5 +1,5 @@
 import { db } from "@/database/db";
-import { SourceType, LogLevel, logUsage, LogType } from "../../services/logger/logger";
+import { logUsage } from "../../services/logger/logger";
 import { AiVendor } from "@/prisma";
 import { mdToXml } from "@/utils/xml";
 import { calculateCost, generateGemini, generateOpenAI, type ProviderRequest } from "../providers";
@@ -9,6 +9,7 @@ import { getApiKeyByQuota } from "@/services/access/AccessService";
 import { transcribeOpenAI } from "../providers/openai/speech";
 import type { runPromptParams, SystemPrompt } from "./types";
 import { getSystemPrompt, SYSTEM_PROMPTS } from "./system";
+import { LogLevel, LogType, SourceType } from "@/services/logger/types";
 
 let systemPromptsConfig: SystemPrompt;
 

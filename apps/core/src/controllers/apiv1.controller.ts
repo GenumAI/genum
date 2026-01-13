@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import { SourceType } from "../services/logger/logger";
 import {
 	GetPromptQuerySchema,
 	numberSchema,
@@ -9,6 +8,7 @@ import {
 import { promptProductiveFormat } from "@/ai/runner/formatter";
 import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
+import { SourceType } from "@/services/logger/types";
 
 export class ApiV1Controller {
 	private async verifyRequest(req: Request) {

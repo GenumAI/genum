@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve, extname } from "node:path";
-import type { ModelsConfig, ModelConfig } from "./types";
+import type { ModelsConfig, ModelConfig, ModelConfigParameters } from "./types";
 import type { AiVendor } from "@/prisma";
 
 interface ParameterSchema {
@@ -21,7 +21,7 @@ export class ModelConfigService {
 
 	private loadConfig() {
 		const configDir = resolve(currentDir, "config");
-		const allModels: any[] = [];
+		const allModels: ModelConfig[] = [];
 
 		try {
 			// read all files in config directory
@@ -69,87 +69,6 @@ export class ModelConfigService {
 	}
 
 	/**
-	 * Validates a model configuration against the schema
-	 * @param name Model name
-	 * @param vendor Model vendor
-	 * @param config Configuration to validate
-	 * @returns Validated configuration with defaults applied
-	 * @throws Error if validation fails
-	 */
-	public strictValidateConfig(
-		name: string,
-		vendor: AiVendor,
-		config: Record<string, any>,
-	): Record<string, any> {
-		const modelConfig = this.getLLMConfig(name, vendor);
-		const validatedConfig: Record<string, any> = {};
-
-		// Validate each parameter
-		for (const [paramName, paramSchema] of Object.entries(modelConfig.parameters)) {
-			const value = config[paramName];
-			const schema = paramSchema as ParameterSchema;
-
-			// If value is not provided, use default
-			if (value === undefined) {
-				validatedConfig[paramName] = schema.default;
-				continue;
-			}
-
-			// Validate json_schema if response_format is json_schema
-			if (paramName === "response_format" && value === "json_schema") {
-				if (!config.json_schema) {
-					throw new Error(`json_schema is required when response_format is json_schema`);
-				}
-				if (typeof config.json_schema !== "string") {
-					throw new Error(`json_schema must be a string`);
-				}
-				validatedConfig.response_format = "json_schema";
-				validatedConfig.json_schema = config.json_schema;
-				continue;
-			}
-
-			// Handle tools parameter separately
-			if (paramName === "tools") {
-				if (!Array.isArray(value)) {
-					throw new Error(`tools must be an array`);
-				}
-				validatedConfig.tools = value;
-				continue;
-			}
-
-			// Validate allowed values if specified
-			if (schema.allowed) {
-				if (!schema.allowed.includes(value)) {
-					throw new Error(
-						`Invalid value for ${paramName}. Allowed values: ${schema.allowed.join(", ")}`,
-					);
-				}
-				validatedConfig[paramName] = value;
-				continue;
-			}
-
-			// Validate numeric range if specified
-			if (schema.min !== undefined && schema.max !== undefined) {
-				if (typeof value !== "number") {
-					throw new Error(`Parameter ${paramName} must be a number`);
-				}
-				if (value < schema.min || value > schema.max) {
-					throw new Error(
-						`Parameter ${paramName} must be between ${schema.min} and ${schema.max}`,
-					);
-				}
-				validatedConfig[paramName] = value;
-				continue;
-			}
-
-			// If we get here, the parameter schema is invalid
-			throw new Error(`Invalid parameter schema for ${paramName}`);
-		}
-
-		return validatedConfig;
-	}
-
-	/**
 	 * Validates and sanitizes a complete model configuration
 	 * @param name Model name
 	 * @param vendor Model vendor
@@ -159,12 +78,15 @@ export class ModelConfigService {
 	public validateAndSanitizeConfig(
 		name: string,
 		vendor: AiVendor,
-		config: Record<string, any>,
-	): Record<string, any> {
+		config: ModelConfigParameters,
+	): ModelConfigParameters {
 		const modelConfig = this.getLLMConfig(name, vendor);
-		const sanitizedConfig: Record<string, any> = {};
+		const sanitizedConfig: Record<string, unknown> = {};
 
-		for (const [paramName, paramSchemaUntyped] of Object.entries(modelConfig.parameters)) {
+		for (const [paramName, paramSchemaUntyped] of Object.entries(modelConfig.parameters) as [
+			keyof ModelConfigParameters,
+			ParameterSchema,
+		][]) {
 			const paramSchema = paramSchemaUntyped as ParameterSchema;
 			const value = config[paramName];
 
@@ -202,8 +124,11 @@ export class ModelConfigService {
 				let incomingRfValue = value; // Value from input config for response_format
 
 				// Validate incomingRfValue against allowed values for response_format
-				if (rfParamSchema.allowed && !rfParamSchema.allowed.includes(incomingRfValue)) {
-					incomingRfValue = rfParamSchema.default;
+				if (
+					rfParamSchema.allowed &&
+					!rfParamSchema.allowed.includes(incomingRfValue as string)
+				) {
+					incomingRfValue = rfParamSchema.default as string;
 				}
 				// Now, incomingRfValue is the validated response_format we intend to apply (e.g., 'json_object', 'text')
 
@@ -247,7 +172,7 @@ export class ModelConfigService {
 
 			// Validate allowed values if specified
 			if (paramSchema.allowed) {
-				if (!paramSchema.allowed.includes(value)) {
+				if (!paramSchema.allowed.includes(value as string)) {
 					sanitizedConfig[paramName] = paramSchema.default; // Sanitize to default
 				} else {
 					sanitizedConfig[paramName] = value;
@@ -325,9 +250,9 @@ export class ModelConfigService {
 	 * @param vendor Model vendor
 	 * @returns Object containing parameter names and their default values
 	 */
-	public getDefaultValues(name: string, vendor: AiVendor): Record<string, any> {
+	public getDefaultValues(name: string, vendor: AiVendor): ModelConfigParameters {
 		const modelConfig = this.getLLMConfig(name, vendor);
-		const defaultValues: Record<string, any> = {};
+		const defaultValues: Record<string, unknown> = {};
 
 		for (const [paramName, paramConfig] of Object.entries(modelConfig.parameters)) {
 			if ("default" in paramConfig) {
@@ -335,6 +260,6 @@ export class ModelConfigService {
 			}
 		}
 
-		return defaultValues;
+		return defaultValues as ModelConfigParameters;
 	}
 }

@@ -23,7 +23,7 @@
 		"enabled": true,
 		"rules": {
 			"suspicious": {
-				"noExplicitAny": "off"
+				// "noExplicitAny": "off"
 			}
 		}
 	},

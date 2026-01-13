@@ -1,6 +1,6 @@
 import type { Project } from "@/prisma";
-import type { SourceType } from "../../services/logger/logger";
 import type { Prompt, Organization } from "@/prisma";
+import type { SourceType } from "@/services/logger/types";
 import type { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "langchain";
 import type OpenAI from "openai";
 
@@ -49,7 +49,7 @@ type CanvasAgentMessageAction = {
 	message: string;
 	action: {
 		type: string;
-		value: string | Record<string, any>;
+		value: string | Record<string, unknown>;
 	};
 };
 
@@ -118,7 +118,7 @@ type AgentResponseAction = {
 	message: string;
 	function: {
 		name: string;
-		arguments: Record<string, any>;
+		arguments: Record<string, unknown>;
 		callId: string;
 	};
 };
@@ -129,3 +129,16 @@ export enum ChatMode {
 }
 
 export type AgentResponse = AgentResponseMessage | AgentResponseAction;
+
+export type PromptAuditResponse = {
+	summary: string;
+	rate: number;
+	status?: "OK" | "NOK";
+	chainOfThoughts?: string;
+	risks: {
+		type: string;
+		comment: string;
+		recommendation: string;
+		level: "low" | "medium" | "high";
+	}[];
+};

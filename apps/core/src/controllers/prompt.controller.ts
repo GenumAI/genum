@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { db } from "@/database/db";
 import { runPrompt } from "../ai/runner/run";
 import type { AiVendor, Prompt, PromptChat } from "@/prisma";
-import { SourceType, getPromptLogs } from "../services/logger/logger";
+import { getPromptLogs } from "../services/logger/logger";
 import { ModelConfigService } from "../ai/models/modelConfigService";
 import { mdToXml, objToXml } from "@/utils/xml";
 import {
@@ -30,11 +30,14 @@ import { AIMessage, HumanMessage, ToolMessage } from "langchain";
 import {
 	mapChatMessagesToStoredMessages,
 	mapStoredMessagesToChatMessages,
+	type StoredMessage,
 } from "@langchain/core/messages";
 import { checkMemoryAccess, checkPromptAccess } from "@/services/access/AccessService";
 import type { CanvasAgentMessage, CanvasAgentParams, CanvasMessage } from "@/ai/runner/types";
 import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
+import type { ModelConfigParameters } from "@/ai/models/types";
+import { SourceType } from "@/services/logger/types";
 
 export class PromptsController {
 	private modelConfigService: ModelConfigService;
@@ -445,24 +448,22 @@ export class PromptsController {
 		}
 
 		// Get the current prompt's configuration (old configuration)
-		const oldConfig = (prompt.languageModelConfig || {}) as Record<string, any>;
+		const oldConfig = prompt.languageModelConfig as ModelConfigParameters;
 
 		// Get default configuration for the new model
 		const defaultConfigForNewModel = this.modelConfigService.getDefaultValues(
 			newModel.name,
 			newModel.vendor as AiVendor,
-		) as Record<string, any>;
+		) as ModelConfigParameters;
 
 		// Start with the new model's defaults
-		const candidateConfig: Record<string, any> = { ...defaultConfigForNewModel };
+		const candidateConfig = { ...defaultConfigForNewModel };
 
 		// Overlay values from the old configuration if the parameter exists in the new model's schema
 		for (const key in oldConfig) {
-			if (
-				Object.prototype.hasOwnProperty.call(oldConfig, key) &&
-				Object.prototype.hasOwnProperty.call(defaultConfigForNewModel, key)
-			) {
-				candidateConfig[key] = oldConfig[key];
+			if (Object.hasOwn(oldConfig, key) && Object.hasOwn(defaultConfigForNewModel, key)) {
+				const k = key as keyof ModelConfigParameters;
+				(candidateConfig as Record<string, unknown>)[k] = oldConfig[k];
 			}
 		}
 
@@ -506,7 +507,7 @@ export class PromptsController {
 
 			const raw_chat_messages = await db.prompts.getChatMessages(chat.id);
 			const chat_messages = mapStoredMessagesToChatMessages(
-				raw_chat_messages.map((message) => message.message as any),
+				raw_chat_messages.map((message) => message.message as unknown as StoredMessage),
 			);
 			messages = chatMessagesToHuman(chat_messages as unknown as CanvasMessage[]);
 		}
@@ -535,7 +536,7 @@ export class PromptsController {
 
 		const raw_chat_messages = await db.prompts.getChatMessages(chat.id);
 		const chat_messages = mapStoredMessagesToChatMessages(
-			raw_chat_messages.map((message) => message.message as any),
+			raw_chat_messages.map((message) => message.message as unknown as StoredMessage),
 		);
 
 		const promptTestcases = await db.testcases.getTestcasesByPromptId(promptId);
@@ -571,7 +572,6 @@ export class PromptsController {
 		const stored = mapChatMessagesToStoredMessages(
 			response as unknown as Parameters<typeof mapChatMessagesToStoredMessages>[0],
 		);
-		console.log("stored", stored);
 
 		// // write messages to db
 		await db.prompts.saveChatMessages(chat.id, stored);
@@ -600,16 +600,12 @@ export class PromptsController {
 
 		const prompt = await checkPromptAccess(promptId, metadata.projID);
 
-		const result = await system_prompt.promptAuditor(
-			prompt.id,
-			metadata.orgID,
-			metadata.projID,
-		);
+		const audit = await system_prompt.promptAuditor(prompt.id, metadata.orgID, metadata.projID);
 
 		// update prompt audit
-		await db.prompts.updatePromptAudit(promptId, JSON.parse(result.answer));
+		await db.prompts.updatePromptAudit(promptId, audit);
 
-		res.status(200).json({ audit: JSON.parse(result.answer) });
+		res.status(200).json({ audit });
 	}
 
 	public async editAssertion(req: Request, res: Response) {
@@ -733,13 +729,13 @@ export class PromptsController {
 
 			const oldState: PromptState = {
 				value: lastCommit.value,
-				languageModelConfig: lastCommit.languageModelConfig as Record<string, any>,
+				languageModelConfig: lastCommit.languageModelConfig as ModelConfigParameters,
 				languageModelId: lastCommit.languageModelId,
 			};
 
 			const newState: PromptState = {
 				value: prompt.value,
-				languageModelConfig: prompt.languageModelConfig as Record<string, any>,
+				languageModelConfig: prompt.languageModelConfig as ModelConfigParameters,
 				languageModelId: prompt.languageModelId,
 			};
 
@@ -805,7 +801,7 @@ function chatMessagesToHuman(messages: CanvasMessage[]): CanvasAgentMessage[] {
 				} else {
 					// if content is an array, take the first item
 					result = content
-						.map((item: any) => (item.type === "text" ? item.text : ""))
+						.map((item) => (item.type === "text" ? item.text : ""))
 						.join("\n");
 				}
 			}
