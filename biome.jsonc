@@ -9,7 +9,8 @@
 			"!dist",
 			"!**/dist",
 			"!**/package.json",
-			"!**/pnpm-lock.yaml"
+			"!**/pnpm-lock.yaml",
+			"!**/*.test.ts"
 		]
 	},
 	"formatter": {
