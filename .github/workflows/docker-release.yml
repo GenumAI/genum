@@ -31,6 +31,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+
+      - name: Generate Prisma client
+        run: pnpm --filter core db:generate
+
       - name: Run Biome linter (core)
         run: pnpm biome check apps/core
 
