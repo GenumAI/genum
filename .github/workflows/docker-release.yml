@@ -77,6 +77,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: pnpm --filter core db:generate
+
       - name: Build Web (for source maps)
         run: pnpm --filter web build
 
