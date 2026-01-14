@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkle, CircleNotch } from "phosphor-react";
+import { CircleNotch } from "phosphor-react";
+import { TuneIcon } from "@/lib/icons/TuneIcon";
 
 export interface CommitDialogProps {
 	open: boolean;
@@ -67,7 +68,7 @@ const CommitDialog: React.FC<CommitDialogProps> = ({
 							{isGenerating ? (
 								<CircleNotch size={18} className="animate-spin" />
 							) : (
-								<Sparkle size={18} weight="bold" />
+								<TuneIcon stroke="currentColor" />
 							)}
 						</button>
 					</div>

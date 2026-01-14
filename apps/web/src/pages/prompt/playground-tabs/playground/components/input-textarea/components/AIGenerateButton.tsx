@@ -1,8 +1,8 @@
-import { SparkleIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import PromptActionPopover from "@/components/PromptActionPopover";
+import { TuneIcon } from "@/lib/icons/TuneIcon";
 
 interface AIGenerateButtonProps {
 	isActive: boolean;
@@ -38,7 +38,7 @@ export const AIGenerateButton = ({
 									className="h-6 w-6 text-[#437BEF] hover:bg-accent hover:text-accent-foreground dark:hover:text-white [&_svg]:size-5 disabled:opacity-50 disabled:cursor-not-allowed"
 									disabled={!isActive}
 								>
-									<SparkleIcon />
+									<TuneIcon />
 								</Button>
 							</PopoverTrigger>
 						</span>
@@ -55,7 +55,7 @@ export const AIGenerateButton = ({
 				onChange={setAiQuery}
 				onAction={onGenerate}
 				buttonText="Generate"
-				buttonIcon={<SparkleIcon />}
+				buttonIcon={<TuneIcon stroke="currentColor" />}
 				loading={isLoading}
 				disabled={isLoading}
 				allowEmpty={true}
