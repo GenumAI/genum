@@ -74,9 +74,9 @@ Promise.all([initSystemPromptsConfig(), initializeClickHouse()])
 			console.log(
 				[
 					`----SERVER IS RUNNING----`,
+					`INSTANCE: ${env.INSTANCE_TYPE} VERSION: ${env.RELEASE_VERSION}`,
 					`PORT: ${PORT}`,
 					`STAGE: ${env.NODE_ENV}`,
-					`INSTANCE_TYPE: ${env.INSTANCE_TYPE}`,
 				].join("\n"),
 			);
 		});
