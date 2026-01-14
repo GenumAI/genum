@@ -1,7 +1,7 @@
 services:
   # Backend API Service
   core:
-    image: genum/core:0.0.5-beta
+    image: genum/core:latest
     container_name: genum-core
     ports:
       - "${CORE_PORT:-3010}:3010"
@@ -31,7 +31,6 @@ services:
       - AUTH0_ACTION_APIKEY=${AUTH0_ACTION_APIKEY:-}
       - CORE_SENTRY_DSN=${CORE_SENTRY_DSN:-}
       - CORE_SENTRY_ENABLED=${CORE_SENTRY_ENABLED:-}
-      - CORE_SENTRY_RELEASE=${CORE_SENTRY_RELEASE:-}
       - CORE_SENTRY_TRACES_SAMPLE_RATE=${CORE_SENTRY_TRACES_SAMPLE_RATE:-}
     networks:
       - genum-network
@@ -43,7 +42,7 @@ services:
 
   # Frontend Web Service
   web:
-    image: genum/web:0.0.5-beta
+    image: genum/web:latest
     container_name: genum-web
     ports:
       - "${WEB_PORT:-3080}:80"

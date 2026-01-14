@@ -9,7 +9,7 @@ export function initializeSentry(): void {
 	if (env.CORE_SENTRY_ENABLED && env.CORE_SENTRY_DSN) {
 		Sentry.init({
 			dsn: env.CORE_SENTRY_DSN,
-			release: env.CORE_SENTRY_RELEASE,
+			release: env.RELEASE_VERSION,
 			environment: env.NODE_ENV,
 			enableLogs: true,
 			integrations: [

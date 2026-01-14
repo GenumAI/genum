@@ -20,6 +20,7 @@ export const initSentry = () => {
 			enabled: runtimeConfig.SENTRY_ENABLED, // enabled only in prod
 			dsn: runtimeConfig.SENTRY_DSN,
 			environment: runtimeConfig.SENTRY_ENVIRONMENT,
+			release: runtimeConfig.RELEASE_VERSION || undefined,
 
 			// Options
 			sendDefaultPii: true,
