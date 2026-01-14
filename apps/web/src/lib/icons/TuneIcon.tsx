@@ -1,10 +1,9 @@
-export const TuneIcon = ({
-	className = "",
-	stroke = "currentColor",
-}: {
+interface TuneIconProps {
 	className?: string;
 	stroke?: string;
-}) => (
+}
+
+export const TuneIcon = ({ className = "", stroke = "#437BEF" }: TuneIconProps) => (
 	<svg
 		width="17"
 		height="18"
@@ -30,7 +29,9 @@ export const TuneIcon = ({
 		</g>
 		<defs>
 			<clipPath id="clip0_6861_24864">
-				<rect width="14" height="14" fill={stroke} transform="translate(1.5 2.25293)" />
+				<rect width="14" height="14" fill={stroke} transform="translate(1.5 2.25293)">
+					<title>AI Tune Icon</title>
+				</rect>
 			</clipPath>
 		</defs>
 	</svg>

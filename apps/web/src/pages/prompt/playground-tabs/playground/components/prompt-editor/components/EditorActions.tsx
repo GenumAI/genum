@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import PromptActionPopover from "@/components/popovers/PromptActionPopover";
-import { SparkleIcon, CircleNotchIcon, ChartBarIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon, ChartBarIcon } from "@phosphor-icons/react";
+import { TuneIcon } from "@/lib/icons/TuneIcon";
 import Brush from "@/assets/brush.svg";
 import { cn } from "@/lib/utils";
 
@@ -95,7 +96,11 @@ export const EditorActions = ({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							<p>{auditRate !== undefined ? "View audit results" : "Analyze prompt logic"}</p>
+							<p>
+								{auditRate !== undefined
+									? "View audit results"
+									: "Analyze prompt logic"}
+							</p>
 						</TooltipContent>
 					</Tooltip>
 				</TooltipProvider>
@@ -113,7 +118,7 @@ export const EditorActions = ({
 										size="icon"
 										className="h-6 w-6 text-[#437BEF] hover:bg-accent hover:text-accent-foreground dark:hover:text-white [&_svg]:size-5"
 									>
-										<SparkleIcon />
+										<TuneIcon />
 									</Button>
 								</PopoverTrigger>
 							</TooltipTrigger>
@@ -129,7 +134,7 @@ export const EditorActions = ({
 						onChange={setPromptText}
 						onAction={handleGenerate}
 						buttonText="Generate"
-						buttonIcon={<SparkleIcon />}
+						buttonIcon={<TuneIcon stroke="currentColor" />}
 						loading={loading}
 						disabled={promptText.trim() === ""}
 					/>
@@ -148,7 +153,7 @@ export const EditorActions = ({
 										size="icon"
 										className="h-6 w-6 text-[#437BEF] hover:bg-accent hover:text-accent-foreground dark:hover:text-white [&_svg]:size-5"
 									>
-										<SparkleIcon />
+										<TuneIcon />
 									</Button>
 								</PopoverTrigger>
 							</TooltipTrigger>
@@ -164,7 +169,7 @@ export const EditorActions = ({
 						onChange={setTuneText}
 						onAction={handleTune}
 						buttonText="Tune"
-						buttonIcon={<SparkleIcon />}
+						buttonIcon={<TuneIcon stroke="currentColor" />}
 						loading={loading}
 						textareaClassName="text-primary"
 					/>
