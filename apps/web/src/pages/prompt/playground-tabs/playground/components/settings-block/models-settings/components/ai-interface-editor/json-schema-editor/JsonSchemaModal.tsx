@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import {
 	Dialog,
 	DialogContent,
@@ -37,7 +36,7 @@ const JsonSchemaModal = ({
 		setActiveTab,
 		code,
 		setCode,
-	} = useSchemaState({ modelParameters });
+	} = useSchemaState({ modelParameters, open });
 
 	const { validateSchema, handleVisualChange, handleCodeChange } = useSchemaValidation({
 		setValidationErrors,
@@ -69,12 +68,6 @@ const JsonSchemaModal = ({
 		setValidationErrors,
 		setActiveTab,
 	});
-
-	useEffect(() => {
-		if (open) {
-			setActiveTab(TabsValue.VISUAL);
-		}
-	}, [open, setActiveTab]);
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
