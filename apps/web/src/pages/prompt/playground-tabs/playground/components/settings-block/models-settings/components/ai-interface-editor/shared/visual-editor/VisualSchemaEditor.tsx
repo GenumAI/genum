@@ -43,7 +43,7 @@ const VisualSchemaEditor = ({
 					<div className="space-y-4">
 						{properties.map((p: VisualProperty, i: number) => (
 							<PropertyItem
-								key={`property-${i}-${p.name}`}
+								key={p.id || `property-${i}`}
 								property={p}
 								onUpdate={(u: VisualProperty) => handleUpdate(i, u)}
 								onRemove={() => handleRemove(i)}

@@ -10,9 +10,10 @@ import { validateStrictMode } from "../../shared/utils/schemaHelpers";
 
 interface UseSchemaStateProps {
 	modelParameters: PromptSettings["languageModelConfig"];
+	open: boolean;
 }
 
-export const useSchemaState = ({ modelParameters }: UseSchemaStateProps) => {
+export const useSchemaState = ({ modelParameters, open }: UseSchemaStateProps) => {
 	const [schema, setSchema] = useState<VisualSchema>({
 		name: "output_schema",
 		type: "object",
@@ -26,26 +27,30 @@ export const useSchemaState = ({ modelParameters }: UseSchemaStateProps) => {
 	const [code, setCode] = useState<string>("");
 
 	useEffect(() => {
-		try {
-			const schemaToParse =
-				typeof modelParameters.json_schema === "string"
-					? JSON.parse(modelParameters.json_schema)
-					: modelParameters.json_schema || {};
+		if (open) {
+			try {
+				const schemaToParse =
+					typeof modelParameters.json_schema === "string"
+						? JSON.parse(modelParameters.json_schema)
+						: modelParameters.json_schema || {};
 
-			if (Object.keys(schemaToParse).length === 0) {
+				if (Object.keys(schemaToParse).length === 0) {
+					setSchema({ ...baseSchema, properties: [] });
+				} else {
+					let visualSchema = transformToVisualSchema(schemaToParse);
+					visualSchema = validateStrictMode(visualSchema);
+					setSchema(visualSchema);
+				}
+				setValidationErrors([]);
+				setActiveTab(TabsValue.VISUAL);
+				setCode("");
+			} catch (error) {
+				console.error("Error loading existing schema:", error);
 				setSchema({ ...baseSchema, properties: [] });
-			} else {
-				let visualSchema = transformToVisualSchema(schemaToParse);
-				visualSchema = validateStrictMode(visualSchema);
-				setSchema(visualSchema);
+				setValidationErrors(["Error loading existing schema"]);
 			}
-			setValidationErrors([]);
-		} catch (error) {
-			console.error("Error loading existing schema:", error);
-			setSchema({ ...baseSchema, properties: [] });
-			setValidationErrors(["Error loading existing schema"]);
 		}
-	}, [modelParameters.json_schema]);
+	}, [open, modelParameters.json_schema]);
 
 	return {
 		schema,
