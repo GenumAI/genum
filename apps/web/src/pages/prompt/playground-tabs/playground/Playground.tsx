@@ -5,7 +5,7 @@ import clsx from "clsx";
 import TextEditor from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/TextEditor";
 import OutputBlock from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
 import { Button } from "@/components/ui/button";
-import SettingsBar from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/SettingsBar";
+import SettingsBar from "./components/settings-block/models-settings/SettingsBar";
 import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDialog";
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";

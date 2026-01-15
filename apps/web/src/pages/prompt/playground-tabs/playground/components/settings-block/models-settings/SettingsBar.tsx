@@ -1,6 +1,6 @@
 import { Separator } from "@/components/ui/separator";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import ModelsSettings from "@/pages/prompt/playground-tabs/playground/settings-block/models-settings/ModelsSettings";
+import ModelsSettings from "./ModelsSettings";
 import CanvasChat from "../canvas-chat/CanvasChat";
 import { useSettingsBar } from "./hooks/useSettingsBar";
 import { RunMetrics, ExecutionMetrics, CostBreakdownMetrics } from "./components/SettingsMetrics";
