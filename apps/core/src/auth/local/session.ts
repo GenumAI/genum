@@ -17,7 +17,6 @@ export async function createSession(res: Response, userId: number) {
 export async function getSession(req: Request) {
 	const sid = req.cookies?.[SESSION_COOKIE_NAME] as string | undefined;
 	if (!sid) {
-		console.log(`No session cookie found (looking for: ${SESSION_COOKIE_NAME})`);
 		return null;
 	}
 
