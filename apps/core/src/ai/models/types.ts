@@ -48,7 +48,7 @@ export const ModelParametersSchema = z.record(
 	z.object({
 		min: z.number().optional(),
 		max: z.number().optional(),
-		default: z.union([z.number(), z.string()]).optional(),
+		default: z.union([z.number(), z.string(), z.array(z.unknown())]).optional(),
 		allowed: z.array(z.string()).optional(),
 		json_schema: z.string().optional(),
 		tools: z.array(FunctionCallSchema).optional(),
@@ -71,24 +71,6 @@ export const ModelsConfigSchema = z.object({
 });
 
 export type ModelsConfig = z.infer<typeof ModelsConfigSchema>;
-
-// Validation function
-// export function validateParameterValue(
-// 	paramName: string,
-// 	value: any,
-// 	constraints: ParameterConstraints,
-// ): boolean {
-// 	if (constraints.allowed) {
-// 		return constraints.allowed.includes(value);
-// 	}
-
-// 	if (typeof value === "number") {
-// 		if (constraints.min !== undefined && value < constraints.min) return false;
-// 		if (constraints.max !== undefined && value > constraints.max) return false;
-// 	}
-
-// 	return true;
-// }
 
 // Function to get default parameters for a model
 export function getDefaultParameters(modelConfig: ModelConfig): Record<string, unknown> {

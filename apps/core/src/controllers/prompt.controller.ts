@@ -130,7 +130,14 @@ export class PromptsController {
 			res.status(404).json({ error: `Model with id ${id} not found` });
 			return;
 		}
-		const config = await db.prompts.getModelConfig(model.name, model.vendor as AiVendor);
+
+		// Pass database parametersConfig for custom models
+		const config = await db.prompts.getModelConfig(
+			model.name,
+			model.vendor,
+			model.parametersConfig, // Will be used for CUSTOM_OPENAI_COMPATIBLE
+		);
+
 		if (!config) {
 			res.status(404).json({ error: `Model configuration not found` });
 			return;
@@ -422,6 +429,7 @@ export class PromptsController {
 			model.name,
 			model.vendor as AiVendor,
 			config,
+			model.parametersConfig as Record<string, unknown> | null | undefined,
 		);
 
 		// Update the prompt with the new configuration
@@ -451,9 +459,10 @@ export class PromptsController {
 		const oldConfig = prompt.languageModelConfig as ModelConfigParameters;
 
 		// Get default configuration for the new model
-		const defaultConfigForNewModel = this.modelConfigService.getDefaultValues(
+		const defaultConfigForNewModel = this.modelConfigService.getDefaultValuesForModel(
 			newModel.name,
 			newModel.vendor as AiVendor,
+			newModel.parametersConfig as Record<string, unknown> | null | undefined,
 		) as ModelConfigParameters;
 
 		// Start with the new model's defaults
@@ -480,6 +489,7 @@ export class PromptsController {
 			newModel.name,
 			newModel.vendor as AiVendor,
 			candidateConfig,
+			newModel.parametersConfig as Record<string, unknown> | null | undefined,
 		);
 
 		// Update the prompt with the new model ID and the final, validated configuration
