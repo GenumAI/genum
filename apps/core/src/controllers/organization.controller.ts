@@ -427,7 +427,7 @@ export class OrganizationController {
 	public async deleteCustomProvider(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 
-		const deleted = await db.organization.deleteCustomProvider(metadata.orgID);
+		const deleted = await this.organizationService.deleteCustomProvider(metadata.orgID);
 		if (!deleted) {
 			res.status(404).json({ error: "Custom provider not configured" });
 			return;

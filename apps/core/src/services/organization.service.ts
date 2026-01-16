@@ -52,6 +52,33 @@ export class OrganizationService {
 		};
 	}
 
+	public async deleteCustomProvider(orgId: number) {
+		const provider = await this.db.organization.getCustomProvider(orgId);
+		if (!provider) {
+			return null;
+		}
+
+		const modelIds = await this.db.organization.getCustomProviderModelIds(provider.id);
+		const defaultModel = await this.db.prompts.getDefaultLanguageModelForReset();
+
+		await this.db.organization.runTransaction([
+			this.db.organization.resetPromptsToDefaultModel(
+				modelIds,
+				defaultModel.id,
+				defaultModel.config,
+			),
+			this.db.organization.resetPromptVersionsToDefaultModel(
+				modelIds,
+				defaultModel.id,
+				defaultModel.config,
+			),
+			this.db.organization.deleteLanguageModelsByApiKey(provider.id),
+			this.db.organization.deleteOrganizationApiKeyById(provider.id),
+		]);
+
+		return provider;
+	}
+
 	public async addOrganizationMember(orgId: number, userId: number, role: OrganizationRole) {
 		// check if user is already a member
 		const existingMember = await this.db.organization.getMemberByUserId(orgId, userId);

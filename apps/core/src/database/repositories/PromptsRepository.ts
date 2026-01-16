@@ -83,6 +83,18 @@ export class PromptsRepository {
 		this.defaultLanguageModel = null;
 	}
 
+	// expose default language model config for callers that need a reset baseline
+	public async getDefaultLanguageModelForReset(): Promise<{
+		id: number;
+		config: ModelConfigParameters;
+	}> {
+		const defaultModel = await this.getDefaultLanguageModel();
+		return {
+			id: defaultModel.id,
+			config: defaultModel.config,
+		};
+	}
+
 	// get project prompts
 	public async getProjectPrompts(projectId: number) {
 		return await this.prisma.prompt.findMany({

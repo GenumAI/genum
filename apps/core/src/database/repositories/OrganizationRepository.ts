@@ -452,43 +452,55 @@ export class OrganizationRepository {
 	}
 
 	/**
-	 * Delete the custom provider and its synced models for an organization
+	 * Get model IDs synced for a custom provider
 	 */
-	public async deleteCustomProvider(orgId: number) {
-		const provider = await this.prisma.organizationApiKey.findUnique({
-			where: {
-				organizationId_vendor: {
-					organizationId: orgId,
-					vendor: AiVendor.CUSTOM_OPENAI_COMPATIBLE,
-				},
+	public async getCustomProviderModelIds(apiKeyId: number): Promise<number[]> {
+		const models = await this.prisma.languageModel.findMany({
+			where: { apiKeyId },
+			select: { id: true },
+		});
+
+		return models.map((model) => model.id);
+	}
+
+	public resetPromptsToDefaultModel(
+		modelIds: number[],
+		defaultModelId: number,
+		defaultModelConfig: Record<string, unknown>,
+	) {
+		return this.prisma.prompt.updateMany({
+			where: { languageModelId: { in: modelIds } },
+			data: {
+				languageModelId: defaultModelId,
+				languageModelConfig: defaultModelConfig as Prisma.InputJsonValue,
 			},
-			select: { id: true },
 		});
+	}
 
-		if (!provider) {
-			return null;
-		}
-
-		const modelIds = await this.prisma.languageModel.findMany({
-			where: { apiKeyId: provider.id },
-			select: { id: true },
+	public resetPromptVersionsToDefaultModel(
+		modelIds: number[],
+		defaultModelId: number,
+		defaultModelConfig: Record<string, unknown>,
+	) {
+		return this.prisma.promptVersion.updateMany({
+			where: { languageModelId: { in: modelIds } },
+			data: {
+				languageModelId: defaultModelId,
+				languageModelConfig: defaultModelConfig as Prisma.InputJsonValue,
+			},
 		});
-		const ids = modelIds.map((model) => model.id);
+	}
 
-		await this.prisma.$transaction([
-			this.prisma.prompt.updateMany({
-				where: { languageModelId: { in: ids } },
-				data: { languageModelId: 1 },
-			}),
-			this.prisma.promptVersion.updateMany({
-				where: { languageModelId: { in: ids } },
-				data: { languageModelId: 1 },
-			}),
-			this.prisma.languageModel.deleteMany({ where: { apiKeyId: provider.id } }),
-			this.prisma.organizationApiKey.delete({ where: { id: provider.id } }),
-		]);
+	public deleteLanguageModelsByApiKey(apiKeyId: number) {
+		return this.prisma.languageModel.deleteMany({ where: { apiKeyId } });
+	}
 
-		return provider;
+	public deleteOrganizationApiKeyById(apiKeyId: number) {
+		return this.prisma.organizationApiKey.delete({ where: { id: apiKeyId } });
+	}
+
+	public async runTransaction(operations: Prisma.PrismaPromise<unknown>[]) {
+		return await this.prisma.$transaction(operations);
 	}
 
 	/**
