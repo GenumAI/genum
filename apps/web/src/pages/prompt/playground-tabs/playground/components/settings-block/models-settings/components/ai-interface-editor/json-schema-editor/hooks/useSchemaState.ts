@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import type { PromptSettings } from "@/types/Prompt";
 import {
 	transformToVisualSchema,
 	baseSchema,
@@ -9,11 +8,11 @@ import { TabsValue } from "../../shared/utils/types";
 import { validateStrictMode } from "../../shared/utils/schemaHelpers";
 
 interface UseSchemaStateProps {
-	modelParameters: PromptSettings["languageModelConfig"];
+	jsonSchema: string | null;
 	open: boolean;
 }
 
-export const useSchemaState = ({ modelParameters, open }: UseSchemaStateProps) => {
+export const useSchemaState = ({ jsonSchema, open }: UseSchemaStateProps) => {
 	const [schema, setSchema] = useState<VisualSchema>({
 		name: "output_schema",
 		type: "object",
@@ -29,10 +28,7 @@ export const useSchemaState = ({ modelParameters, open }: UseSchemaStateProps) =
 	useEffect(() => {
 		if (open) {
 			try {
-				const schemaToParse =
-					typeof modelParameters.json_schema === "string"
-						? JSON.parse(modelParameters.json_schema)
-						: modelParameters.json_schema || {};
+				const schemaToParse = jsonSchema ? JSON.parse(jsonSchema) : {};
 
 				if (Object.keys(schemaToParse).length === 0) {
 					setSchema({ ...baseSchema, properties: [] });
@@ -50,7 +46,7 @@ export const useSchemaState = ({ modelParameters, open }: UseSchemaStateProps) =
 				setValidationErrors(["Error loading existing schema"]);
 			}
 		}
-	}, [open, modelParameters.json_schema]);
+	}, [open, jsonSchema]);
 
 	return {
 		schema,

@@ -24,7 +24,7 @@ const JsonSchemaModal = ({
 	open,
 	setOpen,
 	promptId,
-	modelParameters,
+	jsonSchema,
 	onSave,
 }: SchemaEditDialogProps) => {
 	const {
@@ -36,7 +36,7 @@ const JsonSchemaModal = ({
 		setActiveTab,
 		code,
 		setCode,
-	} = useSchemaState({ modelParameters, open });
+	} = useSchemaState({ jsonSchema, open });
 
 	const { validateSchema, handleVisualChange, handleCodeChange } = useSchemaValidation({
 		setValidationErrors,

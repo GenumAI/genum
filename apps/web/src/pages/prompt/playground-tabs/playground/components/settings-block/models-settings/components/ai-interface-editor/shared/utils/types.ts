@@ -1,4 +1,3 @@
-import type { PromptSettings } from "@/types/Prompt";
 import type { VisualSchema, VisualProperty } from "./schemaHelpers";
 
 export enum TabsValue {
@@ -10,7 +9,7 @@ export interface SchemaEditDialogProps {
 	open: boolean;
 	setOpen: (open: boolean) => void;
 	promptId: number | undefined;
-	modelParameters: PromptSettings["languageModelConfig"];
+	jsonSchema: string | null;
 	onSave: (data: { response_format: "json_schema"; json_schema: string }) => void;
 }
 

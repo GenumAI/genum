@@ -47,6 +47,7 @@ const ModelsSettings = ({
 		onFormChange,
 		handleToolDelete,
 		handleToolSave,
+		currentJsonSchema,
 	} = useModelsSettings({
 		prompt,
 		models,
@@ -148,7 +149,7 @@ const ModelsSettings = ({
 						open={schemaDialogOpen}
 						setOpen={setSchemaDialogOpen}
 						promptId={promptId}
-						modelParameters={prompt.languageModelConfig}
+						jsonSchema={currentJsonSchema}
 						onSave={onSaveSchema}
 					/>
 				)}
