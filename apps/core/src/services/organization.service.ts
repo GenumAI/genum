@@ -3,8 +3,54 @@ import { ProjectRole, OrganizationRole } from "@/prisma";
 import { webhooks } from "./webhooks/webhooks";
 import { env } from "@/env";
 
+// Custom errors for provider operations
+export class ProviderNotConfiguredError extends Error {
+	constructor() {
+		super("Custom provider not configured");
+		this.name = "ProviderNotConfiguredError";
+	}
+}
+
+export class ProviderNoBaseUrlError extends Error {
+	constructor() {
+		super("Provider has no base URL configured");
+		this.name = "ProviderNoBaseUrlError";
+	}
+}
+
+export type ValidatedProvider = {
+	id: number;
+	key: string;
+	baseUrl: string;
+	name: string | null;
+};
+
 export class OrganizationService {
 	constructor(private readonly db: Database) {}
+
+	/**
+	 * Get custom provider with validated baseUrl
+	 * @throws ProviderNotConfiguredError if provider doesn't exist
+	 * @throws ProviderNoBaseUrlError if provider has no baseUrl
+	 */
+	public async getValidatedCustomProvider(orgId: number): Promise<ValidatedProvider> {
+		const provider = await this.db.organization.getCustomProvider(orgId);
+
+		if (!provider) {
+			throw new ProviderNotConfiguredError();
+		}
+
+		if (!provider.baseUrl) {
+			throw new ProviderNoBaseUrlError();
+		}
+
+		return {
+			id: provider.id,
+			key: provider.key,
+			baseUrl: provider.baseUrl,
+			name: provider.name,
+		};
+	}
 
 	public async addOrganizationMember(orgId: number, userId: number, role: OrganizationRole) {
 		// check if user is already a member

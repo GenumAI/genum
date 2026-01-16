@@ -48,12 +48,11 @@ export class PromptsRepository {
 
 		// Fallback: search by name and vendor (in case ID changed)
 		if (!model) {
-			model = await this.prisma.languageModel.findUnique({
+			model = await this.prisma.languageModel.findFirst({
 				where: {
-					vendor_name: {
-						vendor: AiVendor.OPENAI,
-						name: "gpt-4o",
-					},
+					vendor: AiVendor.OPENAI,
+					name: "gpt-4o",
+					apiKeyId: null,
 				},
 			});
 		}
@@ -272,12 +271,11 @@ export class PromptsRepository {
 	}
 
 	public async updateModel(model: LanguageModelData) {
-		return await this.prisma.languageModel.update({
+		return await this.prisma.languageModel.updateMany({
 			where: {
-				vendor_name: {
-					vendor: model.vendor,
-					name: model.name,
-				},
+				vendor: model.vendor,
+				name: model.name,
+				apiKeyId: null,
 			},
 			data: {
 				displayName: model.displayName,
@@ -290,8 +288,17 @@ export class PromptsRepository {
 		});
 	}
 
-	public async getModelConfig(name: string, vendor: AiVendor) {
+	public async getModelConfig(name: string, vendor: AiVendor, dbParametersConfig?: unknown) {
 		const modelConfigService = new ModelConfigService();
+
+		// For custom providers, use database config if available
+		if (vendor === AiVendor.CUSTOM_OPENAI_COMPATIBLE) {
+			return modelConfigService.getCustomModelConfig(
+				name,
+				dbParametersConfig as Record<string, unknown> | null | undefined,
+			);
+		}
+
 		return modelConfigService.getLLMConfig(name, vendor);
 	}
 
