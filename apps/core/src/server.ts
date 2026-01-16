@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { env } from "./env";
-import express, { type Request, type Response } from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { requestLog } from "./utils/request-log";
@@ -39,7 +39,7 @@ app.use((_req, _res, next) => {
 });
 
 // error handler
-app.use((err: unknown, _req: Request, res: Response) => {
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 	if (err instanceof ZodError) {
 		console.error("Zod Validation Error:", JSON.stringify(err, null, 2));
 		captureSentryException(err, { error_type: "validation_error" });
@@ -47,7 +47,7 @@ app.use((err: unknown, _req: Request, res: Response) => {
 			status: "error",
 			statusCode: 400,
 			message: "Validation failed",
-			errors: z.treeifyError(err),
+			...(env.NODE_ENV !== "production" ? { errors: z.treeifyError(err) } : {}), // only include errors in development
 		});
 		return;
 	}
