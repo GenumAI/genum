@@ -751,10 +751,20 @@ export default function OrgAIKeys() {
 					<DialogHeader>
 						<DialogTitle>Delete Custom Provider</DialogTitle>
 						<DialogDescription>
-							Are you sure you want to delete the custom provider? This will also
-							remove all synced models.
+							Deleting the provider will have the following effects:
 						</DialogDescription>
 					</DialogHeader>
+
+					<ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+						<li>All synced models will be removed.</li>
+						<li>
+							Prompt settings and versions using those models will switch to the default model and
+							reset config.
+						</li>
+					</ul>
+					<p className="text-sm text-muted-foreground">
+						Be careful: this action is irreversible.
+					</p>
 
 					<DialogFooter>
 						<Button
