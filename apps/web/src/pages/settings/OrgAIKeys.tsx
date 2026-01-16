@@ -367,8 +367,8 @@ export default function OrgAIKeys() {
 			<CardContent className="p-6 pt-0">
 				<Tabs value={activeTab} onValueChange={setActiveTab}>
 					<TabsList className="bg-muted rounded-xl p-1 gap-1 w-fit">
-						<TabsTrigger value={SettingsTab.PROVIDERS}>Providers</TabsTrigger>
-						<TabsTrigger value={SettingsTab.CUSTOM}>Custom provider</TabsTrigger>
+						<TabsTrigger value={SettingsTab.PROVIDERS}>Global</TabsTrigger>
+						<TabsTrigger value={SettingsTab.CUSTOM}>Custom</TabsTrigger>
 					</TabsList>
 
 					<TabsContent value={SettingsTab.PROVIDERS} className="mt-4">
@@ -487,15 +487,15 @@ export default function OrgAIKeys() {
 						) : (
 							<div className="space-y-4">
 								{!customProvider ? (
-									<div className="rounded-md border p-10 text-center space-y-4">
+									<div className="rounded-md p-10 text-center space-y-4">
 										<p className="text-sm font-medium">
-											You have not added any OpenAI-compatible custom providers yet.
+											You have not added an OpenAI-compatible custom provider yet.
 										</p>
 										<p className="text-sm text-muted-foreground">
 											Connect an OpenAI-compatible endpoint to sync and configure models.
 										</p>
 										<div className="flex items-center justify-center gap-3">
-											<Button size="sm" onClick={openEditProviderDialog}>
+											<Button size="default" onClick={openEditProviderDialog}>
 												<PlusCircle className="mr-2 h-4 w-4" /> Add Provider
 											</Button>
 											<a
