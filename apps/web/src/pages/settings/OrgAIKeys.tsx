@@ -542,7 +542,7 @@ export default function OrgAIKeys() {
 								{!customProvider ? (
 									<div className="rounded-md p-10 text-center space-y-4">
 										<p className="text-sm font-medium">
-											You have not added an OpenAI-compatible custom provider yet.
+											You have not added a custom provider yet.
 										</p>
 										<p className="text-sm text-muted-foreground">
 											Connect an OpenAI-compatible endpoint to sync and configure models.
