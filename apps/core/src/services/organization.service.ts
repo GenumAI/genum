@@ -18,6 +18,18 @@ export class ProviderNoBaseUrlError extends Error {
 	}
 }
 
+export class ProviderDeleteNotAllowedError extends Error {
+	public readonly promptUsageCount: number;
+	public readonly productiveCommitUsageCount: number;
+
+	constructor(promptUsageCount: number, productiveCommitUsageCount: number) {
+		super("Custom provider cannot be deleted while it is in use");
+		this.name = "ProviderDeleteNotAllowedError";
+		this.promptUsageCount = promptUsageCount;
+		this.productiveCommitUsageCount = productiveCommitUsageCount;
+	}
+}
+
 export type ProviderModelInput = {
 	name: string;
 	displayName?: string;
@@ -37,6 +49,35 @@ export type ValidatedProvider = {
 
 export class OrganizationService {
 	constructor(private readonly db: Database) {}
+
+	private async getCustomProviderDeleteInfo(orgId: number) {
+		const provider = await this.db.organization.getCustomProvider(orgId);
+		if (!provider) {
+			return {
+				provider: null,
+				modelIds: [],
+				promptUsageCount: 0,
+				productiveCommitUsageCount: 0,
+				canDelete: false,
+			};
+		}
+
+		const modelIds = await this.db.organization.getCustomProviderModelIds(provider.id);
+		const promptUsageCount = await this.db.prompts.countPromptsUsingLanguageModels(
+			orgId,
+			modelIds,
+		);
+		const productiveCommitUsageCount =
+			await this.db.prompts.countProductiveCommitsUsingLanguageModels(orgId, modelIds);
+
+		return {
+			provider,
+			modelIds,
+			promptUsageCount,
+			productiveCommitUsageCount,
+			canDelete: promptUsageCount === 0 && productiveCommitUsageCount === 0,
+		};
+	}
 
 	/**
 	 * Get custom provider with validated baseUrl
@@ -63,30 +104,48 @@ export class OrganizationService {
 	}
 
 	public async deleteCustomProvider(orgId: number) {
-		const provider = await this.db.organization.getCustomProvider(orgId);
-		if (!provider) {
+		const deleteInfo = await this.getCustomProviderDeleteInfo(orgId);
+		if (!deleteInfo.provider) {
 			return null;
 		}
+		if (!deleteInfo.canDelete) {
+			throw new ProviderDeleteNotAllowedError(
+				deleteInfo.promptUsageCount,
+				deleteInfo.productiveCommitUsageCount,
+			);
+		}
 
-		const modelIds = await this.db.organization.getCustomProviderModelIds(provider.id);
 		const defaultModel = await this.db.prompts.getDefaultLanguageModelForReset();
 
 		await this.db.organization.runTransaction([
 			this.db.organization.resetPromptsToDefaultModel(
-				modelIds,
+				deleteInfo.modelIds,
 				defaultModel.id,
 				defaultModel.config,
 			),
 			this.db.organization.resetPromptVersionsToDefaultModel(
-				modelIds,
+				deleteInfo.modelIds,
 				defaultModel.id,
 				defaultModel.config,
 			),
-			this.db.organization.deleteLanguageModelsByApiKey(provider.id),
-			this.db.organization.deleteOrganizationApiKeyById(provider.id),
+			this.db.organization.deleteLanguageModelsByApiKey(deleteInfo.provider.id),
+			this.db.organization.deleteOrganizationApiKeyById(deleteInfo.provider.id),
 		]);
 
-		return provider;
+		return deleteInfo.provider;
+	}
+
+	public async getCustomProviderDeleteStatus(orgId: number) {
+		const deleteInfo = await this.getCustomProviderDeleteInfo(orgId);
+		if (!deleteInfo.provider) {
+			return null;
+		}
+
+		return {
+			canDelete: deleteInfo.canDelete,
+			promptUsageCount: deleteInfo.promptUsageCount,
+			productiveCommitUsageCount: deleteInfo.productiveCommitUsageCount,
+		};
 	}
 
 	/**

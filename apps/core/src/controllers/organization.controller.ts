@@ -18,6 +18,7 @@ import {
 	OrganizationService,
 	ProviderNotConfiguredError,
 	ProviderNoBaseUrlError,
+	ProviderDeleteNotAllowedError,
 } from "@/services/organization.service";
 import { listOpenAICompatibleModels, testProviderConnection } from "@/ai/providers/openai/models";
 
@@ -427,13 +428,42 @@ export class OrganizationController {
 	public async deleteCustomProvider(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 
-		const deleted = await this.organizationService.deleteCustomProvider(metadata.orgID);
-		if (!deleted) {
+		try {
+			const deleted = await this.organizationService.deleteCustomProvider(metadata.orgID);
+			if (!deleted) {
+				res.status(404).json({ error: "Custom provider not configured" });
+				return;
+			}
+
+			res.status(200).json({ message: "Custom provider deleted successfully" });
+		} catch (e) {
+			if (e instanceof ProviderDeleteNotAllowedError) {
+				res.status(409).json({
+					error: e.message,
+					promptUsageCount: e.promptUsageCount,
+					productiveCommitUsageCount: e.productiveCommitUsageCount,
+				});
+				return;
+			}
+
+			throw e;
+		}
+	}
+
+	/**
+	 * Check if the custom provider can be deleted
+	 * GET /api/organization/provider/delete-status
+	 */
+	public async getCustomProviderDeleteStatus(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+
+		const status = await this.organizationService.getCustomProviderDeleteStatus(metadata.orgID);
+		if (!status) {
 			res.status(404).json({ error: "Custom provider not configured" });
 			return;
 		}
 
-		res.status(200).json({ message: "Custom provider deleted successfully" });
+		res.status(200).json({ status });
 	}
 
 	/**

@@ -156,6 +156,12 @@ export interface SyncProviderModelsResponse {
 	removed: number;
 }
 
+export interface CustomProviderDeleteStatus {
+	canDelete: boolean;
+	promptUsageCount: number;
+	productiveCommitUsageCount: number;
+}
+
 export interface ModelParameterConfig {
 	enabled: boolean;
 	min?: number;
@@ -409,6 +415,19 @@ export const organizationApi = {
 	 */
 	deleteCustomProvider: async (config?: ApiRequestConfig): Promise<void> => {
 		await apiClient.delete("/organization/provider", config);
+	},
+
+	/**
+	 * Check if the custom provider can be deleted
+	 */
+	getCustomProviderDeleteStatus: async (
+		config?: ApiRequestConfig,
+	): Promise<CustomProviderDeleteStatus> => {
+		const response = await apiClient.get<{ status: CustomProviderDeleteStatus }>(
+			"/organization/provider/delete-status",
+			config,
+		);
+		return response.data.status;
 	},
 
 	/**

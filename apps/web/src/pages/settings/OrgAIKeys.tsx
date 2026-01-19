@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/useToast";
 import { organizationApi } from "@/api/organization";
 import type {
 	CustomProvider,
+	CustomProviderDeleteStatus,
 	ProviderModel,
 	LanguageModel,
 	ModelParameterConfig,
@@ -109,6 +110,11 @@ export default function OrgAIKeys() {
 	// Delete provider dialog
 	const [deleteProviderDialogOpen, setDeleteProviderDialogOpen] = React.useState(false);
 	const [isDeletingProvider, setIsDeletingProvider] = React.useState(false);
+	const [deleteStatus, setDeleteStatus] = React.useState<CustomProviderDeleteStatus | null>(
+		null,
+	);
+	const [deleteStatusError, setDeleteStatusError] = React.useState<string | null>(null);
+	const [isCheckingDeleteStatus, setIsCheckingDeleteStatus] = React.useState(false);
 
 	// Sync state
 	const [isSyncing, setIsSyncing] = React.useState(false);
@@ -161,11 +167,37 @@ export default function OrgAIKeys() {
 		}
 	}, []);
 
+	const fetchDeleteStatus = React.useCallback(async () => {
+		try {
+			setIsCheckingDeleteStatus(true);
+			setDeleteStatusError(null);
+			const status = await organizationApi.getCustomProviderDeleteStatus();
+			setDeleteStatus(status);
+		} catch (e) {
+			console.error(e);
+			setDeleteStatus(null);
+			setDeleteStatusError("Failed to check if the provider can be deleted.");
+		} finally {
+			setIsCheckingDeleteStatus(false);
+		}
+	}, []);
+
 	React.useEffect(() => {
 		fetchKeys();
 		fetchQuota();
 		fetchCustomProvider();
 	}, [fetchKeys, fetchQuota, fetchCustomProvider]);
+
+	React.useEffect(() => {
+		if (!deleteProviderDialogOpen) {
+			setDeleteStatus(null);
+			setDeleteStatusError(null);
+			setIsCheckingDeleteStatus(false);
+			return;
+		}
+
+		fetchDeleteStatus();
+	}, [deleteProviderDialogOpen, fetchDeleteStatus]);
 
 	// ==================== Standard Key Handlers ====================
 
@@ -289,7 +321,23 @@ export default function OrgAIKeys() {
 	};
 
 	const handleDeleteProvider = async () => {
-		if (isDeletingProvider) return;
+		if (isDeletingProvider || isCheckingDeleteStatus) return;
+		if (deleteStatusError) {
+			toast({
+				title: "Error",
+				description: deleteStatusError,
+				variant: "destructive",
+			});
+			return;
+		}
+		if (deleteStatus && !deleteStatus.canDelete) {
+			toast({
+				title: "Cannot delete provider",
+				description: "This provider is still in use by prompts or productive commits.",
+				variant: "destructive",
+			});
+			return;
+		}
 
 		try {
 			setIsDeletingProvider(true);
@@ -306,6 +354,7 @@ export default function OrgAIKeys() {
 				description: "Cannot delete provider",
 				variant: "destructive",
 			});
+			await fetchDeleteStatus();
 		} finally {
 			setIsDeletingProvider(false);
 		}
@@ -341,6 +390,10 @@ export default function OrgAIKeys() {
 		if (balance === null) return "--";
 		return `$${balance.toFixed(2)}`;
 	};
+
+	const isDeleteBlocked = Boolean(deleteStatus && !deleteStatus.canDelete);
+	const isDeleteDisabled =
+		isDeletingProvider || isCheckingDeleteStatus || Boolean(deleteStatusError) || isDeleteBlocked;
 
 	return (
 		<Card className="rounded-md shadow-none">
@@ -751,20 +804,54 @@ export default function OrgAIKeys() {
 					<DialogHeader>
 						<DialogTitle>Delete Custom Provider</DialogTitle>
 						<DialogDescription>
-							Deleting the provider will have the following effects:
+							{isCheckingDeleteStatus
+								? "Checking if this provider can be deleted..."
+								: isDeleteBlocked
+								  ? "This provider cannot be deleted yet."
+								  : "Deleting the provider will have the following effects:"}
 						</DialogDescription>
 					</DialogHeader>
 
-					<ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-						<li>All synced models will be removed.</li>
-						<li>
-							Prompt settings and versions using those models will switch to the default model and
-							reset config.
-						</li>
-					</ul>
-					<p className="text-sm text-muted-foreground">
-						Be careful: this action is irreversible.
-					</p>
+					{deleteStatusError && (
+						<p className="text-sm text-red-600">{deleteStatusError}</p>
+					)}
+
+					{isCheckingDeleteStatus && (
+						<div className="flex items-center gap-2 text-sm text-muted-foreground">
+							<Loader2 className="h-4 w-4 animate-spin" />
+							<span>Checking usage...</span>
+						</div>
+					)}
+
+					{isDeleteBlocked && deleteStatus && (
+						<div className="space-y-2">
+							<p className="text-sm text-muted-foreground">
+								Remove the following usage before deleting:
+							</p>
+							<ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+								{deleteStatus.promptUsageCount > 0 && (
+									<li>
+										{deleteStatus.promptUsageCount} prompt
+										{deleteStatus.promptUsageCount === 1 ? "" : "s"} currently use a
+										model from this provider.
+									</li>
+								)}
+								{deleteStatus.productiveCommitUsageCount > 0 && (
+									<li>
+										{deleteStatus.productiveCommitUsageCount} productive commit
+										{deleteStatus.productiveCommitUsageCount === 1 ? "" : "s"} use a
+										model from this provider.
+									</li>
+								)}
+							</ul>
+						</div>
+					)}
+
+					{!isDeleteBlocked && (
+						<p className="text-sm text-muted-foreground">
+							This action is irreversible. All synced models will be deleted.
+						</p>
+					)}
 
 					<DialogFooter>
 						<Button
@@ -775,7 +862,7 @@ export default function OrgAIKeys() {
 						</Button>
 						<Button
 							onClick={handleDeleteProvider}
-							disabled={isDeletingProvider}
+							disabled={isDeleteDisabled}
 							className="bg-red-600 hover:bg-red-700 text-white"
 						>
 							{isDeletingProvider ? "Deleting..." : "Delete Provider"}

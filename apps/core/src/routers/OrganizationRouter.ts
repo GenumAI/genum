@@ -98,6 +98,11 @@ export function createOrganizationRouter(): Router {
 		w.hasOrganizationRole(OrganizationRole.ADMIN),
 		asyncHandler(orgController.getCustomProvider.bind(orgController)),
 	);
+	router.get(
+		"/provider/delete-status",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.getCustomProviderDeleteStatus.bind(orgController)),
+	);
 	router.post(
 		"/provider",
 		w.hasOrganizationRole(OrganizationRole.ADMIN),

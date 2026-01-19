@@ -575,6 +575,56 @@ export class PromptsRepository {
 		});
 	}
 
+	public async countPromptsUsingLanguageModels(
+		orgId: number,
+		modelIds: number[],
+	): Promise<number> {
+		if (modelIds.length === 0) {
+			return 0;
+		}
+
+		return await this.prisma.prompt.count({
+			where: {
+				languageModelId: { in: modelIds },
+				project: { organizationId: orgId },
+			},
+		});
+	}
+
+	public async countProductiveCommitsUsingLanguageModels(
+		orgId: number,
+		modelIds: number[],
+	): Promise<number> {
+		if (modelIds.length === 0) {
+			return 0;
+		}
+
+		const branches = await this.prisma.branch.findMany({
+			where: {
+				name: "master",
+				prompt: { project: { organizationId: orgId } },
+			},
+			select: {
+				promptVersions: {
+					orderBy: { id: "desc" },
+					take: 1,
+					select: { languageModelId: true },
+				},
+			},
+		});
+
+		const modelIdSet = new Set(modelIds);
+		let count = 0;
+		for (const branch of branches) {
+			const latest = branch.promptVersions[0];
+			if (latest && modelIdSet.has(latest.languageModelId)) {
+				count += 1;
+			}
+		}
+
+		return count;
+	}
+
 	public async getProductiveCommit(promptId: number) {
 		return await this.prisma.promptVersion.findFirst({
 			where: {

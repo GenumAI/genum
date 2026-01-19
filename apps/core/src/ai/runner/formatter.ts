@@ -1,4 +1,4 @@
-import type { Prompt, PromptVersion, TestCase } from "@/prisma";
+import type { TestCase } from "@/prisma";
 import { objToXml } from "@/utils/xml";
 import type { InputGeneratorParams, JsonSchemaEditorParams, ToolEditorParams } from "./types";
 
