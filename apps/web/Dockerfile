@@ -29,10 +29,6 @@ WORKDIR /app
 # Stage 2: Runtime - Production image with Nginx
 FROM nginx:alpine AS runtime
 
-# Build-time argument for release version
-ARG RELEASE_VERSION=unknown
-ENV RELEASE_VERSION=${RELEASE_VERSION}
-
 # Copy built static files from builder stage
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 

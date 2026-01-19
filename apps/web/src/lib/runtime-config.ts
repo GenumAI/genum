@@ -29,7 +29,6 @@ declare global {
 			SENTRY_ENABLED?: string;
 			SENTRY_DSN?: string;
 			SENTRY_ENVIRONMENT?: string;
-			RELEASE_VERSION?: string;
 			GA_TRACKING_ID?: string;
 		};
 	}
@@ -132,13 +131,6 @@ export const runtimeConfig = {
 	},
 
 	/**
-	 * Sentry release version
-	 */
-	get RELEASE_VERSION(): string {
-		return getConfig("RELEASE_VERSION", "");
-	},
-
-	/**
 	 * Google Analytics tracking ID
 	 */
 	get GA_TRACKING_ID(): string {
@@ -163,7 +155,6 @@ export function debugConfig(): void {
 				SENTRY_ENABLED: runtimeConfig.SENTRY_ENABLED,
 				SENTRY_DSN: runtimeConfig.SENTRY_DSN ? "***" : "",
 				SENTRY_ENVIRONMENT: runtimeConfig.SENTRY_ENVIRONMENT,
-				RELEASE_VERSION: runtimeConfig.RELEASE_VERSION,
 				GA_TRACKING_ID: runtimeConfig.GA_TRACKING_ID ? "***" : "",
 			},
 		});

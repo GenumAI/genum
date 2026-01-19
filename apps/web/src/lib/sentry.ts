@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/react";
 import { runtimeConfig } from "./runtime-config";
+import { VERSION } from "@/constants/VERSION";
 
 let isSentryInitialized = false;
 
@@ -20,7 +21,7 @@ export const initSentry = () => {
 			enabled: runtimeConfig.SENTRY_ENABLED, // enabled only in prod
 			dsn: runtimeConfig.SENTRY_DSN,
 			environment: runtimeConfig.SENTRY_ENVIRONMENT,
-			release: runtimeConfig.RELEASE_VERSION || undefined,
+			release: VERSION,
 
 			// Options
 			sendDefaultPii: true,

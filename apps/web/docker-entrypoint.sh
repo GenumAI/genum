@@ -31,7 +31,6 @@ else
   replace_or_remove "__SENTRY_ENABLED__" "${SENTRY_ENABLED}"
   replace_or_remove "__SENTRY_DSN__" "${SENTRY_DSN}"
   replace_or_remove "__SENTRY_ENVIRONMENT__" "${SENTRY_ENVIRONMENT}"
-  replace_or_remove "__RELEASE_VERSION__" "${RELEASE_VERSION}"
   replace_or_remove "__GA_TRACKING_ID__" "${GA_TRACKING_ID}"
 
   echo "Runtime env.js generated"

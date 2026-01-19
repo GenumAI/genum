@@ -122,8 +122,6 @@ jobs:
           file: ./apps/core/dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          build-args: |
-            RELEASE_VERSION=${{ steps.release_version.outputs.tag }}
           tags: |
             ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:${{ steps.release_version.outputs.tag }}
             ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:${{ steps.release_version.outputs.latest_tag }}
@@ -137,8 +135,6 @@ jobs:
           file: ./apps/web/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          build-args: |
-            RELEASE_VERSION=${{ steps.release_version.outputs.tag }}
           tags: |
             ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.tag }}
             ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.latest_tag }}

@@ -10,6 +10,7 @@ import { initSystemPromptsConfig } from "./ai/runner/run";
 import { initializeClickHouse } from "./services/logger/init";
 import { initializeSentry, captureSentryException } from "@/services/sentry/init";
 import { corsOptions } from "@/utils/cors";
+import { VERSION } from "@/constants/VERSION";
 
 // Initialize Sentry instrumentation BEFORE creating Express app
 initializeSentry();
@@ -74,7 +75,7 @@ Promise.all([initSystemPromptsConfig(), initializeClickHouse()])
 			console.log(
 				[
 					`----SERVER IS RUNNING----`,
-					`INSTANCE: ${env.INSTANCE_TYPE} VERSION: ${env.RELEASE_VERSION}`,
+					`INSTANCE: ${env.INSTANCE_TYPE} VERSION: ${VERSION}`,
 					`PORT: ${PORT}`,
 					`STAGE: ${env.NODE_ENV}`,
 				].join("\n"),
