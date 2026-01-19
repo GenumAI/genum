@@ -55,7 +55,9 @@ export const FormSelectField = memo(
 							<SelectContent>
 								{options.map((option) => (
 									<SelectItem key={option} value={option}>
-										{option}
+										{option
+											.replace(/_/g, " ")
+											.replace(/\b\w/g, (char) => char.toUpperCase())}
 									</SelectItem>
 								))}
 							</SelectContent>

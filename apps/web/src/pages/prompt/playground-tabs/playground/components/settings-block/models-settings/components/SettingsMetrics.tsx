@@ -124,21 +124,21 @@ export const CostBreakdownMetrics = memo(
 					{!!promptCost && (
 						<MetricsRow
 							icon={<Coins size={16} />}
-							title={"Prompt cost"}
+							title={"Prompt Cost"}
 							value={formatCost(promptCost)}
 						/>
 					)}
 					{!!completionCost && (
 						<MetricsRow
 							icon={<Coins size={16} />}
-							title={"Completion cost"}
+							title={"Completion Cost"}
 							value={formatCost(completionCost)}
 						/>
 					)}
 					{!!totalCost && (
 						<MetricsRow
 							icon={<Coins size={16} />}
-							title={"Total cost"}
+							title={"Total Cost"}
 							value={formatCost(totalCost)}
 						/>
 					)}

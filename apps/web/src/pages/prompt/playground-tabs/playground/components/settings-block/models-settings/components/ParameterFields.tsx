@@ -41,7 +41,9 @@ export const ParameterFields = memo(
 						return null;
 					}
 
-					const label = paramKey.replace(/_/g, " ");
+					const label = paramKey
+						.replace(/_/g, " ")
+						.replace(/\b\w/g, (char) => char.toUpperCase());
 
 					// Select field for allowed values
 					if (config?.allowed && Array.isArray(config.allowed)) {
