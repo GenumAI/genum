@@ -533,69 +533,6 @@ export class OrganizationRepository {
 	}
 
 	/**
-	 * Sync models from a custom provider to the database
-	 * Creates new models, keeps existing ones, optionally removes stale ones
-	 */
-	public async syncProviderModels(
-		apiKeyId: number,
-		models: Array<{ name: string; displayName?: string }>,
-		removeStale: boolean = false,
-	): Promise<{ created: number; existing: number; removed: number }> {
-		const apiKey = await this.prisma.organizationApiKey.findUnique({
-			where: { id: apiKeyId },
-			include: { languageModels: true },
-		});
-
-		if (!apiKey) {
-			throw new Error("API key not found");
-		}
-
-		const existingModelNames = new Set(apiKey.languageModels.map((m) => m.name));
-		const newModelNames = new Set(models.map((m) => m.name));
-
-		let created = 0;
-		let existing = 0;
-		let removed = 0;
-
-		// Create new models
-		for (const model of models) {
-			if (!existingModelNames.has(model.name)) {
-				await this.prisma.languageModel.create({
-					data: {
-						name: model.name,
-						displayName: model.displayName || model.name,
-						vendor: apiKey.vendor,
-						apiKeyId: apiKeyId,
-						// Default values for custom models
-						promptPrice: 0,
-						completionPrice: 0,
-						contextTokensMax: 0,
-						completionTokensMax: 0,
-						description: `Model from ${apiKey.name || "custom provider"}`,
-					},
-				});
-				created++;
-			} else {
-				existing++;
-			}
-		}
-
-		// Remove stale models (if requested)
-		if (removeStale) {
-			for (const existingModel of apiKey.languageModels) {
-				if (!newModelNames.has(existingModel.name)) {
-					await this.prisma.languageModel.delete({
-						where: { id: existingModel.id },
-					});
-					removed++;
-				}
-			}
-		}
-
-		return { created, existing, removed };
-	}
-
-	/**
 	 * Get all custom provider API keys for an organization
 	 */
 	public async getCustomProviderApiKeys(orgId: number) {
@@ -633,6 +570,20 @@ export class OrganizationRepository {
 		}
 
 		return model;
+	}
+
+	/**
+	 * Create a language model (custom provider models)
+	 */
+	public async createLanguageModel(data: Prisma.LanguageModelUncheckedCreateInput) {
+		return await this.prisma.languageModel.create({ data });
+	}
+
+	/**
+	 * Delete a language model by ID
+	 */
+	public async deleteLanguageModelById(modelId: number) {
+		return await this.prisma.languageModel.delete({ where: { id: modelId } });
 	}
 
 	/**

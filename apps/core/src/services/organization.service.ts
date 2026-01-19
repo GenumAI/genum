@@ -18,6 +18,16 @@ export class ProviderNoBaseUrlError extends Error {
 	}
 }
 
+export type ProviderModelInput = {
+	name: string;
+	displayName?: string;
+};
+
+export type SyncProviderModelsResult = {
+	created: number;
+	existing: number;
+};
+
 export type ValidatedProvider = {
 	id: number;
 	key: string;
@@ -77,6 +87,48 @@ export class OrganizationService {
 		]);
 
 		return provider;
+	}
+
+	/**
+	 * Sync models from a custom provider to the database
+	 * Creates new models, keeps existing ones, optionally removes stale ones
+	 */
+	public async syncProviderModels(
+		orgId: number,
+		apiKeyId: number,
+		models: ProviderModelInput[],
+	): Promise<SyncProviderModelsResult> {
+		const apiKey = await this.db.organization.getApiKeyWithModels(orgId, apiKeyId);
+
+		if (!apiKey) {
+			throw new Error("API key not found");
+		}
+
+		const existingModelNames = new Set(apiKey.languageModels.map((model) => model.name));
+
+		let created = 0;
+		let existing = 0;
+
+		for (const model of models) {
+			if (!existingModelNames.has(model.name)) {
+				await this.db.organization.createLanguageModel({
+					name: model.name,
+					displayName: model.displayName || model.name,
+					vendor: apiKey.vendor,
+					apiKeyId: apiKey.id,
+					promptPrice: 0,
+					completionPrice: 0,
+					contextTokensMax: 0,
+					completionTokensMax: 0,
+					description: `Model from ${apiKey.name || "custom provider"}`,
+				});
+				created++;
+			} else {
+				existing++;
+			}
+		}
+
+		return { created, existing };
 	}
 
 	public async addOrganizationMember(orgId: number, userId: number, role: OrganizationRole) {

@@ -387,13 +387,13 @@ export class OrganizationController {
 
 		const provider = await db.organization.upsertCustomProvider(metadata.orgID, data);
 
-		await db.organization.syncProviderModels(
+		await this.organizationService.syncProviderModels(
+			metadata.orgID,
 			provider.id,
 			modelsResult.models.map((model) => ({
 				name: model.id,
 				displayName: model.name,
 			})),
-			false,
 		);
 
 		res.status(200).json({
@@ -442,7 +442,6 @@ export class OrganizationController {
 	 */
 	public async syncProviderModels(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
-		const { removeStale } = req.body;
 
 		try {
 			const provider = await this.organizationService.getValidatedCustomProvider(
@@ -458,10 +457,10 @@ export class OrganizationController {
 			}
 
 			// Sync to database
-			const syncResult = await db.organization.syncProviderModels(
+			const syncResult = await this.organizationService.syncProviderModels(
+				metadata.orgID,
 				provider.id,
 				result.models.map((m) => ({ name: m.id, displayName: m.name })),
-				removeStale ?? false,
 			);
 
 			res.status(200).json({
