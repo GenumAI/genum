@@ -13,11 +13,11 @@ interface UseAuditOptions {
 
 export function useAudit(options?: UseAuditOptions) {
 	const { currentAuditData, isAuditLoading } = usePlaygroundAudit();
-	const { setCurrentAuditData, setFlags } = usePlaygroundActions();
+	const { setCurrentAuditData, setAuditLoading } = usePlaygroundActions();
 
 	const runAudit = useCallback(
 		async (promptId: string | number) => {
-			setFlags({ isAuditLoading: true });
+			setAuditLoading(true);
 
 			try {
 				const data = await promptApi.auditPrompt(promptId);
@@ -35,10 +35,10 @@ export function useAudit(options?: UseAuditOptions) {
 				options?.onAuditError?.(error);
 				return null;
 			} finally {
-				setFlags({ isAuditLoading: false });
+				setAuditLoading(false);
 			}
 		},
-		[options, setCurrentAuditData, setFlags],
+		[options, setCurrentAuditData, setAuditLoading],
 	);
 
 	const fixRisks = useCallback(
