@@ -30,7 +30,11 @@ export const useSchemaState = ({ jsonSchema, open }: UseSchemaStateProps) => {
 			try {
 				const schemaToParse = jsonSchema ? JSON.parse(jsonSchema) : {};
 
-				if (Object.keys(schemaToParse).length === 0) {
+				if (
+					!schemaToParse ||
+					typeof schemaToParse !== "object" ||
+					Object.keys(schemaToParse).length === 0
+				) {
 					setSchema({ ...baseSchema, properties: [] });
 				} else {
 					let visualSchema = transformToVisualSchema(schemaToParse);

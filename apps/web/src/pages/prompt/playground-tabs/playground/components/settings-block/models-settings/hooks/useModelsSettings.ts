@@ -647,6 +647,19 @@ export function useModelsSettings({
 		setTools(prompt?.languageModelConfig?.tools || []);
 	}, [prompt?.languageModelConfig?.tools]);
 
+	// Sync json schema from prompt
+	useEffect(() => {
+		if (prompt?.languageModelConfig?.json_schema) {
+			const jsonSchema =
+				typeof prompt.languageModelConfig.json_schema === "string"
+					? prompt.languageModelConfig.json_schema
+					: JSON.stringify(prompt.languageModelConfig.json_schema);
+			setCurrentJsonSchema(jsonSchema);
+		} else {
+			setCurrentJsonSchema(null);
+		}
+	}, [prompt?.languageModelConfig?.json_schema]);
+
 	return {
 		// Form
 		form,
