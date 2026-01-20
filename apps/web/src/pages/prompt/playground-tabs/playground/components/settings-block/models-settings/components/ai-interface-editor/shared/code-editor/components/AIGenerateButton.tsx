@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import PromptActionPopover from "@/components/popovers/PromptActionPopover";
-import { useAIGeneration } from "./hooks/useAIGeneration";
+import { useAIGeneration } from "../../hooks/useAIGeneration";
 import { TuneIcon } from "@/lib/icons/TuneIcon";
 
 type AIGenerateMode = "schema" | "tool";

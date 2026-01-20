@@ -84,11 +84,14 @@ export const processAgentResponse = (
 		} else if (response && typeof response === "object" && "message" in response) {
 			messageText = (response as any).message || messageText;
 			const responseType = (response as any).type;
-			messageType = responseType === "action" || responseType === "text" ? responseType : "text";
+			messageType =
+				responseType === "action" || responseType === "text" ? responseType : "text";
 
 			if (responseType === "action" && (response as any).action) {
 				actionData = (response as any).action;
-				handleAction(actionData);
+				if (actionData) {
+					handleAction(actionData);
+				}
 			}
 		}
 
