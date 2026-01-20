@@ -61,10 +61,8 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 		try {
 			setIsLoading(true);
 			const userData = await userApi.getCurrentUser();
-			console.log("[LocalAuth] Received userData from API:", userData);
 
 			if (!userData || !userData.email) {
-				console.error("[LocalAuth] Invalid user data structure:", userData);
 				setIsAuthenticated(false);
 				setUser(null);
 				setIsLoading(false);
@@ -78,11 +76,6 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 				picture: undefined,
 			};
 
-			console.log("[LocalAuth] Setting auth state:", {
-				authUser,
-				isAuthenticated: true,
-				isLoading: false,
-			});
 			setUser(authUser);
 			setIsAuthenticated(true);
 			setUserStore({
@@ -92,9 +85,7 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 			});
 			setUserData(userData);
 			setLoading(false); // set loading to false in store
-			console.log("[LocalAuth] Auth state updated successfully");
-		} catch (error) {
-			console.error("[LocalAuth] Error checking auth status:", error);
+		} catch {
 			setIsAuthenticated(false);
 			setUser(null);
 			setLoading(false);
@@ -116,7 +107,6 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 				// After successful login, check auth status to get user data
 				await checkAuthStatus();
 			} catch (error) {
-				console.error("Login error:", error);
 				throw error;
 			}
 		},
@@ -136,7 +126,6 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 				// After successful signup, check auth status to get user data
 				await checkAuthStatus();
 			} catch (error) {
-				console.error("Signup error:", error);
 				throw error;
 			}
 		},
@@ -157,8 +146,7 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 
 		try {
 			await authApi.logout();
-		} catch (error) {
-			console.error("[LocalAuth] Logout error:", error);
+		} catch {
 		} finally {
 			setIsAuthenticated(false);
 			setUser(null);

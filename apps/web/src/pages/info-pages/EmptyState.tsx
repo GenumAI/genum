@@ -1,16 +1,20 @@
 import { Inbox } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
 	title: string;
 	description: string;
 	minHeight?: string;
+	className?: string;
 }
 
-export const EmptyState = ({ title, description, minHeight = "361px" }: EmptyStateProps) => (
-	<div
-		className="flex w-full items-center justify-center rounded-xl border border-dashed border-border p-6 shadow-none bg-background"
+export const EmptyState = ({ title, description, minHeight = "361px", className }: EmptyStateProps) => (
+	<section
+		className={cn(
+			"flex w-full items-center justify-center rounded-xl border border-dashed border-border p-6 shadow-none bg-background",
+			className
+		)}
 		style={{ minHeight }}
-		role="region"
 		aria-label="Empty state"
 	>
 		<div className="flex flex-col items-center gap-6 text-muted-foreground">
@@ -25,5 +29,5 @@ export const EmptyState = ({ title, description, minHeight = "361px" }: EmptySta
 				<span className="text-muted-foreground text-[14px] text-center">{description}</span>
 			</div>
 		</div>
-	</div>
+	</section>
 );

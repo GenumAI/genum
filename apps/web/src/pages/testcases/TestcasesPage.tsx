@@ -1,4 +1,4 @@
-import { testcasesApi, TestcasesListResponse } from "@/api/testcases/testcases.api";
+import { testcasesApi } from "@/api/testcases/testcases.api";
 import {
 	flexRender,
 	useReactTable,
@@ -24,10 +24,15 @@ import { useNavigate, useParams } from "react-router-dom";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { SearchInput } from "@/components/ui/searchInput";
 import ButtonWithDropdown from "@/components/ui/buttonWithDropdown";
-import { TestCase, TestStatus } from "@/types/TestСase";
+import type { TestCase, TestStatus } from "@/types/TestСase";
 import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 import ActiveFilterChips from "@/pages/prompt/playground-tabs/testcases/ActiveFilterChips";
+import {
+	usePlaygroundTestcase,
+	usePlaygroundActions,
+	usePlaygroundUI,
+} from "@/stores/playground.store";
 
 type UsedOptionValue = "all" | "nok" | "selected" | "need_run" | "passed";
 
@@ -60,35 +65,23 @@ export default function Testcases() {
 	const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 	const [selectedTestcase, setSelectedTestcase] = useState<TestCase | null>(null);
 	const [isRunning, setIsRunning] = useState(false);
-	const [isLoading, setIsLoading] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [data, setData] = useState<TestcasesListResponse | null>(null);
 
 	const [sorting, setSorting] = useState<SortingState>([]);
 
 	const navigate = useNavigate();
 	const addParamsToUrl = useAddParamsToUrl();
-
 	const params = useParams();
 	const projectParams = Object.values(params).filter(Boolean).join("/");
 
 	const { prompts } = useProjectPrompts();
-
-	const fetchTestcases = async () => {
-		setIsLoading(true);
-		try {
-			const response = await testcasesApi.getTestcases();
-			setData(response);
-		} catch (error) {
-			console.error("Error fetching testcases:", error);
-		} finally {
-			setIsLoading(false);
-		}
-	};
+	const { fetchAllTestcases, updateSingleTestcase } = usePlaygroundActions();
+	const { testcases } = usePlaygroundTestcase();
+	const { isStatusCountsLoading: isLoading } = usePlaygroundUI();
 
 	useEffect(() => {
-		fetchTestcases();
-	}, [projectParams]);
+		fetchAllTestcases();
+	}, [fetchAllTestcases, projectParams]);
 
 	const isCheckboxesDisabled =
 		selectedValues[0] === "nok" ||
@@ -109,11 +102,8 @@ export default function Testcases() {
 	});
 
 	const testcasesFiltered = useMemo(() => {
-		if (!data) {
-			return [];
-		}
-		return testcasesFilter(data.testcases, search, filterState);
-	}, [data, filterState, search]);
+		return testcasesFilter(testcases, search, filterState);
+	}, [testcases, filterState, search]);
 
 	const table = useReactTable({
 		data: testcasesFiltered,
@@ -198,8 +188,8 @@ export default function Testcases() {
 					const item = testcasesForRun[i];
 
 					try {
-						await testcasesApi.runTestcase(item.id);
-						await fetchTestcases();
+						const updatedTestcase = await testcasesApi.runTestcase(item.id);
+						updateSingleTestcase(updatedTestcase);
 
 						setRunningRows((prevState) =>
 							prevState.filter((state) => state !== item.id),
@@ -225,7 +215,7 @@ export default function Testcases() {
 			setIsDeleting(true);
 			try {
 				await testcasesApi.deleteTestcase(selectedTestcase.id);
-				await fetchTestcases();
+				await fetchAllTestcases();
 				setConfirmModalOpen(false);
 				setSelectedTestcase(null);
 			} catch (error) {

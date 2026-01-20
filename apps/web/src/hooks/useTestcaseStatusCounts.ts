@@ -1,42 +1,22 @@
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
-import { useEffect } from "react";
-import { usePlaygroundActions } from "@/stores/playground.store";
-import { TestCase } from "@/types/TestСase";
-import { promptApi } from "@/api/prompt";
+import { useQuery } from "@tanstack/react-query";
+import { promptApi } from "@/api/prompt/prompt.api";
+import { calculateTestcaseStatusCounts } from "@/lib/testcaseUtils";
 
-type TestCaseList = {
-	testcases: TestCase[];
-};
-
-export const useTestcaseStatusCounts = (promptId?: number | string) => {
-	const { setTestcaseStatusCounts } = usePlaygroundActions();
-
-	const { data, refetch, isLoading } = useQueryWithAuth<TestCaseList>({
-		keys: ["testcasesForPromt", String(promptId || "none")],
-		enabled: !!promptId,
+export const useTestcaseStatusCounts = (promptIdProp?: number | string) => {
+	const promptId = promptIdProp ? Number(promptIdProp) : undefined;
+	const { data, isLoading, refetch } = useQuery({
+		queryKey: ["testcase-status-counts", promptId],
 		queryFn: async () => {
-			if (!promptId) throw new Error("Prompt ID is required");
-			return await promptApi.getPromptTestcases(promptId);
+			if (!promptId) return { ok: 0, nok: 0, needRun: 0 };
+			const response = await promptApi.getPromptTestcases(promptId);
+			return calculateTestcaseStatusCounts(response.testcases);
 		},
+		enabled: !!promptId,
 	});
 
-	useEffect(() => {
-		if (data?.testcases) {
-			const counts = { ok: 0, nok: 0, needRun: 0 };
-			data.testcases.forEach((tc) => {
-				if (tc.status === "OK") {
-					counts.ok++;
-				} else if (tc.status === "NOK") {
-					counts.nok++;
-				} else if (tc.status === "NEED_RUN") {
-					counts.needRun++;
-				}
-			});
-			setTestcaseStatusCounts(counts);
-		} else {
-			setTestcaseStatusCounts({ ok: 0, nok: 0, needRun: 0 });
-		}
-	}, [data, setTestcaseStatusCounts]);
-
-	return { data, refetch, isLoading };
+	return {
+		data: data ?? { ok: 0, nok: 0, needRun: 0 },
+		isLoading,
+		refetch,
+	};
 };

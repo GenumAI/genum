@@ -1,29 +1,16 @@
-import useQueryWithAuth from "@/hooks/useQueryWithAuth";
-import {
-	flexRender,
-	useReactTable,
-	getCoreRowModel,
-	SortingState,
-	getSortedRowModel,
-	ColumnDef,
-} from "@tanstack/react-table";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
+import { flexRender, useReactTable, getCoreRowModel, getSortedRowModel } from "@tanstack/react-table";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useParams } from "react-router-dom";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
-import useMemoryColumns, { MemoryTypes } from "@/hooks/useMemoryColumns";
-import { CirclePlus, ChevronsUpDown } from "lucide-react";
+import useMemoryColumns from "./hooks/useMemoryColumns";
+import type { MemoryTypes } from "./hooks/useMemoryColumns";
+import { CirclePlus } from "lucide-react";
+import { CaretUp, CaretDown } from "phosphor-react";
 import CreateMemoryDialog from "@/components/dialogs/CreateMemoryDialog";
 import EditMemoryDialog from "@/components/dialogs/EditMemoryDialog";
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { toast } from "@/hooks/useToast";
 import { SearchInput } from "@/components/ui/searchInput";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
@@ -31,7 +18,7 @@ import { promptApi } from "@/api/prompt";
 
 interface Memory {
 	id: number;
-	key: string;
+	key: string;	
 	value: string;
 	promptId?: number;
 	updatedAt?: string;
@@ -49,15 +36,22 @@ export default function Memory() {
 
 	const { id } = useParams<{ id: string }>();
 	const [currentPromptId, setCurrentPromptId] = useState(id);
+	const [memories, setMemories] = useState<Memory[]>([]);
+	const [isLoading, setIsLoading] = useState(false);
+	const [isPending, setIsPending] = useState(false);
 
-	const { data, refetch } = useQueryWithAuth({
-		keys: ["memoriesForPromt", id || "empty"],
-		enabled: !!id,
-		queryFn: async () => {
-			if (!id) throw new Error("Prompt ID is required");
-			return await promptApi.getMemories(id);
-		},
-	});
+	const fetchMemories = useCallback(async () => {
+		if (!id) return;
+		setIsLoading(true);
+		try {
+			const result = await promptApi.getMemories(id);
+			setMemories(result.memories);
+		} catch (error) {
+			console.error("Failed to fetch memories", error);
+		} finally {
+			setIsLoading(false);
+		}
+	}, [id]);
 
 	const handleRowClick = (memory: Memory, event: React.MouseEvent) => {
 		const target = event.target as HTMLElement;
@@ -86,8 +80,7 @@ export default function Memory() {
 	});
 
 	const filteredMemories = useMemo(() => {
-		if (!data?.memories) return [];
-		return data.memories.filter((memory: Memory) => {
+		return memories.filter((memory: Memory) => {
 			const q = search.toLowerCase();
 			return (
 				q === "" ||
@@ -95,7 +88,7 @@ export default function Memory() {
 				memory.value.toLowerCase().includes(q)
 			);
 		});
-	}, [data?.memories, search]);
+	}, [memories, search]);
 
 	const table = useReactTable<Memory>({
 		data: filteredMemories || [],
@@ -107,62 +100,48 @@ export default function Memory() {
 		enableSortingRemoval: true,
 	});
 
-	const createMemoryMutation = useMutation({
-		mutationFn: async ({ key, value }: { key: string; value: string }) => {
-			if (!id) throw new Error("Prompt ID is required");
-			return await promptApi.createMemory(id, { key, value });
-		},
-		onSuccess: () => {
-			refetch();
+	const createMemoryHandler = async (key: string, value: string) => {
+		if (!id) return;
+		setIsPending(true);
+		try {
+			await promptApi.createMemory(id, { key, value });
+			await fetchMemories();
 			setCreateMemoryModal(false);
-		},
-		onError: () => {
+		} catch {
 			toast({ title: "Something went wrong", variant: "destructive" });
-		},
-	});
+		} finally {
+			setIsPending(false);
+		}
+	};
 
-	const updateMemoryMutation = useMutation({
-		mutationFn: async ({ memoryId, value }: { memoryId: number; value: string }) => {
-			if (!id) throw new Error("Prompt ID is required");
-			return await promptApi.updateMemory(id, memoryId, { value });
-		},
-		onSuccess: () => {
-			refetch();
+	const editMemoryHandler = async (value: string) => {
+		if (!editingMemory || !id) return;
+		setIsPending(true);
+		try {
+			await promptApi.updateMemory(id, editingMemory.id, { value });
+			await fetchMemories();
 			setEditMemoryModal(false);
 			setEditingMemory(undefined);
-		},
-		onError: () => {
+		} catch {
 			toast({ title: "Something went wrong", variant: "destructive" });
-		},
-	});
+		} finally {
+			setIsPending(false);
+		}
+	};
 
-	const deleteMemoryMutation = useMutation({
-		mutationFn: async (memoryId: number) => {
-			if (!id) throw new Error("Prompt ID is required");
-			return await promptApi.deleteMemory(id, memoryId);
-		},
-		onSuccess: () => {
-			refetch();
+	const confirmationDeleteHandler = async () => {
+		if (!selectedMemory || !id) return;
+		setIsPending(true);
+		try {
+			await promptApi.deleteMemory(id, selectedMemory.id);
+			await fetchMemories();
 			setConfirmModalOpen(false);
 			setSelectedMemory(null);
-		},
-		onError: () => {
+		} catch {
 			toast({ title: "Something went wrong", variant: "destructive" });
-		},
-	});
-
-	const createMemoryHandler = (key: string, value: string) => {
-		createMemoryMutation.mutate({ key, value });
-	};
-
-	const editMemoryHandler = (value: string) => {
-		if (!editingMemory) return;
-		updateMemoryMutation.mutate({ memoryId: editingMemory.id, value });
-	};
-
-	const confirmationDeleteHandler = () => {
-		if (!selectedMemory) return;
-		deleteMemoryMutation.mutate(selectedMemory.id);
+		} finally {
+			setIsPending(false);
+		}
 	};
 
 	const getSortIcon = (column: any) => {
@@ -170,55 +149,24 @@ export default function Memory() {
 		if (isSorted === "asc") {
 			return (
 				<span className="flex flex-col ml-1">
-					<svg className="h-3 w-4 text-foreground" viewBox="0 0 24 24" fill="none">
-						<path
-							d="m18 15-6-6-6 6"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-					</svg>
-					<svg
-						className="h-3 w-4 -mt-1 text-muted-foreground"
-						viewBox="0 0 24 24"
-						fill="none"
-					>
-						<path
-							d="m6 9 6 6 6-6"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-					</svg>
+					<CaretUp size={12} weight="bold" className="text-foreground" />
+					<CaretDown size={12} weight="bold" className="text-muted-foreground -mt-1" />
 				</span>
 			);
 		} else if (isSorted === "desc") {
 			return (
 				<span className="flex flex-col ml-1">
-					<svg className="h-3 w-4 text-muted-foreground" viewBox="0 0 24 24" fill="none">
-						<path
-							d="m18 15-6-6-6 6"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-					</svg>
-					<svg className="h-3 w-4 -mt-1 text-foreground" viewBox="0 0 24 24" fill="none">
-						<path
-							d="m6 9 6 6 6-6"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-					</svg>
+					<CaretUp size={12} weight="bold" className="text-muted-foreground" />
+					<CaretDown size={12} weight="bold" className="text-foreground -mt-1" />
 				</span>
 			);
 		} else {
-			return <ChevronsUpDown className="ml-1 h-4 w-4 text-muted-foreground" />;
+			return (
+				<span className="flex flex-col ml-1 opacity-50">
+					<CaretUp size={12} weight="bold" />
+					<CaretDown size={12} weight="bold" className="-mt-1" />
+				</span>
+			);
 		}
 	};
 
@@ -229,9 +177,12 @@ export default function Memory() {
 			setEditingMemory(undefined);
 			setSorting([]);
 			setCurrentPromptId(id);
-			if (id) refetch();
 		}
-	}, [id, currentPromptId, refetch]);
+	}, [id, currentPromptId]);
+
+	useEffect(() => {
+		fetchMemories();
+	}, [fetchMemories]);
 
 	return (
 		<>
@@ -251,7 +202,12 @@ export default function Memory() {
 					</Button>
 				</div>
 
-				<div className="rounded-md overflow-hidden">
+				<div className="rounded-md overflow-hidden relative">
+					{isLoading && memories.length === 0 && (
+						<div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+						</div>
+					)}
 					<Table>
 						<TableHeader className="bg-muted text-muted-foreground text-sm font-medium leading-5">
 							{table.getHeaderGroups().map((headerGroup) => (
@@ -265,8 +221,9 @@ export default function Memory() {
 											className="h-auto py-4 px-[14px] text-left"
 										>
 											{header.column.getCanSort() ? (
-												<div
-													className="flex items-center gap-2 cursor-pointer select-none hover:bg-accent rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+												<button
+													type="button"
+													className="flex items-center gap-2 cursor-pointer select-none hover:bg-accent rounded px-2 py-1 -mx-2 -my-1 transition-colors w-full"
 													onClick={header.column.getToggleSortingHandler()}
 													title={
 														header.column.getCanSort()
@@ -285,7 +242,7 @@ export default function Memory() {
 														header.getContext(),
 													)}
 													{getSortIcon(header.column)}
-												</div>
+												</button>
 											) : (
 												flexRender(
 													header.column.columnDef.header,
@@ -320,7 +277,7 @@ export default function Memory() {
 					</Table>
 				</div>
 
-				{table.getRowModel().rows.length === 0 && (
+				{!isLoading && table.getRowModel().rows.length === 0 && (
 					<EmptyState
 						title="No data"
 						description={
@@ -336,14 +293,14 @@ export default function Memory() {
 				open={createMemoryModal}
 				setOpen={setCreateMemoryModal}
 				confirmationHandler={createMemoryHandler}
-				loading={createMemoryMutation.isPending}
+				loading={isPending}
 			/>
 
 			<EditMemoryDialog
 				open={editMemoryModal}
 				setOpen={setEditMemoryModal}
 				confirmationHandler={editMemoryHandler}
-				loading={updateMemoryMutation.isPending}
+				loading={isPending}
 				initialData={editingMemory}
 			/>
 
@@ -351,7 +308,7 @@ export default function Memory() {
 				open={confirmModalOpen}
 				setOpen={setConfirmModalOpen}
 				confirmationHandler={confirmationDeleteHandler}
-				loading={deleteMemoryMutation.isPending}
+				loading={isPending}
 			/>
 		</>
 	);

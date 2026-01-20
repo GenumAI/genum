@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useRef } from "react";
 import { LogsTable, Log } from "./LogsTable";
+import { useQueryClient } from "@tanstack/react-query";
+
 import { LogsFilter, LogsFilterState } from "./LogsFilter";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +66,7 @@ export function LogsPage() {
 
 	const { toast } = useToast();
 	const { createTestcase, loading: creatingTestcase } = useCreateTestcase();
+	const queryClient = useQueryClient();
 
 	React.useEffect(() => {
 		setPage(1);
@@ -240,6 +243,12 @@ export function LogsPage() {
 					title: "Testcase added",
 					description: "Testcase was created from log.",
 					variant: "default",
+				});
+				queryClient.invalidateQueries({
+					queryKey: ["prompt-testcases", Number(selectedLog.prompt_id)],
+				});
+				queryClient.invalidateQueries({
+					queryKey: ["testcase-status-counts", Number(selectedLog.prompt_id)],
 				});
 			} else {
 				toast({
