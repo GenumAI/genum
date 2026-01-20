@@ -1,12 +1,7 @@
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-	ChevronLeft,
-	ChevronDown,
-	SquareTerminal,
-	BarChart2,
-} from "lucide-react";
+import { ChevronLeft, ChevronDown, SquareTerminal, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMemo, useState, useEffect, useCallback } from "react";
@@ -51,15 +46,15 @@ const jsonThemeLight = {
 
 const jsonThemeDark = {
 	scheme: "custom-dark",
-	base00: "#0b0c10", 
-	base01: "#111318", 
+	base00: "#0b0c10",
+	base01: "#111318",
 	base02: "#171a20",
-	base03: "#7f8791", 
+	base03: "#7f8791",
 	base04: "#a6adb7",
-	base05: "#e6e8eb", 
+	base05: "#e6e8eb",
 	base06: "#f2f4f7",
 	base07: "#ffffff",
-	base08: "#2b6cb0", 
+	base08: "#2b6cb0",
 	base09: "#2b6cb0",
 	base0A: "#2b6cb0",
 	base0B: "#2b6cb0",
@@ -182,7 +177,9 @@ export default function VersionDetails() {
 									<span className="text-green-600 dark:text-green-400 text-xs font-medium px-2.5 py-0 rounded-sm border border-green-600/40 dark:border-green-400/40 bg-green-500/10">
 										{data?.version?.branch?.name}
 									</span>
-									<span>{new Date(data?.version?.createdAt).toLocaleString()}</span>
+									<span>
+										{new Date(data?.version?.createdAt).toLocaleString()}
+									</span>
 									<span>by {data?.version?.author?.name}</span>
 								</div>
 							</CardContent>
@@ -263,7 +260,8 @@ export default function VersionDetails() {
 										</AccordionPrimitive.Header>
 										<AccordionPrimitive.Content className="bg-card">
 											<div className="mb-4 inline-flex overflow-hidden px-4 pt-4">
-												<button type="button"
+												<button
+													type="button"
 													onClick={() => setSchemaViewMode("tree")}
 													className={cn(
 														"px-4 py-1.5 text-sm font-medium focus:outline-none rounded-l-md border",
@@ -274,7 +272,8 @@ export default function VersionDetails() {
 												>
 													Tree
 												</button>
-												<button type="button"
+												<button
+													type="button"
 													onClick={() => setSchemaViewMode("raw")}
 													className={cn(
 														"px-4 py-1.5 text-sm font-medium focus:outline-none rounded-r-md border",
@@ -327,7 +326,8 @@ export default function VersionDetails() {
 										</AccordionPrimitive.Header>
 										<AccordionPrimitive.Content className="bg-card">
 											<div className="mb-4 inline-flex overflow-hidden px-4 pt-4">
-												<button type="button"
+												<button
+													type="button"
 													onClick={() => setToolsViewMode("tree")}
 													className={cn(
 														"px-4 py-1.5 text-sm font-medium focus:outline-none rounded-l-md border",
@@ -338,7 +338,8 @@ export default function VersionDetails() {
 												>
 													Tree
 												</button>
-												<button type="button"
+												<button
+													type="button"
 													onClick={() => setToolsViewMode("raw")}
 													className={cn(
 														"px-4 py-1.5 text-sm font-medium focus:outline-none rounded-r-md border",
@@ -439,14 +440,14 @@ export default function VersionDetails() {
 					{/* Audit Results Modal */}
 					{auditData && (
 						<AuditResultsModal
-							promptId={id || ""}
-							promptValue={data?.version?.value || ""}
-							existingAuditData={auditData}
+							auditData={auditData}
+							isLoading={false}
+							isFixing={false}
 							isOpen={showAuditModal}
 							onClose={handleCloseAuditModal}
-							onAuditComplete={() => {}}
+							onRunAudit={() => {}}
+							onFixRisks={() => {}}
 							isDisabledFix={true}
-							setDiffModalInfo={() => {}}
 						/>
 					)}
 				</>

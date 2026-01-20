@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/useToast";
-import { promptApi, PromptResponse } from "@/api/prompt";
+import { promptApi, type PromptResponse } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 
 export interface TokensInfo {
@@ -40,10 +40,9 @@ export function useRunPrompt() {
 			try {
 				if (testcaseId) {
 					try {
-						const data = await testcasesApi.runTestcase(testcaseId, payload);
-						setResult(data);
-						return data;
-					} catch (testcaseError: any) {
+						await testcasesApi.runTestcase(testcaseId, payload);
+						return null;
+					} catch (testcaseError: unknown) {
 						throw testcaseError;
 					}
 				}
@@ -56,8 +55,8 @@ export function useRunPrompt() {
 				const data = await promptApi.runPrompt(promptId, payload);
 				setResult(data);
 				return data;
-			} catch (err: any) {
-				const errorMessage = err.message || "Unknown error";
+			} catch (err: unknown) {
+				const errorMessage = err instanceof Error ? err.message : "Unknown error";
 				setError(errorMessage);
 
 				toast({

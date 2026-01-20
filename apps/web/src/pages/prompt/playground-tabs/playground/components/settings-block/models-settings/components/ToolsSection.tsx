@@ -14,11 +14,10 @@ export const ToolsSection = memo(
 		toolsModalOpen,
 		setToolsModalOpen,
 		promptId,
-		llmConfig,
 		isUpdatingModel,
 		onToolDelete,
 		onToolSave,
-	}: Omit<ToolsSectionProps, "setTools" | "selectedModelId">) => {
+	}: Omit<ToolsSectionProps, "setTools" | "selectedModelId" | "llmConfig">) => {
 		const handleToolClick = useCallback(
 			(idx: number) => {
 				setEditingToolIdx(idx);
@@ -96,7 +95,6 @@ export const ToolsSection = memo(
 				<ToolsModal
 					open={toolsModalOpen}
 					onOpenChange={handleModalOpenChange}
-					llmConfig={llmConfig}
 					promptId={promptId}
 					tools={tools}
 					setTools={handleSetTools}

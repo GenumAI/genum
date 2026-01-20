@@ -1,7 +1,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CircleAlert } from "lucide-react";
-import type { SchemaOptionsProps } from "../hooks/types";
+import type { SchemaOptionsProps } from "../../utils/types";
 
 export const SchemaOptions = ({
 	schema,

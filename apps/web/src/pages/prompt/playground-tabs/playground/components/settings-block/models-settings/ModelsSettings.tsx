@@ -115,7 +115,6 @@ const ModelsSettings = ({
 							toolsModalOpen={toolsModalOpen}
 							setToolsModalOpen={setToolsModalOpen}
 							promptId={promptId}
-							llmConfig={prompt?.languageModelConfig}
 							isUpdatingModel={isUpdatingModel}
 							onToolDelete={handleToolDelete}
 							onToolSave={handleToolSave}

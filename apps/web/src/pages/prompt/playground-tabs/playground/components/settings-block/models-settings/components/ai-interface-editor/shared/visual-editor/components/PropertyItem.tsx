@@ -17,7 +17,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Trash2, MessageCircle, CirclePlus, Asterisk } from "lucide-react";
-import type { PropertyItemProps } from "../../hooks/types";
+import type { PropertyItemProps } from "../../utils/types";
 import type { VisualProperty, FieldType } from "../../utils/schemaHelpers";
 import { generateId } from "../../utils/schemaHelpers";
 
