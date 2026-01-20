@@ -5,7 +5,6 @@ import {
 	inputGeneratorFormat,
 	jsonSchemaEditorFormat,
 	promptAuditorFormat,
-	promptProductiveFormat,
 	testcaseContextFormatter,
 	testcaseSummaryFormatter,
 	toolEditorFormat,
@@ -20,6 +19,9 @@ import type {
 } from "./types";
 import { db } from "@/database/db";
 import { xmlToObj } from "@/utils/xml";
+import { PromptService } from "@/services/prompt.service";
+
+const promptService = new PromptService(db);
 
 export enum SYSTEM_PROMPTS {
 	TESTCASE_NAMER = "TESTCASE_NAMER",
@@ -73,11 +75,10 @@ export async function getSystemPrompt(name: string, userOrgId: number) {
 		throw new Error(`System prompt ${name} not found`);
 	}
 
-	let prompt = systemPrompt;
-	const productiveCommit = await db.prompts.getProductiveCommit(systemPrompt.id);
-	if (productiveCommit) {
-		prompt = promptProductiveFormat(systemPrompt, productiveCommit);
-	} else {
+	const prompt = await promptService.getPromptWithProductiveCommit(systemPrompt, {
+		requireCommit: true,
+	});
+	if (!prompt) {
 		throw new Error(`Productive commit for system prompt ${name} not found`);
 	}
 

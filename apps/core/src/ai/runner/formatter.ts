@@ -1,4 +1,4 @@
-import type { Prompt, PromptVersion, TestCase } from "@/prisma";
+import type { TestCase } from "@/prisma";
 import { objToXml } from "@/utils/xml";
 import type { InputGeneratorParams, JsonSchemaEditorParams, ToolEditorParams } from "./types";
 
@@ -82,14 +82,6 @@ export type CanvasAgentFormatParams = {
 };
 export function canvasAgentFormat(data: CanvasAgentFormatParams) {
 	return formatToXml(data);
-}
-
-export function promptProductiveFormat(prompt: Prompt, commit: PromptVersion) {
-	prompt.value = commit.value;
-	prompt.languageModelConfig = commit.languageModelConfig;
-	prompt.languageModelId = commit.languageModelId;
-
-	return prompt;
 }
 
 export function testcaseSummaryFormatter(testcases: TestCase[]) {

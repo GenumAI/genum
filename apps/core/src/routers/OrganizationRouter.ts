@@ -87,6 +87,50 @@ export function createOrganizationRouter(): Router {
 		asyncHandler(orgController.getProjectKeys.bind(orgController)),
 	);
 
+	// Custom Provider (OpenAI-compatible) - only one per organization
+	router.post(
+		"/provider/test",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.testCustomProviderConnection.bind(orgController)),
+	);
+	router.get(
+		"/provider",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.getCustomProvider.bind(orgController)),
+	);
+	router.get(
+		"/provider/delete-status",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.getCustomProviderDeleteStatus.bind(orgController)),
+	);
+	router.post(
+		"/provider",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.upsertCustomProvider.bind(orgController)),
+	);
+	router.delete(
+		"/provider",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.deleteCustomProvider.bind(orgController)),
+	);
+	router.post(
+		"/provider/models/sync",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.syncProviderModels.bind(orgController)),
+	);
+	router.get(
+		"/provider/models",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.getProviderModels.bind(orgController)),
+	);
+
+	// Custom model management
+	router.patch(
+		"/models/:id",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.updateCustomModel.bind(orgController)),
+	);
+
 	// Quota
 	router.get(
 		"/quota",

@@ -1,9 +1,27 @@
 import * as React from "react";
-import { useParams } from "react-router-dom";
-import { PlusCircle, Trash2, Eye, EyeOff } from "lucide-react";
+import {
+	PlusCircle,
+	Trash2,
+	Eye,
+	EyeOff,
+	RefreshCw,
+	Server,
+	CheckCircle2,
+	XCircle,
+	Loader2,
+	Settings,
+	Edit,
+} from "lucide-react";
 
 import { useToast } from "@/hooks/useToast";
 import { organizationApi } from "@/api/organization";
+import type {
+	CustomProvider,
+	CustomProviderDeleteStatus,
+	ProviderModel,
+	LanguageModel,
+	ModelParameterConfig,
+} from "@/api/organization";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
@@ -33,8 +51,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Vendor = "OPENAI" | "GOOGLE" | "ANTHROPIC";
+enum SettingsTab {
+	PROVIDERS = "providers",
+	CUSTOM = "custom",
+}
 
 interface AIKey {
 	id: number;
@@ -45,23 +69,59 @@ interface AIKey {
 
 export default function OrgAIKeys() {
 	const { toast } = useToast();
-	const { orgId } = useParams<{ orgId: string; projectId: string }>();
 
+	// Standard AI Keys state
 	const [keys, setKeys] = React.useState<AIKey[]>([]);
 	const [isLoadingKeys, setIsLoadingKeys] = React.useState(false);
 
+	// Quota state
 	const [quota, setQuota] = React.useState<number | null>(null);
 	const [isLoadingQuota, setIsLoadingQuota] = React.useState(false);
 
+	// Add standard key dialog
 	const [openAdd, setOpenAdd] = React.useState(false);
 	const [vendor, setVendor] = React.useState<Vendor>("OPENAI");
 	const [secret, setSecret] = React.useState("");
 	const [showSecret, setShowSecret] = React.useState(false);
 	const [isCreating, setIsCreating] = React.useState(false);
 
+	// Delete dialog
 	const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
 	const [keyToDelete, setKeyToDelete] = React.useState<AIKey | null>(null);
 	const [deletingKeyId, setDeletingKeyId] = React.useState<number | null>(null);
+
+	// Custom Provider state (single)
+	const [customProvider, setCustomProvider] = React.useState<CustomProvider | null>(null);
+	const [isLoadingProvider, setIsLoadingProvider] = React.useState(false);
+
+	// Provider dialog
+	const [openProviderDialog, setOpenProviderDialog] = React.useState(false);
+	const [providerBaseUrl, setProviderBaseUrl] = React.useState("");
+	const [providerApiKey, setProviderApiKey] = React.useState("");
+	const [showProviderApiKey, setShowProviderApiKey] = React.useState(false);
+	const [isTestingConnection, setIsTestingConnection] = React.useState(false);
+	const [connectionTestResult, setConnectionTestResult] = React.useState<{
+		success: boolean;
+		models?: ProviderModel[];
+		error?: string;
+	} | null>(null);
+	const [isSavingProvider, setIsSavingProvider] = React.useState(false);
+
+	// Delete provider dialog
+	const [deleteProviderDialogOpen, setDeleteProviderDialogOpen] = React.useState(false);
+	const [isDeletingProvider, setIsDeletingProvider] = React.useState(false);
+	const [deleteStatus, setDeleteStatus] = React.useState<CustomProviderDeleteStatus | null>(
+		null,
+	);
+	const [deleteStatusError, setDeleteStatusError] = React.useState<string | null>(null);
+	const [isCheckingDeleteStatus, setIsCheckingDeleteStatus] = React.useState(false);
+
+	// Sync state
+	const [isSyncing, setIsSyncing] = React.useState(false);
+
+	const [activeTab, setActiveTab] = React.useState<string>(SettingsTab.PROVIDERS);
+
+	// ==================== Fetch Functions ====================
 
 	const fetchQuota = React.useCallback(async () => {
 		try {
@@ -81,7 +141,10 @@ export default function OrgAIKeys() {
 		try {
 			setIsLoadingKeys(true);
 			const data = await organizationApi.getAIKeys();
-			setKeys(data?.keys ?? []);
+			// Filter out custom provider from standard keys
+			setKeys(
+				(data?.keys ?? []).filter((k) => k.vendor !== "CUSTOM_OPENAI_COMPATIBLE"),
+			);
 		} catch (e) {
 			console.error(e);
 			toast({ title: "Error", description: "Failed to load keys", variant: "destructive" });
@@ -91,10 +154,52 @@ export default function OrgAIKeys() {
 		}
 	}, [toast]);
 
+	const fetchCustomProvider = React.useCallback(async () => {
+		try {
+			setIsLoadingProvider(true);
+			const data = await organizationApi.getCustomProvider();
+			setCustomProvider(data?.provider ?? null);
+		} catch (e) {
+			console.error(e);
+			setCustomProvider(null);
+		} finally {
+			setIsLoadingProvider(false);
+		}
+	}, []);
+
+	const fetchDeleteStatus = React.useCallback(async () => {
+		try {
+			setIsCheckingDeleteStatus(true);
+			setDeleteStatusError(null);
+			const status = await organizationApi.getCustomProviderDeleteStatus();
+			setDeleteStatus(status);
+		} catch (e) {
+			console.error(e);
+			setDeleteStatus(null);
+			setDeleteStatusError("Failed to check if the provider can be deleted.");
+		} finally {
+			setIsCheckingDeleteStatus(false);
+		}
+	}, []);
+
 	React.useEffect(() => {
 		fetchKeys();
 		fetchQuota();
-	}, []);
+		fetchCustomProvider();
+	}, [fetchKeys, fetchQuota, fetchCustomProvider]);
+
+	React.useEffect(() => {
+		if (!deleteProviderDialogOpen) {
+			setDeleteStatus(null);
+			setDeleteStatusError(null);
+			setIsCheckingDeleteStatus(false);
+			return;
+		}
+
+		fetchDeleteStatus();
+	}, [deleteProviderDialogOpen, fetchDeleteStatus]);
+
+	// ==================== Standard Key Handlers ====================
 
 	const handleAdd = async () => {
 		const trimmed = secret.trim();
@@ -144,13 +249,155 @@ export default function OrgAIKeys() {
 		}
 	};
 
+	// ==================== Custom Provider Handlers ====================
+
+	const openEditProviderDialog = () => {
+		if (customProvider) {
+			setProviderBaseUrl(customProvider.baseUrl || "");
+			setProviderApiKey(""); // Don't show existing key for security
+		} else {
+			setProviderBaseUrl("");
+			setProviderApiKey("");
+		}
+		setConnectionTestResult(null);
+		setOpenProviderDialog(true);
+	};
+
+	const testConnection = async () => {
+		if (!providerBaseUrl.trim()) return;
+
+		try {
+			setIsTestingConnection(true);
+			setConnectionTestResult(null);
+
+			const result = await organizationApi.testProviderConnection({
+				apiKey: providerApiKey.trim(),
+				baseUrl: providerBaseUrl.trim(),
+			});
+
+			setConnectionTestResult(result);
+		} catch (e) {
+			console.error(e);
+			setConnectionTestResult({
+				success: false,
+				error: e instanceof Error ? e.message : "Connection failed",
+			});
+		} finally {
+			setIsTestingConnection(false);
+		}
+	};
+
+	const handleSaveProvider = async () => {
+		if (!providerBaseUrl.trim() || isSavingProvider) return;
+
+		try {
+			setIsSavingProvider(true);
+
+			await organizationApi.upsertCustomProvider({
+				vendor: "CUSTOM_OPENAI_COMPATIBLE",
+				baseUrl: providerBaseUrl.trim(),
+				key: providerApiKey.trim(),
+			});
+
+			toast({ title: "Success", description: "Provider saved" });
+
+			setOpenProviderDialog(false);
+			setProviderBaseUrl("");
+			setProviderApiKey("");
+			setShowProviderApiKey(false);
+			setConnectionTestResult(null);
+
+			await fetchCustomProvider();
+		} catch (e) {
+			console.error(e);
+			toast({
+				title: "Error",
+				description: e instanceof Error ? e.message : "Cannot save provider",
+				variant: "destructive",
+			});
+		} finally {
+			setIsSavingProvider(false);
+		}
+	};
+
+	const handleDeleteProvider = async () => {
+		if (isDeletingProvider || isCheckingDeleteStatus) return;
+		if (deleteStatusError) {
+			toast({
+				title: "Error",
+				description: deleteStatusError,
+				variant: "destructive",
+			});
+			return;
+		}
+		if (deleteStatus && !deleteStatus.canDelete) {
+			toast({
+				title: "Cannot delete provider",
+				description: "This provider is still in use by prompts or productive commits.",
+				variant: "destructive",
+			});
+			return;
+		}
+
+		try {
+			setIsDeletingProvider(true);
+			await organizationApi.deleteCustomProvider();
+
+			toast({ title: "Deleted", description: "Custom provider removed" });
+
+			setDeleteProviderDialogOpen(false);
+			setCustomProvider(null);
+		} catch (e) {
+			console.error(e);
+			toast({
+				title: "Error",
+				description: "Cannot delete provider",
+				variant: "destructive",
+			});
+			await fetchDeleteStatus();
+		} finally {
+			setIsDeletingProvider(false);
+		}
+	};
+
+	const syncProviderModels = async () => {
+		if (isSyncing) return;
+
+		try {
+			setIsSyncing(true);
+
+			const result = await organizationApi.syncProviderModels();
+
+			toast({
+				title: "Synced",
+				description: `${result.created} new, ${result.existing} existing${result.removed > 0 ? `, ${result.removed} removed` : ""}`,
+			});
+
+			await fetchCustomProvider();
+		} catch (e) {
+			console.error(e);
+			toast({
+				title: "Error",
+				description: e instanceof Error ? e.message : "Failed to sync models",
+				variant: "destructive",
+			});
+		} finally {
+			setIsSyncing(false);
+		}
+	};
+
 	const formatBalance = (balance: number | null) => {
 		if (balance === null) return "--";
 		return `$${balance.toFixed(2)}`;
 	};
 
+	const isDeleteBlocked = Boolean(deleteStatus && !deleteStatus.canDelete);
+	const isDeleteDisabled =
+		isDeletingProvider || isCheckingDeleteStatus || Boolean(deleteStatusError) || isDeleteBlocked;
+
 	return (
 		<Card className="rounded-md shadow-none">
+			{/* Quota Card */}
 			<Card className="w-auto rounded-md shadow-[0px_1px_2px_0px_#0000000D] mx-6 mt-6 p-6">
 				<CardContent className="p-0">
 					<p className="text-[14px] leading-[20px] font-medium mb-2">Balance:</p>
@@ -158,8 +405,8 @@ export default function OrgAIKeys() {
 						{isLoadingQuota ? "Loading..." : formatBalance(quota)}
 					</p>
 					<p className="text-[12px] leading-[16px] text-[#71717A]">
-						While your organization has quota, it will be used for AI requests. Once the
-						quota is exhausted, user-provided API keys will be used instead.
+						While your organization has quota, it will be used for AI requests. Once
+						the quota is exhausted, user-provided API keys will be used instead.
 					</p>
 				</CardContent>
 			</Card>
@@ -168,115 +415,216 @@ export default function OrgAIKeys() {
 				<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
 					LLM Provider Keys
 				</CardTitle>
-
-				<Dialog open={openAdd} onOpenChange={setOpenAdd}>
-					<DialogTrigger asChild>
-						<Button size="default" className="w-[144px]">
-							<PlusCircle className="mr-2 h-4 w-4" /> Add Key
-						</Button>
-					</DialogTrigger>
-
-					<DialogContent className="sm:max-w-[420px]">
-						<DialogHeader>
-							<DialogTitle>Add LLM Provider Key</DialogTitle>
-						</DialogHeader>
-
-						<div className="space-y-4 py-2">
-							<div className="space-y-1">
-								<Label>Vendor</Label>
-								<Select
-									value={vendor}
-									onValueChange={(v) => setVendor(v as Vendor)}
-								>
-									<SelectTrigger className="text-[14px]">
-										<SelectValue placeholder="Select vendor" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="OPENAI">Open AI</SelectItem>
-										<SelectItem value="GOOGLE">Google</SelectItem>
-										<SelectItem value="ANTHROPIC">Anthropic</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-1">
-								<Label>API Key</Label>
-								<div className="relative">
-									<Input
-										type={showSecret ? "text" : "password"}
-										value={secret}
-										onChange={(e) => setSecret(e.target.value)}
-										className="pr-10"
-										placeholder="Enter API key"
-									/>
-									<button
-										type="button"
-										className="absolute right-2 top-2 text-zinc-500 [&_svg]:size-5"
-										onClick={() => setShowSecret((s) => !s)}
-									>
-										{showSecret ? (
-											<EyeOff className="h-4 w-4" />
-										) : (
-											<Eye className="h-4 w-4" />
-										)}
-									</button>
-								</div>
-							</div>
-						</div>
-
-						<DialogFooter>
-							<Button onClick={handleAdd} disabled={!secret.trim() || isCreating}>
-								{isCreating ? "Adding..." : "OK"}
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
 			</CardHeader>
 
 			<CardContent className="p-6 pt-0">
-				{isLoadingKeys ? (
-					<div className="p-6 text-sm text-muted-foreground">Loading…</div>
-				) : keys.length === 0 ? (
-					<div className="p-6 text-sm text-muted-foreground">No keys</div>
-				) : (
-					<div className="relative overflow-x-auto rounded-md border-0">
-						<Table className="rounded-md overflow-hidden">
-							<TableHeader className="bg-[#F4F4F5] dark:bg-[#262626] dark:text-[#fff] h-12 font-medium text-muted-foreground">
-								<TableRow>
-									<TableHead className="text-left p-4">Vendor</TableHead>
-									<TableHead className="text-left p-4">API Key</TableHead>
-									<TableHead className="text-left p-4">Created At</TableHead>
-									<TableHead className="w-[100px] text-center p-4">
-										Actions
-									</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{keys.map((k) => (
-									<TableRow key={k.id}>
-										<TableCell>{k.vendor}</TableCell>
-										<TableCell>{k.publicKey}</TableCell>
-										<TableCell>
-											{new Date(k.createdAt).toLocaleString()}
-										</TableCell>
-										<TableCell className="text-center">
-											<Button
-												variant="ghost"
-												className="size-8"
-												onClick={() => openDeleteDialog(k)}
-												disabled={deletingKeyId === k.id}
+				<Tabs value={activeTab} onValueChange={setActiveTab}>
+					<TabsList className="bg-muted rounded-xl p-1 gap-1 w-fit">
+						<TabsTrigger value={SettingsTab.PROVIDERS}>Global</TabsTrigger>
+						<TabsTrigger value={SettingsTab.CUSTOM}>Custom</TabsTrigger>
+					</TabsList>
+
+					<TabsContent value={SettingsTab.PROVIDERS} className="mt-4">
+						<div className="flex items-center justify-between mb-4">
+							<p className="text-sm text-muted-foreground">
+								Add API keys for hosted providers.
+							</p>
+							<Dialog open={openAdd} onOpenChange={setOpenAdd}>
+								<DialogTrigger asChild>
+									<Button size="default" className="w-[144px]">
+										<PlusCircle className="mr-2 h-4 w-4" /> Add Key
+									</Button>
+								</DialogTrigger>
+
+								<DialogContent className="sm:max-w-[420px]">
+									<DialogHeader>
+										<DialogTitle>Add LLM Provider Key</DialogTitle>
+									</DialogHeader>
+
+									<div className="space-y-4 py-2">
+										<div className="space-y-1">
+											<Label>Vendor</Label>
+											<Select
+												value={vendor}
+												onValueChange={(v) => setVendor(v as Vendor)}
 											>
-												<Trash2 className="h-4 w-4" />
+												<SelectTrigger className="text-[14px]">
+													<SelectValue placeholder="Select vendor" />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value="OPENAI">OpenAI</SelectItem>
+													<SelectItem value="GOOGLE">Google</SelectItem>
+													<SelectItem value="ANTHROPIC">Anthropic</SelectItem>
+												</SelectContent>
+											</Select>
+										</div>
+
+										<div className="space-y-1">
+											<Label>API Key</Label>
+											<div className="relative">
+												<Input
+													type={showSecret ? "text" : "password"}
+													value={secret}
+													onChange={(e) => setSecret(e.target.value)}
+													className="pr-10"
+													placeholder="Enter API key"
+												/>
+												<button
+													type="button"
+													className="absolute right-2 top-2 text-zinc-500 [&_svg]:size-5"
+													onClick={() => setShowSecret((s) => !s)}
+												>
+													{showSecret ? (
+														<EyeOff className="h-4 w-4" />
+													) : (
+														<Eye className="h-4 w-4" />
+													)}
+												</button>
+											</div>
+										</div>
+									</div>
+
+									<DialogFooter>
+										<Button onClick={handleAdd} disabled={!secret.trim() || isCreating}>
+											{isCreating ? "Adding..." : "OK"}
+										</Button>
+									</DialogFooter>
+								</DialogContent>
+							</Dialog>
+						</div>
+
+						{isLoadingKeys ? (
+							<div className="p-6 text-sm text-muted-foreground">Loading…</div>
+						) : keys.length === 0 ? (
+							<div className="p-6 text-sm text-muted-foreground">No keys</div>
+						) : (
+							<div className="relative overflow-x-auto rounded-md border-0">
+								<Table className="rounded-md overflow-hidden">
+									<TableHeader className="bg-[#F4F4F5] dark:bg-[#262626] dark:text-[#fff] h-12 font-medium text-muted-foreground">
+										<TableRow>
+											<TableHead className="text-left p-4">Vendor</TableHead>
+											<TableHead className="text-left p-4">API Key</TableHead>
+											<TableHead className="text-left p-4">Created At</TableHead>
+											<TableHead className="w-[100px] text-center p-4">
+												Actions
+											</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{keys.map((k) => (
+											<TableRow key={k.id}>
+												<TableCell>{k.vendor}</TableCell>
+												<TableCell>{k.publicKey}</TableCell>
+												<TableCell>{new Date(k.createdAt).toLocaleString()}</TableCell>
+												<TableCell className="text-center">
+													<Button
+														variant="ghost"
+														className="size-8"
+														onClick={() => openDeleteDialog(k)}
+														disabled={deletingKeyId === k.id}
+													>
+														<Trash2 className="h-4 w-4" />
+													</Button>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
+						)}
+					</TabsContent>
+
+					<TabsContent value={SettingsTab.CUSTOM} className="mt-4">
+						{isLoadingProvider ? (
+							<div className="p-6 text-sm text-muted-foreground">Loading…</div>
+						) : (
+							<div className="space-y-4">
+								{!customProvider ? (
+									<div className="rounded-md p-10 text-center space-y-4">
+										<p className="text-sm font-medium">
+											You have not added a custom provider yet.
+										</p>
+										<p className="text-sm text-muted-foreground">
+											Connect an OpenAI-compatible endpoint to sync and configure models.
+										</p>
+										<div className="flex items-center justify-center gap-3">
+											<Button size="default" onClick={openEditProviderDialog}>
+												<PlusCircle className="mr-2 h-4 w-4" /> Add Provider
 											</Button>
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					</div>
-				)}
+											<a
+												href="https://docs.genum.ai"
+												target="_blank"
+												rel="noreferrer"
+												className="text-sm text-primary hover:underline"
+											>
+												Learn more
+											</a>
+										</div>
+									</div>
+								) : (
+									<div className="space-y-3">
+										<div className="flex items-start justify-between gap-4">
+											<div />
+											<div className="flex items-center gap-2">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={syncProviderModels}
+													disabled={isSyncing}
+												>
+													{isSyncing ? (
+														<Loader2 className="h-4 w-4 animate-spin" />
+													) : (
+														<RefreshCw className="h-4 w-4" />
+													)}
+													<span className="ml-1">Sync Models</span>
+												</Button>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={openEditProviderDialog}
+												>
+													<Edit className="h-4 w-4" />
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => setDeleteProviderDialogOpen(true)}
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</div>
+										</div>
+
+										<div className="rounded-md border p-4">
+											<div className="flex items-center gap-3">
+												<Server className="h-5 w-5 text-muted-foreground" />
+												<div>
+													<p className="font-medium">
+														{customProvider.name || "Custom Provider"}
+													</p>
+													<p className="text-sm text-muted-foreground">
+														{customProvider.baseUrl}
+													</p>
+												</div>
+												<Badge variant="outline" className="ml-2">
+													{customProvider._count?.languageModels ?? 0} models
+												</Badge>
+											</div>
+										</div>
+
+										<div className="space-y-2">
+											<ProviderModelsSection providerId={customProvider.id} />
+										</div>
+									</div>
+								)}
+							</div>
+						)}
+					</TabsContent>
+				</Tabs>
 			</CardContent>
 
+			{/* Delete Standard Key Dialog */}
 			<Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
 				<DialogContent className="sm:max-w-[425px]">
 					<DialogHeader>
@@ -309,6 +657,643 @@ export default function OrgAIKeys() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			{/* Provider Dialog (Add/Edit) */}
+			<Dialog
+				open={openProviderDialog}
+				onOpenChange={(open) => {
+					setOpenProviderDialog(open);
+					if (!open) {
+						setConnectionTestResult(null);
+					}
+				}}
+			>
+				<DialogContent className="sm:max-w-[500px]">
+					<DialogHeader>
+						<DialogTitle>
+							{customProvider ? "Edit" : "Configure"} Custom Provider
+						</DialogTitle>
+						<DialogDescription>
+							Connect to an OpenAI-compatible API endpoint
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-4 py-2">
+						<div className="space-y-1">
+							<Label>Base URL</Label>
+							<Input
+								value={providerBaseUrl}
+								onChange={(e) => setProviderBaseUrl(e.target.value)}
+								placeholder="http://localhost:11434/v1"
+							/>
+							<p className="text-xs text-muted-foreground">
+								Examples: http://localhost:11434/v1, http://localhost:1234/v1
+							</p>
+						</div>
+
+						<div className="space-y-1">
+							<Label>
+								API Key{" "}
+								<span className="text-muted-foreground font-normal">
+									(optional)
+								</span>
+							</Label>
+							<div className="relative">
+								<Input
+									type={showProviderApiKey ? "text" : "password"}
+									value={providerApiKey}
+									onChange={(e) => setProviderApiKey(e.target.value)}
+									className="pr-10"
+									placeholder={
+										customProvider
+											? "Leave empty to keep existing key"
+											: "API key for authentication"
+									}
+								/>
+								<button
+									type="button"
+									className="absolute right-2 top-2 text-zinc-500 [&_svg]:size-5"
+									onClick={() => setShowProviderApiKey((s) => !s)}
+								>
+									{showProviderApiKey ? (
+										<EyeOff className="h-4 w-4" />
+									) : (
+										<Eye className="h-4 w-4" />
+									)}
+								</button>
+							</div>
+						</div>
+
+						{/* Test Connection */}
+						<div className="flex items-center gap-2">
+							<Button
+								variant="outline"
+								onClick={testConnection}
+								disabled={!providerBaseUrl.trim() || isTestingConnection}
+							>
+								{isTestingConnection ? (
+									<>
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										Testing...
+									</>
+								) : (
+									"Test Connection"
+								)}
+							</Button>
+
+							{connectionTestResult && (
+								<div className="flex items-center gap-2">
+									{connectionTestResult.success ? (
+										<>
+											<CheckCircle2 className="h-4 w-4 text-green-500" />
+											<span className="text-sm text-green-600">
+												Connected ({connectionTestResult.models?.length}{" "}
+												models)
+											</span>
+										</>
+									) : (
+										<>
+											<XCircle className="h-4 w-4 text-red-500" />
+											<span className="text-sm text-red-600">
+												{connectionTestResult.error || "Failed"}
+											</span>
+										</>
+									)}
+								</div>
+							)}
+						</div>
+
+						{/* Available Models Preview */}
+						{connectionTestResult?.success &&
+							connectionTestResult.models &&
+							connectionTestResult.models.length > 0 && (
+								<div className="border rounded-md p-3 bg-muted/30">
+									<p className="text-sm font-medium mb-2">Available Models:</p>
+									<div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto">
+										{connectionTestResult.models.map((model) => (
+											<Badge
+												key={model.id}
+												variant="secondary"
+												className="text-xs"
+											>
+												{model.id}
+											</Badge>
+										))}
+									</div>
+								</div>
+							)}
+					</div>
+
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setOpenProviderDialog(false)}>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleSaveProvider}
+							disabled={!providerBaseUrl.trim() || isSavingProvider}
+						>
+							{isSavingProvider ? "Saving..." : "Save"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete Provider Dialog */}
+			<Dialog open={deleteProviderDialogOpen} onOpenChange={setDeleteProviderDialogOpen}>
+				<DialogContent className="sm:max-w-[425px]">
+					<DialogHeader>
+						<DialogTitle>Delete Custom Provider</DialogTitle>
+						<DialogDescription>
+							{isCheckingDeleteStatus
+								? "Checking if this provider can be deleted..."
+								: isDeleteBlocked
+								  ? "This provider cannot be deleted yet."
+								  : "Deleting the provider will have the following effects:"}
+						</DialogDescription>
+					</DialogHeader>
+
+					{deleteStatusError && (
+						<p className="text-sm text-red-600">{deleteStatusError}</p>
+					)}
+
+					{isCheckingDeleteStatus && (
+						<div className="flex items-center gap-2 text-sm text-muted-foreground">
+							<Loader2 className="h-4 w-4 animate-spin" />
+							<span>Checking usage...</span>
+						</div>
+					)}
+
+					{isDeleteBlocked && deleteStatus && (
+						<div className="space-y-2">
+							<p className="text-sm text-muted-foreground">
+								Remove the following usage before deleting:
+							</p>
+							<ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+								{deleteStatus.promptUsageCount > 0 && (
+									<li>
+										{deleteStatus.promptUsageCount} prompt
+										{deleteStatus.promptUsageCount === 1 ? "" : "s"} currently use a
+										model from this provider.
+									</li>
+								)}
+								{deleteStatus.productiveCommitUsageCount > 0 && (
+									<li>
+										{deleteStatus.productiveCommitUsageCount} productive commit
+										{deleteStatus.productiveCommitUsageCount === 1 ? "" : "s"} use a
+										model from this provider.
+									</li>
+								)}
+							</ul>
+						</div>
+					)}
+
+					{!isDeleteBlocked && (
+						<p className="text-sm text-muted-foreground">
+							This action is irreversible. All synced models will be deleted.
+						</p>
+					)}
+
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setDeleteProviderDialogOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleDeleteProvider}
+							disabled={isDeleteDisabled}
+							className="bg-red-600 hover:bg-red-700 text-white"
+						>
+							{isDeletingProvider ? "Deleting..." : "Delete Provider"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</Card>
+	);
+}
+
+// ==================== Provider Models Section Component ====================
+
+function ProviderModelsSection({ providerId: _providerId }: { providerId: number }) {
+	const { toast } = useToast();
+	const [models, setModels] = React.useState<LanguageModel[]>([]);
+	const [isLoading, setIsLoading] = React.useState(true);
+
+	// Model config dialog state
+	const [configDialogOpen, setConfigDialogOpen] = React.useState(false);
+	const [selectedModel, setSelectedModel] = React.useState<LanguageModel | null>(null);
+
+	const fetchModels = React.useCallback(async () => {
+		try {
+			setIsLoading(true);
+			const data = await organizationApi.getProviderModels();
+			setModels(data.models);
+		} catch (e) {
+			console.error(e);
+			toast({
+				title: "Error",
+				description: "Failed to load models",
+				variant: "destructive",
+			});
+		} finally {
+			setIsLoading(false);
+		}
+	}, [toast]);
+
+	React.useEffect(() => {
+		fetchModels();
+	}, [fetchModels]);
+
+	const openConfigDialog = (model: LanguageModel) => {
+		setSelectedModel(model);
+		setConfigDialogOpen(true);
+	};
+
+	const handleModelUpdated = () => {
+		fetchModels();
+	};
+
+	if (isLoading) {
+		return <div className="text-sm text-muted-foreground">Loading models...</div>;
+	}
+
+	if (models.length === 0) {
+		return (
+			<div className="text-sm text-muted-foreground">
+				No models synced yet. Models sync automatically when you save the provider.
+			</div>
+		);
+	}
+
+	return (
+		<div>
+			<div className="border rounded-md">
+				<Table>
+					<TableHeader className="bg-muted/50">
+						<TableRow>
+							<TableHead className="text-left p-3">Model</TableHead>
+							<TableHead className="text-left p-3">Display Name</TableHead>
+							<TableHead className="w-[100px] text-center p-3">Config</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{models.map((model) => (
+							<TableRow key={model.id}>
+								<TableCell className="p-3 font-mono text-sm">
+									{model.name}
+								</TableCell>
+								<TableCell className="p-3">
+									{model.displayName || model.name}
+								</TableCell>
+								<TableCell className="text-center p-3">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => openConfigDialog(model)}
+									>
+										<Settings className="h-4 w-4" />
+									</Button>
+								</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+			</div>
+
+			{selectedModel && (
+				<ModelConfigDialog
+					model={selectedModel}
+					open={configDialogOpen}
+					onOpenChange={setConfigDialogOpen}
+					onSaved={handleModelUpdated}
+				/>
+			)}
+		</div>
+	);
+}
+
+// ==================== Model Config Dialog Component ====================
+
+const DEFAULT_PARAMETERS: Record<string, ModelParameterConfig> = {
+	temperature: {
+		enabled: false,
+		min: 0,
+		max: 2,
+		default: 0.7,
+	},
+	max_tokens: {
+		enabled: false,
+		min: 1,
+		max: 128000,
+		default: 4096,
+	},
+	response_format: {
+		enabled: false,
+		allowed: ["text", "json_object", "json_schema"],
+		default: "text",
+	},
+	tools: {
+		enabled: false,
+	},
+};
+
+interface ModelConfigDialogProps {
+	model: LanguageModel;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onSaved: () => void;
+}
+
+function ModelConfigDialog({ model, open, onOpenChange, onSaved }: ModelConfigDialogProps) {
+	const { toast } = useToast();
+	const [isSaving, setIsSaving] = React.useState(false);
+	const [displayName, setDisplayName] = React.useState(model.displayName || model.name);
+	const [parametersConfig, setParametersConfig] = React.useState<
+		Record<string, ModelParameterConfig>
+	>(() => {
+		const existing = (model.parametersConfig as Record<string, ModelParameterConfig>) || {};
+		const merged = { ...DEFAULT_PARAMETERS };
+		for (const [key, value] of Object.entries(existing)) {
+			const fallback = DEFAULT_PARAMETERS[key] || { enabled: false };
+			merged[key] = {
+				...fallback,
+				...value,
+				enabled: value.enabled ?? true,
+			};
+		}
+		return merged;
+	});
+
+	React.useEffect(() => {
+		setDisplayName(model.displayName || model.name);
+		const existing = (model.parametersConfig as Record<string, ModelParameterConfig>) || {};
+		const merged = { ...DEFAULT_PARAMETERS };
+		for (const [key, value] of Object.entries(existing)) {
+			const fallback = DEFAULT_PARAMETERS[key] || { enabled: false };
+			merged[key] = {
+				...fallback,
+				...value,
+				enabled: value.enabled ?? true,
+			};
+		}
+		setParametersConfig(merged);
+	}, [model]);
+
+	const toggleParameter = (paramName: string) => {
+		setParametersConfig((prev) => ({
+			...prev,
+			[paramName]: {
+				...prev[paramName],
+				enabled: !prev[paramName].enabled,
+			},
+		}));
+	};
+
+	const updateParameterValue = (
+		paramName: string,
+		field: keyof ModelParameterConfig,
+		value: number | string,
+	) => {
+		setParametersConfig((prev) => ({
+			...prev,
+			[paramName]: {
+				...prev[paramName],
+				[field]: value,
+			},
+		}));
+	};
+
+	const toggleAllowedValue = (paramName: string, value: string) => {
+		setParametersConfig((prev) => {
+			const current = prev[paramName];
+			const allowed = new Set(current.allowed ?? []);
+			if (allowed.has(value)) {
+				allowed.delete(value);
+			} else {
+				allowed.add(value);
+			}
+
+			const nextAllowed = Array.from(allowed);
+			const defaultValue =
+				typeof current.default === "string" && nextAllowed.includes(current.default)
+					? current.default
+					: nextAllowed[0] ?? "text";
+
+			return {
+				...prev,
+				[paramName]: {
+					...current,
+					allowed: nextAllowed,
+					default: defaultValue,
+				},
+			};
+		});
+	};
+
+	const handleSave = async () => {
+		try {
+			setIsSaving(true);
+
+			const enabledConfig: Record<string, ModelParameterConfig> = {};
+			for (const [key, config] of Object.entries(parametersConfig)) {
+				if (config.enabled) {
+					enabledConfig[key] = config;
+				}
+			}
+
+			await organizationApi.updateCustomModel(model.id, {
+				displayName: displayName.trim() || model.name,
+				parametersConfig: enabledConfig,
+			});
+
+			toast({ title: "Success", description: "Model configuration saved" });
+			onSaved();
+			onOpenChange(false);
+		} catch (e) {
+			console.error(e);
+			toast({
+				title: "Error",
+				description: "Failed to save configuration",
+				variant: "destructive",
+			});
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
+	const parameterLabels: Record<string, string> = {
+		temperature: "Temperature",
+		max_tokens: "Max Tokens",
+		response_format: "Response Format",
+		tools: "Tools",
+	};
+	const parameterValueLabels: Record<string, string> = {
+		json_object: "json_obj",
+	};
+	const responseFormatOptions = ["text", "json_object", "json_schema"];
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+				<DialogHeader>
+					<DialogTitle>Configure Model: {model.name}</DialogTitle>
+					<DialogDescription>
+						Select which parameters this model supports and configure their limits.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="space-y-6 py-4">
+					<div className="space-y-2">
+						<Label>Display Name</Label>
+						<Input
+							value={displayName}
+							onChange={(e) => setDisplayName(e.target.value)}
+							placeholder={model.name}
+						/>
+					</div>
+
+					<div className="space-y-4">
+						<Label className="text-base font-medium">Supported Parameters</Label>
+						<p className="text-sm text-muted-foreground">
+							Enable the parameters that this model supports.
+						</p>
+
+						{Object.entries(parametersConfig).map(([paramName, config]) => (
+							<div key={paramName} className="border rounded-md p-4 space-y-3">
+								<div className="flex items-center justify-between">
+									<div className="flex items-center gap-3">
+										<input
+											type="checkbox"
+											id={`param-${paramName}`}
+											checked={config.enabled}
+											onChange={() => toggleParameter(paramName)}
+											className="h-4 w-4 rounded border-gray-300"
+										/>
+										<label
+											htmlFor={`param-${paramName}`}
+											className="font-medium cursor-pointer"
+										>
+											{parameterLabels[paramName] || paramName}
+										</label>
+									</div>
+								</div>
+
+								{config.enabled && (
+									<div className="pl-7 space-y-4">
+										{config.allowed ? (
+											<div className="space-y-3">
+												<div className="flex flex-wrap gap-3">
+													{responseFormatOptions.map((val) => (
+														<label
+															key={val}
+															className="flex items-center gap-2 text-sm"
+														>
+															<input
+																type="checkbox"
+																checked={(config.allowed ?? []).includes(val)}
+																onChange={() => toggleAllowedValue(paramName, val)}
+																className="h-4 w-4 rounded border-gray-300"
+															/>
+															{parameterValueLabels[val] ?? val}
+														</label>
+													))}
+												</div>
+
+												<div className="space-y-1 max-w-[240px]">
+													<Label className="text-sm text-muted-foreground">
+														Default
+													</Label>
+													<Select
+														value={String(config.default ?? "text")}
+														onValueChange={(value) =>
+															updateParameterValue(paramName, "default", value)
+														}
+													>
+														<SelectTrigger className="text-[14px]">
+															<SelectValue placeholder="Select default" />
+														</SelectTrigger>
+														<SelectContent>
+															{(config.allowed ?? []).map((val) => (
+																<SelectItem key={val} value={val}>
+																	{parameterValueLabels[val] ?? val}
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+												</div>
+											</div>
+										) : config.min !== undefined ||
+										  config.max !== undefined ||
+										  typeof config.default === "number" ? (
+											<div className="grid grid-cols-3 gap-3">
+												<div className="space-y-1">
+													<Label className="text-sm text-muted-foreground">Min</Label>
+													<Input
+														type="number"
+														value={config.min ?? 0}
+														onChange={(e) =>
+															updateParameterValue(
+																paramName,
+																"min",
+																Number(e.target.value),
+															)
+														}
+													/>
+												</div>
+												<div className="space-y-1">
+													<Label className="text-sm text-muted-foreground">Max</Label>
+													<Input
+														type="number"
+														value={config.max ?? 100}
+														onChange={(e) =>
+															updateParameterValue(
+																paramName,
+																"max",
+																Number(e.target.value),
+															)
+														}
+													/>
+												</div>
+												<div className="space-y-1">
+													<Label className="text-sm text-muted-foreground">Default</Label>
+													<Input
+														type="number"
+														value={
+															typeof config.default === "number" ? config.default : 0
+														}
+														onChange={(e) =>
+															updateParameterValue(
+																paramName,
+																"default",
+																Number(e.target.value),
+															)
+														}
+													/>
+												</div>
+											</div>
+										) : (
+											<span className="text-sm text-muted-foreground">
+												No extra settings
+											</span>
+										)}
+									</div>
+								)}
+							</div>
+						))}
+					</div>
+				</div>
+
+				<DialogFooter>
+					<Button variant="outline" onClick={() => onOpenChange(false)}>
+						Cancel
+					</Button>
+					<Button onClick={handleSave} disabled={isSaving}>
+						{isSaving ? "Saving..." : "Save Configuration"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

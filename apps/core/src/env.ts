@@ -22,7 +22,6 @@ const EnvSchema = z.object({
 	GEMINI_KEY: z.string().optional(),
 	// ------------------[CLOUD]------------------
 	// Sentry
-	RELEASE_VERSION: z.string().optional(),
 	CORE_SENTRY_DSN: z.url().optional(),
 	CORE_SENTRY_ENABLED: z.stringbool().optional().default(false),
 	CORE_SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().optional().default(1.0),

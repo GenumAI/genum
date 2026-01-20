@@ -3,7 +3,6 @@ import {
 	testcaseNamerFormat,
 	formatToXml,
 	canvasAgentFormat,
-	promptProductiveFormat,
 	testcaseSummaryFormatter,
 	testcaseContextFormatter,
 } from "./formatter";
@@ -51,31 +50,6 @@ describe("AI Formatter", () => {
 			);
 			expect(result).toContain("<input>user input</input>");
 			expect(result).toContain("<last_output>ai output</last_output>");
-		});
-	});
-
-	describe("promptProductiveFormat", () => {
-		it("should update prompt with version data", () => {
-			const prompt = {
-				id: 1,
-				value: "old value",
-				languageModelConfig: "old config",
-				languageModelId: 1,
-			} as Prompt;
-
-			const version = {
-				value: "new value",
-				languageModelConfig: "new config",
-				languageModelId: 2,
-			} as PromptVersion;
-
-			const result = promptProductiveFormat(prompt, version);
-
-			expect(result.value).toBe("new value");
-			expect(result.languageModelConfig).toBe("new config");
-			expect(result.languageModelId).toBe(2);
-			// Should be same object reference
-			expect(result).toBe(prompt);
 		});
 	});
 

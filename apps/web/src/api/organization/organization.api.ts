@@ -1,4 +1,4 @@
-import { apiClient, ApiRequestConfig } from "../client";
+import { apiClient, type ApiRequestConfig } from "../client";
 
 // ============================================================================
 // Types
@@ -102,6 +102,96 @@ export interface OrgKey {
 
 export interface Quota {
 	balance: number;
+}
+
+// ============================================================================
+// Custom Provider Types
+// ============================================================================
+
+export interface CustomProvider {
+	id: number;
+	name: string;
+	baseUrl: string;
+	publicKey: string;
+	createdAt: string;
+	updatedAt?: string;
+	_count?: {
+		languageModels: number;
+	};
+}
+
+export interface CreateCustomProviderData {
+	vendor: "CUSTOM_OPENAI_COMPATIBLE";
+	key?: string; // Optional for providers that don't require auth
+	name?: string; // Optional display name
+	baseUrl: string;
+}
+
+export interface TestProviderConnectionData {
+	apiKey?: string; // Optional for providers that don't require auth (LM Studio, Ollama)
+	baseUrl: string;
+}
+
+export interface TestProviderConnectionResponse {
+	success: boolean;
+	models?: ProviderModel[];
+	error?: string;
+}
+
+export interface ProviderModel {
+	id: string;
+	name: string;
+	created?: number;
+	ownedBy?: string;
+}
+
+export interface SyncProviderModelsData {
+	removeStale?: boolean;
+}
+
+export interface SyncProviderModelsResponse {
+	message: string;
+	created: number;
+	existing: number;
+	removed: number;
+}
+
+export interface CustomProviderDeleteStatus {
+	canDelete: boolean;
+	promptUsageCount: number;
+	productiveCommitUsageCount: number;
+}
+
+export interface ModelParameterConfig {
+	enabled: boolean;
+	min?: number;
+	max?: number;
+	default?: number | string;
+	allowed?: string[];
+}
+
+export interface LanguageModel {
+	id: number;
+	name: string;
+	displayName?: string;
+	vendor: string;
+	promptPrice: number;
+	completionPrice: number;
+	contextTokensMax: number;
+	completionTokensMax: number;
+	description: string;
+	apiKeyId?: number;
+	parametersConfig?: Record<string, ModelParameterConfig>;
+}
+
+export interface UpdateCustomModelData {
+	displayName?: string;
+	promptPrice?: number;
+	completionPrice?: number;
+	contextTokensMax?: number;
+	completionTokensMax?: number;
+	description?: string;
+	parametersConfig?: Record<string, ModelParameterConfig>;
 }
 
 // ============================================================================
@@ -268,6 +358,120 @@ export const organizationApi = {
 	getProjectKeys: async (config?: ApiRequestConfig): Promise<{ keys: OrgKey[] }> => {
 		const response = await apiClient.get<{ keys: OrgKey[] }>(
 			"/organization/project-keys",
+			config,
+		);
+		return response.data;
+	},
+
+	// ============================================================================
+	// Custom Provider API (single provider per organization)
+	// ============================================================================
+
+	/**
+	 * Test connection to a custom OpenAI-compatible provider
+	 */
+	testProviderConnection: async (
+		data: TestProviderConnectionData,
+		config?: ApiRequestConfig,
+	): Promise<TestProviderConnectionResponse> => {
+		const response = await apiClient.post<TestProviderConnectionResponse>(
+			"/organization/provider/test",
+			data,
+			config,
+		);
+		return response.data;
+	},
+
+	/**
+	 * Get the custom provider for the organization (if exists)
+	 */
+	getCustomProvider: async (
+		config?: ApiRequestConfig,
+	): Promise<{ provider: CustomProvider | null }> => {
+		const response = await apiClient.get<{ provider: CustomProvider | null }>(
+			"/organization/provider",
+			config,
+		);
+		return response.data;
+	},
+
+	/**
+	 * Create or update the custom OpenAI-compatible provider
+	 */
+	upsertCustomProvider: async (
+		data: CreateCustomProviderData,
+		config?: ApiRequestConfig,
+	): Promise<{ provider: CustomProvider }> => {
+		const response = await apiClient.post<{ provider: CustomProvider }>(
+			"/organization/provider",
+			data,
+			config,
+		);
+		return response.data;
+	},
+
+	/**
+	 * Delete the custom provider
+	 */
+	deleteCustomProvider: async (config?: ApiRequestConfig): Promise<void> => {
+		await apiClient.delete("/organization/provider", config);
+	},
+
+	/**
+	 * Check if the custom provider can be deleted
+	 */
+	getCustomProviderDeleteStatus: async (
+		config?: ApiRequestConfig,
+	): Promise<CustomProviderDeleteStatus> => {
+		const response = await apiClient.get<{ status: CustomProviderDeleteStatus }>(
+			"/organization/provider/delete-status",
+			config,
+		);
+		return response.data.status;
+	},
+
+	/**
+	 * Sync models from the custom provider to the database
+	 */
+	syncProviderModels: async (
+		data?: SyncProviderModelsData,
+		config?: ApiRequestConfig,
+	): Promise<SyncProviderModelsResponse> => {
+		const response = await apiClient.post<SyncProviderModelsResponse>(
+			"/organization/provider/models/sync",
+			data || {},
+			config,
+		);
+		return response.data;
+	},
+
+	/**
+	 * Get synced models for the custom provider
+	 */
+	getProviderModels: async (
+		config?: ApiRequestConfig,
+	): Promise<{
+		provider: { id: number; name: string; baseUrl: string };
+		models: LanguageModel[];
+	}> => {
+		const response = await apiClient.get<{
+			provider: { id: number; name: string; baseUrl: string };
+			models: LanguageModel[];
+		}>("/organization/provider/models", config);
+		return response.data;
+	},
+
+	/**
+	 * Update a custom model's configuration
+	 */
+	updateCustomModel: async (
+		modelId: number,
+		data: UpdateCustomModelData,
+		config?: ApiRequestConfig,
+	): Promise<{ model: LanguageModel }> => {
+		const response = await apiClient.patch<{ model: LanguageModel }>(
+			`/organization/models/${modelId}`,
+			data,
 			config,
 		);
 		return response.data;

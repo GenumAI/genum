@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { db } from "@/database/db";
 import { runPrompt } from "../ai/runner/run";
-import type { AiVendor, Prompt, PromptChat } from "@/prisma";
+import type { AiVendor, PromptChat } from "@/prisma";
 import { getPromptLogs } from "../services/logger/logger";
 import { ModelConfigService } from "../ai/models/modelConfigService";
 import { mdToXml, objToXml } from "@/utils/xml";
@@ -24,7 +24,7 @@ import {
 	stringSchema,
 } from "@/services/validate";
 import { canvasAgentFormat, testcaseSummaryFormatter } from "@/ai/runner/formatter";
-import { commitHash } from "@/utils/hash";
+import { PromptService } from "@/services/prompt.service";
 import { findDiff, type PromptState } from "@/utils/diff";
 import { AIMessage, HumanMessage, ToolMessage } from "langchain";
 import {
@@ -41,35 +41,11 @@ import { SourceType } from "@/services/logger/types";
 
 export class PromptsController {
 	private modelConfigService: ModelConfigService;
+	private promptService: PromptService;
 
 	constructor() {
 		this.modelConfigService = new ModelConfigService();
-	}
-
-	private async updateCommitedStatus(prompt: Prompt) {
-		const generations = await db.prompts.getPromptCommitCount(prompt.id);
-		const hash = commitHash(prompt, generations);
-
-		const lastCommit = await db.prompts.getProductiveCommit(prompt.id);
-		if (!lastCommit) {
-			return prompt;
-		}
-
-		if (lastCommit.commitHash === hash) {
-			// same state as last commit
-			if (!prompt.commited) {
-				// change commited status to true if it was false
-				return await db.prompts.changePromptCommitStatus(prompt.id, true);
-			}
-		} else {
-			// different state than last commit
-			if (prompt.commited) {
-				// change commited status to false if it was true
-				return await db.prompts.changePromptCommitStatus(prompt.id, false);
-			}
-		}
-
-		return prompt;
+		this.promptService = new PromptService(db);
 	}
 
 	public async getProjectPrompts(req: Request, res: Response) {
@@ -130,7 +106,14 @@ export class PromptsController {
 			res.status(404).json({ error: `Model with id ${id} not found` });
 			return;
 		}
-		const config = await db.prompts.getModelConfig(model.name, model.vendor as AiVendor);
+
+		// Pass database parametersConfig for custom models
+		const config = await db.prompts.getModelConfig(
+			model.name,
+			model.vendor,
+			model.parametersConfig, // Will be used for CUSTOM_OPENAI_COMPATIBLE
+		);
+
 		if (!config) {
 			res.status(404).json({ error: `Model configuration not found` });
 			return;
@@ -173,7 +156,7 @@ export class PromptsController {
 		// change prompt to commited
 		// await db.prompts.changePromptCommitStatus(id, true);
 
-		await this.updateCommitedStatus(prompt);
+		await this.promptService.updateCommitedStatus(prompt);
 
 		res.status(200).json({ version });
 	}
@@ -217,7 +200,7 @@ export class PromptsController {
 			metadata.userID,
 		);
 
-		await this.updateCommitedStatus(updatedPrompt);
+		await this.promptService.updateCommitedStatus(updatedPrompt);
 
 		res.status(200).json({ rollbackVersion });
 	}
@@ -284,7 +267,8 @@ export class PromptsController {
 		await checkPromptAccess(id, metadata.projID);
 
 		const updatedPrompt = await db.prompts.updatePromptById(id, data);
-		const updatedPromptWithStatus = await this.updateCommitedStatus(updatedPrompt);
+		const updatedPromptWithStatus =
+			await this.promptService.updateCommitedStatus(updatedPrompt);
 
 		res.status(200).json({ prompt: updatedPromptWithStatus });
 	}
@@ -422,6 +406,7 @@ export class PromptsController {
 			model.name,
 			model.vendor as AiVendor,
 			config,
+			model.parametersConfig as Record<string, unknown> | null | undefined,
 		);
 
 		// Update the prompt with the new configuration
@@ -429,7 +414,8 @@ export class PromptsController {
 			languageModelConfig: validatedConfig,
 		});
 
-		const updatedPromptWithStatus = await this.updateCommitedStatus(updatedPrompt);
+		const updatedPromptWithStatus =
+			await this.promptService.updateCommitedStatus(updatedPrompt);
 
 		res.status(200).json({ prompt: updatedPromptWithStatus });
 	}
@@ -451,9 +437,10 @@ export class PromptsController {
 		const oldConfig = prompt.languageModelConfig as ModelConfigParameters;
 
 		// Get default configuration for the new model
-		const defaultConfigForNewModel = this.modelConfigService.getDefaultValues(
+		const defaultConfigForNewModel = this.modelConfigService.getDefaultValuesForModel(
 			newModel.name,
 			newModel.vendor as AiVendor,
+			newModel.parametersConfig as Record<string, unknown> | null | undefined,
 		) as ModelConfigParameters;
 
 		// Start with the new model's defaults
@@ -480,6 +467,7 @@ export class PromptsController {
 			newModel.name,
 			newModel.vendor as AiVendor,
 			candidateConfig,
+			newModel.parametersConfig as Record<string, unknown> | null | undefined,
 		);
 
 		// Update the prompt with the new model ID and the final, validated configuration
@@ -488,7 +476,8 @@ export class PromptsController {
 			languageModelConfig: finalConfig,
 		});
 
-		const updatedPromptWithStatus = await this.updateCommitedStatus(updatedPrompt);
+		const updatedPromptWithStatus =
+			await this.promptService.updateCommitedStatus(updatedPrompt);
 
 		res.status(200).json({ prompt: updatedPromptWithStatus });
 	}

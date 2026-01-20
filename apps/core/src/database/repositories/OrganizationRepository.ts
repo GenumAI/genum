@@ -1,11 +1,6 @@
-import {
-	type PrismaClient,
-	type User,
-	OrganizationRole,
-	ProjectRole,
-	type AiVendor,
-} from "@/prisma";
-import type { OrganizationUpdateType } from "@/services/validate";
+import { AiVendor, type PrismaClient, type User, OrganizationRole, ProjectRole } from "@/prisma";
+import type { Prisma } from "@/prisma";
+import type { OrganizationUpdateType, CustomProviderApiKeyCreateType } from "@/services/validate";
 
 export class OrganizationRepository {
 	private prisma: PrismaClient;
@@ -402,5 +397,220 @@ export class OrganizationRepository {
 		});
 
 		return deleted.count;
+	}
+
+	// ==================== Custom Provider Methods ====================
+
+	/**
+	 * Create or update the custom OpenAI-compatible provider (only one per org)
+	 */
+	public async upsertCustomProvider(orgId: number, data: CustomProviderApiKeyCreateType) {
+		const publicKey = data.key ? `${data.key.slice(0, 3)}...${data.key.slice(-4)}` : "(no key)";
+
+		return await this.prisma.organizationApiKey.upsert({
+			where: {
+				organizationId_vendor: {
+					organizationId: orgId,
+					vendor: data.vendor,
+				},
+			},
+			update: {
+				key: data.key || "",
+				publicKey,
+				name: data.name,
+				baseUrl: data.baseUrl,
+				updatedAt: new Date(),
+			},
+			create: {
+				organizationId: orgId,
+				vendor: data.vendor,
+				key: data.key || "",
+				publicKey,
+				name: data.name,
+				baseUrl: data.baseUrl,
+			},
+		});
+	}
+
+	/**
+	 * Get the custom provider for an organization (if exists)
+	 */
+	public async getCustomProvider(orgId: number) {
+		return await this.prisma.organizationApiKey.findUnique({
+			where: {
+				organizationId_vendor: {
+					organizationId: orgId,
+					vendor: AiVendor.CUSTOM_OPENAI_COMPATIBLE,
+				},
+			},
+			include: {
+				_count: {
+					select: { languageModels: true },
+				},
+			},
+		});
+	}
+
+	/**
+	 * Get model IDs synced for a custom provider
+	 */
+	public async getCustomProviderModelIds(apiKeyId: number): Promise<number[]> {
+		const models = await this.prisma.languageModel.findMany({
+			where: { apiKeyId },
+			select: { id: true },
+		});
+
+		return models.map((model) => model.id);
+	}
+
+	public resetPromptsToDefaultModel(
+		modelIds: number[],
+		defaultModelId: number,
+		defaultModelConfig: Record<string, unknown>,
+	) {
+		return this.prisma.prompt.updateMany({
+			where: { languageModelId: { in: modelIds } },
+			data: {
+				languageModelId: defaultModelId,
+				languageModelConfig: defaultModelConfig as Prisma.InputJsonValue,
+			},
+		});
+	}
+
+	public resetPromptVersionsToDefaultModel(
+		modelIds: number[],
+		defaultModelId: number,
+		defaultModelConfig: Record<string, unknown>,
+	) {
+		return this.prisma.promptVersion.updateMany({
+			where: { languageModelId: { in: modelIds } },
+			data: {
+				languageModelId: defaultModelId,
+				languageModelConfig: defaultModelConfig as Prisma.InputJsonValue,
+			},
+		});
+	}
+
+	public deleteLanguageModelsByApiKey(apiKeyId: number) {
+		return this.prisma.languageModel.deleteMany({ where: { apiKeyId } });
+	}
+
+	public deleteOrganizationApiKeyById(apiKeyId: number) {
+		return this.prisma.organizationApiKey.delete({ where: { id: apiKeyId } });
+	}
+
+	public async runTransaction(operations: Prisma.PrismaPromise<unknown>[]) {
+		return await this.prisma.$transaction(operations);
+	}
+
+	/**
+	 * Get API key by ID (with organization check)
+	 */
+	public async getApiKeyById(orgId: number, apiKeyId: number) {
+		return await this.prisma.organizationApiKey.findUnique({
+			where: {
+				id: apiKeyId,
+				organizationId: orgId,
+			},
+		});
+	}
+
+	/**
+	 * Get API key with its synced language models
+	 */
+	public async getApiKeyWithModels(orgId: number, apiKeyId: number) {
+		return await this.prisma.organizationApiKey.findUnique({
+			where: {
+				id: apiKeyId,
+				organizationId: orgId,
+			},
+			include: {
+				languageModels: {
+					orderBy: { name: "asc" },
+				},
+			},
+		});
+	}
+
+	/**
+	 * Get all custom provider API keys for an organization
+	 */
+	public async getCustomProviderApiKeys(orgId: number) {
+		return await this.prisma.organizationApiKey.findMany({
+			where: {
+				organizationId: orgId,
+				vendor: AiVendor.CUSTOM_OPENAI_COMPATIBLE,
+			},
+			select: {
+				id: true,
+				name: true,
+				baseUrl: true,
+				publicKey: true,
+				createdAt: true,
+				updatedAt: true,
+				_count: {
+					select: { languageModels: true },
+				},
+			},
+			orderBy: { createdAt: "desc" },
+		});
+	}
+
+	/**
+	 * Get a custom model by ID (with organization ownership check via apiKey)
+	 */
+	public async getCustomModelById(orgId: number, modelId: number) {
+		const model = await this.prisma.languageModel.findUnique({
+			where: { id: modelId },
+			include: { apiKey: true },
+		});
+
+		if (!model || !model.apiKey || model.apiKey.organizationId !== orgId) {
+			return null;
+		}
+
+		return model;
+	}
+
+	/**
+	 * Create a language model (custom provider models)
+	 */
+	public async createLanguageModel(data: Prisma.LanguageModelUncheckedCreateInput) {
+		return await this.prisma.languageModel.create({ data });
+	}
+
+	/**
+	 * Delete a language model by ID
+	 */
+	public async deleteLanguageModelById(modelId: number) {
+		return await this.prisma.languageModel.delete({ where: { id: modelId } });
+	}
+
+	/**
+	 * Update a custom model's configuration
+	 */
+	public async updateCustomModel(
+		modelId: number,
+		data: {
+			displayName?: string;
+			promptPrice?: number;
+			completionPrice?: number;
+			contextTokensMax?: number;
+			completionTokensMax?: number;
+			description?: string;
+			parametersConfig?: Record<string, unknown>;
+		},
+	) {
+		const { parametersConfig, ...rest } = data;
+		return await this.prisma.languageModel.update({
+			where: { id: modelId },
+			data: {
+				...rest,
+				parametersConfig: parametersConfig
+					? (parametersConfig as Prisma.InputJsonValue)
+					: undefined,
+				updatedAt: new Date(),
+			},
+		});
 	}
 }

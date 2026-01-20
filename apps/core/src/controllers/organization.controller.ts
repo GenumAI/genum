@@ -9,9 +9,18 @@ import {
 	OrganizationApiKeyCreateSchema,
 	OrganizationUpdateSchema,
 	OrganizationUsageStatsSchema,
+	CustomProviderApiKeyCreateSchema,
+	TestProviderConnectionSchema,
+	UpdateCustomModelSchema,
 } from "../services/validate";
 import { getOrganizationDailyUsageStats } from "../services/logger/logger";
-import { OrganizationService } from "@/services/organization.service";
+import {
+	OrganizationService,
+	ProviderNotConfiguredError,
+	ProviderNoBaseUrlError,
+	ProviderDeleteNotAllowedError,
+} from "@/services/organization.service";
+import { listOpenAICompatibleModels, testProviderConnection } from "@/ai/providers/openai/models";
 
 export class OrganizationController {
 	private readonly organizationService: OrganizationService;
@@ -322,5 +331,231 @@ export class OrganizationController {
 		res.status(200).json({
 			quota,
 		});
+	}
+
+	// ==================== Custom Provider Endpoints ====================
+
+	/**
+	 * Test connection to a custom OpenAI-compatible provider
+	 * POST /api/organization/providers/test
+	 */
+	public async testCustomProviderConnection(req: Request, res: Response) {
+		const { apiKey, baseUrl } = TestProviderConnectionSchema.parse(req.body);
+
+		const isConnected = await testProviderConnection(apiKey, baseUrl);
+
+		if (!isConnected) {
+			res.status(400).json({
+				success: false,
+				error: "Failed to connect to provider. Check API key and URL.",
+			});
+			return;
+		}
+
+		// Also fetch models to show what's available
+		const result = await listOpenAICompatibleModels(apiKey, baseUrl);
+
+		res.status(200).json({
+			success: true,
+			models: result.models,
+		});
+	}
+
+	/**
+	 * Create or update the custom OpenAI-compatible provider (only one per org)
+	 * POST /api/organization/provider
+	 */
+	public async upsertCustomProvider(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const data = CustomProviderApiKeyCreateSchema.parse(req.body);
+
+		// Test connection first
+		const isConnected = await testProviderConnection(data.key || "", data.baseUrl);
+		if (!isConnected) {
+			res.status(400).json({
+				error: "Failed to connect to provider. Check API key and URL.",
+			});
+			return;
+		}
+
+		const modelsResult = await listOpenAICompatibleModels(data.key || "", data.baseUrl);
+		if (modelsResult.error) {
+			res.status(400).json({
+				error: modelsResult.error,
+			});
+			return;
+		}
+
+		const provider = await db.organization.upsertCustomProvider(metadata.orgID, data);
+
+		await this.organizationService.syncProviderModels(
+			metadata.orgID,
+			provider.id,
+			modelsResult.models.map((model) => ({
+				name: model.id,
+				displayName: model.name,
+			})),
+		);
+
+		res.status(200).json({
+			provider: {
+				id: provider.id,
+				name: provider.name,
+				baseUrl: provider.baseUrl,
+				publicKey: provider.publicKey,
+				createdAt: provider.createdAt,
+				updatedAt: provider.updatedAt,
+			},
+		});
+	}
+
+	/**
+	 * Get the custom provider for the organization (if exists)
+	 * GET /api/organization/provider
+	 */
+	public async getCustomProvider(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+
+		const provider = await db.organization.getCustomProvider(metadata.orgID);
+
+		res.status(200).json({ provider });
+	}
+
+	/**
+	 * Delete the custom OpenAI-compatible provider
+	 * DELETE /api/organization/provider
+	 */
+	public async deleteCustomProvider(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+
+		try {
+			const deleted = await this.organizationService.deleteCustomProvider(metadata.orgID);
+			if (!deleted) {
+				res.status(404).json({ error: "Custom provider not configured" });
+				return;
+			}
+
+			res.status(200).json({ message: "Custom provider deleted successfully" });
+		} catch (e) {
+			if (e instanceof ProviderDeleteNotAllowedError) {
+				res.status(409).json({
+					error: e.message,
+					promptUsageCount: e.promptUsageCount,
+					productiveCommitUsageCount: e.productiveCommitUsageCount,
+				});
+				return;
+			}
+
+			throw e;
+		}
+	}
+
+	/**
+	 * Check if the custom provider can be deleted
+	 * GET /api/organization/provider/delete-status
+	 */
+	public async getCustomProviderDeleteStatus(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+
+		const status = await this.organizationService.getCustomProviderDeleteStatus(metadata.orgID);
+		if (!status) {
+			res.status(404).json({ error: "Custom provider not configured" });
+			return;
+		}
+
+		res.status(200).json({ status });
+	}
+
+	/**
+	 * Sync models from the custom provider to the database
+	 * POST /api/organization/provider/models/sync
+	 */
+	public async syncProviderModels(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+
+		try {
+			const provider = await this.organizationService.getValidatedCustomProvider(
+				metadata.orgID,
+			);
+
+			// Fetch models from provider
+			const result = await listOpenAICompatibleModels(provider.key, provider.baseUrl);
+
+			if (result.error) {
+				res.status(400).json({ error: result.error });
+				return;
+			}
+
+			// Sync to database
+			const syncResult = await this.organizationService.syncProviderModels(
+				metadata.orgID,
+				provider.id,
+				result.models.map((m) => ({ name: m.id, displayName: m.name })),
+			);
+
+			res.status(200).json({
+				message: "Models synced successfully",
+				...syncResult,
+			});
+		} catch (e) {
+			if (e instanceof ProviderNotConfiguredError) {
+				res.status(404).json({ error: e.message });
+				return;
+			}
+			if (e instanceof ProviderNoBaseUrlError) {
+				res.status(400).json({ error: e.message });
+				return;
+			}
+			throw e;
+		}
+	}
+
+	/**
+	 * Get synced models for the custom provider
+	 * GET /api/organization/provider/models
+	 */
+	public async getProviderModels(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+
+		const provider = await db.organization.getCustomProvider(metadata.orgID);
+		if (!provider) {
+			res.status(404).json({ error: "Custom provider not configured" });
+			return;
+		}
+
+		const providerWithModels = await db.organization.getApiKeyWithModels(
+			metadata.orgID,
+			provider.id,
+		);
+
+		res.status(200).json({
+			provider: {
+				id: provider.id,
+				name: provider.name,
+				baseUrl: provider.baseUrl,
+			},
+			models: providerWithModels?.languageModels || [],
+		});
+	}
+
+	/**
+	 * Update a custom model's configuration
+	 * PATCH /api/organization/models/:id
+	 */
+	public async updateCustomModel(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const modelId = numberSchema.parse(req.params.id);
+		const data = UpdateCustomModelSchema.parse(req.body);
+
+		// Check if model exists and belongs to this organization
+		const existingModel = await db.organization.getCustomModelById(metadata.orgID, modelId);
+		if (!existingModel) {
+			res.status(404).json({ error: "Model not found or not a custom model" });
+			return;
+		}
+
+		const updatedModel = await db.organization.updateCustomModel(modelId, data);
+
+		res.status(200).json({ model: updatedModel });
 	}
 }

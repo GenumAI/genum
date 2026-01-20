@@ -69,10 +69,6 @@ COPY --from=builder /app/apps/core/clickhouse ./apps/core/clickhouse
 # Set working directory to core app
 WORKDIR /app/apps/core
 
-# Build-time argument for release version
-ARG RELEASE_VERSION=unknown
-ENV RELEASE_VERSION=${RELEASE_VERSION}
-
 # Set NODE_ENV to production by default (can be overridden in docker-compose)
 ENV NODE_ENV=production
 

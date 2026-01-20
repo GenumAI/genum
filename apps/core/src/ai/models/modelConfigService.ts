@@ -1,7 +1,13 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve, extname } from "node:path";
-import type { ModelsConfig, ModelConfig, ModelConfigParameters } from "./types";
-import type { AiVendor } from "@/prisma";
+import {
+	ModelsConfigSchema,
+	type ModelsConfig,
+	type ModelConfig,
+	type ModelConfigParameters,
+} from "./types";
+import { AiVendor } from "@/prisma";
+import z from "zod";
 
 interface ParameterSchema {
 	allowed?: string[];
@@ -35,9 +41,16 @@ export class ModelConfigService {
 					const configPath = resolve(configDir, configFile);
 					const configData = JSON.parse(readFileSync(configPath, "utf-8"));
 
-					if (configData.models && Array.isArray(configData.models)) {
-						allModels.push(...configData.models);
+					const parsed = ModelsConfigSchema.safeParse(configData);
+					if (!parsed.success) {
+						console.warn(
+							`Invalid model config schema in ${configFile}:`,
+							z.treeifyError(parsed.error),
+						);
+						continue;
 					}
+
+					allModels.push(...parsed.data.models);
 				} catch (error) {
 					console.warn(`Failed to load config from ${configFile}:`, error);
 				}
@@ -50,7 +63,32 @@ export class ModelConfigService {
 	}
 
 	public getModelConfig(name: string, vendor: AiVendor): ModelConfig | undefined {
-		return this.config.models.find((model) => model.name === name && model.vendor === vendor);
+		// Try exact match first
+		const exactMatch = this.config.models.find(
+			(model) => model.name === name && model.vendor === vendor,
+		);
+		if (exactMatch) {
+			return exactMatch;
+		}
+
+		// For custom providers, return an empty config by default
+		if (vendor === AiVendor.CUSTOM_OPENAI_COMPATIBLE) {
+			return this.getDefaultCustomProviderConfig(name);
+		}
+
+		return undefined;
+	}
+
+	/**
+	 * Returns default configuration for custom OpenAI-compatible providers.
+	 * This config is used for any model from a custom provider.
+	 */
+	private getDefaultCustomProviderConfig(modelName: string): ModelConfig {
+		return {
+			name: modelName,
+			vendor: AiVendor.CUSTOM_OPENAI_COMPATIBLE,
+			parameters: {},
+		};
 	}
 
 	/**
@@ -58,7 +96,7 @@ export class ModelConfigService {
 	 * @param name The name of the model
 	 * @param vendor The vendor of the model
 	 * @returns The complete model configuration including parameters and constraints
-	 * @throws Error if the model is not found
+	 * @throws Error if the model is not found (except for custom providers which use defaults)
 	 */
 	public getLLMConfig(name: string, vendor: AiVendor): ModelConfig {
 		const modelConfig = this.getModelConfig(name, vendor);
@@ -66,6 +104,30 @@ export class ModelConfigService {
 			throw new Error(`Model ${name} from vendor ${vendor} not found in configuration`);
 		}
 		return modelConfig;
+	}
+
+	/**
+	 * Gets the configuration for a custom model, using database config if available.
+	 * Falls back to defaults if no config is stored.
+	 * @param modelName The name of the model
+	 * @param dbParametersConfig The parameters config from the database (if any)
+	 * @returns The model configuration
+	 */
+	public getCustomModelConfig(
+		modelName: string,
+		dbParametersConfig?: Record<string, unknown> | null,
+	): ModelConfig {
+		// If database has a config, convert it to ModelConfig format
+		if (dbParametersConfig && Object.keys(dbParametersConfig).length > 0) {
+			return {
+				name: modelName,
+				vendor: AiVendor.CUSTOM_OPENAI_COMPATIBLE,
+				parameters: dbParametersConfig as ModelConfig["parameters"],
+			};
+		}
+
+		// Fall back to default config
+		return this.getDefaultCustomProviderConfig(modelName);
 	}
 
 	/**
@@ -79,8 +141,22 @@ export class ModelConfigService {
 		name: string,
 		vendor: AiVendor,
 		config: ModelConfigParameters,
+		dbParametersConfig?: Record<string, unknown> | null,
 	): ModelConfigParameters {
-		const modelConfig = this.getLLMConfig(name, vendor);
+		if (
+			vendor === AiVendor.CUSTOM_OPENAI_COMPATIBLE &&
+			(!dbParametersConfig || Object.keys(dbParametersConfig).length === 0)
+		) {
+			return config;
+		}
+
+		// If custom model config is provided, use it, otherwise use the default config
+		const modelConfig =
+			vendor === AiVendor.CUSTOM_OPENAI_COMPATIBLE &&
+			dbParametersConfig &&
+			Object.keys(dbParametersConfig).length > 0
+				? this.getCustomModelConfig(name, dbParametersConfig)
+				: this.getLLMConfig(name, vendor);
 		const sanitizedConfig: Record<string, unknown> = {};
 
 		for (const [paramName, paramSchemaUntyped] of Object.entries(modelConfig.parameters) as [
@@ -251,7 +327,27 @@ export class ModelConfigService {
 	 * @returns Object containing parameter names and their default values
 	 */
 	public getDefaultValues(name: string, vendor: AiVendor): ModelConfigParameters {
-		const modelConfig = this.getLLMConfig(name, vendor);
+		return this.getDefaultValuesForConfig(name, vendor);
+	}
+
+	private getDefaultValuesForConfig(
+		name: string,
+		vendor: AiVendor,
+		dbParametersConfig?: Record<string, unknown> | null,
+	): ModelConfigParameters {
+		if (
+			vendor === AiVendor.CUSTOM_OPENAI_COMPATIBLE &&
+			(!dbParametersConfig || Object.keys(dbParametersConfig).length === 0)
+		) {
+			return {};
+		}
+
+		const modelConfig =
+			vendor === AiVendor.CUSTOM_OPENAI_COMPATIBLE &&
+			dbParametersConfig &&
+			Object.keys(dbParametersConfig).length > 0
+				? this.getCustomModelConfig(name, dbParametersConfig)
+				: this.getLLMConfig(name, vendor);
 		const defaultValues: Record<string, unknown> = {};
 
 		for (const [paramName, paramConfig] of Object.entries(modelConfig.parameters)) {
@@ -261,5 +357,38 @@ export class ModelConfigService {
 		}
 
 		return defaultValues as ModelConfigParameters;
+	}
+
+	public getDefaultValuesForModel(
+		name: string,
+		vendor: AiVendor,
+		dbParametersConfig?: Record<string, unknown> | null,
+	): ModelConfigParameters {
+		return this.getDefaultValuesForConfig(name, vendor, dbParametersConfig);
+	}
+
+	public getCustomModelParamsTemplate() {
+		return {
+			temperature: {
+				enabled: false,
+				min: 0,
+				max: 2,
+				default: 0.7,
+			},
+			max_tokens: {
+				enabled: false,
+				min: 1,
+				max: 128000,
+				default: 4096,
+			},
+			response_format: {
+				enabled: false,
+				allowed: ["text", "json_object", "json_schema"],
+				default: "text",
+			},
+			tools: {
+				enabled: false,
+			},
+		};
 	}
 }

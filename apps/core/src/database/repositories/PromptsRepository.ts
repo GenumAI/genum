@@ -48,12 +48,11 @@ export class PromptsRepository {
 
 		// Fallback: search by name and vendor (in case ID changed)
 		if (!model) {
-			model = await this.prisma.languageModel.findUnique({
+			model = await this.prisma.languageModel.findFirst({
 				where: {
-					vendor_name: {
-						vendor: AiVendor.OPENAI,
-						name: "gpt-4o",
-					},
+					vendor: AiVendor.OPENAI,
+					name: "gpt-4o",
+					apiKeyId: null,
 				},
 			});
 		}
@@ -82,6 +81,18 @@ export class PromptsRepository {
 	 */
 	public clearDefaultLanguageModelCache(): void {
 		this.defaultLanguageModel = null;
+	}
+
+	// expose default language model config for callers that need a reset baseline
+	public async getDefaultLanguageModelForReset(): Promise<{
+		id: number;
+		config: ModelConfigParameters;
+	}> {
+		const defaultModel = await this.getDefaultLanguageModel();
+		return {
+			id: defaultModel.id,
+			config: defaultModel.config,
+		};
 	}
 
 	// get project prompts
@@ -272,12 +283,11 @@ export class PromptsRepository {
 	}
 
 	public async updateModel(model: LanguageModelData) {
-		return await this.prisma.languageModel.update({
+		return await this.prisma.languageModel.updateMany({
 			where: {
-				vendor_name: {
-					vendor: model.vendor,
-					name: model.name,
-				},
+				vendor: model.vendor,
+				name: model.name,
+				apiKeyId: null,
 			},
 			data: {
 				displayName: model.displayName,
@@ -290,8 +300,17 @@ export class PromptsRepository {
 		});
 	}
 
-	public async getModelConfig(name: string, vendor: AiVendor) {
+	public async getModelConfig(name: string, vendor: AiVendor, dbParametersConfig?: unknown) {
 		const modelConfigService = new ModelConfigService();
+
+		// For custom providers, use database config if available
+		if (vendor === AiVendor.CUSTOM_OPENAI_COMPATIBLE) {
+			return modelConfigService.getCustomModelConfig(
+				name,
+				dbParametersConfig as Record<string, unknown> | null | undefined,
+			);
+		}
+
 		return modelConfigService.getLLMConfig(name, vendor);
 	}
 
@@ -554,6 +573,56 @@ export class PromptsRepository {
 			where: { projectId },
 			select: { id: true, name: true },
 		});
+	}
+
+	public async countPromptsUsingLanguageModels(
+		orgId: number,
+		modelIds: number[],
+	): Promise<number> {
+		if (modelIds.length === 0) {
+			return 0;
+		}
+
+		return await this.prisma.prompt.count({
+			where: {
+				languageModelId: { in: modelIds },
+				project: { organizationId: orgId },
+			},
+		});
+	}
+
+	public async countProductiveCommitsUsingLanguageModels(
+		orgId: number,
+		modelIds: number[],
+	): Promise<number> {
+		if (modelIds.length === 0) {
+			return 0;
+		}
+
+		const branches = await this.prisma.branch.findMany({
+			where: {
+				name: "master",
+				prompt: { project: { organizationId: orgId } },
+			},
+			select: {
+				promptVersions: {
+					orderBy: { id: "desc" },
+					take: 1,
+					select: { languageModelId: true },
+				},
+			},
+		});
+
+		const modelIdSet = new Set(modelIds);
+		let count = 0;
+		for (const branch of branches) {
+			const latest = branch.promptVersions[0];
+			if (latest && modelIdSet.has(latest.languageModelId)) {
+				count += 1;
+			}
+		}
+
+		return count;
 	}
 
 	public async getProductiveCommit(promptId: number) {
