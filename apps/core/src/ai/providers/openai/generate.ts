@@ -6,7 +6,12 @@ import { answerMapper, responsesConfigMapper } from "./utils";
 export async function generateOpenAI(request: ProviderRequest): Promise<ProviderResponse> {
 	const start = Date.now();
 
-	const openai = new OpenAI({ apiKey: request.apikey, timeout: 600_000, maxRetries: 5 });
+	const openai = new OpenAI({
+		apiKey: request.apikey,
+		baseURL: request.baseUrl, // Support custom OpenAI-compatible providers
+		timeout: 600_000,
+		maxRetries: 5,
+	});
 
 	const response = await openai.responses.create({
 		model: request.model,

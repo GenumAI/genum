@@ -115,6 +115,21 @@ jobs:
           echo "tag=$VERSION" >> $GITHUB_OUTPUT
           echo "latest_tag=latest" >> $GITHUB_OUTPUT
 
+      - name: Compute image tags
+        id: image_tags
+        run: |
+          CORE_TAGS="${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:${{ steps.release_version.outputs.tag }}"
+          WEB_TAGS="${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.tag }}"
+
+          if [[ "${{ github.event.release.prerelease }}" == "false" ]]; then
+            CORE_TAGS="$CORE_TAGS,${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:latest"
+            WEB_TAGS="$WEB_TAGS,${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:latest"
+          fi
+
+          echo "core_tags=$CORE_TAGS" >> "$GITHUB_OUTPUT"
+          echo "web_tags=$WEB_TAGS" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${{ github.event.release.prerelease }}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push Core image
         uses: docker/build-push-action@v5
         with:
@@ -124,9 +139,7 @@ jobs:
           push: true
           build-args: |
             RELEASE_VERSION=${{ steps.release_version.outputs.tag }}
-          tags: |
-            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:${{ steps.release_version.outputs.tag }}
-            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:${{ steps.release_version.outputs.latest_tag }}
+          tags: ${{ steps.image_tags.outputs.core_tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -139,9 +152,7 @@ jobs:
           push: true
           build-args: |
             RELEASE_VERSION=${{ steps.release_version.outputs.tag }}
-          tags: |
-            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.tag }}
-            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.latest_tag }}
+          tags: ${{ steps.image_tags.outputs.web_tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -175,11 +186,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Core" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:${{ steps.release_version.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:latest\`" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.image_tags.outputs.is_prerelease }}" == "false" ]]; then
+            echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:latest\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- (latest tag skipped for prerelease)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Web" >> $GITHUB_STEP_SUMMARY
           echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:latest\`" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.image_tags.outputs.is_prerelease }}" == "false" ]]; then
+            echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:latest\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- (latest tag skipped for prerelease)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔍 Sentry Releases" >> $GITHUB_STEP_SUMMARY
           echo "- **Web**: \`${{ steps.release_version.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY

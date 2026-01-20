@@ -61,7 +61,13 @@ model OrganizationApiKey {
     createdAt      DateTime @default(now()) @db.Timestamp(6)
     updatedAt      DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
-    organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    // For custom OpenAI-compatible provider (only one per organization)
+    name    String? @db.VarChar(255) // Display name (optional)
+    baseUrl String? @db.VarChar(512) // API endpoint: http://localhost:11434/v1
 
+    organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    languageModels LanguageModel[] // Models synced from this provider
+
+    // Only one API key per vendor per organization
     @@unique([organizationId, vendor])
 }

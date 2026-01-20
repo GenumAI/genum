@@ -2,6 +2,7 @@ enum AiVendor {
     OPENAI
     GOOGLE
     ANTHROPIC
+    CUSTOM_OPENAI_COMPATIBLE
 }
 
 model LanguageModel {
@@ -17,8 +18,20 @@ model LanguageModel {
     createdAt           DateTime @default(now()) @db.Timestamp(6)
     updatedAt           DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
+    // For organization-scoped models (custom providers)
+    apiKeyId Int?
+    apiKey   OrganizationApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+    // Custom model parameters configuration (for custom providers)
+    // Stores which parameters are enabled and their constraints
+    // Example: { "temperature": { "enabled": true, "min": 0, "max": 2, "default": 0.7 }, ... }
+    parametersConfig Json?
+
     Prompts       Prompt[]
     PromptVersion PromptVersion[]
 
-    @@unique([vendor, name])
+    // Global models: apiKeyId is null, unique by [vendor, name]
+    // Org models: apiKeyId is set, unique by [apiKeyId, name]
+    @@unique([vendor, name, apiKeyId])
+    @@index([apiKeyId])
 }

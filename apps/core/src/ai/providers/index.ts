@@ -11,6 +11,7 @@ export type ProviderRequest = {
 	parameters: ModelConfigParameters;
 	promptPrice: number;
 	completionPrice: number;
+	baseUrl?: string; // For custom OpenAI-compatible providers
 };
 
 export type ProviderResponse = {

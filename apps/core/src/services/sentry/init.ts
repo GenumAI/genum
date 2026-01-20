@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { env } from "@/env";
+import { VERSION } from "@/constants/VERSION";
 
 /**
  * Initialize Sentry instrumentation for error tracking and logging.
@@ -9,7 +10,7 @@ export function initializeSentry(): void {
 	if (env.CORE_SENTRY_ENABLED && env.CORE_SENTRY_DSN) {
 		Sentry.init({
 			dsn: env.CORE_SENTRY_DSN,
-			release: env.RELEASE_VERSION,
+			release: VERSION,
 			environment: env.NODE_ENV,
 			enableLogs: true,
 			integrations: [

@@ -5,12 +5,18 @@ import {
 	PromptCreateSchema,
 	RunPromptSchema,
 } from "@/services/validate";
-import { promptProductiveFormat } from "@/ai/runner/formatter";
 import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
 import { SourceType } from "@/services/logger/types";
+import { PromptService } from "@/services/prompt.service";
 
 export class ApiV1Controller {
+	private readonly promptService: PromptService;
+
+	constructor() {
+		this.promptService = new PromptService(db);
+	}
+
 	private async verifyRequest(req: Request) {
 		const authHeader = req.headers.authorization;
 		if (!authHeader) {
@@ -45,7 +51,7 @@ export class ApiV1Controller {
 		}
 
 		// get prompt by id
-		const prompt = await db.prompts.getPromptById(id);
+		let prompt = await db.prompts.getPromptById(id);
 		if (!prompt) {
 			return res.status(404).json({ error: "Unauthorized" });
 		}
@@ -69,16 +75,16 @@ export class ApiV1Controller {
 		await db.project.updateProjectApiKeyLastUsed(key.id);
 
 		if (productive) {
-			const productiveCommit = await db.prompts.getProductiveCommit(prompt.id);
-			if (!productiveCommit) {
+			const promptWithCommit = await this.promptService.getPromptWithProductiveCommit(
+				prompt,
+				{
+					requireCommit: true,
+				},
+			);
+			if (!promptWithCommit) {
 				return res.status(404).json({ error: "Productive commit not found." });
 			}
-
-			// prompt = promptProductiveFormat(prompt, productiveCommit); // todo generic func for all productive commits
-
-			prompt.value = productiveCommit.value;
-			prompt.languageModelConfig = productiveCommit.languageModelConfig;
-			prompt.languageModelId = productiveCommit.languageModelId;
+			prompt = promptWithCommit;
 		}
 
 		const run = await runPrompt({
@@ -111,20 +117,20 @@ export class ApiV1Controller {
 		const id = numberSchema.parse(req.params.id);
 		const { productive } = GetPromptQuerySchema.parse(req.query);
 
-		const user_prompt = await db.prompts.getPromptByIdSimpleFromProject(project.id, id);
-		if (!user_prompt) {
+		let userPrompt = await db.prompts.getPromptByIdSimpleFromProject(project.id, id);
+		if (!userPrompt) {
 			return res.status(404).json({ error: "Prompt not found" });
 		}
 
-		const { languageModel, ...rest } = user_prompt;
-		let prompt = rest;
-
 		if (productive) {
-			const productiveCommit = await db.prompts.getProductiveCommit(prompt.id);
-			if (productiveCommit) {
-				prompt = promptProductiveFormat(prompt, productiveCommit);
+			const promptWithCommit =
+				await this.promptService.getPromptWithProductiveCommit(userPrompt);
+			if (promptWithCommit) {
+				userPrompt = promptWithCommit;
 			}
 		}
+
+		const { languageModel, ...prompt } = userPrompt;
 
 		// return prompt with languageModel
 		res.status(200).json({ ...prompt, languageModel });

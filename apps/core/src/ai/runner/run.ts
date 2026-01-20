@@ -77,6 +77,8 @@ export async function getSystemOrganization(_vendor: AiVendor, _userOrgId: numbe
 async function runPromptWithProvider(provider: AiVendor, request: ProviderRequest) {
 	switch (provider) {
 		case AiVendor.OPENAI:
+		case AiVendor.CUSTOM_OPENAI_COMPATIBLE:
+			// Both use the same OpenAI SDK, baseUrl is passed in request for custom providers
 			return await generateOpenAI(request);
 		case AiVendor.GOOGLE:
 			return await generateGemini(request);
@@ -104,8 +106,25 @@ export async function runPrompt(data: runPromptParams) {
 		throw new Error(`Model with id ${prompt.languageModelId} not found`);
 	}
 
-	// get AI API key based on quota
-	const { apiKey, quotaUsed } = await getApiKeyByQuota(quota, data.userOrgId, model.vendor);
+	// For custom providers, get API key and baseUrl from the model's linked apiKey
+	let apiKey: { key: string; baseUrl?: string | null };
+	let quotaUsed = false;
+	let baseUrl: string | undefined;
+
+	if (model.apiKeyId) {
+		// Custom provider model - get API key directly from the model's linked key
+		const customApiKey = await db.organization.getApiKeyById(data.userOrgId, model.apiKeyId);
+		if (!customApiKey) {
+			throw new Error("Custom provider API key not found");
+		}
+		apiKey = { key: customApiKey.key, baseUrl: customApiKey.baseUrl };
+		baseUrl = customApiKey.baseUrl || undefined;
+	} else {
+		// Standard provider - get API key based on quota
+		const result = await getApiKeyByQuota(quota, data.userOrgId, model.vendor);
+		apiKey = result.apiKey;
+		quotaUsed = result.quotaUsed;
+	}
 
 	// handle memory
 	let memoryKey: string | undefined;
@@ -141,6 +160,7 @@ export async function runPrompt(data: runPromptParams) {
 			parameters: prompt.languageModelConfig as ModelConfigParameters,
 			promptPrice: model.promptPrice,
 			completionPrice: model.completionPrice,
+			baseUrl, // Pass baseUrl for custom providers
 		});
 
 		const cost = calculateCost(

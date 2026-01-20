@@ -64,6 +64,14 @@
           },
           {
             "file": "./apps/core/package.json"
+          },
+          {
+            "file": "./apps/web/src/constants/VERSION.ts",
+            "type": "application/typescript"
+          },
+          {
+            "file": "./apps/core/src/constants/VERSION.ts",
+            "type": "application/typescript"
           }
         ]
       }
