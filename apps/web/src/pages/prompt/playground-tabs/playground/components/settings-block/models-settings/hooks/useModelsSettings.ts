@@ -255,32 +255,27 @@ export function useModelsSettings({
 						}
 
 						// Sync all form values
-						const fieldsToSync: Array<{
-							key: keyof ModelSettingsFormValues;
-							config: string;
-						}> = [
-							{ key: "maxTokens", config: "max_tokens" },
-							{ key: "temperature", config: "temperature" },
-							{ key: "topP", config: "top_p" },
-							{ key: "frequencyPenalty", config: "frequency_penalty" },
-							{ key: "presencePenalty", config: "presence_penalty" },
-							{ key: "reasoningEffort", config: "reasoning_effort" },
-							{ key: "verbosity", config: "verbosity" },
-						];
-
-						for (const field of fieldsToSync) {
-							const configValue =
-								backendConfig[field.config as keyof typeof backendConfig];
-							if (configValue !== undefined && configValue !== null) {
-								setValue(field.key, configValue as any, {
-									shouldValidate: false,
-								});
-							} else {
-								setValue(field.key, null, {
-									shouldValidate: false,
-								});
-							}
-						}
+						setValue("maxTokens", backendConfig.max_tokens ?? null, {
+							shouldValidate: false,
+						});
+						setValue("temperature", backendConfig.temperature ?? null, {
+							shouldValidate: false,
+						});
+						setValue("topP", backendConfig.top_p ?? null, {
+							shouldValidate: false,
+						});
+						setValue("frequencyPenalty", backendConfig.frequency_penalty ?? null, {
+							shouldValidate: false,
+						});
+						setValue("presencePenalty", backendConfig.presence_penalty ?? null, {
+							shouldValidate: false,
+						});
+						setValue("reasoningEffort", backendConfig.reasoning_effort ?? null, {
+							shouldValidate: false,
+						});
+						setValue("verbosity", backendConfig.verbosity ?? null, {
+							shouldValidate: false,
+						});
 					} else {
 						const defaultResponseFormat = String(
 							configResponse?.parameters?.response_format?.default || "text",
