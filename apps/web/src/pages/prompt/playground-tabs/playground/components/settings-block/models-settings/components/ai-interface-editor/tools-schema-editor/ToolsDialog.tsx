@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import AIGenerateButton from "../shared/AIGenerateButton";
+import AIGenerateButton from "../shared/code-editor/components/AIGenerateButton";
 import VisualSchemaEditor from "../shared/visual-editor/VisualSchemaEditor";
 import CodeSchemaEditor from "../shared/code-editor/CodeSchemaEditor";
 import { ValidationAlert } from "../shared/code-editor/components/ValidationAlert";

@@ -14,7 +14,6 @@ export const ToolsSection = memo(
 		toolsModalOpen,
 		setToolsModalOpen,
 		promptId,
-		llmConfig,
 		isUpdatingModel,
 		onToolDelete,
 		onToolSave,
@@ -96,7 +95,6 @@ export const ToolsSection = memo(
 				<ToolsModal
 					open={toolsModalOpen}
 					onOpenChange={handleModalOpenChange}
-					llmConfig={llmConfig}
 					promptId={promptId}
 					tools={tools}
 					setTools={handleSetTools}

@@ -1,7 +1,7 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import MonacoEditor from "@/components/ui/MonacoEditor";
 import VisualSchemaEditor from "../../visual-editor/VisualSchemaEditor";
-import AISchemaButton from "../../../AISchemaButton";
+import AIGenerateButton from "./AIGenerateButton";
 import { transformToJsonSchema } from "../../utils/schemaHelpers";
 import { TabsValue, type EditorTabsProps } from "../../utils/types";
 
@@ -24,10 +24,11 @@ export const EditorTabs = ({
 					<TabsTrigger value={TabsValue.CODE}>Code Editor</TabsTrigger>
 				</TabsList>
 				{promptId && (
-					<AISchemaButton
+					<AIGenerateButton
+						mode="schema"
 						promptId={promptId}
-						onSchemaReceived={onSchemaReceived}
-						existingSchema={transformToJsonSchema(schema)}
+						onReceived={onSchemaReceived}
+						existingData={transformToJsonSchema(schema)}
 					/>
 				)}
 			</div>

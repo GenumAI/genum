@@ -18,7 +18,7 @@ import CodeSchemaEditor from "./../shared/code-editor/CodeSchemaEditor";
 import { TabsValue, type SchemaEditDialogProps } from "../shared/utils/types";
 import { transformToJsonSchema, type VisualSchema } from "../shared/utils/schemaHelpers";
 import { ValidationAlert } from "./../shared/code-editor/components/ValidationAlert";
-import AIGenerateButton from "../shared/AIGenerateButton";
+import AIGenerateButton from "../shared/code-editor/components/AIGenerateButton";
 
 const JsonSchemaModal = ({
 	open,
