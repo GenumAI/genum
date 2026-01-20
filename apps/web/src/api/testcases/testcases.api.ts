@@ -101,8 +101,8 @@ export const testcasesApi = {
 		testcaseId: number | string,
 		data?: RunTestcaseData,
 		config?: ApiRequestConfig,
-	): Promise<PromptResponse> => {
-		const response = await apiClient.post<PromptResponse>(
+	): Promise<TestCase> => {
+		const response = await apiClient.post<TestCase>(
 			`/testcases/${testcaseId}/run`,
 			data,
 			config,

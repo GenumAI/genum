@@ -21,17 +21,15 @@ import TestCasesFilter from "@/pages/prompt/playground-tabs/testcases/TestCasesF
 import { testcasesFilter } from "@/lib/testcasesFilter";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import type { TestCase, TestStatus } from "@/types/TestСase";
 import { SearchInput } from "@/components/ui/searchInput";
-import ButtonWithDropdown from "@/components/ui/buttonWithDropdown";
-import { TestCase, TestStatus } from "@/types/TestСase";
-import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
-import { EmptyState } from "@/pages/info-pages/EmptyState";
-import ActiveFilterChips from "@/pages/prompt/playground-tabs/testcases/ActiveFilterChips";
-import { useTestcaseStatusCounts } from "@/hooks/useTestcaseStatusCounts";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePromptTestcases } from "@/hooks/usePromptTestcases";
 
-type TestCaseList = {
-	testcases: TestCase[];
-};
+import ActiveFilterChips from "./ActiveFilterChips";
+import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
+import ButtonWithDropdown from "@/components/ui/buttonWithDropdown";
+import { EmptyState } from "@/pages/info-pages/EmptyState";
 
 type UsedOptionValue = "all" | "nok" | "selected" | "need_run" | "passed";
 
@@ -79,8 +77,13 @@ export default function Testcases() {
 
 	const navigate = useNavigate();
 	const addParamsToUrl = useAddParamsToUrl();
+	const queryClient = useQueryClient();
+	const promptId = id ? Number(id) : undefined;
+	const { data: testcases = [], refetch } = usePromptTestcases(promptId);
 
-	const { data, refetch } = useTestcaseStatusCounts(id);
+	const handleRefetch = async () => {
+		await refetch();
+	};
 
 	const isCheckboxesDisabled =
 		selectedValues[0] === "nok" ||
@@ -102,10 +105,7 @@ export default function Testcases() {
 	});
 
 	const testcasesFiltered = useMemo(() => {
-		if (!data) {
-			return [];
-		}
-		const filtered = testcasesFilter(data.testcases, search, filterState);
+		const filtered = testcasesFilter(testcases, search, filterState);
 
 		if (currentTestcaseId) {
 			const currentTestcase = filtered.find((tc) => tc.id === Number(currentTestcaseId));
@@ -116,7 +116,7 @@ export default function Testcases() {
 		}
 
 		return filtered;
-	}, [data, filterState, search, currentTestcaseId]);
+	}, [testcases, filterState, search, currentTestcaseId]);
 
 	const table = useReactTable({
 		data: testcasesFiltered,
@@ -193,15 +193,24 @@ export default function Testcases() {
 
 					try {
 						await testcasesApi.runTestcase(item.id);
-						refetch();
+
+						// Force refetch to get fresh data and trigger re-render
+						await refetch();
+
+						// Also update status counts cache
+						if (promptId) {
+							await queryClient.invalidateQueries({
+								queryKey: ["testcase-status-counts", promptId],
+							});
+						}
 
 						setRunningRows((prevState) =>
-							prevState.filter((state) => state !== item.id),
+							prevState.filter((state) => Number(state) !== Number(item.id)),
 						);
 					} catch (error) {
 						console.error(`Error running test case ${item.id}:`, error);
 						setRunningRows((prevState) =>
-							prevState.filter((state) => state !== item.id),
+							prevState.filter((state) => Number(state) !== Number(item.id)),
 						);
 					}
 				}
@@ -219,7 +228,9 @@ export default function Testcases() {
 			setIsDeleting(true);
 			try {
 				await testcasesApi.deleteTestcase(selectedTestcase.id);
-				refetch();
+				await handleRefetch();
+				queryClient.invalidateQueries({ queryKey: ["testcase-status-counts", promptId] });
+				queryClient.invalidateQueries({ queryKey: ["prompt-testcases", promptId] });
 				setConfirmModalOpen(false);
 				setSelectedTestcase(null);
 			} catch (error) {
@@ -317,7 +328,7 @@ export default function Testcases() {
 						options={usedOptions}
 						selectedValues={selectedValues}
 						rowLength={getRowCount()}
-						onChange={(value) => onChange(value as UsedOptionValue)}
+						onChange={(value: string) => onChange(value as UsedOptionValue)}
 						loading={isRunning || runningRows.length > 0}
 					/>
 				</div>

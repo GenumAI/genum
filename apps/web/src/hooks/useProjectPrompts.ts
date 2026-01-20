@@ -1,52 +1,46 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
-import useQueryWithAuth from "./useQueryWithAuth";
-import { Prompt } from "@/pages/prompt/Prompts";
+import { useState, useEffect, useCallback } from "react";
+import type { Prompt } from "@/pages/prompt/Prompts";
 import { promptApi } from "@/api/prompt";
 
 export function useProjectPrompts() {
-	const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>();
-	const queryClient = useQueryClient();
+	const { projectId } = useParams<{ projectId: string }>();
+	const [prompts, setPrompts] = useState<Prompt[]>([]);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-	const { data, error, isLoading } = useQueryWithAuth<{ prompts: Prompt[] }>({
-		keys: ["prompts", projectId || ""],
-		enabled: !!projectId,
-		queryFn: async () => {
-			return await promptApi.getPrompts();
-		},
-	});
+	const fetchPrompts = useCallback(async () => {
+		if (!projectId) return;
+		setLoading(true);
+		setError(null);
+		try {
+			const data = await promptApi.getPrompts();
+			setPrompts(data.prompts);
+		} catch (err: any) {
+			setError(err.message || "Failed to fetch prompts");
+		} finally {
+			setLoading(false);
+		}
+	}, [projectId]);
+
+	useEffect(() => {
+		fetchPrompts();
+	}, [fetchPrompts]);
 
 	const removePromptLocally = (id: number) => {
-		queryClient.setQueryData(
-			["prompts", projectId],
-			(oldData: { prompts: Prompt[] } | undefined) => {
-				if (!oldData) return oldData;
-				return {
-					...oldData,
-					prompts: oldData.prompts.filter((p) => p.id !== id),
-				};
-			},
-		);
+		setPrompts((prev) => prev.filter((p) => p.id !== id));
 	};
 
 	const addPromptLocally = (prompt: Prompt) => {
-		queryClient.setQueryData(
-			["prompts", projectId],
-			(oldData: { prompts: Prompt[] } | undefined) => {
-				if (!oldData) return { prompts: [prompt] };
-				return {
-					...oldData,
-					prompts: [prompt, ...oldData.prompts],
-				};
-			},
-		);
+		setPrompts((prev) => [prompt, ...prev]);
 	};
 
 	return {
-		prompts: data?.prompts || [],
-		error: error?.message || null,
-		loading: isLoading,
+		prompts,
+		error,
+		loading,
 		removePromptLocally,
 		addPromptLocally,
+		refetch: fetchPrompts,
 	};
 }

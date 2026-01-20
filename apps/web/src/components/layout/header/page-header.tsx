@@ -5,7 +5,7 @@ import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDi
 import { TestStatus, TestCaseResponse } from "@/types/TestСase";
 import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePlaygroundTestcase } from "@/stores/playground.store";
+import { useTestcaseStatusCounts } from "@/hooks/useTestcaseStatusCounts";
 import { Button } from "@/components/ui/button";
 import { CircleAlert, CircleCheck, CirclePlus, Loader2 } from "lucide-react";
 import clsx from "clsx";
@@ -61,14 +61,15 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 	const [isUpdating, setIsUpdating] = useState(false);
 	const status = "";
 
-	const { testcaseStatusCounts } = usePlaygroundTestcase();
-
 	const { id, orgId, projectId } = useParams<{
 		id: string;
 		orgId: string;
 		projectId: string;
 	}>();
 	const promptId = id ? Number(id) : undefined;
+
+	const { data: testcaseStatusCounts } = useTestcaseStatusCounts(promptId);
+
 	const { updatePromptName, prompt, loading: promptLoading } = usePromptById(promptId);
 	const queryClient = useQueryClient();
 	const [testcase, setTestcase] = useState<TestCaseResponse["testcase"] | null>(null);

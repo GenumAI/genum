@@ -7,7 +7,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { Eye, EyeClosed, CornersOut } from "phosphor-react";
 import { useTheme } from "@/components/theme/theme-provider";
 import { formatUserLocalDateTime } from "@/lib/formatUserLocalDateTime";
-import AIPreview from "@/pages/prompt/playground-tabs/playground-layout/input-preview/AIPreview";
+import AIPreview from "@/pages/prompt/playground-tabs/playground/components/input-textarea/components/AIPreview";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/useToast";
 

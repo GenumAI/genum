@@ -1,6 +1,8 @@
-import { apiClient, ApiRequestConfig } from "../client";
-import { PromptSettings, TLanguageModel, TestcaseStatuses } from "@/types/Prompt";
-import { TestCase } from "@/types/TestСase";
+import { apiClient } from "../client";
+import type { ApiRequestConfig } from "../client";
+import type { PromptSettings, TLanguageModel, TestcaseStatuses } from "@/types/Prompt";
+import type { TestCase } from "@/types/TestСase";
+import type { ResponseModelConfig } from "@/types/AIModel";
 
 export interface PromptResponse {
 	answer: string;
@@ -222,7 +224,7 @@ export interface ModelConfig {
 }
 
 export interface ModelConfigResponse {
-	config: ModelConfig;
+	config: ResponseModelConfig;
 }
 
 // ============================================================================
@@ -432,8 +434,8 @@ export const promptApi = {
 		promptId: number | string,
 		data: CommitData,
 		config?: ApiRequestConfig,
-	): Promise<{ commit: any }> => {
-		const response = await apiClient.post<{ commit: any }>(
+	): Promise<{ commit: string }> => {
+		const response = await apiClient.post<{ commit: string }>(
 			`/prompts/${promptId}/commit`,
 			data,
 			config,
@@ -617,7 +619,7 @@ export const promptApi = {
 	 */
 	generateJsonSchema: async (
 		promptId: number | string,
-		data: { query?: string; existingSchema?: any },
+		data: { query?: string; jsonSchema?: any },
 		config?: ApiRequestConfig,
 	): Promise<{ jsonSchema: any }> => {
 		const response = await apiClient.post<{ jsonSchema: any }>(
