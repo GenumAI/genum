@@ -11,7 +11,7 @@ export function initializeSentry(): void {
 		Sentry.init({
 			dsn: env.CORE_SENTRY_DSN,
 			release: VERSION,
-			environment: env.NODE_ENV,
+			environment: env.SENTRY_ENVIRONMENT,
 			enableLogs: true,
 			integrations: [
 				Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
