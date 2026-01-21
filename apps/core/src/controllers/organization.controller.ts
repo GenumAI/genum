@@ -20,13 +20,16 @@ import {
 	ProviderNoBaseUrlError,
 	ProviderDeleteNotAllowedError,
 } from "@/services/organization.service";
+import { PromptService } from "@/services/prompt.service";
 import { listOpenAICompatibleModels, testProviderConnection } from "@/ai/providers/openai/models";
 
 export class OrganizationController {
 	private readonly organizationService: OrganizationService;
+	private readonly promptService: PromptService;
 
 	constructor() {
 		this.organizationService = new OrganizationService(db);
+		this.promptService = new PromptService(db);
 	}
 
 	public async getOrganizationDetails(req: Request, res: Response) {
@@ -555,6 +558,16 @@ export class OrganizationController {
 		}
 
 		const updatedModel = await db.organization.updateCustomModel(modelId, data);
+
+		if (data.parametersConfig !== undefined) {
+			await this.promptService.reindexPromptsForCustomModel({
+				orgId: metadata.orgID,
+				modelId,
+				modelName: updatedModel.name,
+				vendor: updatedModel.vendor,
+				parametersConfig: updatedModel.parametersConfig as Record<string, unknown> | null,
+			});
+		}
 
 		res.status(200).json({ model: updatedModel });
 	}

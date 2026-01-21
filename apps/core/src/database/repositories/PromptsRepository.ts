@@ -274,6 +274,15 @@ export class PromptsRepository {
 		});
 	}
 
+	public async getPromptsByModelId(orgId: number, modelId: number) {
+		return await this.prisma.prompt.findMany({
+			where: {
+				languageModelId: modelId,
+				project: { organizationId: orgId },
+			},
+		});
+	}
+
 	public async createModel(model: LanguageModelData) {
 		// todo: refactor
 		return await this.prisma.languageModel.create({
