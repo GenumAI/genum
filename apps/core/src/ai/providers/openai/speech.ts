@@ -8,8 +8,6 @@ export async function transcribeOpenAI(key: string, audio: string | Buffer): Pro
 	const openai = new OpenAI({ apiKey: key, timeout: 600_000, maxRetries: 5 });
 	let tempFile: string | null = null;
 
-	console.log("audio", audio);
-
 	try {
 		// Validate input
 		if (!audio) {
