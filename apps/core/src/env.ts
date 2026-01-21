@@ -25,6 +25,7 @@ const EnvSchema = z.object({
 	CORE_SENTRY_DSN: z.url().optional(),
 	CORE_SENTRY_ENABLED: z.stringbool().optional().default(false),
 	CORE_SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().optional().default(1.0),
+	SENTRY_ENVIRONMENT: z.string().optional(),
 	// Auth0
 	AUTH0_DOMAIN: z.string().optional(),
 	AUTH0_CLIENT_ID: z.string().optional(),
