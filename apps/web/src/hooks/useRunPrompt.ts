@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/useToast";
 import { promptApi, type PromptResponse } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
+import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
 
 export interface TokensInfo {
 	prompt: number;
@@ -40,9 +41,11 @@ export function useRunPrompt() {
 			try {
 				if (testcaseId) {
 					try {
-						await testcasesApi.runTestcase(testcaseId, payload);
-						return null;
-					} catch (testcaseError: unknown) {
+						const testcase = await testcasesApi.runTestcase(testcaseId, payload);
+						const formattedOutput = formatTestcaseOutput(testcase.lastOutput);
+						setResult(formattedOutput);
+						return formattedOutput;
+					} catch (testcaseError: any) {
 						throw testcaseError;
 					}
 				}
@@ -55,8 +58,8 @@ export function useRunPrompt() {
 				const data = await promptApi.runPrompt(promptId, payload);
 				setResult(data);
 				return data;
-			} catch (err: unknown) {
-				const errorMessage = err instanceof Error ? err.message : "Unknown error";
+			} catch (err: any) {
+				const errorMessage = err.message || "Unknown error";
 				setError(errorMessage);
 
 				toast({
