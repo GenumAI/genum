@@ -70,7 +70,6 @@ export default function Playground() {
 											disabled={
 												!ui.validation.hasPromptContent ||
 												!ui.validation.hasInputContent ||
-												ui.loading.prompt ||
 												ui.loading.run
 											}
 											onClick={actions.run}
