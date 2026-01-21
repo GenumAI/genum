@@ -266,6 +266,14 @@ export class PromptsRepository {
 		return await this.prisma.languageModel.findMany();
 	}
 
+	public async getModelsByOrganization(orgId: number) {
+		return await this.prisma.languageModel.findMany({
+			where: {
+				OR: [{ apiKeyId: null }, { apiKey: { organizationId: orgId } }],
+			},
+		});
+	}
+
 	public async createModel(model: LanguageModelData) {
 		// todo: refactor
 		return await this.prisma.languageModel.create({

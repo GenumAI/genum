@@ -94,8 +94,9 @@ export class PromptsController {
 		res.status(200).json({ ...run });
 	}
 
-	public async getModels(_req: Request, res: Response) {
-		const models = await db.prompts.getModels();
+	public async getModels(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const models = await this.promptService.getModelsForOrganization(metadata.orgID);
 		res.status(200).json({ models });
 	}
 

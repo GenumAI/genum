@@ -53,6 +53,7 @@ export const camelToSnake = (str: string): string => {
  */
 export const formatVendorName = (vendor: string): string => {
 	if (vendor === "OPENAI") return "OpenAI";
+	if (vendor === "CUSTOM_OPENAI_COMPATIBLE") return "Custom Provider";
 	return vendor.charAt(0) + vendor.slice(1).toLowerCase();
 };
 

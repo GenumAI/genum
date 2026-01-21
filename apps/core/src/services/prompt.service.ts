@@ -12,6 +12,10 @@ type ProductivePrompt = {
 export class PromptService {
 	constructor(private readonly db: Database) {}
 
+	public async getModelsForOrganization(orgId: number) {
+		return await this.db.prompts.getModelsByOrganization(orgId);
+	}
+
 	public async updateCommitedStatus(prompt: Prompt): Promise<Prompt> {
 		const generations = await this.db.prompts.getPromptCommitCount(prompt.id);
 		const hash = commitHash(prompt, generations);
