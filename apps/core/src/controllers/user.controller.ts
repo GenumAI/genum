@@ -16,6 +16,10 @@ export class UserController {
 		this.userService = new UserService(db);
 	}
 
+	private getNotificationId(req: Request): string {
+		return stringSchema.parse(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
+	}
+
 	public async getUserContext(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 
@@ -162,13 +166,15 @@ export class UserController {
 
 	public async getNotificationById(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
-		const notification = await db.users.getNotificationById(req.params.id, metadata.userID);
+		const notificationId = this.getNotificationId(req);
+		const notification = await db.users.getNotificationById(notificationId, metadata.userID);
 		res.status(200).json({ notification });
 	}
 
 	public async markNotificationAsRead(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
-		await db.users.markNotificationAsRead(metadata.userID, req.params.id);
+		const notificationId = this.getNotificationId(req);
+		await db.users.markNotificationAsRead(metadata.userID, notificationId);
 		res.status(200).json({ ok: true });
 	}
 
