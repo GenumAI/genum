@@ -33,6 +33,7 @@ import {
 	usePlaygroundActions,
 	usePlaygroundUI,
 } from "@/stores/playground.store";
+import { useQueryClient } from "@tanstack/react-query";
 
 type UsedOptionValue = "all" | "nok" | "selected" | "need_run" | "passed";
 
@@ -78,6 +79,7 @@ export default function Testcases() {
 	const { fetchAllTestcases, updateSingleTestcase } = usePlaygroundActions();
 	const { testcases } = usePlaygroundTestcase();
 	const { isStatusCountsLoading: isLoading } = usePlaygroundUI();
+	const queryClient = useQueryClient();
 
 	useEffect(() => {
 		fetchAllTestcases();
@@ -190,6 +192,14 @@ export default function Testcases() {
 					try {
 						const updatedTestcase = await testcasesApi.runTestcase(item.id);
 						updateSingleTestcase(updatedTestcase);
+
+						await fetchAllTestcases();
+
+						if (item.promptId) {
+							queryClient.invalidateQueries({
+								queryKey: ["testcase-status-counts", item.promptId],
+							});
+						}
 
 						setRunningRows((prevState) =>
 							prevState.filter((state) => state !== item.id),
