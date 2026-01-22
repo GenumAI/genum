@@ -111,12 +111,17 @@ export const hasDuplicates = (props: VisualProperty[]): boolean => {
 export const validateStrictMode = <T extends { strict: boolean; properties: VisualProperty[] }>(
 	schema: T,
 ): T => {
-	if (schema.strict && schema.properties.length > 0) {
-		const allRequired = checkAllRequired(schema.properties);
-		if (!allRequired) {
-			return { ...schema, strict: false };
-		}
+	const allRequired =
+		schema.properties.length > 0 && checkAllRequired(schema.properties);
+
+	if (schema.strict && !allRequired) {
+		return { ...schema, strict: false };
 	}
+
+	if (!schema.strict && allRequired) {
+		return { ...schema, strict: true };
+	}
+
 	return schema;
 };
 
