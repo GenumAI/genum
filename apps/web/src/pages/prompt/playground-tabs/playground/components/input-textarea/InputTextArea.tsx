@@ -48,6 +48,7 @@ export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>
 
 		const hasActualInput = inputContent.trim().length > 0;
 		const isAIButtonActive = hasPromptContent && !hasActualInput && !!promptId;
+		const isPreviewDisabled = !hasActualInput;
 		
 		const getInactiveReason = () => {
 			if (!hasPromptContent) return "No prompt available";
@@ -73,6 +74,7 @@ export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>
 							isGenerating={isLoading}
 							isPreviewMode={isPreviewMode}
 							onPreviewToggle={handlePreviewToggle}
+							isPreviewDisabled={isPreviewDisabled}
 							onExpandToggle={handleExpandToggle}
 						/>
 					</CardHeader>
@@ -105,6 +107,7 @@ export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>
 					setAiQuery={setAiQuery}
 					onGenerate={handleGenerate}
 					isGenerating={isLoading}
+					isPreviewDisabled={isPreviewDisabled}
 				/>
 			</>
 		);

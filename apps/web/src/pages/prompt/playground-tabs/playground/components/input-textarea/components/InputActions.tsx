@@ -16,6 +16,7 @@ interface InputActionsProps {
 	// Preview props
 	isPreviewMode: boolean;
 	onPreviewToggle: () => void;
+	isPreviewDisabled?: boolean;
 	// Expand props
 	onExpandToggle: () => void;
 }
@@ -31,6 +32,7 @@ export const InputActions = ({
 	isGenerating,
 	isPreviewMode,
 	onPreviewToggle,
+	isPreviewDisabled = false,
 	onExpandToggle,
 }: InputActionsProps) => {
 	return (
@@ -54,6 +56,7 @@ export const InputActions = ({
 							size="icon"
 							className="h-6 w-6 text-[#09090B] dark:text-[#FAFAFA] [&_svg]:size-3"
 							onClick={onPreviewToggle}
+							disabled={isPreviewDisabled}
 						>
 							{isPreviewMode ? (
 								<EyeClosedIcon style={{ width: "17px", height: "17px" }} />

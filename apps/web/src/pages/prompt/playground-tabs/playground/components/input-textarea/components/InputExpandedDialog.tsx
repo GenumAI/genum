@@ -22,6 +22,7 @@ interface InputExpandedDialogProps {
 	setAiQuery: (value: string) => void;
 	onGenerate: () => void;
 	isGenerating: boolean;
+	isPreviewDisabled?: boolean;
 }
 
 export const InputExpandedDialog = ({
@@ -40,6 +41,7 @@ export const InputExpandedDialog = ({
 	setAiQuery,
 	onGenerate,
 	isGenerating,
+	isPreviewDisabled = false,
 }: InputExpandedDialogProps) => {
 	const { toast } = useToast();
 
@@ -63,6 +65,7 @@ export const InputExpandedDialog = ({
 							isGenerating={isGenerating}
 							isPreviewMode={isPreviewMode}
 							onPreviewToggle={onPreviewToggle}
+							isPreviewDisabled={isPreviewDisabled}
 							onExpandToggle={() => onOpenChange(false)}
 						/>
 					</div>
