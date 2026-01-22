@@ -592,28 +592,30 @@ export class PromptsRepository {
 		});
 	}
 
-	public async countPromptsUsingLanguageModels(
+	public async getPromptsUsingLanguageModels(
 		orgId: number,
 		modelIds: number[],
-	): Promise<number> {
+	): Promise<{ id: number; name: string }[]> {
 		if (modelIds.length === 0) {
-			return 0;
+			return [];
 		}
 
-		return await this.prisma.prompt.count({
+		return await this.prisma.prompt.findMany({
 			where: {
 				languageModelId: { in: modelIds },
 				project: { organizationId: orgId },
 			},
+			select: { id: true, name: true },
+			orderBy: { name: "asc" },
 		});
 	}
 
-	public async countProductiveCommitsUsingLanguageModels(
+	public async getProductiveCommitPromptsUsingLanguageModels(
 		orgId: number,
 		modelIds: number[],
-	): Promise<number> {
+	): Promise<{ id: number; name: string }[]> {
 		if (modelIds.length === 0) {
-			return 0;
+			return [];
 		}
 
 		const branches = await this.prisma.branch.findMany({
@@ -622,6 +624,7 @@ export class PromptsRepository {
 				prompt: { project: { organizationId: orgId } },
 			},
 			select: {
+				prompt: { select: { id: true, name: true } },
 				promptVersions: {
 					orderBy: { id: "desc" },
 					take: 1,
@@ -631,15 +634,15 @@ export class PromptsRepository {
 		});
 
 		const modelIdSet = new Set(modelIds);
-		let count = 0;
+		const prompts: { id: number; name: string }[] = [];
 		for (const branch of branches) {
 			const latest = branch.promptVersions[0];
 			if (latest && modelIdSet.has(latest.languageModelId)) {
-				count += 1;
+				prompts.push(branch.prompt);
 			}
 		}
 
-		return count;
+		return prompts.sort((a, b) => a.name.localeCompare(b.name));
 	}
 
 	public async getProductiveCommit(promptId: number) {

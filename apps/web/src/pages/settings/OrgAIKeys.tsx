@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Link, useParams } from "react-router-dom";
 import {
 	PlusCircle,
 	Trash2,
@@ -67,6 +68,7 @@ interface AIKey {
 
 export default function OrgAIKeys() {
 	const { toast } = useToast();
+	const { orgId, projectId } = useParams();
 
 	// Standard AI Keys state
 	const [keys, setKeys] = React.useState<AIKey[]>([]);
@@ -309,6 +311,14 @@ export default function OrgAIKeys() {
 		if (balance === null) return "--";
 		return `$${balance.toFixed(2)}`;
 	};
+
+	const buildPromptHref = React.useCallback(
+		(promptId: number) => {
+			const basePath = orgId && projectId ? `/${orgId}/${projectId}` : "";
+			return `${basePath}/prompt/${promptId}/playground`;
+		},
+		[orgId, projectId],
+	);
 
 	const isDeleteBlocked = Boolean(deleteStatus && !deleteStatus.canDelete);
 	const isDeleteDisabled =
@@ -596,7 +606,7 @@ export default function OrgAIKeys() {
 							{isCheckingDeleteStatus
 								? "Checking if this provider can be deleted..."
 								: isDeleteBlocked
-								  ? "This provider cannot be deleted yet."
+								  ? "Provider is in use. See details below."
 								  : "Deleting the provider will have the following effects:"}
 						</DialogDescription>
 					</DialogHeader>
@@ -613,26 +623,60 @@ export default function OrgAIKeys() {
 					)}
 
 					{isDeleteBlocked && deleteStatus && (
-						<div className="space-y-2">
-							<p className="text-sm text-muted-foreground">
-								Remove the following usage before deleting:
+						<div className="space-y-3 text-sm">
+							<p className="text-muted-foreground">
+								Deletion is blocked by the prompts below.
 							</p>
-							<ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-								{deleteStatus.promptUsageCount > 0 && (
-									<li>
-										{deleteStatus.promptUsageCount} prompt
-										{deleteStatus.promptUsageCount === 1 ? "" : "s"} currently use a
-										model from this provider.
-									</li>
-								)}
-								{deleteStatus.productiveCommitUsageCount > 0 && (
-									<li>
-										{deleteStatus.productiveCommitUsageCount} productive commit
-										{deleteStatus.productiveCommitUsageCount === 1 ? "" : "s"} use a
-										model from this provider.
-									</li>
-								)}
-							</ul>
+							{deleteStatus.promptUsagePrompts.length > 0 && (
+								<div className="space-y-2">
+									<p className="text-muted-foreground font-medium">
+										Prompts using provider models
+									</p>
+									<ul className="space-y-1">
+										{deleteStatus.promptUsagePrompts.map((prompt) => (
+											<li
+												key={`prompt-usage-${prompt.id}`}
+												className="flex items-center gap-2"
+											>
+												<Link
+													to={buildPromptHref(prompt.id)}
+													target="_blank"
+													rel="noreferrer"
+													className="text-primary hover:underline"
+												>
+													{prompt.name}
+												</Link>
+												<span className="text-muted-foreground/70">({prompt.id})</span>
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
+							{deleteStatus.productiveCommitUsagePrompts.length > 0 && (
+								<div className="space-y-2">
+									<p className="text-muted-foreground font-medium">
+										Prompts with productive commits using custom models
+									</p>
+									<ul className="space-y-1">
+										{deleteStatus.productiveCommitUsagePrompts.map((prompt) => (
+											<li
+												key={`productive-usage-${prompt.id}`}
+												className="flex items-center gap-2"
+											>
+												<Link
+													to={buildPromptHref(prompt.id)}
+													target="_blank"
+													rel="noreferrer"
+													className="text-primary hover:underline"
+												>
+													{prompt.name}
+												</Link>
+												<span className="text-muted-foreground/70">({prompt.id})</span>
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
 						</div>
 					)}
 

@@ -160,6 +160,8 @@ export interface CustomProviderDeleteStatus {
 	canDelete: boolean;
 	promptUsageCount: number;
 	productiveCommitUsageCount: number;
+	promptUsagePrompts: { id: number; name: string }[];
+	productiveCommitUsagePrompts: { id: number; name: string }[];
 }
 
 export interface ModelParameterConfig {
