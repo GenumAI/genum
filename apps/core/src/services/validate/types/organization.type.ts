@@ -110,9 +110,9 @@ export type SyncProviderModelsType = z.infer<typeof SyncProviderModelsSchema>;
  */
 export const ModelParameterConfigSchema = z.object({
 	enabled: z.boolean().default(true),
-	min: z.number().positive().optional(),
-	max: z.number().positive().optional(),
-	default: z.union([z.number().positive(), z.string()]).optional(),
+	min: z.number().min(0).optional(),
+	max: z.number().min(0).optional(),
+	default: z.union([z.number().min(0), z.string()]).optional(),
 	allowed: z.array(z.string()).optional(),
 });
 
