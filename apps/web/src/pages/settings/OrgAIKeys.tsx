@@ -50,8 +50,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import CustomModelDialog from "@/components/dialogs/CustomModelDialog";
-import ModelConfigDialog from "@/components/dialogs/ModelConfigDialog";
+import CustomModelDialog from "@/pages/settings/dialogs/CustomModelDialog";
+import ModelConfigDialog from "@/pages/settings/dialogs/ModelConfigDialog";
 
 type Vendor = "OPENAI" | "GOOGLE" | "ANTHROPIC";
 enum SettingsTab {
