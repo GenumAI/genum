@@ -2,7 +2,7 @@
 FROM node:20-alpine AS builder
 
 # Enable corepack for pnpm support
-RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
 
 # Set working directory
 WORKDIR /app

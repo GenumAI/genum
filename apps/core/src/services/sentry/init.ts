@@ -41,3 +41,13 @@ export function captureSentryException(error: unknown, tags?: Record<string, str
 		tags: tags || {},
 	});
 }
+
+export function captureSentryMessage(message: string, tags?: Record<string, string>): void {
+	if (!env.CORE_SENTRY_ENABLED || !env.CORE_SENTRY_DSN) {
+		return;
+	}
+
+	Sentry.captureMessage(message, {
+		tags: tags || {},
+	});
+}

@@ -8,7 +8,11 @@ import z, { ZodError } from "zod";
 import { setupRoutes } from "./routes";
 import { initSystemPromptsConfig } from "./ai/runner/run";
 import { initializeClickHouse } from "./services/logger/init";
-import { initializeSentry, captureSentryException } from "@/services/sentry/init";
+import {
+	initializeSentry,
+	captureSentryException,
+	captureSentryMessage,
+} from "@/services/sentry/init";
 import { corsOptions } from "@/utils/cors";
 import { VERSION } from "@/constants/VERSION";
 
@@ -43,7 +47,7 @@ app.use((_req, _res, next) => {
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 	if (err instanceof ZodError) {
 		console.error("Zod Validation Error:", JSON.stringify(err, null, 2));
-		captureSentryException(err, { error_type: "validation_error" });
+		captureSentryMessage("Zod Validation Error", { error_type: "validation_error" });
 		res.status(400).json({
 			status: "error",
 			statusCode: 400,

@@ -2,7 +2,7 @@
   "name": "genum",
   "version": "1.1.0-beta.2",
   "private": true,
-  "packageManager": "pnpm@10.24.0",
+  "packageManager": "pnpm@10.28.1",
   "author": "support@genum.ai",
   "scripts": {
     "dev:infra:up": "docker-compose -f docker-compose.dev.yml up -d",
@@ -41,6 +41,7 @@
   },
   "pnpm": {
     "overrides": {
+      "hono": "4.11.4",
       "qs": "6.14.1",
       "jws": "4.0.1"
     }

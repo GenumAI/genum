@@ -36,7 +36,7 @@ export const initSentry = () => {
 
 			// Tracing
 			tracesSampleRate: 1.0, //  Capture 100% of the transactions
-			tracePropagationTargets: ["localhost", /^https:\/\/api\.genum\.ai\/api/],
+			tracePropagationTargets: ["localhost", /^https?:\/\/(.+\.)?genum\.ai(?:\/|$)/],
 
 			// Session Replay
 			replaysSessionSampleRate: 1.0, //  Capture 100% of the sessions

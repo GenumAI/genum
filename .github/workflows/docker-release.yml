@@ -21,6 +21,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -67,6 +69,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -141,7 +145,7 @@ jobs:
             RELEASE_VERSION=${{ steps.release_version.outputs.tag }}
           tags: ${{ steps.image_tags.outputs.core_tags }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
 
       - name: Build and push Web image
         uses: docker/build-push-action@v5
@@ -154,7 +158,7 @@ jobs:
             RELEASE_VERSION=${{ steps.release_version.outputs.tag }}
           tags: ${{ steps.image_tags.outputs.web_tags }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
 
       - name: Create Sentry release for Web
         continue-on-error: true
