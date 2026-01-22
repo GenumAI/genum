@@ -4,6 +4,7 @@ import { CheckCircle2, Eye, EyeOff, Loader2, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { organizationApi } from "@/api/organization";
 import type { CustomProvider, ProviderModel } from "@/api/organization";
+import { isValidBaseUrl } from "@/pages/settings/dialogs/utils/validator";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,14 +44,29 @@ export default function CustomModelDialog({
 		error?: string;
 	} | null>(null);
 	const [isSavingProvider, setIsSavingProvider] = React.useState(false);
+	const [initialBaseUrl, setInitialBaseUrl] = React.useState("");
+	const [hasInvalidBaseUrl, setHasInvalidBaseUrl] = React.useState(false);
 
 	React.useEffect(() => {
 		if (!open) return;
-		setProviderBaseUrl(customProvider?.baseUrl ?? "");
+		const baseUrl = customProvider?.baseUrl ?? "";
+		setProviderBaseUrl(baseUrl);
+		setInitialBaseUrl(baseUrl);
+		setHasInvalidBaseUrl(false);
 		setProviderApiKey("");
 		setShowProviderApiKey(false);
 		setConnectionTestResult(null);
 	}, [open, customProvider]);
+
+	const trimmedBaseUrl = providerBaseUrl.trim();
+	const isUrlChanged = trimmedBaseUrl !== initialBaseUrl;
+	React.useEffect(() => {
+		if (!hasInvalidBaseUrl) return;
+		if (!trimmedBaseUrl) return;
+		if (isValidBaseUrl(trimmedBaseUrl)) {
+			setHasInvalidBaseUrl(false);
+		}
+	}, [hasInvalidBaseUrl, trimmedBaseUrl]);
 
 	const testConnection = async () => {
 		if (!providerBaseUrl.trim()) return;
@@ -77,14 +93,23 @@ export default function CustomModelDialog({
 	};
 
 	const handleSaveProvider = async () => {
-		if (!providerBaseUrl.trim() || isSavingProvider) return;
+		if (!trimmedBaseUrl || isSavingProvider) return;
+		if (!isValidBaseUrl(trimmedBaseUrl)) {
+			setHasInvalidBaseUrl(true);
+			toast({
+				title: "Error",
+				description: "Invalid base URL format",
+				variant: "destructive",
+			});
+			return;
+		}
 
 		try {
 			setIsSavingProvider(true);
 
 			await organizationApi.upsertCustomProvider({
 				vendor: "CUSTOM_OPENAI_COMPATIBLE",
-				baseUrl: providerBaseUrl.trim(),
+				baseUrl: trimmedBaseUrl,
 				key: providerApiKey.trim(),
 			});
 
@@ -237,7 +262,9 @@ export default function CustomModelDialog({
 					</Button>
 					<Button
 						onClick={handleSaveProvider}
-						disabled={!providerBaseUrl.trim() || isSavingProvider}
+						disabled={
+							!trimmedBaseUrl || isSavingProvider || !isUrlChanged || hasInvalidBaseUrl
+						}
 					>
 						{isSavingProvider ? "Saving..." : "Save"}
 					</Button>

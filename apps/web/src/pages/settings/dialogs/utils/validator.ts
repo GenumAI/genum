@@ -134,3 +134,5 @@ export const getModelConfigValidationState = (
 		hasInvalidTemperatureRange,
 	};
 };
+
+export const isValidBaseUrl = (value: string) => /^https?:\/\//i.test(value.trim());
