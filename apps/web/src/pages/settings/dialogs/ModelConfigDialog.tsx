@@ -3,6 +3,12 @@ import * as React from "react";
 import { useToast } from "@/hooks/useToast";
 import { organizationApi } from "@/api/organization";
 import type { LanguageModel, ModelParameterConfig } from "@/api/organization";
+import {
+	getModelConfigValidationState,
+	getModelParamBounds,
+	getModelParamDefaultOnBlur,
+	getNextModelParameterConfig,
+} from "@/pages/settings/dialogs/utils/validator";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -85,6 +91,11 @@ export default function ModelConfigDialog({
 		return merged;
 	});
 	const [openItems, setOpenItems] = React.useState<string[]>([]);
+	const [hasEmptyField, setHasEmptyField] = React.useState(false);
+	const [hasEmptyResponseFormat, setHasEmptyResponseFormat] = React.useState(false);
+	const [hasInvalidTokenRange, setHasInvalidTokenRange] = React.useState(false);
+	const [hasInvalidTemperatureRange, setHasInvalidTemperatureRange] = React.useState(false);
+	const [validationRequested, setValidationRequested] = React.useState(false);
 
 	React.useEffect(() => {
 		setDisplayName(model.displayName || model.name);
@@ -105,6 +116,20 @@ export default function ModelConfigDialog({
 		setOpenItems(enabledKeys);
 	}, [model]);
 
+	React.useEffect(() => {
+		const {
+			hasEmptyField,
+			hasEmptyResponseFormat,
+			hasInvalidTokenRange,
+			hasInvalidTemperatureRange,
+		} =
+			getModelConfigValidationState(parametersConfig);
+		setHasEmptyField(hasEmptyField);
+		setHasEmptyResponseFormat(hasEmptyResponseFormat);
+		setHasInvalidTokenRange(hasInvalidTokenRange);
+		setHasInvalidTemperatureRange(hasInvalidTemperatureRange);
+	}, [parametersConfig]);
+
 	const toggleParameter = (paramName: string) => {
 		setParametersConfig((prev) => ({
 			...prev,
@@ -120,14 +145,9 @@ export default function ModelConfigDialog({
 		field: keyof ModelParameterConfig,
 		value: number | string,
 	) => {
-		const nextValue =
-			typeof value === "number" ? (Number.isFinite(value) ? Math.max(0, value) : 0) : value;
 		setParametersConfig((prev) => ({
 			...prev,
-			[paramName]: {
-				...prev[paramName],
-				[field]: nextValue,
-			},
+			[paramName]: getNextModelParameterConfig(paramName, prev[paramName], field, value),
 		}));
 	};
 
@@ -160,6 +180,45 @@ export default function ModelConfigDialog({
 
 	const handleSave = async () => {
 		try {
+			setValidationRequested(true);
+			if (hasEmptyField) {
+				toast({
+					title: "Error",
+					description: "Field cannot be empty",
+					variant: "destructive",
+				});
+				return;
+			}
+
+			const responseFormatConfig = parametersConfig.response_format;
+			if (
+				responseFormatConfig?.enabled &&
+				Array.isArray(responseFormatConfig.allowed) &&
+				responseFormatConfig.allowed.length === 0
+			) {
+				toast({
+					title: "Error",
+					description: "Response Format can not be empty",
+					variant: "destructive",
+				});
+				return;
+			}
+			if (hasInvalidTokenRange) {
+				toast({
+					title: "Error",
+					description: "Min Tokens cannot be greater than Max Tokens",
+					variant: "destructive",
+				});
+				return;
+			}
+			if (hasInvalidTemperatureRange) {
+				toast({
+					title: "Error",
+					description: "Min Temperature cannot be greater than Max Temperature",
+					variant: "destructive",
+				});
+				return;
+			}
 			setIsSaving(true);
 
 			const enabledConfig: Record<string, ModelParameterConfig> = {};
@@ -306,7 +365,9 @@ export default function ModelConfigDialog({
 														</Select>
 													</div>
 												</div>
-											) : config.min !== undefined ||
+											) : paramName === "temperature" ||
+											  paramName === "max_tokens" ||
+											  config.min !== undefined ||
 											  config.max !== undefined ||
 											  typeof config.default === "number" ? (
 												<div className="grid grid-cols-3 gap-3">
@@ -327,6 +388,7 @@ export default function ModelConfigDialog({
 																)
 															}
 															min={0}
+															max={getModelParamBounds(paramName)?.max}
 															disabled={!config.enabled}
 															className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-ring"
 														/>
@@ -348,6 +410,7 @@ export default function ModelConfigDialog({
 																)
 															}
 															min={0}
+															max={getModelParamBounds(paramName)?.max}
 															disabled={!config.enabled}
 															className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-ring"
 														/>
@@ -374,7 +437,43 @@ export default function ModelConfigDialog({
 																		: Number(e.target.value),
 																)
 															}
-															min={0}
+															onBlur={() => {
+																setParametersConfig((prev) => {
+																	const current = prev[paramName];
+																	const nextDefault =
+																		getModelParamDefaultOnBlur(
+																			paramName,
+																			current,
+																		);
+																	if (
+																		nextDefault === undefined ||
+																		nextDefault === current.default
+																	) {
+																		return prev;
+																	}
+																	return {
+																		...prev,
+																		[paramName]: {
+																			...current,
+																			default: nextDefault,
+																		},
+																	};
+																});
+															}}
+															min={
+																getModelParamBounds(paramName)
+																	? typeof config.min === "number"
+																		? config.min
+																		: getModelParamBounds(paramName)?.min
+																	: 0
+															}
+															max={
+																getModelParamBounds(paramName)
+																	? typeof config.max === "number"
+																		? config.max
+																		: getModelParamBounds(paramName)?.max
+																	: undefined
+															}
 															disabled={!config.enabled}
 															className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-ring"
 														/>
@@ -397,7 +496,16 @@ export default function ModelConfigDialog({
 					<Button variant="outline" onClick={() => onOpenChange(false)}>
 						Cancel
 					</Button>
-					<Button onClick={handleSave} disabled={isSaving}>
+					<Button
+						onClick={handleSave}
+						disabled={
+							isSaving ||
+							(validationRequested &&
+								(hasEmptyResponseFormat ||
+									hasInvalidTokenRange ||
+									hasInvalidTemperatureRange))
+						}
+					>
 						{isSaving ? "Saving..." : "Save Configuration"}
 					</Button>
 				</DialogFooter>
