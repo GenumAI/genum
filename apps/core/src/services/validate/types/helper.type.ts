@@ -15,7 +15,7 @@ export const CanvasChatMessageSchema = z
 	.object({
 		query: z.string(),
 		context: CanvasChatMessageContextSchema.optional(),
-		mode: z.nativeEnum(ChatMode).default(ChatMode.AGENT),
+		mode: z.enum(ChatMode).default(ChatMode.AGENT),
 	})
 	.strict();
 

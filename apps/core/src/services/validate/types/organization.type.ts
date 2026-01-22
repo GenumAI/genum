@@ -28,7 +28,7 @@ export const OrganizationMemberUpdateSchema = OrganizationMemberSchema.omit({
 	userId: true,
 })
 	.extend({
-		role: z.nativeEnum(OrganizationRole),
+		role: z.enum(OrganizationRole),
 	})
 	.strict();
 
@@ -37,7 +37,7 @@ export type OrganizationMemberUpdateType = z.infer<typeof OrganizationMemberUpda
 export const OrganizationMemberInviteSchema = z
 	.object({
 		email: z.email({ message: "Invalid email address" }),
-		// role: z.nativeEnum(OrganizationRole).default(OrganizationRole.READER),
+		// role: z.enum(OrganizationRole).default(OrganizationRole.READER),
 		// feature: teamwork
 		role: z.enum(OrganizationRole).default(OrganizationRole.ADMIN),
 	})

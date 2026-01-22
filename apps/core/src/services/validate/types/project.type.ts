@@ -25,7 +25,7 @@ export const ProjectMemberCreateSchema = ProjectMemberSchema.omit({
 })
 	.extend({
 		userId: z.coerce.number().int().positive(),
-		role: z.nativeEnum(ProjectRole),
+		role: z.enum(ProjectRole),
 	})
 	.strict();
 
@@ -37,7 +37,7 @@ export const ProjectMemberUpdateSchema = ProjectMemberSchema.omit({
 	userId: true,
 })
 	.extend({
-		role: z.nativeEnum(ProjectRole),
+		role: z.enum(ProjectRole),
 	})
 	.strict();
 
@@ -59,9 +59,9 @@ export const ProjectLogsQuerySchema = z
 		pageSize: z.coerce.number().int().min(1).max(100).default(10).optional(),
 		fromDate: z.coerce.date().optional(),
 		toDate: z.coerce.date().optional(),
-		logLevel: z.nativeEnum(LogLevel).optional(),
+		logLevel: z.enum(LogLevel).optional(),
 		promptId: z.coerce.number().int().positive().optional(),
-		source: z.nativeEnum(SourceType).optional(),
+		source: z.enum(SourceType).optional(),
 		query: z.string().optional(),
 	})
 	.strict();

@@ -60,8 +60,8 @@ export const PromptLogsQuerySchema = z
 		pageSize: z.coerce.number().int().min(1).max(100).default(10).optional(),
 		fromDate: z.coerce.date().optional(),
 		toDate: z.coerce.date().optional(),
-		source: z.nativeEnum(SourceType).optional(),
-		logLevel: z.nativeEnum(LogLevel).optional(),
+		source: z.enum(SourceType).optional(),
+		logLevel: z.enum(LogLevel).optional(),
 		query: z.string().optional(),
 	})
 	.strict();
