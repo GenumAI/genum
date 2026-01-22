@@ -41,6 +41,7 @@ export function useModelsSettings({
 	const [currentModelConfig, setCurrentModelConfig] = useState<ResponseModelConfig | null>(null);
 	const [currentJsonSchema, setCurrentJsonSchema] = useState<string | null>(null);
 	const [currentResponseFormat, setCurrentResponseFormat] = useState<string>("");
+	const [isSchemaCleared, setIsSchemaCleared] = useState(false);
 	const [selectedModelName, setSelectedModelName] = useState<string>("");
 	const [selectedModelId, setSelectedModelId] = useState<number | null>(null);
 
@@ -162,6 +163,7 @@ export function useModelsSettings({
 					selectedModelId,
 					currentResponseFormat,
 					prompt,
+					allowPromptJsonSchemaFallback: !isSchemaCleared,
 				});
 
 				try {
@@ -194,6 +196,7 @@ export function useModelsSettings({
 			activeModelConfig,
 			prompt,
 			getModelConfig,
+			isSchemaCleared,
 		],
 	);
 
@@ -334,18 +337,26 @@ export function useModelsSettings({
 				return;
 			}
 			try {
+				if (value !== "json_schema") {
+					setCurrentJsonSchema(null);
+				}
 				const formValues = getValues();
 				const payload = buildModelSettingsPayload({
 					parameters: activeModelConfig?.parameters || {},
 					formValues: formValues as unknown as Record<string, unknown>,
 					tools,
 					responseFormat: value,
-					jsonSchema: currentJsonSchema,
+					jsonSchema: value === "json_schema" ? currentJsonSchema : null,
 					selectedModelId,
 					currentResponseFormat,
 					prompt,
+					allowPromptJsonSchemaFallback: !isSchemaCleared,
 				});
 				setCurrentResponseFormat(String(value));
+				if (value !== "json_schema") {
+					setCurrentJsonSchema(null);
+					setIsSchemaCleared(true);
+				}
 				await updateModelSettings(promptId as number, payload);
 				await new Promise((resolve) => setTimeout(resolve, 200));
 				await getCommitStatus();
@@ -375,6 +386,7 @@ export function useModelsSettings({
 			activeModelConfig,
 			prompt,
 			getModelConfig,
+			isSchemaCleared,
 		],
 	);
 
@@ -396,7 +408,9 @@ export function useModelsSettings({
 						selectedModelId,
 						currentResponseFormat: "json_schema",
 						prompt,
+						allowPromptJsonSchemaFallback: !isSchemaCleared,
 					});
+					setIsSchemaCleared(false);
 					await updateModelSettings(promptId, payload);
 					await new Promise((resolve) => {
 						setTimeout(async () => {
@@ -420,6 +434,7 @@ export function useModelsSettings({
 									: null,
 						);
 						setCurrentResponseFormat(String(config.response_format || ""));
+						setIsSchemaCleared(false);
 					}
 				}
 			}
@@ -435,6 +450,7 @@ export function useModelsSettings({
 			activeModelConfig,
 			prompt,
 			getModelConfig,
+			isSchemaCleared,
 		],
 	);
 
@@ -450,6 +466,7 @@ export function useModelsSettings({
 				selectedModelId,
 				currentResponseFormat,
 				prompt,
+				allowPromptJsonSchemaFallback: !isSchemaCleared,
 				...overrides,
 			}),
 		[
@@ -460,6 +477,7 @@ export function useModelsSettings({
 			currentJsonSchema,
 			selectedModelId,
 			prompt,
+			isSchemaCleared,
 		],
 	);
 
@@ -654,6 +672,11 @@ export function useModelsSettings({
 			setCurrentJsonSchema(null);
 		}
 	}, [prompt?.languageModelConfig?.json_schema]);
+
+	useEffect(() => {
+		if (!promptId) return;
+		setIsSchemaCleared(false);
+	}, [promptId]);
 
 	return {
 		// Form

@@ -10,6 +10,7 @@ interface BuildPayloadParams {
 	selectedModelId: number | null;
 	currentResponseFormat: string;
 	prompt?: PromptSettings;
+	allowPromptJsonSchemaFallback?: boolean;
 }
 
 /**
@@ -24,6 +25,7 @@ export function buildModelSettingsPayload({
 	selectedModelId,
 	currentResponseFormat,
 	prompt,
+	allowPromptJsonSchemaFallback = true,
 }: BuildPayloadParams): Record<string, unknown> {
 	const payload: Record<string, unknown> = {};
 
@@ -49,7 +51,7 @@ export function buildModelSettingsPayload({
 	if ((responseFormat || currentResponseFormat) === "json_schema") {
 		if (jsonSchema) {
 			payload.json_schema = jsonSchema;
-		} else if (prompt?.languageModelConfig?.json_schema) {
+		} else if (allowPromptJsonSchemaFallback && prompt?.languageModelConfig?.json_schema) {
 			payload.json_schema =
 				typeof prompt.languageModelConfig.json_schema === "string"
 					? prompt.languageModelConfig.json_schema
