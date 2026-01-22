@@ -445,6 +445,8 @@ export class OrganizationController {
 					error: e.message,
 					promptUsageCount: e.promptUsageCount,
 					productiveCommitUsageCount: e.productiveCommitUsageCount,
+					promptUsagePrompts: e.promptUsagePrompts,
+					productiveCommitUsagePrompts: e.productiveCommitUsagePrompts,
 				});
 				return;
 			}

@@ -21,12 +21,21 @@ export class ProviderNoBaseUrlError extends Error {
 export class ProviderDeleteNotAllowedError extends Error {
 	public readonly promptUsageCount: number;
 	public readonly productiveCommitUsageCount: number;
+	public readonly promptUsagePrompts: { id: number; name: string }[];
+	public readonly productiveCommitUsagePrompts: { id: number; name: string }[];
 
-	constructor(promptUsageCount: number, productiveCommitUsageCount: number) {
+	constructor(
+		promptUsageCount: number,
+		productiveCommitUsageCount: number,
+		promptUsagePrompts: { id: number; name: string }[],
+		productiveCommitUsagePrompts: { id: number; name: string }[],
+	) {
 		super("Custom provider cannot be deleted while it is in use");
 		this.name = "ProviderDeleteNotAllowedError";
 		this.promptUsageCount = promptUsageCount;
 		this.productiveCommitUsageCount = productiveCommitUsageCount;
+		this.promptUsagePrompts = promptUsagePrompts;
+		this.productiveCommitUsagePrompts = productiveCommitUsagePrompts;
 	}
 }
 
@@ -56,6 +65,8 @@ export class OrganizationService {
 			return {
 				provider: null,
 				modelIds: [],
+				promptUsagePrompts: [],
+				productiveCommitUsagePrompts: [],
 				promptUsageCount: 0,
 				productiveCommitUsageCount: 0,
 				canDelete: false,
@@ -63,18 +74,22 @@ export class OrganizationService {
 		}
 
 		const modelIds = await this.db.organization.getCustomProviderModelIds(provider.id);
-		const promptUsageCount = await this.db.prompts.countPromptsUsingLanguageModels(
+		const promptUsagePrompts = await this.db.prompts.getPromptsUsingLanguageModels(
 			orgId,
 			modelIds,
 		);
-		const productiveCommitUsageCount =
-			await this.db.prompts.countProductiveCommitsUsingLanguageModels(orgId, modelIds);
+		const productiveCommitUsagePrompts =
+			await this.db.prompts.getProductiveCommitPromptsUsingLanguageModels(orgId, modelIds);
+		const promptUsageCount = promptUsagePrompts.length;
+		const productiveCommitUsageCount = productiveCommitUsagePrompts.length;
 
 		return {
 			provider,
 			modelIds,
 			promptUsageCount,
 			productiveCommitUsageCount,
+			promptUsagePrompts,
+			productiveCommitUsagePrompts,
 			canDelete: promptUsageCount === 0 && productiveCommitUsageCount === 0,
 		};
 	}
@@ -112,6 +127,8 @@ export class OrganizationService {
 			throw new ProviderDeleteNotAllowedError(
 				deleteInfo.promptUsageCount,
 				deleteInfo.productiveCommitUsageCount,
+				deleteInfo.promptUsagePrompts,
+				deleteInfo.productiveCommitUsagePrompts,
 			);
 		}
 
@@ -145,6 +162,8 @@ export class OrganizationService {
 			canDelete: deleteInfo.canDelete,
 			promptUsageCount: deleteInfo.promptUsageCount,
 			productiveCommitUsageCount: deleteInfo.productiveCommitUsageCount,
+			promptUsagePrompts: deleteInfo.promptUsagePrompts,
+			productiveCommitUsagePrompts: deleteInfo.productiveCommitUsagePrompts,
 		};
 	}
 
