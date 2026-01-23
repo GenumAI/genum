@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bell } from "lucide-react";
 import { SidebarMenuButton } from "@/components/sidebar/sidebar";
 import { NotificationIcon } from "@/components/ui/icons-tsx/NotificationIcon";
+import { formatNotificationPreview } from "@/lib/notificationPreview";
 
 export function SidebarNotificationButton() {
 	const { toast } = useToast();
@@ -128,13 +129,6 @@ export function SidebarNotificationButton() {
 		return date.toLocaleDateString();
 	};
 
-	const formatNotificationContent = (content: string) => {
-		// Remove markdown formatting and clean up text
-		let cleanContent = content.replace(/\\n/g, " "); // Replace literal \n with space.replace(/\n/g, ' ') // Replace actual newlines with space.replace(/#{1,6}\s+/g, '') // Remove headers (# ## ### etc.).replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold **text**.replace(/\*(.*?)\*/g, '$1') // Remove italic *text*.replace(/` (. *?)`/g, '$1') // Remove inline code ` text `.replace(/` `` [\s\S] *? `` `/g, '') // Remove code blocks.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links [text](url).replace(/^\s*[-*+]\s+/gm, '') // Remove list markers at start of line.replace(/\s*[-*+]\s+/g, ', ') // Replace remaining list markers with commas.replace(/^\s*\d+\.\s+/gm, '') // Remove numbered list markers at start of line.replace(/\s*\d+\.\s+/g, ', ') // Replace remaining numbered list markers with commas.replace(/^\s*>\s*/gm, '') // Remove blockquote markers.replace(/\s*>\s*/g, ' ') // Replace remaining blockquote markers with space.replace(/^\s*\|.*\|.*$/gm, '') // Remove table rows.replace(/^\s*[-=]+\s*$/gm, '') // Remove table separators.replace(/^\s*\|/gm, '') // Remove table column separators at start.replace(/\|\s*$/gm, '') // Remove table column separators at end.replace(/\|/g, ' ') // Replace remaining table separators with space.replace(/^\s*---+\s*$/gm, '') // Remove horizontal rules.replace(/^\s*\*\*\*\s*$/gm, '') // Remove horizontal rules with asterisks.replace(/^\s*___+\s*$/gm, '') // Remove horizontal rules with underscores.replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // Remove images ![alt](url).replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links [text](url) (again for safety).replace(/\s+/g, ' ') // Replace multiple spaces with single space.replace(/,\s*,/g, ',') // Remove double commas.replace(/,\s*$/, '') // Remove trailing comma.replace(/^\s*$/, '') // Remove empty lines.trim();
-
-		return cleanContent;
-	};
-
 	// Check if there are any unread notifications
 	const hasUnreadNotifications = notifications.some(
 		(notification) => notification.read === false,
@@ -215,8 +209,9 @@ export function SidebarNotificationButton() {
 													)}{" "}
 												</div>
 												<p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
-													{formatNotificationContent(
+													{formatNotificationPreview(
 														notification.content,
+														120,
 													)}{" "}
 												</p>
 												<div className="flex items-center justify-between">

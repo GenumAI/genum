@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { NotificationIcon } from "@/components/ui/icons-tsx/NotificationIcon";
 import { userApi, Notification } from "@/api/user";
+import { formatNotificationPreview } from "@/lib/notificationPreview";
 
 export default function Notifications() {
 	const { toast } = useToast();
@@ -107,34 +108,6 @@ export default function Notifications() {
 		return date.toLocaleDateString();
 	};
 
-	const formatNotificationContent = (content: string) => {
-		// Remove markdown formatting and clean up text
-		let cleanContent = content
-			.replace(/\\n/g, " ") // Replace literal \n with space
-			.replace(/\n/g, " ") // Replace actual newlines with space
-			.replace(/#{1,6}\s+/g, "") // Remove headers (# ## ### etc.)
-			.replace(/\*\*(.*?)\*\*/g, "$1") // Remove bold **text**
-			.replace(/\*(.*?)\*/g, "$1") // Remove italic *text*
-			.replace(/`(.*?)`/g, "$1") // Remove inline code `text`
-			.replace(/```[\s\S]*?```/g, "") // Remove code blocks
-			.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Remove links [text](url)
-			.replace(/^\s*[-*+]\s+/gm, "") // Remove list markers at start of line
-			.replace(/\s*[-*+]\s+/g, ", ") // Replace remaining list markers with commas
-			.replace(/^\s*\d+\.\s+/gm, "") // Remove numbered list markers at start of line
-			.replace(/\s*\d+\.\s+/g, ", ") // Replace remaining numbered list markers with commas
-			.replace(/\s+/g, " ") // Replace multiple spaces with single space
-			.replace(/,\s*,/g, ",") // Remove double commas
-			.replace(/,\s*$/, "") // Remove trailing comma
-			.trim();
-
-		// Limit to one line (approximately 100 characters)
-		if (cleanContent.length > 120) {
-			cleanContent = cleanContent.substring(0, 120) + "...";
-		}
-
-		return cleanContent;
-	};
-
 	const unreadCount = notifications.filter((n) => !n.read).length;
 
 	return (
@@ -194,7 +167,7 @@ export default function Notifications() {
 										)}
 									</div>
 									<p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-										{formatNotificationContent(notification.content)}
+										{formatNotificationPreview(notification.content, 120)}
 									</p>
 									<div className="flex items-center justify-between">
 										<span className="text-xs text-gray-500">
