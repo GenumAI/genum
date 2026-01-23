@@ -484,7 +484,7 @@ export default function OrgAIKeys() {
 												<PlusCircle className="mr-2 h-4 w-4" /> Add Provider
 											</Button>
 											<a
-												href="https://docs.genum.ai"
+												href="https://docs.genum.ai/llm-providers"
 												target="_blank"
 												rel="noreferrer"
 												className="text-sm text-primary hover:underline"
