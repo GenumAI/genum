@@ -238,6 +238,14 @@ export default function NotificationDetails() {
 												{children}
 											</a>
 										),
+										img: ({ src, alt }) => (
+											<img
+												src={src}
+												alt={alt ?? ""}
+												loading="lazy"
+												className="my-6 w-full max-w-[800px] rounded-md border border-muted-foreground/10"
+											/>
+										),
 										pre: ({ children }) => (
 											<pre className="bg-muted p-2 rounded-md overflow-x-auto text-xs mb-2 last:mb-0 break-words">
 												{children}
