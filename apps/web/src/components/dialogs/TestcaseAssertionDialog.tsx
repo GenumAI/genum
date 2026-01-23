@@ -3,6 +3,7 @@ import {
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
+	DialogDescription,
 	DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,9 @@ import { Separator } from "@/components/ui/separator";
 import { CircleAlert, CircleCheck, CirclePlus } from "lucide-react";
 
 import type { TestCase, TestStatus } from "@/types/TestСase";
+import { useEffect, useRef } from "react";
 import type { PromptSettings } from "@/types/Prompt";
+import { usePlaygroundTestcase } from "@/stores/playground.store";
 
 interface TestcaseAssertionModalProps {
 	open: boolean;
@@ -70,15 +73,41 @@ export const TestcaseAssertionModal = ({
 	status,
 	assertionType,
 }: TestcaseAssertionModalProps) => {
-	const currentAssertionType = assertionType || "AI";
-	const hasAssertionThoughts = testcase.assertionThoughts && testcase.assertionThoughts.trim().length > 0;
-	const showAssertionFields = hasAssertionThoughts && (currentAssertionType === "AI" || currentAssertionType === "STRICT");
+	const { currentAssertionType: storeAssertionType } = usePlaygroundTestcase();
+	const currentAssertionType = storeAssertionType ?? assertionType ?? "AI";
+	const hasAssertionThoughts =
+		testcase.assertionThoughts && testcase.assertionThoughts.trim().length > 0;
+	const showAssertionFields =
+		hasAssertionThoughts && (currentAssertionType === "AI" || currentAssertionType === "STRICT");
+	const assertionThoughtsRef = useRef<HTMLTextAreaElement>(null);
+	const assertionContainerRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		const thoughtsElement = assertionThoughtsRef.current;
+		if (!showAssertionFields && thoughtsElement && thoughtsElement === document.activeElement) {
+			thoughtsElement.blur();
+		}
+	}, [showAssertionFields]);
+
+	useEffect(() => {
+		const container = assertionContainerRef.current;
+		if (!container) return;
+
+		if (showAssertionFields) {
+			container.removeAttribute("inert");
+		} else {
+			container.setAttribute("inert", "");
+		}
+	}, [showAssertionFields]);
 
 	return (
 		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Testcase Assertion</DialogTitle>
+					<DialogDescription className="sr-only">
+						Details for the selected testcase assertion.
+					</DialogDescription>
 				</DialogHeader>
 
 				<div>
@@ -110,32 +139,40 @@ export const TestcaseAssertionModal = ({
 						<span className="font-semibold">Assertion Type</span>
 						<Badge
 							className={
-								(currentAssertionType === "STRICT"
+								`${currentAssertionType === "STRICT"
 									? "bg-[#2A9D90] text-white rounded-xl"
 									: currentAssertionType === "MANUAL"
 										? "bg-[#6C98F2] text-white rounded-xl"
 										: currentAssertionType === "AI"
 											? "bg-[#B66AD6] text-white rounded-xl"
-											: "bg-gray-200 text-black") + " border-none"
+											: "bg-gray-200 text-black"} border-none`
 							}
 						>
 							{currentAssertionType}
 						</Badge>
 					</div>
 
-					{showAssertionFields && (
-						<>
-							<div className="mt-4 flex flex-col gap-2 text-[14px]">
-								<label className="font-semibold" htmlFor="assertion-thoughts">Reasoning</label>
-								<Textarea
-									id="assertion-thoughts"
-									value={testcase.assertionThoughts}
-									readOnly
-									className="h-[100px]"
-								/>
-							</div>
-						</>
-					)}
+					<div
+						className={
+							`mt-4 flex flex-col gap-2 text-[14px] overflow-hidden transition-all duration-200 ease-out ${
+								showAssertionFields
+									? "max-h-[200px] opacity-100"
+									: "max-h-0 opacity-0 pointer-events-none"
+							}`
+						}
+						aria-hidden={!showAssertionFields}
+						ref={assertionContainerRef}
+					>
+						<label className="font-semibold" htmlFor="assertion-thoughts">Reasoning</label>
+						<Textarea
+							id="assertion-thoughts"
+							value={testcase.assertionThoughts}
+							readOnly
+							ref={assertionThoughtsRef}
+							tabIndex={showAssertionFields ? 0 : -1}
+							className="h-[100px]"
+						/>
+					</div>
 				</div>
 
 				<DialogFooter>
