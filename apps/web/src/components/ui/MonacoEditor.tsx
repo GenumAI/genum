@@ -74,16 +74,10 @@ const MonacoEditor = ({
 	const { resolvedTheme } = useTheme();
 	const monacoTheme = resolvedTheme === "dark" ? "vs-dark" : "vs";
 
-	// Auto-dispose editor on unmount
 	useEffect(() => {
 		return () => {
-			if (autoDispose && editorRef.current) {
-				setTimeout(() => {
-					if (editorRef.current?.dispose) {
-						editorRef.current.dispose();
-					}
-					editorRef.current = null;
-				}, 500);
+			if (autoDispose) {
+				editorRef.current = null;
 			}
 		};
 	}, [autoDispose]);
@@ -111,4 +105,3 @@ const MonacoEditor = ({
 };
 
 export default memo(MonacoEditor);
-
