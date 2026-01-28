@@ -52,6 +52,7 @@ import { TestcaseStatuses } from "@/types/Prompt";
 import { usePromptById } from "@/hooks/usePrompt";
 import { useCreatePrompt } from "@/hooks/useCreatePrompt";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
+import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
 
 export interface Prompt {
 	id: number;
@@ -72,7 +73,7 @@ export interface Prompt {
 			id: number;
 			name: string;
 			email: string;
-			picture: string;
+			picture?: string | null;
 		};
 	} | null;
 	_count: {
@@ -363,15 +364,7 @@ export default function TestcaseTable() {
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<div className="flex items-center justify-center cursor-pointer gap-2">
-									<img
-										src={lastCommit.author.picture}
-										alt={lastCommit.author.name}
-										className="w-5 h-5 rounded-full"
-										onError={(e) => {
-											const target = e.target as HTMLImageElement;
-											target.style.display = "none";
-										}}
-									/>
+									<CommitAuthorAvatar author={lastCommit.author} />
 									<span className="text-xs text-muted-foreground">
 										{formatCommitTime(lastCommit.createdAt)}
 									</span>
