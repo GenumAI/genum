@@ -34,19 +34,23 @@ function getCommitAvatarColor(name: string): string {
 	return COMMIT_AVATAR_LETTER_COLOR_MAP[firstLetter] ?? "bg-[#D6CFFF]";
 }
 
+function isLetter(char: string): boolean {
+	return /^[a-zA-Z]$/.test(char);
+}
+
 export interface CommitAuthorAvatarProps {
 	author: { name: string; picture?: string | null };
 }
 
 export function CommitAuthorAvatar({ author }: CommitAuthorAvatarProps) {
 	const picture = author.picture ?? "/assets/avatars/shadcn.jpg";
-	const initial = (
-		author.name
-			?.match(/[a-zA-Z]/g)
-			?.slice(0, 1)
-			.join("") ?? "U"
-	).toUpperCase();
-	const colorClass = getCommitAvatarColor(author.name ?? "U");
+	const firstChar = author.name?.[0] ?? "";
+	const isNonLetter = !firstChar || !isLetter(firstChar);
+
+	const initial = isNonLetter ? "G" : firstChar.toUpperCase();
+	const colorClass = isNonLetter
+		? "bg-black text-white"
+		: getCommitAvatarColor(author.name ?? "U");
 
 	return (
 		<Avatar className="h-5 w-5 rounded-full">
