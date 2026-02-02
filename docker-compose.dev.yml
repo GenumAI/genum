@@ -47,10 +47,33 @@ services:
     networks:
       - default
 
+  minio:
+    image: minio/minio:latest
+    container_name: genum-minio
+    entrypoint: sh
+    command: -c 'mkdir -p /data/genum && minio server --address ":9000" --console-address ":9001" /data' # add genum bucket and start MinIO server
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-miniosecret}
+    ports:
+      - 127.0.0.1:9090:9000
+      - 127.0.0.1:9091:9001 # console
+    volumes:
+      - genum-minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+      start_period: 1s
+    networks:
+      - default
+
 volumes:
   genum-clickhouse_data:
   genum-clickhouse_logs:
   genum-postgres_data:
+  genum-minio_data:
 
 networks:
   default:
