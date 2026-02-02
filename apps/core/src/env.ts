@@ -38,6 +38,14 @@ const EnvSchema = z.object({
 	EMAIL_WEBHOOK_URL: z.url().optional().default(""),
 	FEEDBACK_WEBHOOK_URL: z.url().optional().default(""),
 	NEW_USER_WEBHOOK_URL: z.url().optional().default(""),
+	// S3 Storage
+	S3_BUCKET: z.string().optional().default("genum"),
+	S3_REGION: z.string().optional().default("us-east-1"),
+	S3_ACCESS_KEY_ID: z.string().optional().default("minio"),
+	S3_SECRET_ACCESS_KEY: z.string().optional().default("miniosecret"),
+	S3_ENDPOINT: z.url().optional().default("http://minio:9000"),
+	S3_FORCE_PATH_STYLE: z.boolean().optional().default(false),
+	S3_PUBLIC_ENDPOINT: z.url().optional(),
 });
 
 // delete empty env variables from runtime env
