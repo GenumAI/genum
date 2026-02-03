@@ -2,6 +2,7 @@ import { storage } from "./storage";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { db } from "@/database/db";
+import { Readable } from "node:stream";
 
 export interface FileMetadata {
 	id: string;
@@ -12,6 +13,14 @@ export interface FileMetadata {
 	projectId: number;
 	createdAt: Date;
 }
+
+export type FileInput = {
+	id: string;
+	buffer: Buffer;
+	url?: string;
+	contentType: string;
+	fileName: string;
+};
 
 export class FileService {
 	/**
@@ -149,6 +158,29 @@ export class FileService {
 		await db.file.deleteFile(fileId, projectId);
 
 		return true;
+	}
+
+	async getFileObjectsByIds(fileIds: string[], projectId: number): Promise<FileInput[]> {
+		const fileObjects = await Promise.all(
+			fileIds.map((fileId) => this.getFileWithBuffer(fileId, projectId)),
+		);
+		return fileObjects;
+	}
+
+	private async getFileWithBuffer(fileId: string, projectId: number): Promise<FileInput> {
+		const metadata = await this.getFileMetadata(fileId, projectId);
+		if (!metadata) {
+			throw new Error("File not found");
+		}
+		const { stream } = await storage.getObjectStream(metadata.key);
+		const buffer = await stream.toArray();
+
+		return {
+			id: metadata.id,
+			buffer: Buffer.concat(buffer),
+			contentType: metadata.contentType,
+			fileName: metadata.name,
+		};
 	}
 }
 
