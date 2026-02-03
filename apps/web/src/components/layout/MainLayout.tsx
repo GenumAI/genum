@@ -231,7 +231,7 @@ function LayoutContent({ user }: { user: UserType }) {
 			<PendingInviteHandler />
 			<RotateScreenPlug />
 			<CookiesPopover />
-			<AppSidebar user={user} />
+			<AppSidebar />
 			<SidebarInset>
 				<header className="w-full bg-background dark:bg-sidebar z-[49] top-0 flex h-[54px] border-b border-[#E4E4E7] dark:border-[#27272A] shrink-0 items-center gap-2 transition-[width,height] ease-linear sticky">
 					<div className="flex items-center gap-2 pl-5 pr-6 w-full justify-between">

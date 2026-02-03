@@ -1,12 +1,11 @@
 import { useParams, useSearchParams } from "react-router-dom";
 import { useMemo } from "react";
+import { getOrgId, getProjectId } from "@/api/client";
 
 export function usePlaygroundParams() {
-	const { orgId, projectId, id } = useParams<{
-		orgId: string;
-		projectId: string;
-		id: string;
-	}>();
+	const { id } = useParams<{ id: string }>();
+	const orgId = getOrgId();
+	const projectId = getProjectId();
 
 	const [searchParams] = useSearchParams();
 	const testcaseId = searchParams.get("testcaseId");

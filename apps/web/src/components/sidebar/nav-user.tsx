@@ -1,15 +1,14 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentUser, useRemoveCurrentUser } from "@/hooks/useCurrentUser";
 import { isCloudAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
-import { useUserStore } from "@/stores/user.store";
 
-import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, Sparkles } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
-	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -25,10 +24,10 @@ import {
 export function NavUser() {
 	const { isMobile } = useSidebar();
 	const { logout, user: authUser } = useAuth();
-	const user = useUserStore((state) => state.user);
+	const { user } = useCurrentUser();
+	const removeCurrentUser = useRemoveCurrentUser();
 	const navigate = useNavigate();
 	const isCloud = isCloudAuth();
-	const clearUser = useUserStore((state) => state.clearUser);
 
 	const LETTER_COLOR_MAP: Record<string, string> = {
 		A: "bg-[#D6CFFF]",
@@ -66,8 +65,18 @@ export function NavUser() {
 
 	const userName = user?.name || authUser?.name || "User";
 	const userEmail = user?.email || authUser?.email || "";
-	const userAvatar = user?.avatar || authUser?.picture;
+	const userAvatar = user?.avatar || user?.picture || authUser?.picture;
 	const authorColor = getColorByFirstLetter(userName);
+
+	const handleLogout = async () => {
+		removeCurrentUser();
+		if (isCloud) {
+			logout({ logoutParams: { returnTo: window.location.origin } });
+		} else {
+			await logout();
+			navigate("/login");
+		}
+	};
 
 	return (
 		<SidebarMenu>
@@ -131,19 +140,7 @@ export function NavUser() {
 							</div>
 						</DropdownMenuLabel>
 						<DropdownMenuSeparator />
-						<DropdownMenuItem
-							onClick={async () => {
-								if (isCloud) {
-									// Auth0 logout
-									logout({ logoutParams: { returnTo: window.location.origin } });
-								} else {
-									// Local auth logout
-									await logout();
-									clearUser();
-									navigate("/login");
-								}
-							}}
-						>
+						<DropdownMenuItem onClick={handleLogout}>
 							<LogOut />
 							Log out
 						</DropdownMenuItem>

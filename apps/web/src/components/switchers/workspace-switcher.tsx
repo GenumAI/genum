@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ChevronsUpDown, Loader2, PlusCircle, Info } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import {
 	DropdownMenu,
@@ -34,8 +34,10 @@ import { useToast } from "@/hooks/useToast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useUserStore } from "@/stores/user.store";
+import { useQueryClient } from "@tanstack/react-query";
+import { CURRENT_USER_QUERY_KEY } from "@/hooks/useCurrentUser";
 import { userApi } from "@/api/user";
+import { getOrgId, getProjectId } from "@/api/client";
 
 interface Project {
 	id: string;
@@ -60,7 +62,7 @@ interface CreateOrganizationFormProps {
 
 function CreateOrganizationForm({ onClose, onSuccess }: CreateOrganizationFormProps) {
 	const { toast } = useToast();
-	const { setUserData, setUser } = useUserStore();
+	const queryClient = useQueryClient();
 	const [isSaving, setIsSaving] = useState(false);
 
 	const form = useForm<OrganizationFormValues>({
@@ -87,18 +89,7 @@ function CreateOrganizationForm({ onClose, onSuccess }: CreateOrganizationFormPr
 				duration: 3000,
 			});
 
-			try {
-				const userData = await userApi.getCurrentUser();
-				setUserData(userData);
-				setUser({
-					name: userData.name || "",
-					email: userData.email || "",
-					avatar: userData.avatar,
-				});
-			} catch (err) {
-				console.error("Error refreshing user data:", err);
-			}
-
+			await queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
 			onSuccess(response.organization.id);
 		} catch (error) {
 			console.error("Error creating organization:", error);
@@ -173,10 +164,8 @@ export function TeamSwitcher({
 	onProjectChange?: (projectId: string) => void;
 }) {
 	const navigate = useNavigate();
-	const { orgId, projectId } = useParams<{
-		orgId: string;
-		projectId: string;
-	}>();
+	const orgId = getOrgId();
+	const projectId = getProjectId();
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -288,10 +277,7 @@ export function TeamSwitcher({
 			</SidebarMenu>
 
 			<Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-				<DialogContent
-					className="sm:max-w-[500px]"
-					onOpenAutoFocus={(e) => e.preventDefault()}
-				>
+				<DialogContent className="sm:max-w-[500px]">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							Create New Organization

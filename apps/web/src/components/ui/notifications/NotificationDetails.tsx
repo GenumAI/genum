@@ -7,11 +7,14 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { NotificationIcon } from "@/components/ui/icons-tsx/NotificationIcon";
 import { userApi, type Notification as UserNotification } from "@/api/user/user.api";
+import { getOrgId, getProjectId } from "@/api/client";
 
 export default function NotificationDetails() {
 	const { toast } = useToast();
 	const navigate = useNavigate();
-	const { orgId, projectId, notificationId } = useParams<{
+	const orgId = getOrgId();
+	const projectId = getProjectId();
+	const { notificationId } = useParams<{
 		orgId: string;
 		projectId: string;
 		notificationId: string;

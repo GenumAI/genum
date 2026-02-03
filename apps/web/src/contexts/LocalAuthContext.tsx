@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { getAuthMode } from "@/lib/auth";
-import { useUserStore } from "@/stores/user.store";
 import { userApi } from "@/api/user";
 import { authApi } from "@/api/auth";
+import { CURRENT_USER_QUERY_KEY } from "@/hooks/useCurrentUser";
 
 interface LocalAuthUser {
 	sub: string;
@@ -32,9 +33,7 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
 	const [user, setUser] = useState<LocalAuthUser | null>(null);
-	const setUserStore = useUserStore((state) => state.setUser);
-	const setUserData = useUserStore((state) => state.setUserData);
-	const setLoading = useUserStore((state) => state.setLoading);
+	const queryClient = useQueryClient();
 
 	useEffect(() => {
 		const authMode = getAuthMode();
@@ -44,7 +43,6 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 			setIsLoading(false);
 			setIsAuthenticated(false);
 			setUser(null);
-			setLoading(false);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -66,6 +64,7 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 				setIsAuthenticated(false);
 				setUser(null);
 				setIsLoading(false);
+				queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
 				return;
 			}
 
@@ -78,21 +77,15 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 
 			setUser(authUser);
 			setIsAuthenticated(true);
-			setUserStore({
-				name: userData.name || "",
-				email: userData.email || "",
-				avatar: undefined,
-			});
-			setUserData(userData);
-			setLoading(false); // set loading to false in store
+			queryClient.setQueryData(CURRENT_USER_QUERY_KEY, userData);
 		} catch {
 			setIsAuthenticated(false);
 			setUser(null);
-			setLoading(false);
+			queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
 		} finally {
 			setIsLoading(false);
 		}
-	}, [setUserStore, setUserData, setLoading]);
+	}, [queryClient]);
 
 	const login = useCallback(
 		async (email: string, password: string) => {
@@ -103,8 +96,6 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 
 			try {
 				await authApi.login({ email, password });
-
-				// After successful login, check auth status to get user data
 				await checkAuthStatus();
 			} catch (error) {
 				throw error;
@@ -122,8 +113,6 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 
 			try {
 				await authApi.signup({ email, password, name });
-
-				// After successful signup, check auth status to get user data
 				await checkAuthStatus();
 			} catch (error) {
 				throw error;
@@ -135,12 +124,9 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 	const logout = useCallback(async () => {
 		const authMode = getAuthMode();
 		if (authMode !== "local") {
-			// In cloud mode, just clear local state
 			setIsAuthenticated(false);
 			setUser(null);
-			setUserStore(null);
-			setUserData(null);
-			setLoading(false);
+			queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
 			return;
 		}
 
@@ -150,20 +136,15 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 		} finally {
 			setIsAuthenticated(false);
 			setUser(null);
-			setUserStore(null);
-			setUserData(null);
-			setLoading(false);
+			queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
 		}
-	}, [setUserStore, setUserData, setLoading]);
+	}, [queryClient]);
 
 	const getAccessTokenSilently = useCallback(async (): Promise<string> => {
-		// For self-hosted, we don't use tokens, but return empty string
-		// The actual auth is handled via cookies
 		return "";
 	}, []);
 
 	const loginWithRedirect = useCallback((options?: { appState?: any }) => {
-		// For self-hosted, redirect to login page
 		const returnTo = options?.appState?.returnTo || window.location.pathname;
 		window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`;
 	}, []);

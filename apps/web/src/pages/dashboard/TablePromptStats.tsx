@@ -7,7 +7,7 @@ import {
 	SortingState,
 } from "@tanstack/react-table";
 import { useState, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
+import { getOrgId, getProjectId } from "@/api/client";
 
 interface PromptStats {
 	prompt_id: number;
@@ -43,7 +44,8 @@ export function TablePromptStats({ prompts, promptNames }: Props) {
 	const [showAll, setShowAll] = useState(false);
 
 	const navigate = useNavigate();
-	const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>();
+	const orgId = getOrgId();
+	const projectId = getProjectId();
 
 	const getName = (id: number) => promptNames.find((p) => p.id === id)?.name || `Prompt ${id}`;
 

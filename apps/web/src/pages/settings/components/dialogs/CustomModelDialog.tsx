@@ -3,8 +3,9 @@ import { CheckCircle2, Eye, EyeOff, Loader2, XCircle } from "lucide-react";
 
 import { useToast } from "@/hooks/useToast";
 import { organizationApi } from "@/api/organization";
-import type { CustomProvider, ProviderModel } from "@/api/organization";
-import { isValidBaseUrl } from "@/pages/settings/dialogs/utils/validator";
+import type { ProviderModel } from "@/api/organization";
+import { isValidBaseUrl } from "./utils/validator";
+import type { CustomModelDialogProps } from "../../utils/types";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,13 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-interface CustomModelDialogProps {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	customProvider: CustomProvider | null;
-	onSaved: () => void | Promise<void>;
-}
 
 export default function CustomModelDialog({
 	open,

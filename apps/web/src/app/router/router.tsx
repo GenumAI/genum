@@ -20,15 +20,15 @@ import Notifications from "../../components/ui/notifications/Notifications";
 import NotificationDetails from "../../components/ui/notifications/NotificationDetails";
 import VersionDetails from "@/pages/prompt/playground-tabs/version/components/VersionDetails";
 
-import UserProfile from "../../pages/settings/UserProfile";
-import OrgGeneral from "../../pages/settings/OrgGeneral";
-import OrgMembers from "../../pages/settings/OrgMembers";
-import OrgProjects from "../../pages/settings/OrgProjects";
-import OrgAIKeys from "../../pages/settings/OrgAIKeys";
-import OrgAPIKeys from "../../pages/settings/OrgAPIKeys";
-import ProjectDetails from "../../pages/settings/ProjectDetails";
-import ProjectMembers from "../../pages/settings/ProjectMembers";
-import ProjectAPIKeys from "../../pages/settings/ProjectAPIKeys";
+import UserProfile from "../../pages/settings/components/UserProfile";
+import OrgGeneral from "../../pages/settings/components/OrgGeneral";
+import OrgMembers from "../../pages/settings/components/OrgMembers";
+import OrgProjects from "../../pages/settings/components/OrgProjects";
+import OrgAIKeys from "../../pages/settings/components/OrgAIKeys/OrgAIKeys";
+import OrgAPIKeys from "../../pages/settings/components/OrgAPIKeys";
+import ProjectDetails from "../../pages/settings/components/ProjectDetails";
+import ProjectMembers from "../../pages/settings/components/ProjectMembers";
+import ProjectAPIKeys from "../../pages/settings/components/ProjectAPIKeys";
 
 import AcceptInvitePage from "@/pages/invite/AcceptInvitePage";
 import GettingStarted from "@/pages/getting-started/GettingStarted";

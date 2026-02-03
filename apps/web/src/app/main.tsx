@@ -38,13 +38,13 @@ if (isFirefox) {
 // }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-	<AuthProvider>
-		<QueryClientProvider client={queryClient}>
+	<QueryClientProvider client={queryClient}>
+		<AuthProvider>
 			<AppRoot>
 				<div id="app-scale">
 					<App />
 				</div>
 			</AppRoot>
-		</QueryClientProvider>
-	</AuthProvider>,
+		</AuthProvider>
+	</QueryClientProvider>,
 );

@@ -23,9 +23,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/useToast";
-import { useUserStore } from "@/stores/user.store";
+import { useQueryClient } from "@tanstack/react-query";
+import { CURRENT_USER_QUERY_KEY } from "@/hooks/useCurrentUser";
 import { organizationApi } from "@/api/organization";
-import { userApi } from "@/api/user";
 
 type Project = {
 	id: string;
@@ -49,6 +49,7 @@ export function ProjectSwitcher({
 	onProjectChange,
 }: ProjectSwitcherProps) {
 	const { toast } = useToast();
+	const queryClient = useQueryClient();
 
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -115,20 +116,7 @@ export function ProjectSwitcher({
 			setNewProjectName("");
 			setNewProjectDescription("");
 
-			// обновляем userData в zustand (единый источник истины)
-			try {
-				const userData = await userApi.getCurrentUser();
-				const { setUserData, setUser } = useUserStore.getState();
-
-				setUserData(userData);
-				setUser({
-					name: userData.name || "",
-					email: userData.email || "",
-					avatar: userData.avatar,
-				});
-			} catch (err) {
-				console.error("Error refreshing user data:", err);
-			}
+			await queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
 
 			const newId = result?.project?.id;
 			if (newId) handleProjectChange(String(newId));

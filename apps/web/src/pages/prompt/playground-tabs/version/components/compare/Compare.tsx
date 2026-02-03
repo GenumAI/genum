@@ -15,9 +15,12 @@ import {
 	formatCompareValue,
 	getChangedLinesStats,
 } from "./utils";
+import { getOrgId, getProjectId } from "@/api/client";
 
 const Compare = () => {
-	const { id, orgId, projectId } = useParams();
+	const { id } = useParams<{ id: string }>();
+	const orgId = getOrgId();
+	const projectId = getProjectId();
 	const [searchParams] = useSearchParams();
 	const navigate = useNavigate();
 

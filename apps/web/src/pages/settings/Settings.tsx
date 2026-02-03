@@ -1,7 +1,11 @@
 import * as React from "react";
-import { Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
+import { Outlet, NavLink, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
+import { organizationApi } from "@/api/organization";
+import { ORG_MEMBERS_QUERY_KEY } from "./hooks/useOrgMembers";
+import { ORG_INVITES_QUERY_KEY } from "./hooks/useOrgInvites";
 
 type MenuSection = {
 	title: string;
@@ -55,6 +59,23 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
 }
 
 export default function Settings() {
+	const { orgId } = useParams<{ orgId: string }>();
+	const queryClient = useQueryClient();
+
+	// Prefetch org members & invites so switching to Members tab uses cache (no refetch)
+	React.useEffect(() => {
+		if (orgId) {
+			queryClient.prefetchQuery({
+				queryKey: [...ORG_MEMBERS_QUERY_KEY, orgId],
+				queryFn: () => organizationApi.getMembers(),
+			});
+			queryClient.prefetchQuery({
+				queryKey: [...ORG_INVITES_QUERY_KEY, orgId],
+				queryFn: () => organizationApi.getInvites(),
+			});
+		}
+	}, [queryClient, orgId]);
+
 	return (
 		<div className="container pt-6 max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] mx-3 w-full">
 			<div className="flex flex-col gap-6 md:flex-row mt-3">

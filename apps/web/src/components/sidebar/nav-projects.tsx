@@ -1,6 +1,6 @@
 import { type LucideIcon } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
-
+import { getOrgId, getProjectId} from "@/api/client"
 import {
 	SidebarGroup,
 	SidebarMenu,
@@ -19,7 +19,8 @@ export function NavProjects({
 }) {
 	const location = useLocation();
 	const pathname = location.pathname;
-	const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>();
+	const orgId = getOrgId();
+	const projectId = getProjectId();	
 
 	// If orgId or projectId is not available, don't try to navigate
 	if (!orgId || !projectId) {

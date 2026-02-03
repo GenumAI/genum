@@ -53,11 +53,17 @@ export const setApiContext = (context: ApiClientContext) => {
 };
 
 /**
- * Clear the API client context
+ * Clear the API context
  */
 export const clearApiContext = () => {
 	apiContext = null;
 };
+
+/** Current orgId from API context (set in RedirectedToProjectRoute). Pass as argument to hooks. */
+export const getOrgId = (): string | undefined => apiContext?.getOrgId();
+
+/** Current projectId from API context. Pass as argument to hooks. */
+export const getProjectId = (): string | undefined => apiContext?.getProjectId();
 
 /**
  * Create axios instance with base configuration

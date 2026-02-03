@@ -2,13 +2,13 @@ import * as React from "react";
 
 import { useToast } from "@/hooks/useToast";
 import { organizationApi } from "@/api/organization";
-import type { LanguageModel, ModelParameterConfig } from "@/api/organization";
+import type { ModelParameterConfig } from "@/api/organization";
 import {
 	getModelConfigValidationState,
 	getModelParamBounds,
 	getModelParamDefaultOnBlur,
 	getNextModelParameterConfig,
-} from "@/pages/settings/dialogs/utils/validator";
+} from "./utils/validator";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,6 +35,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
+import type { ModelConfigDialogProps } from "../../utils/types";
 
 const DEFAULT_PARAMETERS: Record<string, ModelParameterConfig> = {
 	temperature: {
@@ -58,13 +59,6 @@ const DEFAULT_PARAMETERS: Record<string, ModelParameterConfig> = {
 		enabled: false,
 	},
 };
-
-interface ModelConfigDialogProps {
-	model: LanguageModel;
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	onSaved: () => void;
-}
 
 export default function ModelConfigDialog({
 	model,

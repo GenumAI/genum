@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/chart";
 import { CheckCircle2, XCircle, AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
 import { useState, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import useTestcasesGroupedByPrompt from "@/hooks/useTestcasesGroupedByPrompt";
+import { getOrgId, getProjectId } from "@/api/client";
 
 const chartConfig = {
 	passed: { label: "Passed", color: "hsl(var(--chart-2))" },
@@ -42,7 +43,8 @@ export function TestcaseStats({ prompts }: Props) {
 	const [showAll, setShowAll] = useState(false);
 	const [hoveredBar, setHoveredBar] = useState<{ index: number; dataKey: string } | null>(null);
 	const navigate = useNavigate();
-	const { orgId, projectId } = useParams();
+	const orgId = getOrgId();
+	const projectId = getProjectId();
 
 	const { chartData, isLoading, error } = useTestcasesGroupedByPrompt(prompts);
 

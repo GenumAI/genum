@@ -13,14 +13,14 @@ import { Bell } from "lucide-react";
 import { SidebarMenuButton } from "@/components/sidebar/sidebar";
 import { NotificationIcon } from "@/components/ui/icons-tsx/NotificationIcon";
 import { formatNotificationPreview } from "@/lib/notificationPreview";
+import { getOrgId, getProjectId} from "@/api/client"
 
 export function SidebarNotificationButton() {
 	const { toast } = useToast();
 	const navigate = useNavigate();
-	const { orgId, projectId } = useParams<{
-		orgId: string;
-		projectId: string;
-	}>();
+	const orgId = getOrgId();
+	const projectId = getProjectId();	
+
 
 	const [open, setOpen] = useState(false);
 	const [notifications, setNotifications] = useState<UserNotification[]>([]);

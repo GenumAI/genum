@@ -17,6 +17,7 @@ import { LogDetailsDialog } from "@/components/dialogs/LogDetailsDialog";
 import { useParams } from "react-router-dom";
 import { promptApi } from "@/api/prompt";
 import { projectApi } from "@/api/project";
+import { getOrgId, getProjectId } from "@/api/client";
 
 export interface PromptName {
 	id: number;
@@ -28,10 +29,8 @@ const monthAgo = new Date();
 monthAgo.setMonth(today.getMonth() - 1);
 
 export function LogsPage() {
-	const { orgId, projectId } = useParams<{
-		orgId: string;
-		projectId: string;
-	}>();
+	const orgId = getOrgId();
+	const projectId = getProjectId();
 	const [page, setPage] = useState(1);
 	const [pageSize, setPageSize] = useState(10);
 	const [queryInput, setQueryInput] = useState<string>("");

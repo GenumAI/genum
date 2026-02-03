@@ -1,9 +1,8 @@
-import { UserType } from "@/types/User";
+import { useEffect } from "react";
+import type { UserType } from "@/types/User";
 import { Navigate, useParams } from "react-router-dom";
-import { useUserStore } from "@/stores/user.store";
-import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { userApi } from "@/api/user";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { setApiContext, clearApiContext } from "@/api/client";
 
 /**
@@ -11,118 +10,45 @@ import { setApiContext, clearApiContext } from "@/api/client";
  *
  * Responsibilities:
  * - **Initialize API context** (token + orgId/projectId) for `apiClient` interceptors.
- * - **Load the current user** (`/user/me`) and store it in zustand.
+ * - **Load the current user** via react-query (useCurrentUser).
  * - **Normalize the URL**: if orgId/projectId are missing or invalid, pick a default
  *   workspace (org/project) and redirect.
  *
  * Why it matters here:
  * - The router wraps all "app" pages with `ProtectedRoute -> RedirectedToProjectRoute -> MainLayout`.
- * - While `userData` is not loaded, we don't render the layout/pages to prevent them from firing
+ * - While user data isn't loaded, we don't render the layout/pages to prevent them from firing
  *   API requests without context and without user data.
  */
 interface RedirectedToProjectRouteProps {
 	Element: React.ComponentType<{ user: UserType }>;
 }
 
-// Keys used to remember the last opened workspace (org/project).
-// This allows restoring the user's last location on the next visit.
 const GENUMLAB_LAST_ORG_ID = "genumlab_last_org_id";
 const GENUMLAB_LAST_PROJECT_ID = "genumlab_last_project_id";
 
 const RedirectedToProjectRoute = ({ Element }: RedirectedToProjectRouteProps) => {
-	// orgId/projectId come from the URL (both optional: `/:orgId?/:projectId?`).
 	const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>();
-	// `useAuth` provides a unified interface for Auth0 (cloud) and local auth (self-hosted).
 	const { isAuthenticated, isLoading: isLoadingAuth, getAccessTokenSilently } = useAuth();
-	// `userData` is the "full" user payload (orgs/projects), while `user` is a lightweight
-	// summary (name/email/avatar) used by UI components.
-	const { userData, loading, setUserData, setUser, setLoading } = useUserStore();
+	const { user: userData, isLoading } = useCurrentUser();
 
-	// Initialize API context for axios interceptors:
-	// - in cloud mode it adds `Authorization: Bearer ...`
-	// - it adds `lab-org-id` / `lab-proj-id` headers (when available)
-	useEffect(() => {
-		setApiContext({
-			getToken: async () => {
-				try {
-					return await getAccessTokenSilently();
-				} catch {
-					return "";
-				}
-			},
-			getOrgId: () => orgId,
-			getProjectId: () => projectId,
-		});
-
-		return () => {
-			// Important: context is stored globally in `api/client.ts`.
-			// On unmount, clear it to avoid leaking org/project between sessions / router branches.
-			clearApiContext();
-		};
-	}, [getAccessTokenSilently, orgId, projectId]);
-
-	// Local loading/error state for fetching the user (without React Query).
-	const [isLoadingUser, setIsLoadingUser] = useState(false);
-	const [userError, setUserError] = useState<Error | null>(null);
-
-	// Fetch user profile once after authentication.
-	// NOTE: `userData` in the store is used as an "already loaded" guard.
-	useEffect(() => {
-		const fetchUserData = async () => {
-			if (!isAuthenticated || isLoadingAuth || userData) {
-				return;
-			}
-
-			setIsLoadingUser(true);
-			setUserError(null);
-			setLoading(true);
-
+	// Set API context synchronously so getOrgId/getProjectId are available to children (e.g. AppSidebar) on first render
+	setApiContext({
+		getToken: async () => {
 			try {
-				// Thin API service (axios via `apiClient` + interceptors + ApiError).
-				const data = await userApi.getCurrentUser();
-
-				// Basic validation: email is required (used elsewhere in the app).
-				if (!data.email) {
-					console.error("[RedirectedToProjectRoute] Invalid user data structure:", data);
-					return;
-				}
-
-				// Store both the full user payload and the UI-friendly summary.
-				setUserData(data);
-				setUser({
-					name: data.name || "",
-					email: data.email || "",
-					avatar: data.avatar ?? undefined,
-				});
-				setLoading(false);
-			} catch (err) {
-				const error = err as Error;
-				console.error("Error getting user data:", error);
-				setUserError(error);
-				setLoading(false);
-			} finally {
-				setIsLoadingUser(false);
+				return await getAccessTokenSilently();
+			} catch {
+				return "";
 			}
-		};
+		},
+		getOrgId: () => orgId,
+		getProjectId: () => projectId,
+	});
 
-		fetchUserData();
-	}, [isAuthenticated, isLoadingAuth, userData, setUserData, setUser, setLoading]);
+	// Clear context on unmount
+	useEffect(() => () => clearApiContext(), []);
 
-	// Keep store.loading in sync with auth + user fetch states.
-	useEffect(() => {
-		if (isAuthenticated && !isLoadingAuth && userData) {
-			// userData is already loaded
-			setLoading(false);
-		} else if (!isLoadingAuth && !isAuthenticated) {
-			setLoading(false);
-		} else if (isLoadingUser) {
-			setLoading(true);
-		}
-	}, [isAuthenticated, isLoadingAuth, userData, isLoadingUser, setLoading]);
-
-	// Gate: while auth/user data isn't ready, show a simple placeholder.
-	// This prevents rendering MainLayout and child pages before `userData` exists.
-	if (!isAuthenticated || isLoadingAuth || loading || !userData) {
+	// Gate: while auth/user data isn't ready, show a simple placeholder
+	if (!isAuthenticated || isLoadingAuth || isLoading || !userData) {
 		return (
 			<div className="flex h-screen w-full items-center justify-center">
 				<div className="flex flex-col items-center space-y-4">
@@ -133,9 +59,12 @@ const RedirectedToProjectRoute = ({ Element }: RedirectedToProjectRouteProps) =>
 		);
 	}
 
-	// Pick a default workspace:
-	// - first, an org where the user is OWNER and there are projects
-	// - otherwise, any org that has projects
+	// Basic validation: email is required
+	if (!userData.email) {
+		console.error("[RedirectedToProjectRoute] Invalid user data structure:", userData);
+		return null;
+	}
+
 	const getDefaultSpace = () => {
 		if (!userData.organizations || userData.organizations.length === 0) {
 			return null;
@@ -183,7 +112,6 @@ const RedirectedToProjectRoute = ({ Element }: RedirectedToProjectRouteProps) =>
 
 	const defaultSpace = getDefaultSpace();
 	if (!defaultSpace) {
-		// The user is authenticated, but there are no available orgs/projects.
 		return (
 			<div className="flex h-screen w-full items-center justify-center">
 				<div className="flex flex-col items-center space-y-4">
@@ -193,8 +121,6 @@ const RedirectedToProjectRoute = ({ Element }: RedirectedToProjectRouteProps) =>
 		);
 	}
 
-	// If the URL contains orgId + projectId, verify they belong to the user's available orgs/projects.
-	// Otherwise, redirect to the default workspace.
 	if (orgId && projectId) {
 		const matchingOrg = userData.organizations.find((org) => org.id.toString() === orgId);
 
@@ -216,8 +142,6 @@ const RedirectedToProjectRoute = ({ Element }: RedirectedToProjectRouteProps) =>
 		);
 	}
 
-	// If orgId exists but projectId doesn't, pick the first project in that org (if any),
-	// otherwise redirect to the default workspace.
 	if (orgId && !projectId) {
 		const matchingOrg = userData.organizations.find((org) => org.id.toString() === orgId);
 
@@ -234,7 +158,6 @@ const RedirectedToProjectRoute = ({ Element }: RedirectedToProjectRouteProps) =>
 		);
 	}
 
-	// Fallback: redirect to the default workspace.
 	return (
 		<Navigate
 			to={`/${defaultSpace.org.id}/${defaultSpace.project.id}/getting-started`}

@@ -20,29 +20,28 @@ import {
 } from "@/components/sidebar/sidebar";
 
 import { navigation } from "@/hooks/useNavigation";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEffect } from "react";
-import { UserType } from "@/types/User";
+import { getOrgId, getProjectId } from "@/api/client";
 
-export function AppSidebar({
-	user,
-	...props
-}: {
-	user: UserType;
-} & React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>();
+	const params = useParams<{ orgId: string; projectId: string }>();
+	const orgId = params.orgId ?? getOrgId();
+	const projectId = params.projectId ?? getProjectId();
 	const pathSegments = location.pathname.split("/").filter(Boolean);
+	const { user } = useCurrentUser();
 
 	const teams =
-		user.organizations?.map((org) => ({
+		user?.organizations?.map((org) => ({
 			id: org.id.toString(),
 			name: org.name,
 			logo: GalleryVerticalEnd,
 			plan: org.role,
 		})) || [];
 
-	const selectedOrg = user.organizations?.find((org) => org.id.toString() === orgId);
+	const selectedOrg = user?.organizations?.find((org) => org.id.toString() === orgId);
 	const projects =
 		selectedOrg?.projects.map((project) => ({
 			id: project.id.toString(),
@@ -53,7 +52,7 @@ export function AppSidebar({
 
 	useEffect(() => {
 		// If no orgId in URL and user has organizations, navigate to the first one
-		if (!orgId && user.organizations && user.organizations.length > 0) {
+		if (!orgId && user?.organizations && user.organizations.length > 0) {
 			const firstOrgId = user.organizations[0].id.toString();
 			let newPath = `/${firstOrgId}`;
 
@@ -79,7 +78,7 @@ export function AppSidebar({
 				navigate(newPath);
 			}
 		}
-	}, [orgId, selectedOrg, projectId, user.organizations, navigate, pathSegments]);
+	}, [orgId, selectedOrg, projectId, user?.organizations, navigate, pathSegments]);
 
 	const handleProjectChange = (projectId: string) => {
 		const currentPath = location.pathname;

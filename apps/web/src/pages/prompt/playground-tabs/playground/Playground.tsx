@@ -12,13 +12,12 @@ import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import { InputTextArea } from "@/pages/prompt/playground-tabs/playground/components/input-textarea/InputTextArea";
 import { useSidebar } from "@/components/sidebar/sidebar";
 import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlayground";
+import { getOrgId, getProjectId } from "@/api/client";
 
 export default function Playground() {
-	const { orgId, projectId, id } = useParams<{
-		orgId: string;
-		projectId: string;
-		id: string;
-	}>();
+	const orgId = getOrgId();
+	const projectId = getProjectId();
+	const { id } = useParams<{ id: string }>();
 	const parsedPromptId = id ? Number.parseInt(id, 10) : Number.NaN;
 	const promptId = Number.isFinite(parsedPromptId) ? parsedPromptId : undefined;
 	const [searchParams] = useSearchParams();

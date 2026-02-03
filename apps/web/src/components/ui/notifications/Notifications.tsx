@@ -7,11 +7,13 @@ import { Bell, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { NotificationIcon } from "@/components/ui/icons-tsx/NotificationIcon";
 import { userApi, Notification } from "@/api/user";
 import { formatNotificationPreview } from "@/lib/notificationPreview";
+import { getOrgId, getProjectId } from "@/api/client";
 
 export default function Notifications() {
 	const { toast } = useToast();
 	const navigate = useNavigate();
-	const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>();
+	const orgId = getOrgId();
+	const projectId = getProjectId();
 
 	const [currentPage, setCurrentPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);

@@ -5,17 +5,16 @@ import { Loader2 } from "lucide-react";
 import CommitTimeline from "@/pages/prompt/playground-tabs/version/components/CommitTimeline";
 import CommitDialog from "@/components/dialogs/CommitDialog";
 import { useCommitDialog } from "@/hooks/useCommitDialog";
+import { getOrgId, getProjectId } from "@/api/client";
 
 import { useVersionsData } from "./hooks/useVersionsData";
 import { VersionsToolbar } from "./components/VersionsToolbar";
 import type { Branch, PromptVersion } from "./utils/types";
 
 export default function Versions() {
-	const { id, orgId, projectId } = useParams<{
-		id: string;
-		orgId: string;
-		projectId: string;
-	}>();
+	const { id } = useParams<{ id: string }>();
+	const orgId = getOrgId();
+	const projectId = getProjectId();
 	const navigate = useNavigate();
 
 	const [branch, setBranch] = useState("");

@@ -11,7 +11,8 @@ const AcceptInvitePage: FC = () => {
 		token: string;
 	}>();
 	const navigate = useNavigate();
-	const { loginWithRedirect, isAuthenticated, isLoading, user, getAccessTokenSilently } = useAuth();
+	const { loginWithRedirect, isAuthenticated, isLoading, user, getAccessTokenSilently } =
+		useAuth();
 
 	// get token from URL or localStorage
 	const token = urlToken || localStorage.getItem("pending_invite_token");

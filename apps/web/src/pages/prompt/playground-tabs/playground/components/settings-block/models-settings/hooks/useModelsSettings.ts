@@ -60,7 +60,7 @@ export function useModelsSettings({
 	const { getModelConfig, modelConfig, updateModelSettings, updatePromptModel, loading } =
 		usePromptsModels();
 	const { toast } = useToast();
-	const { id } = useParams<{ id: string; orgId: string; projectId: string }>();
+	const { id } = useParams<{ id: string }>();
 	const { setIsCommitted } = usePromptStatus();
 
 	const promptId = prompt?.id || (id ? Number(id) : propPromptId);
