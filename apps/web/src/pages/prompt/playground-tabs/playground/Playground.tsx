@@ -1,6 +1,6 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import clsx from "clsx";
 import TextEditor from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/TextEditor";
 import OutputBlock from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
@@ -12,6 +12,9 @@ import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import { InputTextArea } from "@/pages/prompt/playground-tabs/playground/components/input-textarea/InputTextArea";
 import { useSidebar } from "@/components/sidebar/sidebar";
 import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlayground";
+import FileSelectDialog from "@/components/dialogs/FileSelectDialog";
+import SelectedFilesList from "@/components/SelectedFilesList";
+import type { FileMetadata } from "@/api/files";
 
 export default function Playground() {
 	const { orgId, projectId, id } = useParams<{
@@ -25,11 +28,27 @@ export default function Playground() {
 	const testcaseId = searchParams.get("testcaseId");
 
 	const inputRef = useRef<HTMLTextAreaElement>(null);
-	const controller = usePlaygroundController({ promptId, orgId, projectId, testcaseId });
+	const [selectedFiles, setSelectedFiles] = useState<FileMetadata[]>([]);
+	const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
+	const controller = usePlaygroundController({
+		promptId,
+		orgId,
+		projectId,
+		testcaseId,
+		selectedFiles,
+	});
 
 	const { prompt, testcase, metrics, ui, models, actions } = controller;
 
 	const sidebar = useSidebar();
+
+	const handleFileSelect = (files: FileMetadata[]) => {
+		setSelectedFiles(files);
+	};
+
+	const handleFileRemove = (fileId: string) => {
+		setSelectedFiles(selectedFiles.filter((f) => f.id !== fileId));
+	};
 
 	return (
 		<div className="h-full flex flex-grow-0 max-w-[1470px] ml-3 mr-3 lg:mr-6 w-full text-foreground">
@@ -64,21 +83,35 @@ export default function Playground() {
 									systemPrompt={prompt.content}
 								/>
 
-								<div className="flex flex-col gap-2 mt-3">
-									<div className="flex justify-end">
+								<div className="flex items-center justify-between gap-2 mt-3">
+									<div className="flex items-center gap-2 flex-1 min-w-0">
 										<Button
-											disabled={
-												!ui.validation.hasPromptContent ||
-												!ui.validation.hasInputContent ||
-												ui.loading.run
-											}
-											onClick={actions.run}
-											className="text-[14px] h-[32px] w-[138px]"
+											variant="ghost"
+											size="sm"
+											onClick={() => setIsFileDialogOpen(true)}
+											disabled={selectedFiles.length >= 3}
+											className="text-[12px] h-[28px] px-2 bg-muted/50 hover:bg-muted/70 flex-shrink-0"
 										>
-											{ui.loading.run && <Loader2 className="animate-spin" />}
-											{testcaseId ? "Run testcase" : "Run prompt"}
+											<Plus className="h-3 w-3 mr-1.5" />
+											Add files
 										</Button>
+										<SelectedFilesList
+											files={selectedFiles}
+											onRemove={handleFileRemove}
+										/>
 									</div>
+									<Button
+										disabled={
+											!ui.validation.hasPromptContent ||
+											!ui.validation.hasInputContent ||
+											ui.loading.run
+										}
+										onClick={actions.run}
+										className="text-[14px] h-[32px] w-[138px] flex-shrink-0"
+									>
+										{ui.loading.run && <Loader2 className="animate-spin" />}
+										{testcaseId ? "Run testcase" : "Run prompt"}
+									</Button>
 								</div>
 							</div>
 
@@ -141,6 +174,14 @@ export default function Playground() {
 					onSave={actions.audit.saveDiff}
 				/>
 			)}
+
+			<FileSelectDialog
+				open={isFileDialogOpen}
+				setOpen={setIsFileDialogOpen}
+				selectedFiles={selectedFiles}
+				onSelect={handleFileSelect}
+				maxFiles={3}
+			/>
 		</div>
 	);
 }

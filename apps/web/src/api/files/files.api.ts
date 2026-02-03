@@ -7,8 +7,6 @@ export interface FileMetadata {
 	size: number;
 	contentType: string;
 	projectId: number;
-	organizationId: number;
-	uploadedBy: number;
 	createdAt: string;
 }
 

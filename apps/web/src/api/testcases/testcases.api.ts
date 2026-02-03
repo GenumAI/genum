@@ -31,6 +31,7 @@ export interface UpdateTestcaseData {
 export interface RunTestcaseData {
 	memoryId?: number;
 	question?: string;
+	files?: string[];
 }
 
 // ============================================================================
