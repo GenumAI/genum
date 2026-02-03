@@ -1,0 +1,11 @@
+model FileObject {
+    id          String   @id @default(uuid())
+    key         String   @unique
+    name        String
+    size        Int
+    contentType String
+    createdAt   DateTime @default(now()) @db.Timestamp(6)
+
+    projectId Int
+    project   Project @relation(fields: [projectId], references: [id])
+}
