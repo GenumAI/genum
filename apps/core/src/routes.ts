@@ -10,6 +10,7 @@ import { createOrganizationRouter } from "./routers/OrganizationRouter";
 import { createProjectRouter } from "./routers/ProjectRouter";
 import { createHelpersRouter } from "./routers/HelpersRouter";
 import { createLocalUserRouter } from "./routers/LocalUserRouter";
+import { createFileRouter } from "./routers/FileRouter";
 
 export function setupRoutes(app: Express): void {
 	const w = createAuthMiddleware();
@@ -57,5 +58,12 @@ export function setupRoutes(app: Express): void {
 		w.attachOrgContext(),
 		w.attachProjContext(),
 		createHelpersRouter(),
+	);
+	app.use(
+		`/files`,
+		w.attachUserContext(),
+		w.attachOrgContext(),
+		w.attachProjContext(),
+		createFileRouter(),
 	);
 }

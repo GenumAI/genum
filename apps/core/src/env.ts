@@ -43,8 +43,8 @@ const EnvSchema = z.object({
 	S3_REGION: z.string().optional().default("us-east-1"),
 	S3_ACCESS_KEY_ID: z.string().optional().default("minio"),
 	S3_SECRET_ACCESS_KEY: z.string().optional().default("miniosecret"),
-	S3_ENDPOINT: z.url().optional().default("http://minio:9000"),
-	S3_FORCE_PATH_STYLE: z.boolean().optional().default(false),
+	S3_ENDPOINT: z.url().optional().default("http://localhost:9090"),
+	S3_FORCE_PATH_STYLE: z.boolean().optional().default(true),
 	S3_PUBLIC_ENDPOINT: z.url().optional(),
 });
 
