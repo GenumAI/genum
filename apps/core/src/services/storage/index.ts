@@ -56,7 +56,7 @@ export class S3ObjectStorage implements ObjectStorage {
 		console.log("getObjectStream", key);
 		const res = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
 		const body = res.Body;
-		if (!body || typeof (body as any).pipe !== "function")
+		if (!body || typeof (body as unknown as { pipe: () => void }).pipe !== "function")
 			throw new Error("S3ObjectStorage: Body is not a stream");
 		return {
 			stream: body as unknown as Readable,
@@ -79,10 +79,14 @@ export class S3ObjectStorage implements ObjectStorage {
 				lastModified: res.LastModified ?? undefined,
 				metadata: res.Metadata ?? undefined,
 			};
-		} catch (e: any) {
+		} catch (e: unknown) {
 			// AWS SDK v3: NotFound / 404 vary by provider, handle by name/status
-			const name = e?.name ?? "";
-			const status = e?.$metadata?.httpStatusCode;
+			const name = e instanceof Error ? e.name : "";
+			const status =
+				e instanceof Error
+					? (e as unknown as { $metadata?: { httpStatusCode?: number } }).$metadata
+							?.httpStatusCode
+					: undefined;
 			if (name === "NotFound" || status === 404) return { key, exists: false };
 			throw e;
 		}

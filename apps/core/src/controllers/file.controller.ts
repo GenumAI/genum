@@ -34,8 +34,10 @@ export class FileController {
 			);
 
 			res.status(201).json({ file: fileMetadata });
-		} catch (error: any) {
-			res.status(400).json({ error: error.message || "Failed to upload file" });
+		} catch (error: unknown) {
+			res.status(400).json({
+				error: error instanceof Error ? error.message : "Failed to upload file",
+			});
 		}
 	}
 
@@ -48,8 +50,10 @@ export class FileController {
 		try {
 			const files = await fileService.listProjectFiles(metadata.projID);
 			res.status(200).json({ files });
-		} catch (error: any) {
-			res.status(500).json({ error: error.message || "Failed to list files" });
+		} catch (error: unknown) {
+			res.status(500).json({
+				error: error instanceof Error ? error.message : "Failed to list files",
+			});
 		}
 	}
 
@@ -68,8 +72,10 @@ export class FileController {
 			}
 
 			res.status(200).json({ url });
-		} catch (error: any) {
-			res.status(500).json({ error: error.message || "Failed to get file URL" });
+		} catch (error: unknown) {
+			res.status(500).json({
+				error: error instanceof Error ? error.message : "Failed to get file URL",
+			});
 		}
 	}
 
@@ -87,8 +93,10 @@ export class FileController {
 			}
 
 			res.status(200).json({ message: "File deleted successfully" });
-		} catch (error: any) {
-			res.status(500).json({ error: error.message || "Failed to delete file" });
+		} catch (error: unknown) {
+			res.status(500).json({
+				error: error instanceof Error ? error.message : "Failed to delete file",
+			});
 		}
 	}
 }
