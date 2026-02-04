@@ -40,11 +40,11 @@ const EnvSchema = z.object({
 	NEW_USER_WEBHOOK_URL: z.url().optional().default(""),
 	// S3 Storage
 	S3_BUCKET: z.string().optional().default("genum"),
-	S3_REGION: z.string().optional().default("us-east-1"),
+	S3_REGION: z.string().optional().default("us-east-1"), // default region for local MinIO
 	S3_ACCESS_KEY_ID: z.string().optional().default("minio"),
 	S3_SECRET_ACCESS_KEY: z.string().optional().default("miniosecret"),
-	S3_ENDPOINT: z.url().optional().default("http://localhost:9090"),
-	S3_FORCE_PATH_STYLE: z.boolean().optional().default(true),
+	S3_ENDPOINT: z.url().optional(),
+	S3_FORCE_PATH_STYLE: z.coerce.boolean().optional().default(true),
 	S3_PUBLIC_ENDPOINT: z.url().optional(),
 });
 
