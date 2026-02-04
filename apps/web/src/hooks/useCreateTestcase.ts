@@ -8,6 +8,7 @@ export interface TestcasePayload {
 	lastOutput?: string;
 	name?: string;
 	memoryId?: number | null;
+	files?: string[];
 }
 
 export function useCreateTestcase() {

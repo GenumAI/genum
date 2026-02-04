@@ -38,6 +38,7 @@ import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
 import type { ModelConfigParameters } from "@/ai/models/types";
 import { SourceType } from "@/services/logger/types";
+import { fileService } from "@/services/file.service";
 
 export class PromptsController {
 	private modelConfigService: ModelConfigService;
@@ -75,9 +76,10 @@ export class PromptsController {
 
 	public async runPrompt(req: Request, res: Response) {
 		const id = numberSchema.parse(req.params.id);
-		const { question, memoryId } = PromptRunSchema.parse(req.body);
+		const { question, memoryId, files: filesIds } = PromptRunSchema.parse(req.body);
 
 		const metadata = req.genumMeta.ids;
+		const files = await fileService.getFileObjectsByIds(filesIds, metadata.projID);
 
 		const prompt = await checkPromptAccess(id, metadata.projID);
 
@@ -89,6 +91,7 @@ export class PromptsController {
 			userProjectId: metadata.projID,
 			userOrgId: metadata.orgID,
 			user_id: metadata.userID,
+			files: files,
 		});
 
 		res.status(200).json({ ...run });

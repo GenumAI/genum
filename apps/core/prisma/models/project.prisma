@@ -14,6 +14,7 @@ model Project {
     organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     Prompts      Prompt[]
     apiKeys      ProjectApiKey[]
+    files        FileObject[]
 }
 
 model ProjectMember {

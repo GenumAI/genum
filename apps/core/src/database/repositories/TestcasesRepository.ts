@@ -35,6 +35,11 @@ export class TestcasesRepository {
 			include: {
 				prompt: true,
 				memory: true,
+				files: {
+					include: {
+						file: true,
+					},
+				},
 			},
 		});
 	}
@@ -42,14 +47,35 @@ export class TestcasesRepository {
 	public async getTestcaseByIDWithPrompt(id: number) {
 		return await this.prisma.testCase.findUnique({
 			where: { id },
-			include: { prompt: { include: { languageModel: true } } },
+			include: {
+				prompt: { include: { languageModel: true } },
+				files: {
+					include: {
+						file: true,
+					},
+				},
+			},
 		});
 	}
 
-	public async newTestcase(data: TestcasesCreateType) {
-		return await this.prisma.testCase.create({
-			data,
+	public async newTestcase(data: TestcasesCreateType & { files?: string[] }) {
+		const { files, ...testcaseData } = data;
+
+		const testcase = await this.prisma.testCase.create({
+			data: testcaseData,
 		});
+
+		// Create file associations if files are provided
+		if (files && files.length > 0) {
+			await this.prisma.testcaseFile.createMany({
+				data: files.map((fileId) => ({
+					testcaseId: testcase.id,
+					fileId,
+				})),
+			});
+		}
+
+		return testcase;
 	}
 
 	public async deleteTestcaseByID(id: number): Promise<TestCase> {
@@ -72,9 +98,35 @@ export class TestcasesRepository {
 						key: true,
 					},
 				},
+				files: {
+					include: {
+						file: true,
+					},
+				},
 			},
 			orderBy: {
 				createdAt: "desc",
+			},
+		});
+	}
+
+	public async addFileToTestcase(testcaseId: number, fileId: string) {
+		return await this.prisma.testcaseFile.create({
+			data: {
+				testcaseId,
+				fileId,
+			},
+			include: {
+				file: true,
+			},
+		});
+	}
+
+	public async removeFileFromTestcase(testcaseId: number, fileId: string) {
+		return await this.prisma.testcaseFile.deleteMany({
+			where: {
+				testcaseId,
+				fileId,
 			},
 		});
 	}

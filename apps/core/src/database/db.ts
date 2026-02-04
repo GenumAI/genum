@@ -5,6 +5,7 @@ import { UsersRepository } from "./repositories/UsersRepository";
 import { OrganizationRepository } from "./repositories/OrganizationRepository";
 import { ProjectRepository } from "./repositories/ProjectRepository";
 import { AuthRepository } from "./repositories/AuthRepository";
+import { FileRepository } from "./repositories/FileRepository";
 import { prisma } from "@/database/prisma";
 import { SystemRepository } from "./repositories/SystemRepository";
 
@@ -29,6 +30,7 @@ class Database {
 	public readonly system: SystemRepository;
 	public readonly project: ProjectRepository;
 	public readonly auth: AuthRepository;
+	public readonly file: FileRepository;
 
 	constructor() {
 		// all repositories use the same PrismaClient (singleton)
@@ -40,6 +42,7 @@ class Database {
 		this.organization = new OrganizationRepository(prisma);
 		this.project = new ProjectRepository(prisma);
 		this.auth = new AuthRepository(prisma);
+		this.file = new FileRepository(prisma);
 	}
 }
 

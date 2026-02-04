@@ -4,6 +4,7 @@ import { promptApi } from "@/api/prompt";
 import type { PromptResponse } from "@/hooks/useRunPrompt";
 import type { PromptSettings } from "@/types/Prompt";
 import type { TestCase } from "@/types/TestСase";
+import type { FileMetadata } from "@/api/files";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function usePlaygroundRunController({
@@ -16,6 +17,7 @@ export function usePlaygroundRunController({
 	wasRun,
 	currentAssertionType,
 	promptSettings,
+	selectedFiles,
 	setRunState,
 	setClearedOutput,
 	setOutputContent,
@@ -31,6 +33,7 @@ export function usePlaygroundRunController({
 	wasRun: boolean;
 	currentAssertionType: string;
 	promptSettings: PromptSettings | undefined;
+	selectedFiles: FileMetadata[];
 	setRunState: (state: { loading: boolean; wasRun?: boolean }) => void;
 	setClearedOutput: (output: PromptResponse | null) => void;
 	setOutputContent: (value: PromptResponse | null) => void;
@@ -50,6 +53,7 @@ export function usePlaygroundRunController({
 			const runParams = {
 				question: inputContent,
 				...(selectedMemoryId && { memoryId: Number(selectedMemoryId) }),
+				...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
 			};
 
 			if (!testcaseId) {
@@ -89,6 +93,7 @@ export function usePlaygroundRunController({
 		promptId,
 		runPrompt,
 		selectedMemoryId,
+		selectedFiles,
 		setClearedOutput,
 		setRunState,
 		setOutputContent,

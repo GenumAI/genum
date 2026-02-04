@@ -1,0 +1,21 @@
+model FileObject {
+    id          String   @id @default(uuid())
+    key         String   @unique
+    name        String
+    size        Int
+    contentType String
+    createdAt   DateTime @default(now()) @db.Timestamp(6)
+
+    projectId     Int
+    project       Project        @relation(fields: [projectId], references: [id])
+    testcaseFiles TestcaseFile[]
+}
+
+model TestcaseFile {
+    id         Int    @id @default(autoincrement())
+    testcaseId Int
+    fileId     String
+
+    testcase TestCase   @relation(fields: [testcaseId], references: [id], onDelete: Cascade)
+    file     FileObject @relation(fields: [fileId], references: [id], onDelete: Cascade)
+}

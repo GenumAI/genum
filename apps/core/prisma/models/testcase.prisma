@@ -23,4 +23,5 @@ model TestCase {
     updatedAt               DateTime       @default(now()) @updatedAt @db.Timestamp(6)
 
     prompt Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+	files TestcaseFile[]
 }

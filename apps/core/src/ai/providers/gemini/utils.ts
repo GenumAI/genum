@@ -1,4 +1,4 @@
-import { type GenerateContentConfig, Type } from "@google/genai";
+import { type ContentListUnion, type GenerateContentConfig, Type } from "@google/genai";
 import type { FunctionCall } from "../../models/types";
 import type { ProviderRequest } from "..";
 
@@ -123,4 +123,21 @@ export function mapConfigToGemini(request: ProviderRequest): GenerateContentConf
 					]
 				: undefined,
 	};
+}
+
+export function mapContentsToGeminiFormat(request: ProviderRequest): ContentListUnion {
+	if (request.files && request.files.length > 0) {
+		const parts = request.files.map((file) => ({
+			inlineData: {
+				mimeType: file.contentType,
+				data: file.buffer.toString("base64"),
+			},
+		}));
+
+		const contents = [{ text: request.question }, ...parts];
+
+		return contents;
+	} else {
+		return request.question;
+	}
 }

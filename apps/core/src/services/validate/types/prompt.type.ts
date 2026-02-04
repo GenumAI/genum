@@ -41,6 +41,7 @@ export const PromptRunSchema = z
 	.object({
 		question: z.string(),
 		memoryId: z.number().optional(),
+		files: z.array(z.string()).optional().default([]),
 	})
 	.strict();
 

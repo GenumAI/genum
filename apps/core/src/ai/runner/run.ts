@@ -158,6 +158,7 @@ export async function runPrompt(data: runPromptParams) {
 			question: data.question,
 			model: model.name,
 			parameters: prompt.languageModelConfig as ModelConfigParameters,
+			files: data.files,
 			promptPrice: model.promptPrice,
 			completionPrice: model.completionPrice,
 			baseUrl, // Pass baseUrl for custom providers

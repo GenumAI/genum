@@ -5,6 +5,21 @@ export interface Memory {
 	key: string;
 }
 
+export interface TestCaseFile {
+	id: number;
+	testcaseId: number;
+	fileId: string;
+	file: {
+		id: string;
+		key: string;
+		name: string;
+		size: number;
+		contentType: string;
+		projectId: number;
+		createdAt: string;
+	};
+}
+
 export interface TestCase {
 	id: number;
 	name: string;
@@ -20,6 +35,7 @@ export interface TestCase {
 	createdAt: string;
 	updatedAt: string;
 	memory: Memory | null;
+	files?: TestCaseFile[];
 }
 
 export type TestCaseResponse = {

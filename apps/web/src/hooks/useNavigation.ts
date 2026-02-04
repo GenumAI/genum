@@ -39,6 +39,12 @@ export const navigation = {
 			url: "/testcases",
 		},
 		{
+			key: "files",
+			title: "Files",
+			icon: File,
+			url: "/files",
+		},
+		{
 			key: "logs",
 			title: "Logs",
 			icon: FileText,

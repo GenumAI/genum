@@ -15,16 +15,20 @@ import { usePlaygroundAuditController } from "@/pages/prompt/playground-tabs/pla
 import type { PlaygroundControllerReturn } from "@/pages/prompt/playground-tabs/playground/hooks/types";
 import { usePromptTestcases } from "@/hooks/usePromptTestcases";
 
+import type { FileMetadata } from "@/api/files";
+
 export function usePlaygroundController({
 	promptId,
 	orgId,
 	projectId,
 	testcaseId,
+	selectedFiles = [],
 }: {
 	promptId: number | undefined;
 	orgId: string | undefined;
 	projectId: string | undefined;
 	testcaseId: string | null;
+	selectedFiles?: FileMetadata[];
 }) {
 	const {
 		setOutputContent,
@@ -120,6 +124,7 @@ export function usePlaygroundController({
 		wasRun,
 		currentAssertionType,
 		promptSettings: prompt?.prompt,
+		selectedFiles,
 		setRunState,
 		setClearedOutput,
 		setOutputContent,

@@ -67,3 +67,36 @@ function responsesFormatConfig(
 		type: "text",
 	};
 }
+
+export function inputMapper(request: ProviderRequest) {
+	if (request.files && request.files.length > 0) {
+		const inputFiles = request.files.map((file) => {
+			const isImage = file.contentType.startsWith("image/");
+			const base64Data = file.buffer.toString("base64");
+
+			if (isImage) {
+				return {
+					type: "input_image" as const,
+					image_url: `data:${file.contentType};base64,${base64Data}`,
+					detail: "auto" as const,
+				};
+			} else {
+				// PDF and other file types
+				return {
+					type: "input_file" as const,
+					file_data: `data:${file.contentType};base64,${base64Data}`,
+					filename: file.fileName,
+				};
+			}
+		});
+
+		return [
+			{
+				role: "user" as const,
+				content: [{ type: "input_text" as const, text: request.question }, ...inputFiles],
+			},
+		];
+	} else {
+		return request.question;
+	}
+}

@@ -3,6 +3,7 @@ import type { Prompt, Organization } from "@/prisma";
 import type { SourceType } from "@/services/logger/types";
 import type { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "langchain";
 import type OpenAI from "openai";
+import type { FileInput } from "@/services/file.service";
 
 export type runPromptParams = {
 	prompt: Prompt;
@@ -16,6 +17,7 @@ export type runPromptParams = {
 	api_key_id?: number;
 	system_instructions?: string;
 	systemPrompt?: boolean;
+	files?: FileInput[];
 };
 
 export type testcaseAssertion = {

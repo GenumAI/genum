@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { ResponseOutputItem } from "openai/resources/responses/responses";
 import type { ProviderRequest, ProviderResponse } from "..";
-import { answerMapper, responsesConfigMapper } from "./utils";
+import { answerMapper, inputMapper, responsesConfigMapper } from "./utils";
 
 export async function generateOpenAI(request: ProviderRequest): Promise<ProviderResponse> {
 	const start = Date.now();
@@ -15,7 +15,7 @@ export async function generateOpenAI(request: ProviderRequest): Promise<Provider
 
 	const response = await openai.responses.create({
 		model: request.model,
-		input: request.question,
+		input: inputMapper(request),
 		instructions: request.instruction,
 		store: false,
 		tools: request.parameters.tools

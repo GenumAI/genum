@@ -17,6 +17,7 @@ export interface CreateTestcaseData {
 	lastOutput?: string;
 	name?: string;
 	memoryId?: number | null;
+	files?: string[];
 }
 
 export interface UpdateTestcaseData {
@@ -31,6 +32,7 @@ export interface UpdateTestcaseData {
 export interface RunTestcaseData {
 	memoryId?: number;
 	question?: string;
+	files?: string[];
 }
 
 // ============================================================================
@@ -108,5 +110,32 @@ export const testcasesApi = {
 			config,
 		);
 		return response.data;
+	},
+
+	/**
+	 * Add a file to a testcase
+	 */
+	addFileToTestcase: async (
+		testcaseId: number | string,
+		fileId: string,
+		config?: ApiRequestConfig,
+	): Promise<{ testcaseFile: any }> => {
+		const response = await apiClient.post<{ testcaseFile: any }>(
+			`/testcases/${testcaseId}/files`,
+			{ fileId },
+			config,
+		);
+		return response.data;
+	},
+
+	/**
+	 * Remove a file from a testcase
+	 */
+	removeFileFromTestcase: async (
+		testcaseId: number | string,
+		fileId: string,
+		config?: ApiRequestConfig,
+	): Promise<void> => {
+		await apiClient.delete(`/testcases/${testcaseId}/files/${fileId}`, config);
 	},
 };

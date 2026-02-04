@@ -28,6 +28,7 @@ export const TestcasesCreateWithoutNameSchema = TestcasesCreateSchema.omit({
 })
 	.extend({
 		name: nameSchema.optional(),
+		files: z.array(z.string()).optional(), // Array of file IDs
 	})
 	.strict();
 export type TestcasesCreateWithoutNameType = z.infer<typeof TestcasesCreateWithoutNameSchema>;

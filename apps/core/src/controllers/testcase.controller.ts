@@ -12,6 +12,7 @@ import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
 import { system_prompt } from "@/ai/runner/system";
 import { SourceType } from "@/services/logger/types";
+import { type FileInput, fileService } from "@/services/file.service";
 
 export class TestcasesController {
 	async getAllTestcases(req: Request, res: Response) {
@@ -48,13 +49,16 @@ export class TestcasesController {
 			}
 		}
 
-		// const name = (await this.runner.testcaseNamer({
-		//     user_prompt: prompt.value,
-		//     memory_value: memory?.value,
-		//     input: data.input,
-		//     userOrgId: metadata.orgID,
-		//     userProjectId: metadata.projID
-		// })).slice(0, 230);
+		// Validate files if provided
+		if (data.files && data.files.length > 0) {
+			// Verify all files belong to the project
+			for (const fileId of data.files) {
+				const file = await db.file.getFileById(fileId, metadata.projID);
+				if (!file) {
+					throw new Error(`File ${fileId} not found or does not belong to project`);
+				}
+			}
+		}
 
 		const payload = testcaseNamerFormat({
 			do_not_execute_user_draft: prompt.value,
@@ -68,9 +72,10 @@ export class TestcasesController {
 			metadata.projID,
 		);
 
-		const testcaseData: TestcasesCreateType = {
+		const testcaseData: TestcasesCreateType & { files?: string[] } = {
 			...data,
 			name: data.name ?? `Testcase: ${name}`.slice(0, 230),
+			files: data.files,
 		};
 
 		const testcase = await db.testcases.newTestcase(testcaseData);
@@ -106,6 +111,19 @@ export class TestcasesController {
 
 		const testcase = await checkTestcaseAccess(id, metadata.projID);
 
+		// Get files from testcase or use files from request
+		let filesToUse: string[] | undefined;
+		if (testcase.files && testcase.files.length > 0) {
+			// Use files from testcase
+			filesToUse = testcase.files.map((tf) => tf.fileId);
+		}
+
+		// Get file objects if files are provided
+		let fileObjects: FileInput[] | undefined;
+		if (filesToUse && filesToUse.length > 0) {
+			fileObjects = await fileService.getFileObjectsByIds(filesToUse, metadata.projID);
+		}
+
 		const run = await runPrompt({
 			prompt: testcase.prompt,
 			question: testcase.input,
@@ -115,6 +133,7 @@ export class TestcasesController {
 			userOrgId: metadata.orgID,
 			user_id: metadata.userID,
 			testcase_id: testcase.id,
+			files: fileObjects,
 		});
 
 		const assertionType = testcase.prompt.assertionType;
@@ -155,6 +174,34 @@ export class TestcasesController {
 			...run,
 			testcase: { ...return_testcase, assertionType, assertionValue },
 		});
+	}
+
+	async addFileToTestcase(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const testcaseId = numberSchema.parse(req.params.id);
+		const { fileId } = req.body as { fileId: string };
+
+		await checkTestcaseAccess(testcaseId, metadata.projID);
+
+		// Verify file belongs to project
+		const file = await db.file.getFileById(fileId, metadata.projID);
+		if (!file) {
+			throw new Error("File not found or does not belong to project");
+		}
+
+		const testcaseFile = await db.testcases.addFileToTestcase(testcaseId, fileId);
+		res.status(200).json({ testcaseFile });
+	}
+
+	async removeFileFromTestcase(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const testcaseId = numberSchema.parse(req.params.id);
+		const fileId = req.params.fileId as string;
+
+		await checkTestcaseAccess(testcaseId, metadata.projID);
+
+		await db.testcases.removeFileFromTestcase(testcaseId, fileId);
+		res.status(200).json({ success: true });
 	}
 }
 

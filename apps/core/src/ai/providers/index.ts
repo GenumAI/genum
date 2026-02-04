@@ -1,3 +1,4 @@
+import type { FileInput } from "@/services/file.service";
 import type { ModelConfigParameters } from "../models/types";
 
 export * from "./openai/generate";
@@ -9,6 +10,7 @@ export type ProviderRequest = {
 	question: string;
 	model: string;
 	parameters: ModelConfigParameters;
+	files?: FileInput[];
 	promptPrice: number;
 	completionPrice: number;
 	baseUrl?: string; // For custom OpenAI-compatible providers

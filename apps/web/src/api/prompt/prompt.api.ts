@@ -68,6 +68,7 @@ export interface UpdatePromptData {
 export interface RunPromptData {
 	question?: string;
 	memoryId?: number;
+	files?: string[];
 }
 
 export interface AuditResponse {

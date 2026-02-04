@@ -36,6 +36,7 @@ import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import { ErrorPage } from "@/pages/info-pages/ErrorPage";
 import { NotFoundPage } from "@/pages/info-pages/NotFoundPage";
+import FilesPage from "@/pages/files/FilesPage";
 
 export const router = createBrowserRouter([
 	{
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
 			{ path: "dashboard", element: <Dashboard /> },
 			{ path: "prompts", element: <Prompts /> },
 			{ path: "testcases", element: <Testcases /> },
+			{ path: "files", element: <FilesPage /> },
 			{
 				path: "settings",
 				element: <Settings />,
