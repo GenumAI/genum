@@ -2,7 +2,6 @@ import { storage } from "./storage";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { db } from "@/database/db";
-import { Readable } from "node:stream";
 
 export interface FileMetadata {
 	id: string;
