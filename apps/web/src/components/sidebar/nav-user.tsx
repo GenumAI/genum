@@ -64,10 +64,16 @@ export function NavUser() {
 		return LETTER_COLOR_MAP[firstLetter] || "bg-[#D6CFFF]";
 	};
 
+	const isLetter = (char: string): boolean => /^[a-zA-Z]$/.test(char);
+
 	const userName = user?.name || authUser?.name || "User";
 	const userEmail = user?.email || authUser?.email || "";
 	const userAvatar = user?.avatar || authUser?.picture;
-	const authorColor = getColorByFirstLetter(userName);
+
+	const firstChar = userName[0] ?? "";
+	const isNonLetter = !firstChar || !isLetter(firstChar);
+	const authorInitial = isNonLetter ? "G" : firstChar.toUpperCase();
+	const authorColor = isNonLetter ? "bg-black text-white" : getColorByFirstLetter(userName);
 
 	return (
 		<SidebarMenu>
@@ -86,12 +92,7 @@ export function NavUser() {
 								<AvatarFallback
 									className={`rounded-lg font-bold text-[18px] ${authorColor}`}
 								>
-									{(
-										userName
-											.match(/[a-zA-Z]/g)
-											?.slice(0, 1)
-											.join("") ?? "U"
-									).toUpperCase()}
+									{authorInitial}
 								</AvatarFallback>
 							</Avatar>
 							<div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
@@ -116,12 +117,7 @@ export function NavUser() {
 									<AvatarFallback
 										className={`rounded-lg bg-[#83ABFF80] ${authorColor}`}
 									>
-										{(
-											userName
-												.match(/[a-zA-Z]/g)
-												?.slice(0, 1)
-												.join("") ?? "U"
-										).toUpperCase()}
+										{authorInitial}
 									</AvatarFallback>
 								</Avatar>
 								<div className="grid flex-1 text-left text-sm leading-tight">
