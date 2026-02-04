@@ -47,7 +47,7 @@ export class TestcasesRepository {
 	public async getTestcaseByIDWithPrompt(id: number) {
 		return await this.prisma.testCase.findUnique({
 			where: { id },
-			include: { 
+			include: {
 				prompt: { include: { languageModel: true } },
 				files: {
 					include: {
@@ -60,7 +60,7 @@ export class TestcasesRepository {
 
 	public async newTestcase(data: TestcasesCreateType & { files?: string[] }) {
 		const { files, ...testcaseData } = data;
-		
+
 		const testcase = await this.prisma.testCase.create({
 			data: testcaseData,
 		});

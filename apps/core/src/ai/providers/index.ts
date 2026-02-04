@@ -1,4 +1,4 @@
-import { FileInput } from "@/services/file.service";
+import type { FileInput } from "@/services/file.service";
 import type { ModelConfigParameters } from "../models/types";
 
 export * from "./openai/generate";

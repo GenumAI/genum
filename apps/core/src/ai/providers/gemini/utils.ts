@@ -1,4 +1,4 @@
-import { ContentListUnion, type GenerateContentConfig, Type } from "@google/genai";
+import { type ContentListUnion, type GenerateContentConfig, Type } from "@google/genai";
 import type { FunctionCall } from "../../models/types";
 import type { ProviderRequest } from "..";
 
