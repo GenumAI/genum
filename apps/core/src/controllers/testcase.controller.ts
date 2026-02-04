@@ -108,16 +108,12 @@ export class TestcasesController {
 		const metadata = req.genumMeta.ids;
 
 		const id = numberSchema.parse(req.params.id);
-		const { files: requestFiles } = req.body as { files?: string[] };
 
 		const testcase = await checkTestcaseAccess(id, metadata.projID);
 
 		// Get files from testcase or use files from request
 		let filesToUse: string[] | undefined;
-		if (requestFiles && requestFiles.length > 0) {
-			// Use files from request (override testcase files)
-			filesToUse = requestFiles;
-		} else if (testcase.files && testcase.files.length > 0) {
+		if (testcase.files && testcase.files.length > 0) {
 			// Use files from testcase
 			filesToUse = testcase.files.map((tf) => tf.fileId);
 		}
