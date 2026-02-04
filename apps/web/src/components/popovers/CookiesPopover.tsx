@@ -19,12 +19,18 @@ export const CookiesPopover = () => {
 		if (!hasConsent) {
 			setTimeout(() => setOpen(true), 1000);
 		} else {
-			let consent: { analytics?: boolean; marketing?: boolean; functional?: boolean };
+			let consent: { analytics?: boolean; marketing?: boolean; functional?: boolean } = {
+				analytics: true,
+				marketing: true,
+				functional: true,
+			};
+
 			try {
-				consent = JSON.parse(hasConsent);
-			} catch {
-				consent = { analytics: true, marketing: true, functional: true };
-			}
+				const parsed = JSON.parse(hasConsent);
+				if (typeof parsed === "object" && parsed !== null) {
+					consent = { ...consent, ...parsed };
+				}
+			} catch {}
 
 			if (!consent.analytics) {
 				removeAnalyticsCookies();

@@ -126,7 +126,7 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 		if (authMode !== "local") {
 			setIsAuthenticated(false);
 			setUser(null);
-			queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+			queryClient.clear();
 			return;
 		}
 
@@ -136,7 +136,7 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 		} finally {
 			setIsAuthenticated(false);
 			setUser(null);
-			queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+			queryClient.clear();
 		}
 	}, [queryClient]);
 
