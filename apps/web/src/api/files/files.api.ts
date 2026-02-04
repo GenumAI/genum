@@ -1,4 +1,4 @@
-import { apiClient } from "../client";
+import { apiClient, type ApiRequestConfig } from "../client";
 
 export interface FileMetadata {
 	id: string;
@@ -32,7 +32,7 @@ export const filesApi = {
 
 		const response = await apiClient.post<FileUploadResponse>("/files", formData, {
 			withContentType: false, // Let axios handle FormData content type
-		});
+		} as ApiRequestConfig);
 
 		return response.data.file;
 	},
