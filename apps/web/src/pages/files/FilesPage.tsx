@@ -16,7 +16,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Download, File, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Eye, File, Image as ImageIcon } from "lucide-react";
 import { filesApi, type FileMetadata } from "@/api/files";
 import FileUploadDialog from "@/components/dialogs/FileUploadDialog";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
@@ -129,7 +129,7 @@ export default function FilesPage() {
 									}
 								}}
 							>
-								<Download className="h-4 w-4" />
+								<Eye className="h-4 w-4" />
 							</Button>
 							<Button
 								variant="ghost"
