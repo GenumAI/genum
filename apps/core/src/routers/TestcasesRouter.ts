@@ -17,5 +17,12 @@ export function createTestcasesRouter(): Router {
 	router.delete("/:id", asyncHandler(controller.deleteTestcase.bind(controller)));
 	router.put("/:id", asyncHandler(controller.updateTestcase.bind(controller)));
 
+	// Testcase files
+	router.post("/:id/files", asyncHandler(controller.addFileToTestcase.bind(controller)));
+	router.delete(
+		"/:id/files/:fileId",
+		asyncHandler(controller.removeFileFromTestcase.bind(controller)),
+	);
+
 	return router;
 }

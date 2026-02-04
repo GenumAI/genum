@@ -22,12 +22,14 @@ interface OutputBlockProps {
 	onSaveAsExpected: (content: UpdateExpected) => Promise<void>;
 	onTestcaseAdded?: () => void;
 	onRegisterClearFunction?: (clearFn: () => void) => void;
+	selectedFiles?: Array<{ id: string }>;
 }
 
 const OutputBlock: React.FC<OutputBlockProps> = ({
 	onSaveAsExpected,
 	onTestcaseAdded,
 	onRegisterClearFunction,
+	selectedFiles,
 }) => {
 	// Route params
 	const { id } = useParams<{ id: string }>();
@@ -68,6 +70,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	const { isTestcaseLoading, createTestcase } = useTestcaseActions({
 		promptId,
 		onTestcaseAdded,
+		selectedFiles,
 	});
 
 	// Register clear function

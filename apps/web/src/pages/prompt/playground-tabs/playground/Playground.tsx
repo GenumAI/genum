@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Loader2, Plus } from "lucide-react";
 import clsx from "clsx";
@@ -15,6 +15,8 @@ import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playgrou
 import FileSelectDialog from "@/components/dialogs/FileSelectDialog";
 import SelectedFilesList from "@/components/SelectedFilesList";
 import type { FileMetadata } from "@/api/files";
+import { testcasesApi } from "@/api/testcases/testcases.api";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Playground() {
 	const { orgId, projectId, id } = useParams<{
@@ -30,6 +32,7 @@ export default function Playground() {
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const [selectedFiles, setSelectedFiles] = useState<FileMetadata[]>([]);
 	const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
+	const queryClient = useQueryClient();
 	const controller = usePlaygroundController({
 		promptId,
 		orgId,
@@ -42,12 +45,79 @@ export default function Playground() {
 
 	const sidebar = useSidebar();
 
-	const handleFileSelect = (files: FileMetadata[]) => {
+	// Load testcase files when testcase is opened
+	useEffect(() => {
+		if (testcase.data?.files && testcase.data.files.length > 0) {
+			const testcaseFiles: FileMetadata[] = testcase.data.files.map((tf) => ({
+				id: tf.file.id,
+				key: tf.file.key,
+				name: tf.file.name,
+				size: tf.file.size,
+				contentType: tf.file.contentType,
+				projectId: tf.file.projectId,
+				organizationId: 0, // Will be filled from project
+				uploadedBy: 0,
+				createdAt: tf.file.createdAt,
+			}));
+			setSelectedFiles(testcaseFiles);
+		} else if (!testcaseId) {
+			// Clear files when not in testcase mode
+			setSelectedFiles([]);
+		}
+	}, [testcase.data?.files, testcaseId]);
+
+	const handleFileSelect = async (files: FileMetadata[]) => {
 		setSelectedFiles(files);
+		
+		// If we're in testcase mode, save files to testcase
+		if (testcaseId) {
+			try {
+				// Get current testcase files
+				const currentFileIds = testcase.data?.files?.map((tf) => tf.fileId) || [];
+				const newFileIds = files.map((f) => f.id);
+				
+				// Find files to add and remove
+				const filesToAdd = newFileIds.filter((id) => !currentFileIds.includes(id));
+				const filesToRemove = currentFileIds.filter((id) => !newFileIds.includes(id));
+				
+				// Add new files
+				for (const fileId of filesToAdd) {
+					await testcasesApi.addFileToTestcase(testcaseId, fileId);
+				}
+				
+				// Remove files
+				for (const fileId of filesToRemove) {
+					await testcasesApi.removeFileFromTestcase(testcaseId, fileId);
+				}
+				
+				// Refresh testcase data
+				if (promptId && testcaseId) {
+					await queryClient.invalidateQueries({ queryKey: ["prompt-testcases", promptId] });
+					await queryClient.invalidateQueries({ queryKey: ["testcase", testcaseId] });
+				}
+			} catch (error) {
+				console.error("Failed to update testcase files:", error);
+			}
+		}
 	};
 
-	const handleFileRemove = (fileId: string) => {
-		setSelectedFiles(selectedFiles.filter((f) => f.id !== fileId));
+	const handleFileRemove = async (fileId: string) => {
+		const newFiles = selectedFiles.filter((f) => f.id !== fileId);
+		setSelectedFiles(newFiles);
+		
+		// If we're in testcase mode, remove file from testcase
+		if (testcaseId) {
+			try {
+				await testcasesApi.removeFileFromTestcase(testcaseId, fileId);
+				// Refresh testcase data
+				if (promptId) {
+					await queryClient.invalidateQueries({ queryKey: ["prompt-testcases", promptId] });
+					await queryClient.invalidateQueries({ queryKey: ["testcase", testcaseId] });
+				}
+			} catch (error) {
+				console.error("Failed to remove file from testcase:", error);
+			}
+		}
 	};
 
 	return (
@@ -120,6 +190,7 @@ export default function Playground() {
 								onSaveAsExpected={actions.testcase.saveAsExpected}
 								onTestcaseAdded={actions.testcase.onAdded}
 								onRegisterClearFunction={actions.testcase.registerClearFn}
+								selectedFiles={selectedFiles}
 							/>
 						</>
 					)}

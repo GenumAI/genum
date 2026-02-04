@@ -8,9 +8,10 @@ import { useQueryClient } from "@tanstack/react-query";
 interface UseTestcaseActionsProps {
 	promptId: number | undefined;
 	onTestcaseAdded?: () => void;
+	selectedFiles?: Array<{ id: string }>;
 }
 
-export const useTestcaseActions = ({ promptId, onTestcaseAdded }: UseTestcaseActionsProps) => {
+export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }: UseTestcaseActionsProps) => {
 	const [isTestcaseLoading, setIsTestcaseLoading] = useState(false);
 	const { toast } = useToast();
 	const { selectedMemoryId } = usePlaygroundTestcase();
@@ -33,6 +34,7 @@ export const useTestcaseActions = ({ promptId, onTestcaseAdded }: UseTestcaseAct
 				expectedOutput: expectedOutput,
 				lastOutput: lastOutput || "",
 				memoryId: selectedMemoryId ? Number(selectedMemoryId) : undefined,
+				files: selectedFiles && selectedFiles.length > 0 ? selectedFiles.map((f) => f.id) : undefined,
 			};
 
 			setIsTestcaseLoading(true);
@@ -67,7 +69,7 @@ export const useTestcaseActions = ({ promptId, onTestcaseAdded }: UseTestcaseAct
 
 			return { success };
 		},
-		[promptId, selectedMemoryId, onTestcaseAdded, toast, queryClient],
+		[promptId, selectedMemoryId, selectedFiles, onTestcaseAdded, toast, queryClient],
 	);
 
 	return {
