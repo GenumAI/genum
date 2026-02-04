@@ -1,18 +1,16 @@
 import { GoogleGenAI } from "@google/genai";
 import type { ProviderRequest, ProviderResponse } from "..";
-import { mapConfigToGemini } from "./utils";
+import { mapConfigToGemini, mapContentsToGeminiFormat } from "./utils";
 
 export async function generateGemini(request: ProviderRequest) {
 	const start = Date.now();
 
 	const ai = new GoogleGenAI({ apiKey: request.apikey });
 
-	const config = mapConfigToGemini(request);
-
 	const response = await ai.models.generateContent({
 		model: request.model,
-		config: config,
-		contents: request.question,
+		config: mapConfigToGemini(request),
+		contents: mapContentsToGeminiFormat(request),
 	});
 
 	console.log(JSON.stringify(response, null, 2));
