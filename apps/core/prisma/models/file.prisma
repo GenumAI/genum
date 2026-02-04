@@ -16,6 +16,6 @@ model TestcaseFile {
     testcaseId Int
     fileId     String
 
-    testcase TestCase   @relation(fields: [testcaseId], references: [id])
-    file     FileObject @relation(fields: [fileId], references: [id])
+    testcase TestCase   @relation(fields: [testcaseId], references: [id], onDelete: Cascade)
+    file     FileObject @relation(fields: [fileId], references: [id], onDelete: Cascade)
 }
