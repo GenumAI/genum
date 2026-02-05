@@ -89,6 +89,9 @@ export function CommitAuthorAvatar({ author }: CommitAuthorAvatarProps) {
 
 	return (
 		<Avatar className="h-5 w-5 rounded-full">
+			{hasPicture && !imageLoaded && !imageError && (
+				<div className="h-5 w-5 rounded-full bg-muted/40 animate-pulse" />
+			)}
 			{hasPicture && imageLoaded && !imageError && author.picture && (
 				<AvatarImage
 					src={author.picture}
@@ -97,9 +100,11 @@ export function CommitAuthorAvatar({ author }: CommitAuthorAvatarProps) {
 					className="rounded-full"
 				/>
 			)}
-			<AvatarFallback className={`rounded-full text-[10px] font-bold ${colorClass}`}>
-				{initial}
-			</AvatarFallback>
+			{(!hasPicture || imageError) && (
+				<AvatarFallback className={`rounded-full text-[10px] font-bold ${colorClass}`}>
+					{initial}
+				</AvatarFallback>
+			)}
 		</Avatar>
 	);
 }

@@ -17,6 +17,13 @@ import {
 } from "@/components/ui/form";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
+import { useTheme } from "@/components/theme/theme-provider";
+
+const LOGO_LIGHT =
+	"https://community.genum.ai/uploads/default/original/1X/ec2ab5e22a40c2197bdd0bb4c1848a10ec9f518e.png";
+const LOGO_DARK =
+	"https://community.genum.ai/uploads/default/original/1X/134ee90e24a8c5fd4d0f7c9d3ce451bb36830e01.png";
+const BACKGROUND_IMAGE = "https://cdn.genum.ai/background/auth_background.png?=1";
 
 interface LoginFormData {
 	email: string;
@@ -30,7 +37,9 @@ export default function Login() {
 	const { login, isAuthenticated: localIsAuthenticated } = useLocalAuth();
 	const { isAuthenticated: authIsAuthenticated, loginWithRedirect } = useAuth();
 	const { toast } = useToast();
+	const { resolvedTheme } = useTheme();
 	const [isLoading, setIsLoading] = useState(false);
+	const isDark = resolvedTheme === "dark";
 
 	useEffect(() => {
 		if (isCloud) {
@@ -87,18 +96,23 @@ export default function Login() {
 	};
 
 	return (
-		<div className="fixed inset-0 w-full h-full bg-[url('https://cdn.genum.ai/background/auth_background.png?=1')] bg-cover bg-center bg-no-repeat flex items-center justify-center">
-			<div className="flex flex-col gap-6 w-[400px] shadow-[0_4px_16px_#00000014] rounded-[24px] p-[52px] bg-white">
+		<div
+			className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat flex items-center justify-center dark:bg-zinc-950"
+			style={{ backgroundImage: `url('${BACKGROUND_IMAGE}')` }}
+		>
+			<div className="flex flex-col gap-6 w-[400px] shadow-[0_4px_16px_#00000014] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] rounded-[24px] p-[52px] bg-white dark:bg-zinc-900 dark:border dark:border-zinc-800">
 				<div className="text-center">
-					<img
-						src="https://cdn.genum.ai/logo/ai_logo.png"
-						alt="Logo"
-						className="w-[120px] h-[23px] mx-auto"
-					/>
-					<h1 className="text-[24px] font-bold text-gray-900 mb-[16px] mt-[24px]">
+					<div className="mx-auto flex h-[32px] w-[140px] items-center justify-center">
+						<img
+							src={isDark ? LOGO_LIGHT : LOGO_DARK}
+							alt="Logo"
+							className="max-h-full max-w-full object-contain object-center dark:invert-0"
+						/>
+					</div>
+					<h1 className="text-[24px] font-bold text-gray-900 dark:text-zinc-50 mb-[16px] mt-[24px]">
 						Log In
 					</h1>
-					<p className="text-gray-800 text-[14px]">
+					<p className="text-gray-800 dark:text-zinc-400 text-[14px]">
 						Enter your credentials to access your account
 					</p>
 				</div>
@@ -117,13 +131,16 @@ export default function Login() {
 							}}
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Email</FormLabel>
+									<FormLabel className="text-gray-900 dark:text-zinc-200">
+										Email
+									</FormLabel>
 									<FormControl>
 										<Input
 											type="email"
 											placeholder="your.email@example.com"
 											{...field}
 											disabled={isLoading}
+											className="dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100 dark:placeholder:text-zinc-500"
 										/>
 									</FormControl>
 									<FormMessage />
@@ -143,13 +160,16 @@ export default function Login() {
 							}}
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Password</FormLabel>
+									<FormLabel className="text-gray-900 dark:text-zinc-200">
+										Password
+									</FormLabel>
 									<FormControl>
 										<Input
 											type="password"
 											placeholder="Enter your password"
 											{...field}
 											disabled={isLoading}
+											className="dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100 dark:placeholder:text-zinc-500"
 										/>
 									</FormControl>
 									<FormMessage />
@@ -157,7 +177,11 @@ export default function Login() {
 							)}
 						/>
 
-						<Button type="submit" className="w-full min-h-[40px]" disabled={isLoading}>
+						<Button
+							type="submit"
+							className="w-full min-h-[40px] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+							disabled={isLoading}
+						>
 							{isLoading ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -171,12 +195,12 @@ export default function Login() {
 				</Form>
 
 				<div className="text-center">
-					<p className="text-sm text-gray-600">
+					<p className="text-sm text-gray-600 dark:text-[#A1A1AA]">
 						Don't have an account?{" "}
 						<button
 							type="button"
 							onClick={() => navigate("/signup")}
-							className="text-blue-600 hover:underline font-medium"
+							className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
 						>
 							Sign up
 						</button>
