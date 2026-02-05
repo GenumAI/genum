@@ -43,7 +43,16 @@ const EnvSchema = z.object({
 	S3_REGION: z.string().optional().default("us-east-1"), // default region for local MinIO
 	S3_ACCESS_KEY_ID: z.string().optional().default("minio"),
 	S3_SECRET_ACCESS_KEY: z.string().optional().default("miniosecret"),
-	S3_ENDPOINT: z.url().optional(),
+	// S3_ENDPOINT: defaults to localhost:9090 for local dev
+	// To use AWS S3 in production, set S3_ENDPOINT=undefined in your .env to override
+	S3_ENDPOINT: z.preprocess((val) => {
+		// Not set = use default for local dev
+		if (val === undefined) return "http://localhost:9090";
+		// Explicitly set to 'undefined' = default for AWS SDK
+		if (val === "undefined") return undefined;
+		// Custom value = use as-is
+		return val;
+	}, z.url().optional()),
 	S3_FORCE_PATH_STYLE: z.coerce.boolean().optional().default(true),
 	S3_PUBLIC_ENDPOINT: z.url().optional(),
 });
