@@ -34,7 +34,8 @@ cd genum
 
 ### 2) Configure Environment (optional)
 
-Create a `.env` file in the repo root. For local Docker, **only AI provider keys are required** to enable AI features. Everything else has defaults in `docker-compose*.yml`.
+Create a **single** `.env` file in the **repo root**. This is the only `.env` used across the project — **do not** create additional `.env` files in subfolders.
+For local Docker, **only AI provider keys are required** to enable AI features. Everything else has defaults in `docker-compose*.yml`.
 
 ```env
 # AI Provider Keys (required only if you want AI features)
@@ -144,7 +145,23 @@ docker-compose logs
 
 ## Development (No Docker)
 
-For local development without Docker, see:
+For local development without Docker, install deps and run the monorepo dev task.
+All apps read from the single root `.env`:
+
+```bash
+pnpm install
+pnpm dev
+```
+
+`pnpm dev` runs dev servers for both `apps/web` and `apps/core` (via Turborepo).
+You can also run them separately:
+
+```bash
+pnpm dev:web
+pnpm dev:core
+```
+
+See the app READMEs for details:
 - `apps/core/`
 - `apps/web/`
 
