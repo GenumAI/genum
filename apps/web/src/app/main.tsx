@@ -1,3 +1,11 @@
+import "./monacoEnv";
+
+import { loader } from "@monaco-editor/react";
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
+
+// Configure Monaco loader to use local Monaco instance
+loader.config({ monaco });
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./../index.css";
