@@ -23,6 +23,7 @@ interface OutputBlockProps {
 	onTestcaseAdded?: () => void;
 	onRegisterClearFunction?: (clearFn: () => void) => void;
 	selectedFiles?: Array<{ id: string }>;
+	onTestcaseLoadingChange?: (isLoading: boolean) => void;
 }
 
 const OutputBlock: React.FC<OutputBlockProps> = ({
@@ -30,6 +31,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	onTestcaseAdded,
 	onRegisterClearFunction,
 	selectedFiles,
+	onTestcaseLoadingChange,
 }) => {
 	// Route params
 	const { id } = useParams<{ id: string }>();
@@ -79,6 +81,11 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 			onRegisterClearFunction(clearExpectedOutput);
 		}
 	}, [onRegisterClearFunction, clearExpectedOutput]);
+	useEffect(() => {
+		if (onTestcaseLoadingChange) {
+			onTestcaseLoadingChange(isTestcaseLoading);
+		}
+	}, [isTestcaseLoading, onTestcaseLoadingChange]);
 
 	// Handlers
 	const handleSaveAsExpected = async () => {

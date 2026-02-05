@@ -31,6 +31,7 @@ export default function Playground() {
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const [selectedFiles, setSelectedFiles] = useState<FileMetadata[]>([]);
 	const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
+	const [isTestcaseLoading, setIsTestcaseLoading] = useState(false);
 	const queryClient = useQueryClient();
 	const controller = usePlaygroundController({
 		promptId,
@@ -67,31 +68,33 @@ export default function Playground() {
 
 	const handleFileSelect = async (files: FileMetadata[]) => {
 		setSelectedFiles(files);
-		
+
 		// If we're in testcase mode, save files to testcase
 		if (testcaseId) {
 			try {
 				// Get current testcase files
 				const currentFileIds = testcase.data?.files?.map((tf) => tf.fileId) || [];
 				const newFileIds = files.map((f) => f.id);
-				
+
 				// Find files to add and remove
 				const filesToAdd = newFileIds.filter((id) => !currentFileIds.includes(id));
 				const filesToRemove = currentFileIds.filter((id) => !newFileIds.includes(id));
-				
+
 				// Add new files
 				for (const fileId of filesToAdd) {
 					await testcasesApi.addFileToTestcase(testcaseId, fileId);
 				}
-				
+
 				// Remove files
 				for (const fileId of filesToRemove) {
 					await testcasesApi.removeFileFromTestcase(testcaseId, fileId);
 				}
-				
+
 				// Refresh testcase data
 				if (promptId && testcaseId) {
-					await queryClient.invalidateQueries({ queryKey: ["prompt-testcases", promptId] });
+					await queryClient.invalidateQueries({
+						queryKey: ["prompt-testcases", promptId],
+					});
 					await queryClient.invalidateQueries({ queryKey: ["testcase", testcaseId] });
 				}
 			} catch (error) {
@@ -103,14 +106,16 @@ export default function Playground() {
 	const handleFileRemove = async (fileId: string) => {
 		const newFiles = selectedFiles.filter((f) => f.id !== fileId);
 		setSelectedFiles(newFiles);
-		
+
 		// If we're in testcase mode, remove file from testcase
 		if (testcaseId) {
 			try {
 				await testcasesApi.removeFileFromTestcase(testcaseId, fileId);
 				// Refresh testcase data
 				if (promptId) {
-					await queryClient.invalidateQueries({ queryKey: ["prompt-testcases", promptId] });
+					await queryClient.invalidateQueries({
+						queryKey: ["prompt-testcases", promptId],
+					});
 					await queryClient.invalidateQueries({ queryKey: ["testcase", testcaseId] });
 				}
 			} catch (error) {
@@ -173,7 +178,8 @@ export default function Playground() {
 										disabled={
 											!ui.validation.hasPromptContent ||
 											!ui.validation.hasInputContent ||
-											ui.loading.run
+											ui.loading.run ||
+											isTestcaseLoading
 										}
 										onClick={actions.run}
 										className="text-[14px] h-[32px] w-[138px] flex-shrink-0"
@@ -190,6 +196,7 @@ export default function Playground() {
 								onTestcaseAdded={actions.testcase.onAdded}
 								onRegisterClearFunction={actions.testcase.registerClearFn}
 								selectedFiles={selectedFiles}
+								onTestcaseLoadingChange={setIsTestcaseLoading}
 							/>
 						</>
 					)}
