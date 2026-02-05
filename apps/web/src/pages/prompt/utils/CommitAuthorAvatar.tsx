@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState, useEffect } from "react";
 
 const COMMIT_AVATAR_LETTER_COLOR_MAP: Record<string, string> = {
 	A: "bg-[#D6CFFF]",
@@ -43,7 +44,9 @@ export interface CommitAuthorAvatarProps {
 }
 
 export function CommitAuthorAvatar({ author }: CommitAuthorAvatarProps) {
-	const picture = author.picture ?? "/assets/avatars/shadcn.jpg";
+	const [imageLoaded, setImageLoaded] = useState(false);
+	const [imageError, setImageError] = useState(false);
+
 	const firstChar = author.name?.[0] ?? "";
 	const isNonLetter = !firstChar || !isLetter(firstChar);
 
@@ -52,14 +55,48 @@ export function CommitAuthorAvatar({ author }: CommitAuthorAvatarProps) {
 		? "bg-black text-white"
 		: getCommitAvatarColor(author.name ?? "U");
 
+	const hasPicture = Boolean(author.picture);
+
+	// Предзагрузка изображения
+	useEffect(() => {
+		if (!hasPicture || !author.picture) {
+			setImageLoaded(false);
+			setImageError(false);
+			return;
+		}
+
+		setImageLoaded(false);
+		setImageError(false);
+
+		const img = new Image();
+		img.src = author.picture;
+
+		img.onload = () => {
+			setImageLoaded(true);
+			setImageError(false);
+		};
+
+		img.onerror = () => {
+			setImageLoaded(false);
+			setImageError(true);
+		};
+
+		return () => {
+			img.onload = null;
+			img.onerror = null;
+		};
+	}, [author.picture, hasPicture]);
+
 	return (
 		<Avatar className="h-5 w-5 rounded-full">
-			<AvatarImage
-				src={picture}
-				alt={author.name}
-				referrerPolicy="no-referrer"
-				className="rounded-full"
-			/>
+			{hasPicture && imageLoaded && !imageError && author.picture && (
+				<AvatarImage
+					src={author.picture}
+					alt={author.name}
+					referrerPolicy="no-referrer"
+					className="rounded-full"
+				/>
+			)}
 			<AvatarFallback className={`rounded-full text-[10px] font-bold ${colorClass}`}>
 				{initial}
 			</AvatarFallback>
