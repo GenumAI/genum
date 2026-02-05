@@ -23,6 +23,7 @@ const LOGO_LIGHT =
 	"https://community.genum.ai/uploads/default/original/1X/ec2ab5e22a40c2197bdd0bb4c1848a10ec9f518e.png";
 const LOGO_DARK =
 	"https://community.genum.ai/uploads/default/original/1X/134ee90e24a8c5fd4d0f7c9d3ce451bb36830e01.png";
+const BACKGROUND_IMAGE = "https://cdn.genum.ai/background/auth_background.png?=1";
 
 interface SignupFormData {
 	name: string;
@@ -100,7 +101,10 @@ export default function Signup() {
 	};
 
 	return (
-		<div className="fixed inset-0 w-full h-full bg-[url('https://cdn.genum.ai/background/auth_background.png?=1')] bg-cover bg-center bg-no-repeat flex items-center justify-center dark:bg-zinc-950">
+		<div
+			className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat flex items-center justify-center dark:bg-zinc-950"
+			style={{ backgroundImage: `url('${BACKGROUND_IMAGE}')` }}
+		>
 			<div className="flex flex-col gap-6 w-[400px] shadow-[0_4px_16px_#00000014] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] rounded-[24px] p-[52px] bg-white dark:bg-zinc-900 dark:border dark:border-zinc-800 max-h-[90vh] overflow-y-auto">
 				<div className="text-center">
 					<div className="mx-auto flex h-[32px] w-[140px] items-center justify-center">
