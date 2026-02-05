@@ -20,7 +20,6 @@ import { VERSION } from "@/constants/VERSION";
 initializeSentry();
 
 const app = express();
-const PORT = env.CORE_PORT;
 
 app.use(express.json()); // Required to parse JSON bodies from requests
 app.use(cookieParser()); // Required to parse cookies from requests
@@ -75,12 +74,12 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 // initialize system prompts config and ClickHouse before starting server
 Promise.all([initSystemPromptsConfig(), initializeClickHouse()])
 	.then(() => {
-		app.listen(PORT, () => {
+		app.listen(env.CORE_PORT, () => {
 			console.log(
 				[
 					`----SERVER IS RUNNING----`,
 					`INSTANCE: ${env.INSTANCE_TYPE} VERSION: ${VERSION}`,
-					`PORT: ${PORT}`,
+					`PORT: ${env.CORE_PORT}`,
 					`STAGE: ${env.NODE_ENV}`,
 				].join("\n"),
 			);
