@@ -70,14 +70,14 @@ This will:
 
 ## Services & Ports
 
-| Service | Role | Default Port |
-| --- | --- | --- |
-| `core` | Backend API | `3010` |
-| `web` | Frontend UI | `3080` |
-| `postgres` | Primary DB | `5432` (localhost only) |
-| `clickhouse` | Analytics DB (HTTP) | `8123` (localhost only) |
-| `clickhouse` | Analytics DB (native) | `9000` (localhost only) |
-| `minio` | S3-compatible storage | `9090` (API), `9091` (console) |
+| Service      | Role                  | Default Port                   |
+| ------------ | --------------------- | ------------------------------ |
+| `core`       | Backend API           | `3010`                         |
+| `web`        | Frontend UI           | `3080`                         |
+| `postgres`   | Primary DB            | `5432` (localhost only)        |
+| `clickhouse` | Analytics DB (HTTP)   | `8123` (localhost only)        |
+| `clickhouse` | Analytics DB (native) | `9000` (localhost only)        |
+| `minio`      | S3-compatible storage | `9090` (API), `9091` (console) |
 
 ## Environment Variables
 
@@ -88,20 +88,6 @@ This will:
 - `GEMINI_KEY`: Google API key
 
 You can add any combination of these keys depending on which providers you want to use. Without them, Genum works but AI features are disabled.
-
-### Optional (Defaults Provided)
-
-All other variables are optional for local Docker. Key ones:
-
-- **Auth**
-- `INSTANCE_TYPE`: `local` (local auth) or `cloud` (Auth0)
-- `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_AUDIENCE` (required for cloud mode)
-
-- **Ports**
-- `CORE_PORT`, `WEB_PORT`, `POSTGRES_PORT`
-- `CLICKHOUSE_HTTP_PORT`, `CLICKHOUSE_NATIVE_PORT`
-
-See `docker-compose.yml` for the full list.
 
 ## Common Commands
 
@@ -124,13 +110,7 @@ docker-compose down -v
 
 ## Troubleshooting
 
-### Services Won't Start
-
-- Check ports are free
-```bash
-lsof -i :3010
-lsof -i :3080
-lsof -i :5432
+### Logs
 ```
 
 - Review logs

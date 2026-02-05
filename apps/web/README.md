@@ -1,4 +1,4 @@
-# Genum Web (`apps/web`)
+# Genum Web
 
 Frontend React app (Vite + TypeScript) for the Genum UI.
 

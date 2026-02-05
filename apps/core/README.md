@@ -1,4 +1,4 @@
-# Genum Core (`apps/core`)
+# Genum Core
 
 Backend API server (Express + TypeScript + Prisma) powering Genum's business logic, AI provider integrations, and persistence layer.
 
