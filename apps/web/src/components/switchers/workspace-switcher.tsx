@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ChevronsUpDown, Loader2, PlusCircle, Info } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import {
 	DropdownMenu,
@@ -35,7 +35,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { CURRENT_USER_QUERY_KEY } from "@/hooks/useCurrentUser";
+import { CURRENT_USER_QUERY_KEY, useCurrentUser } from "@/hooks/useCurrentUser";
 import { userApi } from "@/api/user";
 import { getOrgId, getProjectId } from "@/api/client";
 
@@ -164,6 +164,8 @@ export function TeamSwitcher({
 	onProjectChange?: (projectId: string) => void;
 }) {
 	const navigate = useNavigate();
+	const location = useLocation();
+	const { user } = useCurrentUser();
 	const orgId = getOrgId();
 	const projectId = getProjectId();
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -176,14 +178,40 @@ export function TeamSwitcher({
 	}
 
 	const handleOrganizationSelect = (organizationId: string | number) => {
-		// Update URL with the new team ID and keep the current projectId
-		if (organizationId) {
-			// todo for new TeamSwitcher design
-			// Get the current path segments after orgId/projectId
-			// const pathSegments = window.location.pathname.split('/').filter(Boolean)
-			// const remainingPath = pathSegments.slice(2).join('/')
-			// const newPath = `/${team.id}/${projectId}${remainingPath ? `/${remainingPath}` : ''}`
+		if (!organizationId) return;
+
+		const selectedOrg = user?.organizations?.find(
+			(org) => org.id.toString() === String(organizationId),
+		);
+
+		if (!selectedOrg) return;
+
+		const firstProject = selectedOrg.projects?.[0];
+		if (!firstProject) {
 			navigate(`/${organizationId}`);
+			return;
+		}
+
+		const currentPath = location.pathname;
+		const currentSearch = location.search;
+
+		if (currentSearch.includes("testcaseId=")) {
+			navigate(`/${organizationId}/${firstProject.id}/testcases`);
+			return;
+		}
+
+		if (currentPath.includes("/prompt/")) {
+			navigate(`/${organizationId}/${firstProject.id}/prompts`);
+			return;
+		}
+
+		const pathSegments = currentPath.split("/").filter(Boolean);
+		const currentPage = pathSegments.slice(2).join("/");
+
+		if (currentPage && currentPage !== "getting-started") {
+			navigate(`/${organizationId}/${firstProject.id}/${currentPage}`);
+		} else {
+			navigate(`/${organizationId}/${firstProject.id}/dashboard`);
 		}
 	};
 

@@ -24,6 +24,7 @@ import { EmptyState } from "@/pages/info-pages/EmptyState";
 import TableSortButton from "@/components/ui/TableSortButton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
+import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
 
 const formatFileSize = (bytes: number): string => {
 	if (bytes < 1024) return `${bytes} B`;
@@ -51,9 +52,17 @@ export default function FilesPage() {
 	const queryClient = useQueryClient();
 
 	// Fetch files
-	const { data: files = [], isLoading } = useQuery({
+	const {
+		data: files = [],
+		isLoading,
+		refetch,
+	} = useQuery({
 		queryKey: ["files"],
 		queryFn: () => filesApi.listFiles(),
+	});
+
+	useRefetchOnWorkspaceChange(() => {
+		refetch();
 	});
 
 	// Define columns
@@ -219,7 +228,10 @@ export default function FilesPage() {
 														: "flex items-center justify-center w-full"
 												}
 											>
-												{flexRender(header.column.columnDef.header, header.getContext())}
+												{flexRender(
+													header.column.columnDef.header,
+													header.getContext(),
+												)}
 											</div>
 										</TableHead>
 									))}
@@ -229,7 +241,10 @@ export default function FilesPage() {
 						<TableBody>
 							{isLoading ? (
 								<TableRow>
-									<TableCell colSpan={columns.length} className="text-center py-8">
+									<TableCell
+										colSpan={columns.length}
+										className="text-center py-8"
+									>
 										Loading...
 									</TableCell>
 								</TableRow>
@@ -240,10 +255,7 @@ export default function FilesPage() {
 										className="[&_td:first-child]:text-left [&_td:last-child]:text-right"
 									>
 										{row.getVisibleCells().map((cell) => (
-											<TableCell
-												key={cell.id}
-												className="text-left"
-											>
+											<TableCell key={cell.id} className="text-left">
 												<div
 													className={
 														cell.column.id === "name"
@@ -251,7 +263,10 @@ export default function FilesPage() {
 															: "flex items-center justify-center w-full"
 													}
 												>
-													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+													{flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext(),
+													)}
 												</div>
 											</TableCell>
 										))}

@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useProjectPrompts } from "@/hooks/useProjectPrompts";
 import { useDeletePrompt } from "@/hooks/useDeletePrompt";
 import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
+import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
 
 import { useState, useMemo } from "react";
 import {
@@ -83,7 +84,7 @@ export interface Prompt {
 }
 
 export default function TestcaseTable() {
-	const { prompts, loading: promptsLoading, removePromptLocally } = useProjectPrompts();
+	const { prompts, loading: promptsLoading, removePromptLocally, refetch } = useProjectPrompts();
 	const [search, setSearch] = useState("");
 	const [openPromptId, setOpenPromptId] = useState<number | null>(null);
 	const [deleteModal, setDeleteModal] = useState<{ open: boolean; prompt?: Prompt }>({
@@ -113,6 +114,10 @@ export default function TestcaseTable() {
 
 	const navigate = useNavigate();
 	const addParamsToUrl = useAddParamsToUrl();
+
+	useRefetchOnWorkspaceChange(() => {
+		refetch();
+	});
 
 	// Функция для форматирования времени коммита
 	const formatCommitTime = (dateString: string) => {

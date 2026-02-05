@@ -3,7 +3,7 @@ import axios from "axios";
 
 async function sendEmail(to: string, url: string, organizationName: string) {
 	const response = await axios.post(
-		env.EMAIL_WEBHOOK_URL,
+		env.WEBHOOK_EMAIL_URL,
 		{
 			to,
 			url,
@@ -34,7 +34,7 @@ async function sendFeedback(feedback: {
 	stage: string;
 }) {
 	const response = await axios.post(
-		env.FEEDBACK_WEBHOOK_URL,
+		env.WEBHOOK_FEEDBACK_URL,
 		{
 			message: formatFeedback(feedback),
 		},
@@ -60,7 +60,7 @@ async function postRegister(user: {
 }) {
 	try {
 		await axios.post(
-			env.NEW_USER_WEBHOOK_URL,
+			env.WEBHOOK_NEW_USER_URL,
 			{
 				message: user,
 			},

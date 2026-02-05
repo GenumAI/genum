@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useRef } from "react";
-import { LogsTable, Log } from "./LogsTable";
+import { LogsTable } from "./LogsTable";
+import type { Log } from "./LogsTable";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { LogsFilter, LogsFilterState } from "./LogsFilter";
+import { LogsFilter } from "./LogsFilter";
+import type { LogsFilterState } from "./LogsFilter";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -14,10 +16,10 @@ import {
 import { useToast } from "@/hooks/useToast";
 import { useCreateTestcase } from "@/hooks/useCreateTestcase";
 import { LogDetailsDialog } from "@/components/dialogs/LogDetailsDialog";
-import { useParams } from "react-router-dom";
 import { promptApi } from "@/api/prompt";
 import { projectApi } from "@/api/project";
 import { getOrgId, getProjectId } from "@/api/client";
+import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
 
 export interface PromptName {
 	id: number;
@@ -66,10 +68,6 @@ export function LogsPage() {
 	const { toast } = useToast();
 	const { createTestcase, loading: creatingTestcase } = useCreateTestcase();
 	const queryClient = useQueryClient();
-
-	React.useEffect(() => {
-		setPage(1);
-	}, [orgId, projectId]);
 
 	React.useEffect(() => {
 		if (filter.query !== undefined) {
@@ -128,6 +126,11 @@ export function LogsPage() {
 		void fetchLogs();
 	}, [fetchLogs]);
 
+	useRefetchOnWorkspaceChange(() => {
+		setPage(1);
+		fetchLogs();
+	});
+
 	const [promptsData, setPromptsData] = useState<
 		| {
 				prompts: PromptName[];
@@ -146,7 +149,7 @@ export function LogsPage() {
 			} catch {}
 		};
 		void fetchPrompts();
-	}, [orgId, projectId]);
+	}, []);
 
 	const promptId = selectedLog?.prompt_id || filter.promptId;
 
