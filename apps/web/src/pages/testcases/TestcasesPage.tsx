@@ -20,7 +20,7 @@ import useTestcasesColumns from "@/hooks/useTestcasesColumns";
 import { useProjectPrompts } from "@/hooks/useProjectPrompts";
 import TestCasesFilter from "@/pages/prompt/playground-tabs/testcases/TestCasesFilter";
 import { testcasesFilter } from "@/lib/testcasesFilter";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { SearchInput } from "@/components/ui/searchInput";
 import ButtonWithDropdown from "@/components/ui/buttonWithDropdown";
@@ -34,6 +34,7 @@ import {
 	usePlaygroundUI,
 } from "@/stores/playground.store";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
 
 type UsedOptionValue = "all" | "nok" | "selected" | "need_run" | "passed";
 
@@ -72,8 +73,6 @@ export default function Testcases() {
 
 	const navigate = useNavigate();
 	const addParamsToUrl = useAddParamsToUrl();
-	const params = useParams();
-	const projectParams = Object.values(params).filter(Boolean).join("/");
 
 	const { prompts } = useProjectPrompts();
 	const { fetchAllTestcases, updateSingleTestcase } = usePlaygroundActions();
@@ -83,7 +82,11 @@ export default function Testcases() {
 
 	useEffect(() => {
 		fetchAllTestcases();
-	}, [fetchAllTestcases, projectParams]);
+	}, [fetchAllTestcases]);
+
+	useRefetchOnWorkspaceChange(() => {
+		fetchAllTestcases();
+	});
 
 	const isCheckboxesDisabled =
 		selectedValues[0] === "nok" ||
@@ -125,7 +128,8 @@ export default function Testcases() {
 		setSelectedValues([value]);
 	};
 
-	useEffect(() => {
+	// Reset filters when workspace changes
+	useRefetchOnWorkspaceChange(() => {
 		setSearch("");
 		setSelectedValues(["all"]);
 		setFilterState({
@@ -134,7 +138,7 @@ export default function Testcases() {
 		});
 		setRunningRows([]);
 		setSorting([]);
-	}, [projectParams]);
+	});
 
 	useEffect(() => {
 		if (selectedValues[0] === "nok") {

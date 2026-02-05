@@ -6,6 +6,7 @@ import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
 import { organizationApi } from "@/api/organization";
 import { ORG_MEMBERS_QUERY_KEY } from "./hooks/useOrgMembers";
 import { ORG_INVITES_QUERY_KEY } from "./hooks/useOrgInvites";
+import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
 
 type MenuSection = {
 	title: string;
@@ -75,6 +76,10 @@ export default function Settings() {
 			});
 		}
 	}, [queryClient, orgId]);
+
+	useRefetchOnWorkspaceChange(() => {
+		queryClient.invalidateQueries();
+	});
 
 	return (
 		<div className="container pt-6 max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] mx-3 w-full">

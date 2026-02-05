@@ -74,21 +74,23 @@ export function ProjectSwitcher({
 
 		if (currentSearch.includes("testcaseId=")) {
 			navigate(`/${orgId}/${newProjectId}/testcases`);
-		} else if (currentPath.includes("/prompt/")) {
-			navigate(`/${orgId}/${newProjectId}/prompts`);
-		} else {
-			const pathSegments = currentPath.split("/").filter(Boolean);
-			const remainingPath = pathSegments.slice(2).join("/");
+			onProjectChange(newProjectId);
+			return;
+		}
 
-			if (
-				remainingPath &&
-				!remainingPath.includes("prompt/") &&
-				!remainingPath.includes("testcase/")
-			) {
-				navigate(`/${orgId}/${newProjectId}/${remainingPath}`);
-			} else {
-				navigate(`/${orgId}/${newProjectId}/dashboard`);
-			}
+		if (currentPath.includes("/prompt/")) {
+			navigate(`/${orgId}/${newProjectId}/prompts`);
+			onProjectChange(newProjectId);
+			return;
+		}
+
+		const pathSegments = currentPath.split("/").filter(Boolean);
+		const currentPage = pathSegments.slice(2).join("/");
+
+		if (currentPage) {
+			navigate(`/${orgId}/${newProjectId}/${currentPage}`);
+		} else {
+			navigate(`/${orgId}/${newProjectId}/dashboard`);
 		}
 
 		onProjectChange(newProjectId);

@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Play } from "lucide-react";
 import {
 	Accordion,
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/accordion";
 import { SocialIcons } from "@/components/ui/icons-tsx/social-icons";
 import { organizationApi } from "@/api/organization";
+import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
 
 interface Slide {
 	id: string;
@@ -73,7 +74,7 @@ function useOrganizationQuota() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	useEffect(() => {
+	const fetchQuota = useCallback(() => {
 		let alive = true;
 		setLoading(true);
 		setError(null);
@@ -98,6 +99,12 @@ function useOrganizationQuota() {
 			alive = false;
 		};
 	}, []);
+
+	useEffect(() => {
+		return fetchQuota();
+	}, [fetchQuota]);
+
+	useRefetchOnWorkspaceChange(fetchQuota);
 
 	return { balance, loading, error };
 }

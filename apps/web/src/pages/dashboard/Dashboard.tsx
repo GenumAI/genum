@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useParams } from "react-router-dom";
 import { format, addDays } from "date-fns";
 import { useProjectUsage } from "@/hooks/useProjectUsage";
 import { StatsCards } from "@/pages/dashboard/StatsCard";
@@ -12,10 +11,9 @@ import { TestcaseStats } from "@/pages/dashboard/TestcaseStats";
 import { UserActivityTable } from "@/pages/dashboard/UserActivityTable";
 import { Card } from "@/components/ui/card";
 import { LogsFilter, LogsFilterState } from "@/pages/logs/LogsFilter";
+import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
 
 export default function DashboardPage() {
-	const params = useParams();
-
 	const [filter, setFilter] = useState<LogsFilterState>({
 		dateRange: {
 			from: addDays(new Date(), -30),
@@ -34,10 +32,11 @@ export default function DashboardPage() {
 		}
 	}, [filter.dateRange]);
 
-	const { data: apiData, isLoading } = useProjectUsage(
-		format(apiDate.from, "yyyy-MM-dd"),
-		format(apiDate.to, "yyyy-MM-dd"),
-	);
+	const {
+		data: apiData,
+		isLoading,
+		refetch,
+	} = useProjectUsage(format(apiDate.from, "yyyy-MM-dd"), format(apiDate.to, "yyyy-MM-dd"));
 
 	const previousDataRef = useRef(apiData);
 	if (apiData && !isLoading) {
@@ -45,11 +44,9 @@ export default function DashboardPage() {
 	}
 	const data = apiData || previousDataRef.current;
 
-	useEffect(() => {
-		if (params.organizationId && params.projectId) {
-			window.location.reload();
-		}
-	}, [params.organizationId, params.projectId]);
+	useRefetchOnWorkspaceChange(() => {
+		refetch();
+	});
 
 	// loading / empty
 	if (!data) {
