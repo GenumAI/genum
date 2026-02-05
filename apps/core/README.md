@@ -1,43 +1,57 @@
-# Genum Core (`apps/core`)
+# Genum Core
 
-Backend API server (Express + TypeScript + Prisma).
+Backend API server (Express + TypeScript + Prisma) powering Genum's business logic, AI provider integrations, and persistence layer.
 
-## Run (recommended)
+## Run (Recommended)
 
-Use the root `docker-compose.yml` flow described in the repo `README.md`.
+Use the root Docker flow in `README.md`.
 
-## Local development (without Docker)
+## Local Development (No Docker)
 
-1. Install dependencies (from repo root):
-   ```bash
-   pnpm install
-   ```
+### 1) Install deps (from repo root)
 
-2. Start infra (Postgres + ClickHouse):
-   ```bash
-   pnpm dev:infra:up
-   ```
+```bash
+pnpm install
+```
 
-3. Create a root `.env` (see `env.example`).
+### 2) Start infra (Postgres + ClickHouse + MinIO)
 
-   Note: unlike the Docker setup, local `core` dev requires database URLs and other variables to be present because they are validated in `src/env.ts`.
+```bash
+pnpm dev:infra:up
+```
 
-4. Start the API:
-   ```bash
-   pnpm --filter core dev
-   ```
+### 3) Configure `.env` (single file in repo root)
 
-The API defaults to `http://localhost:3010`.
+Copy `.env.example` to `.env` **in the repo root** and set required values.
+There is **only one** `.env` for the entire monorepo — do **not** create per-app `.env` files.
 
-## Database & migrations
+Local `core` dev validates environment variables in `src/env.ts`, so make sure your DB/ClickHouse/S3 URLs are present.
 
-- Generate Prisma client:
-  ```bash
-  pnpm --filter core db:generate
-  ```
-- Local migration + seed:
-  ```bash
-  pnpm --filter core dev:db-init
-  ```
+### 4) Start the API
 
+```bash
+pnpm --filter core dev
+```
 
+Default API URL: `http://localhost:3010`.
+
+## Key Dependencies
+
+- **PostgreSQL**: primary transactional data
+- **ClickHouse**: analytics and event storage
+- **MinIO (S3)**: object storage for artifacts/files
+
+## Database & Migrations
+
+```bash
+pnpm --filter core db:generate
+pnpm --filter core dev:db-init
+```
+
+## Useful Scripts
+
+```bash
+pnpm --filter core lint
+pnpm --filter core test
+pnpm --filter core test:run
+```
