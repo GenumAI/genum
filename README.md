@@ -1,6 +1,19 @@
 # Genum
 
+<p align="center">
+  <img src="https://cdn.genum.ai/images/github_banner.png" alt="Genum GitHub Banner" />
+</p>
+
 > An open-source platform to manage, test, and iterate on AI prompts across multiple LLM providers.
+
+<div align="center">
+
+###
+<a href="https://genum.ai"><strong>Website</strong></a> ·
+<a href="https://docs.genum.ai"><strong>Docs</strong></a> ·
+<a href="https://community.genum.ai"><strong>Community</strong></a>
+
+</div>
 
 <!-- TODO: Replace with the official banner/GIFs from https://github.com/GenumAI -->
 <!-- ![Genum banner](<banner-url>) -->
