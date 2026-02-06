@@ -1,8 +1,7 @@
 import type { Request, Response } from "express";
 import { db } from "@/database/db";
 import {
-	getProjectDetailedUsageStats,
-	getProjectDetailedUsageStatsV2,
+	getProjectUsageWithDailyStats,
 	getProjectLogs,
 	type LogDocument,
 	type PromptUsageStats,
@@ -171,7 +170,7 @@ export class ProjectController {
 		const metadata = req.genumMeta.ids;
 		const { fromDate, toDate } = ProjectUsageStatsSchema.parse(req.query);
 
-		const stats = await getProjectDetailedUsageStatsV2(
+		const stats = await getProjectUsageWithDailyStats(
 			metadata.orgID,
 			metadata.projID,
 			fromDate,

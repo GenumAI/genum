@@ -336,7 +336,7 @@ export async function getProjectUsageStats(
 	}
 }
 
-export async function getProjectDetailedUsageStats(
+async function getProjectDetailedUsageStats(
 	orgId: number,
 	projectId: number,
 	fromDate?: Date,
@@ -745,7 +745,7 @@ export async function getOrganizationDailyUsageStats(
 	}
 }
 
-export async function getProjectDetailedUsageStatsV2(
+export async function getProjectUsageWithDailyStats(
 	orgId: number,
 	projectId: number,
 	fromDate?: Date,
