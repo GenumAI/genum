@@ -13,6 +13,8 @@
 import { createClient } from "@clickhouse/client";
 import moment from "moment";
 import { env } from "@/env";
+import { WhereBuilder } from "./where.builder";
+import { QUERIES } from "./queries";
 import type {
 	LogDocument,
 	LogSearchResult,
@@ -83,7 +85,7 @@ export const clickhouseClient = createClient({
 	password: clickhousePassword,
 });
 
-// Helper function to build WHERE conditions
+// Helper function to build WHERE conditions using WhereBuilder
 function buildWhereConditions(
 	orgId: number,
 	projectId?: number,
@@ -94,48 +96,36 @@ function buildWhereConditions(
 	logLevel?: LogLevel,
 	projectIds?: number[],
 	query?: string,
-): string {
-	const conditions: string[] = [`orgId = ${orgId}`];
+) {
+	const builder = WhereBuilder.forOrg(orgId);
 
 	if (projectId !== undefined) {
-		conditions.push(`project_id = ${projectId}`);
+		builder.projectId(projectId);
 	}
 
 	if (promptId !== undefined) {
-		conditions.push(`prompt_id = ${promptId}`);
+		builder.promptId(promptId);
 	}
 
 	if (projectIds !== undefined && projectIds.length > 0) {
-		conditions.push(`project_id IN (${projectIds.join(",")})`);
+		builder.projectIds(projectIds);
 	}
 
-	if (fromDate) {
-		conditions.push(`timestamp >= '${fromDate} 00:00:00'`);
-	}
-
-	if (toDate) {
-		conditions.push(`timestamp <= '${toDate} 23:59:59'`);
-	}
+	builder.dateRange(fromDate, toDate);
 
 	if (source) {
-		conditions.push(`source = '${source}'`);
+		builder.source(source);
 	}
 
 	if (logLevel) {
-		conditions.push(`log_lvl = '${logLevel}'`);
+		builder.logLevel(logLevel);
 	}
 
 	if (query?.trim()) {
-		// Escape single quotes in query to prevent SQL injection
-		const escapedQuery = query.replace(/'/g, "''");
-		// Search in both 'in' and 'out' fields (case-insensitive)
-		// Use backticks for field names as 'in' is a reserved word in SQL
-		conditions.push(
-			`(position(lower(\`in\`), lower('${escapedQuery}')) > 0 OR position(lower(\`out\`), lower('${escapedQuery}')) > 0)`,
-		);
+		builder.textSearch(query);
 	}
 
-	return conditions.join(" AND ");
+	return builder.build();
 }
 
 // Helper function to transform ClickHouse row to LogDocument
@@ -225,7 +215,7 @@ export async function getPromptLogs(
 	const toDateStr = toDate ? moment(toDate).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
 
 	try {
-		const whereClause = buildWhereConditions(
+		const { where, params } = buildWhereConditions(
 			orgId,
 			undefined,
 			promptId,
@@ -237,9 +227,13 @@ export async function getPromptLogs(
 			query,
 		);
 
+		const offset = (page - 1) * pageSize;
+		const queryParams = { ...params, limit: pageSize, offset };
+
 		// Get total count
 		const countResult = await clickhouseClient.query({
-			query: `SELECT count() as total FROM ${CLICKHOUSE_TABLES.LOGS} WHERE ${whereClause}`,
+			query: QUERIES.COUNT(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: params,
 			format: "JSONEachRow",
 		});
 
@@ -247,14 +241,9 @@ export async function getPromptLogs(
 		const total = countData[0]?.total || 0;
 
 		// Get logs with pagination
-		const offset = (page - 1) * pageSize;
 		const logsResult = await clickhouseClient.query({
-			query: `
-				SELECT * FROM ${CLICKHOUSE_TABLES.LOGS}
-				WHERE ${whereClause}
-				ORDER BY timestamp DESC
-				LIMIT ${pageSize} OFFSET ${offset}
-			`,
+			query: QUERIES.GET_LOGS(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: queryParams,
 			format: "JSONEachRow",
 		});
 
@@ -285,7 +274,7 @@ export async function getProjectUsageStats(
 	const toDateStr = toDate ? moment(toDate).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
 
 	try {
-		const whereClause = buildWhereConditions(
+		const { where, params } = buildWhereConditions(
 			orgId,
 			projectId,
 			undefined,
@@ -294,17 +283,8 @@ export async function getProjectUsageStats(
 		);
 
 		const result = await clickhouseClient.query({
-			query: `
-				SELECT
-					count() as total_requests,
-					sum(tokens_in) as total_tokens_in,
-					sum(tokens_out) as total_tokens_out,
-					sum(tokens_sum) as total_tokens_sum,
-					avg(response_ms) as average_response_ms,
-					sum(cost) as total_cost
-				FROM ${CLICKHOUSE_TABLES.LOGS}
-				WHERE ${whereClause}
-			`,
+			query: QUERIES.PROJECT_STATS(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: params,
 			format: "JSONEachRow",
 		});
 
@@ -352,7 +332,7 @@ async function getProjectDetailedUsageStats(
 		const projectStats = await getProjectUsageStats(orgId, projectId, fromDate, toDate);
 
 		// Then, get detailed statistics by prompt, model, and user
-		const whereClause = buildWhereConditions(
+		const { where, params } = buildWhereConditions(
 			orgId,
 			projectId,
 			undefined,
@@ -362,25 +342,8 @@ async function getProjectDetailedUsageStats(
 
 		// Get prompts stats
 		const promptsResult = await clickhouseClient.query({
-			query: `
-				SELECT
-					prompt_id,
-					count() as total_requests,
-					sum(tokens_in) as total_tokens_in,
-					sum(tokens_out) as total_tokens_out,
-					sum(tokens_sum) as total_tokens_sum,
-					avg(response_ms) as average_response_ms,
-					sum(cost) as total_cost,
-					sum(if(log_lvl = 'SUCCESS', 1, 0)) as success_count,
-					sum(if(log_lvl = 'ERROR', 1, 0)) as error_count,
-					max(timestamp) as last_used,
-					min(timestamp) as first_used
-				FROM ${CLICKHOUSE_TABLES.LOGS}
-				WHERE ${whereClause}
-				GROUP BY prompt_id
-				ORDER BY total_requests DESC
-				LIMIT 100
-			`,
+			query: QUERIES.PROMPT_STATS(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: params,
 			format: "JSONEachRow",
 		});
 
@@ -407,22 +370,8 @@ async function getProjectDetailedUsageStats(
 
 		// Get models stats
 		const modelsResult = await clickhouseClient.query({
-			query: `
-				SELECT
-					model,
-					vendor,
-					count() as total_requests,
-					sum(tokens_in) as total_tokens_in,
-					sum(tokens_out) as total_tokens_out,
-					sum(tokens_sum) as total_tokens_sum,
-					avg(response_ms) as average_response_ms,
-					sum(cost) as total_cost
-				FROM ${CLICKHOUSE_TABLES.LOGS}
-				WHERE ${whereClause}
-				GROUP BY model, vendor
-				ORDER BY total_requests DESC
-				LIMIT 100
-			`,
+			query: QUERIES.MODEL_STATS(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: params,
 			format: "JSONEachRow",
 		});
 
@@ -439,21 +388,17 @@ async function getProjectDetailedUsageStats(
 		}));
 
 		// Get users stats
+		const { where: whereWithUsers, params: paramsWithUsers } = buildWhereConditions(
+			orgId,
+			projectId,
+			undefined,
+			fromDateStr,
+			toDateStr,
+		);
+
 		const usersResult = await clickhouseClient.query({
-			query: `
-				SELECT
-					user_id,
-					count() as total_requests,
-					sum(tokens_sum) as total_tokens_sum,
-					sum(cost) as total_cost,
-					max(timestamp) as last_activity,
-					min(timestamp) as first_activity
-				FROM ${CLICKHOUSE_TABLES.LOGS}
-				WHERE ${whereClause} AND user_id IS NOT NULL
-				GROUP BY user_id
-				ORDER BY total_requests DESC
-				LIMIT 100
-			`,
+			query: QUERIES.USER_STATS(CLICKHOUSE_TABLES.LOGS, `${whereWithUsers} AND user_id IS NOT NULL`),
+			query_params: paramsWithUsers,
 			format: "JSONEachRow",
 		});
 
@@ -494,7 +439,7 @@ export async function getProjectLogs(
 		: moment().format("YYYY-MM-DD");
 
 	try {
-		const whereClause = buildWhereConditions(
+		const { where, params } = buildWhereConditions(
 			orgId,
 			projectId,
 			filters?.promptId,
@@ -506,9 +451,13 @@ export async function getProjectLogs(
 			filters?.query,
 		);
 
+		const offset = (page - 1) * pageSize;
+		const queryParams = { ...params, limit: pageSize, offset };
+
 		// Get total count
 		const countResult = await clickhouseClient.query({
-			query: `SELECT count() as total FROM ${CLICKHOUSE_TABLES.LOGS} WHERE ${whereClause}`,
+			query: QUERIES.COUNT(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: params,
 			format: "JSONEachRow",
 		});
 
@@ -516,14 +465,9 @@ export async function getProjectLogs(
 		const total = countData[0]?.total || 0;
 
 		// Get logs with pagination
-		const offset = (page - 1) * pageSize;
 		const logsResult = await clickhouseClient.query({
-			query: `
-				SELECT * FROM ${CLICKHOUSE_TABLES.LOGS}
-				WHERE ${whereClause}
-				ORDER BY timestamp DESC
-				LIMIT ${pageSize} OFFSET ${offset}
-			`,
+			query: QUERIES.GET_LOGS(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: queryParams,
 			format: "JSONEachRow",
 		});
 
@@ -554,7 +498,7 @@ export async function getOrganizationUsageStats(
 	const toDateStr = toDate ? moment(toDate).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
 
 	try {
-		const whereClause = buildWhereConditions(
+		const { where, params } = buildWhereConditions(
 			orgId,
 			undefined,
 			undefined,
@@ -567,17 +511,8 @@ export async function getOrganizationUsageStats(
 
 		// Get organization-level stats
 		const orgResult = await clickhouseClient.query({
-			query: `
-				SELECT
-					count() as total_requests,
-					sum(tokens_in) as total_tokens_in,
-					sum(tokens_out) as total_tokens_out,
-					sum(tokens_sum) as total_tokens_sum,
-					avg(response_ms) as average_response_ms,
-					sum(cost) as total_cost
-				FROM ${CLICKHOUSE_TABLES.LOGS}
-				WHERE ${whereClause}
-			`,
+			query: QUERIES.PROJECT_STATS(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: params,
 			format: "JSONEachRow",
 		});
 
@@ -628,7 +563,7 @@ export async function getOrganizationDailyUsageStats(
 	const toDateStr = toDate ? moment(toDate).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
 
 	try {
-		const whereClause = buildWhereConditions(
+		const { where, params } = buildWhereConditions(
 			orgId,
 			undefined,
 			undefined,
@@ -641,24 +576,8 @@ export async function getOrganizationDailyUsageStats(
 
 		// Get daily stats with all aggregations
 		const result = await clickhouseClient.query({
-			query: `
-				SELECT
-					toDate(timestamp) as date,
-					count() as total_requests,
-					sum(tokens_sum) as total_tokens,
-					sum(cost) as total_cost,
-					project_id,
-					source,
-					vendor,
-					model,
-					count() as requests,
-					sum(tokens_sum) as tokens,
-					sum(cost) as cost
-				FROM ${CLICKHOUSE_TABLES.LOGS}
-				WHERE ${whereClause}
-				GROUP BY date, project_id, source, vendor, model
-				ORDER BY date
-			`,
+			query: QUERIES.ORGANIZATION_DAILY_STATS(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: params,
 			format: "JSONEachRow",
 		});
 
@@ -761,7 +680,7 @@ export async function getProjectUsageWithDailyStats(
 		const projectStats = await getProjectDetailedUsageStats(orgId, projectId, fromDate, toDate);
 
 		// Then, get daily statistics
-		const whereClause = buildWhereConditions(
+		const { where, params } = buildWhereConditions(
 			orgId,
 			projectId,
 			undefined,
@@ -770,17 +689,8 @@ export async function getProjectUsageWithDailyStats(
 		);
 
 		const dailyResult = await clickhouseClient.query({
-			query: `
-				SELECT
-					toDate(timestamp) as date,
-					count() as total_requests,
-					sum(tokens_sum) as total_tokens_sum,
-					sum(cost) as total_cost
-				FROM ${CLICKHOUSE_TABLES.LOGS}
-				WHERE ${whereClause}
-				GROUP BY date
-				ORDER BY date
-			`,
+			query: QUERIES.PROJECT_DAILY_STATS(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: params,
 			format: "JSONEachRow",
 		});
 
@@ -836,11 +746,11 @@ export async function countRunsByDate(startDate: Date, endDate: Date): Promise<n
 
 	try {
 		const result = await clickhouseClient.query({
-			query: `
-				SELECT count() as total
-				FROM ${CLICKHOUSE_TABLES.LOGS}
-				WHERE timestamp >= '${fromDateStr}' AND timestamp <= '${toDateStr}'
-			`,
+			query: QUERIES.COUNT_BY_DATE(CLICKHOUSE_TABLES.LOGS),
+			query_params: {
+				fromDate: fromDateStr,
+				toDate: toDateStr,
+			},
 			format: "JSONEachRow",
 		});
 
