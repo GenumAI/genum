@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ProviderRequest, ProviderResponse } from "..";
-import { mapToolsAnthropic } from "./utils";
+import { mapMessagesAnthropic, mapToolsAnthropic } from "./utils";
 
 export async function generateAnthropic(request: ProviderRequest): Promise<ProviderResponse> {
 	const start = Date.now();
@@ -14,12 +14,7 @@ export async function generateAnthropic(request: ProviderRequest): Promise<Provi
 		temperature: request.parameters.temperature,
 		max_tokens: request.parameters.max_tokens as number,
 		system: request.instruction,
-		messages: [
-			{
-				role: "user",
-				content: request.question,
-			},
-		],
+		messages: mapMessagesAnthropic(request),
 		tools: request.parameters.tools ? mapToolsAnthropic(request.parameters.tools) : undefined,
 	});
 
