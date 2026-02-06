@@ -21,7 +21,7 @@ initializeSentry();
 
 const app = express();
 
-app.use(express.json()); // Required to parse JSON bodies from requests
+app.use(express.json({ limit: "50mb" })); // Required to parse JSON bodies from requests
 app.use(cookieParser()); // Required to parse cookies from requests
 app.use(cors(corsOptions));
 

@@ -1,10 +1,19 @@
 import { z } from "zod";
 
+export const ApiRunPromptFileSchema = z
+	.object({
+		fileName: z.string().min(1).max(255),
+		contentType: z.string().min(1).max(255),
+		base64: z.string().min(1),
+	})
+	.strict();
+
 export const RunPromptSchema = z
 	.object({
 		id: z.coerce.number().int().positive(),
 		question: z.string(),
 		memoryKey: z.string().optional(),
+		files: z.array(ApiRunPromptFileSchema).max(3).optional().default([]),
 		createTicket: z.coerce.boolean().optional().default(false), // todo remove this
 		productive: z.coerce.boolean().optional().default(true),
 	})
