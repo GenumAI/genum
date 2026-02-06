@@ -75,6 +75,24 @@ function useOrganizationQuota() {
 	const [error, setError] = useState<string | null>(null);
 
 	const fetchQuota = useCallback(() => {
+		setLoading(true);
+		setError(null);
+
+		organizationApi
+			.getQuota()
+			.then((data) => {
+				setBalance(data?.quota?.balance != null ? String(data.quota.balance) : null);
+			})
+			.catch(() => {
+				setError("Failed to load balance");
+				setBalance(null);
+			})
+			.finally(() => {
+				setLoading(false);
+			});
+	}, []);
+
+	useEffect(() => {
 		let alive = true;
 		setLoading(true);
 		setError(null);
@@ -99,10 +117,6 @@ function useOrganizationQuota() {
 			alive = false;
 		};
 	}, []);
-
-	useEffect(() => {
-		return fetchQuota();
-	}, [fetchQuota]);
 
 	useRefetchOnWorkspaceChange(fetchQuota);
 
