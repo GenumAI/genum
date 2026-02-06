@@ -3,6 +3,7 @@ export interface Author {
 	name: string;
 	email: string;
 	picture?: string;
+	avatar?: string;
 }
 
 export interface PromptVersion {

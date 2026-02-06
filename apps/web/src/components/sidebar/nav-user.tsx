@@ -21,6 +21,7 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/sidebar/sidebar";
+import { getAvatarColor, getAvatarInitial } from "@/lib/avatarUtils";
 
 export function NavUser() {
 	const { isMobile } = useSidebar();
@@ -30,50 +31,13 @@ export function NavUser() {
 	const isCloud = isCloudAuth();
 	const queryClient = useQueryClient();
 
-	const LETTER_COLOR_MAP: Record<string, string> = {
-		A: "bg-[#D6CFFF]",
-		B: "bg-[#BBCAFF]",
-		C: "bg-[#BFDEFF]",
-		D: "bg-[#D5F0FF]",
-		E: "bg-[#D7EFEB]",
-		F: "bg-[#D6F6E6]",
-		G: "bg-[#DEEADE]",
-		H: "bg-[#E7F5C8]",
-		I: "bg-[#FFE4F2]",
-		J: "bg-[#FFD7D8]",
-		K: "bg-[#FFE6B1]",
-		L: "bg-[#F9ECDB]",
-		M: "bg-[#D6CFFF]",
-		N: "bg-[#BBCAFF]",
-		O: "bg-[#BFDEFF]",
-		P: "bg-[#D5F0FF]",
-		Q: "bg-[#D7EFEB]",
-		R: "bg-[#D6F6E6]",
-		S: "bg-[#DEEADE]",
-		T: "bg-[#E7F5C8]",
-		U: "bg-[#FFE4F2]",
-		V: "bg-[#FFD7D8]",
-		W: "bg-[#FFE6B1]",
-		X: "bg-[#F9ECDB]",
-		Y: "bg-[#D6CFFF]",
-		Z: "bg-[#BBCAFF]",
-	};
-
-	const getColorByFirstLetter = (name: string): string => {
-		const firstLetter = name[0]?.toUpperCase() || "";
-		return LETTER_COLOR_MAP[firstLetter] || "bg-[#D6CFFF]";
-	};
-
-	const isLetter = (char: string): boolean => /^[a-zA-Z]$/.test(char);
-
 	const userName = user?.name || authUser?.name || "User";
 	const userEmail = user?.email || authUser?.email || "";
-	const userAvatar = user?.avatar || authUser?.picture;
-
-	const firstChar = userName[0] ?? "";
-	const isNonLetter = !firstChar || !isLetter(firstChar);
-	const authorInitial = isNonLetter ? "G" : firstChar.toUpperCase();
-	const authorColor = isNonLetter ? "bg-black text-white" : getColorByFirstLetter(userName);
+	const userAvatar = isCloud
+		? user?.avatar || user?.picture
+		: authUser?.picture || user?.avatar || user?.picture;
+	const authorInitial = getAvatarInitial(userName);
+	const authorColor = getAvatarColor(userName);
 
 	return (
 		<SidebarMenu>

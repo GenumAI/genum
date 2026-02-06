@@ -3,41 +3,8 @@ import { Link, useLocation } from "react-router-dom";
 import { GitCommitHorizontal } from "lucide-react";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 import { formatUserLocalDateTime } from "@/lib/formatUserLocalDateTime";
+import { getAvatarColorByFirstLetter, getAvatarInitial } from "@/lib/avatarUtils";
 import type { Branch, PromptVersion } from "../utils/types";
-
-const LETTER_COLOR_MAP: Record<string, string> = {
-	A: "bg-[#D6CFFF]",
-	B: "bg-[#BBCAFF]",
-	C: "bg-[#BFDEFF]",
-	D: "bg-[#D5F0FF]",
-	E: "bg-[#D7EFEB]",
-	F: "bg-[#D6F6E6]",
-	G: "bg-[#DEEADE]",
-	H: "bg-[#E7F5C8]",
-	I: "bg-[#FFE4F2]",
-	J: "bg-[#FFD7D8]",
-	K: "bg-[#FFE6B1]",
-	L: "bg-[#F9ECDB]",
-	M: "bg-[#D6CFFF]",
-	N: "bg-[#BBCAFF]",
-	O: "bg-[#BFDEFF]",
-	P: "bg-[#D5F0FF]",
-	Q: "bg-[#D7EFEB]",
-	R: "bg-[#D6F6E6]",
-	S: "bg-[#DEEADE]",
-	T: "bg-[#E7F5C8]",
-	U: "bg-[#FFE4F2]",
-	V: "bg-[#FFD7D8]",
-	W: "bg-[#FFE6B1]",
-	X: "bg-[#F9ECDB]",
-	Y: "bg-[#D6CFFF]",
-	Z: "bg-[#BBCAFF]",
-};
-
-const getColorByFirstLetter = (name: string): string => {
-	const firstLetter = name?.[0]?.toUpperCase() || "A";
-	return LETTER_COLOR_MAP[firstLetter] || "bg-[#D6CFFF]";
-};
 
 interface GroupedCommits {
 	date: string;
@@ -156,7 +123,8 @@ export default function CommitTimeline({ branches }: CommitTimelineProps) {
 							)}
 						>
 							{group.commits.map((version) => {
-								const authorBg = getColorByFirstLetter(version.author.name);
+								const authorBg = getAvatarColorByFirstLetter(version.author.name);
+								const authorInitial = getAvatarInitial(version.author.name);
 								return (
 									<div
 										key={version.id}
@@ -169,7 +137,7 @@ export default function CommitTimeline({ branches }: CommitTimelineProps) {
 												authorBg,
 											)}
 										>
-											{version.author.name[0]?.toUpperCase() || "S"}
+											{authorInitial}
 										</div>
 
 										<div className="flex-1">
