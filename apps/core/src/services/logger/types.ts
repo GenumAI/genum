@@ -102,6 +102,7 @@ export interface ModelUsageStats {
 
 export interface UserActivityStats {
 	user_id: number;
+	user_name?: string | null;
 	total_requests: number;
 	total_tokens_sum: number;
 	total_cost: number;

@@ -54,7 +54,7 @@ export function createProjectRouter(): Router {
 	// Usage Statistics V2 (with daily breakdown)
 	router.get(
 		"/usage_v2",
-		asyncHandler(projectController.getProjectDetailedUsageStatsV2.bind(projectController)),
+		asyncHandler(projectController.getProjectDetailedUsageStats.bind(projectController)),
 	);
 
 	// Logs

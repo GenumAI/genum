@@ -78,6 +78,24 @@ export class UsersRepository {
 		});
 	}
 
+	public async getUsersByIDs(userIds: number[]) {
+		if (userIds.length === 0) {
+			return [];
+		}
+
+		return await this.prisma.user.findMany({
+			where: {
+				id: {
+					in: userIds,
+				},
+			},
+			select: {
+				id: true,
+				name: true,
+			},
+		});
+	}
+
 	public async getUserContextByID(userId: number) {
 		// use user.id to request related data
 		const userData = await this.prisma.user.findUnique({

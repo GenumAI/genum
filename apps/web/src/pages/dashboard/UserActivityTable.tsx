@@ -21,6 +21,7 @@ import { EmptyState } from "@/pages/info-pages/EmptyState";
 
 interface User {
 	user_id: number;
+	user_name?: string | null;
 	total_requests: number;
 	total_tokens_sum: number;
 	total_cost: number;
@@ -37,9 +38,10 @@ export function UserActivityTable({ users }: Props) {
 
 	const columns: ColumnDef<User>[] = [
 		{
-			accessorKey: "user_id",
-			header: sortableHeader("User ID"),
-			cell: (info) => <span className="text-foreground">{info.getValue() as number}</span>,
+			id: "user_name",
+			accessorFn: (row) => row.user_name ?? `User ${row.user_id}`,
+			header: sortableHeader("User"),
+			cell: (info) => <span className="text-foreground">{info.getValue() as string}</span>,
 		},
 		{
 			accessorKey: "total_requests",
@@ -109,7 +111,7 @@ export function UserActivityTable({ users }: Props) {
 									>
 										<div
 											className={`flex items-center gap-1 text-[12px] text-muted-foreground ${
-												header.column.id === "user_id"
+												header.column.id === "user_name"
 													? "justify-start text-left"
 													: "justify-end text-right"
 											}`}
@@ -133,7 +135,7 @@ export function UserActivityTable({ users }: Props) {
 										<TableCell
 											key={cell.id}
 											className={`px-4 py-[9px] text-[14px] text-foreground ${
-												cell.column.id === "user_id"
+												cell.column.id === "user_name"
 													? "text-left"
 													: "text-right"
 											}`}
