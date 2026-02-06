@@ -397,7 +397,10 @@ async function getProjectDetailedUsageStats(
 		);
 
 		const usersResult = await clickhouseClient.query({
-			query: QUERIES.USER_STATS(CLICKHOUSE_TABLES.LOGS, `${whereWithUsers} AND user_id IS NOT NULL`),
+			query: QUERIES.USER_STATS(
+				CLICKHOUSE_TABLES.LOGS,
+				`${whereWithUsers} AND user_id IS NOT NULL`,
+			),
 			query_params: paramsWithUsers,
 			format: "JSONEachRow",
 		});
@@ -482,71 +485,6 @@ export async function getProjectLogs(
 		};
 	} catch (error) {
 		console.error("Error getting project logs from ClickHouse:", error);
-		throw error;
-	}
-}
-
-export async function getOrganizationUsageStats(
-	orgId: number,
-	projectIds: number[],
-	fromDate?: Date,
-	toDate?: Date,
-): Promise<OrganizationUsageStats> {
-	const fromDateStr = fromDate
-		? moment(fromDate).format("YYYY-MM-DD")
-		: moment().subtract(30, "days").format("YYYY-MM-DD");
-	const toDateStr = toDate ? moment(toDate).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
-
-	try {
-		const { where, params } = buildWhereConditions(
-			orgId,
-			undefined,
-			undefined,
-			fromDateStr,
-			toDateStr,
-			undefined,
-			undefined,
-			projectIds,
-		);
-
-		// Get organization-level stats
-		const orgResult = await clickhouseClient.query({
-			query: QUERIES.PROJECT_STATS(CLICKHOUSE_TABLES.LOGS, where),
-			query_params: params,
-			format: "JSONEachRow",
-		});
-
-		const orgData = (await orgResult.json()) as ClickHouseProjectStatsRow[];
-		const orgRow = orgData[0] || {
-			total_requests: 0,
-			total_tokens_in: 0,
-			total_tokens_out: 0,
-			total_tokens_sum: 0,
-			average_response_ms: 0,
-			total_cost: 0,
-		};
-
-		// Get stats for each project
-		const projects: ProjectUsageStats[] = [];
-		for (const projectId of projectIds) {
-			const stats = await getProjectUsageStats(orgId, projectId, fromDate, toDate);
-			projects.push(stats);
-		}
-
-		return {
-			orgId,
-			total_requests: Number(orgRow.total_requests || 0),
-			total_tokens_in: Number(orgRow.total_tokens_in || 0),
-			total_tokens_out: Number(orgRow.total_tokens_out || 0),
-			total_tokens_sum: Number(orgRow.total_tokens_sum || 0),
-			average_response_ms: Math.round(Number(orgRow.average_response_ms || 0)),
-			total_cost: Number(orgRow.total_cost || 0),
-			from_date: fromDateStr,
-			to_date: toDateStr,
-			projects,
-		};
-	} catch (error) {
-		console.error("Error getting organization usage stats from ClickHouse:", error);
 		throw error;
 	}
 }

@@ -9,7 +9,6 @@ export {
 	getPromptLogs,
 	getProjectUsageStats,
 	getProjectLogs,
-	getOrganizationUsageStats,
 	getOrganizationDailyUsageStats,
 	getProjectUsageWithDailyStats,
 	countRunsByDate,
