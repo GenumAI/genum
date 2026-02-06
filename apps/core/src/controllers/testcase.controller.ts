@@ -11,7 +11,7 @@ import { checkPromptAccess, checkTestcaseAccess } from "@/services/access/Access
 import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
 import { system_prompt } from "@/ai/runner/system";
-import { SourceType } from "@/services/logger/types";
+import { SourceType } from "@/services/logger";
 import { type FileInput, fileService } from "@/services/file.service";
 
 export class TestcasesController {

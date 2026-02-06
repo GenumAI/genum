@@ -14,7 +14,7 @@ import {
 	ProjectLogsQuerySchema,
 	ProjectUpdateSchema,
 } from "@/services/validate";
-import type { LogLevel, SourceType } from "@/services/logger/types";
+import type { LogLevel, SourceType } from "@/services/logger";
 
 export class ProjectController {
 	public async getProjectDetails(req: Request, res: Response) {

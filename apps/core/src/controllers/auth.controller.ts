@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { db } from "@/database/db";
 import { env } from "@/env";
 import { AuthNewUserSchema, NewNotificationSchema } from "@/services/validate/types/auth.type";
-import { countRunsByDate } from "@/services/logger/logger";
+import { countRunsByDate } from "@/services/logger";
 import { webhooks } from "@/services/webhooks/webhooks";
 
 export class AuthController {

@@ -9,7 +9,7 @@ import { getApiKeyByQuota } from "@/services/access/AccessService";
 import { transcribeOpenAI } from "../providers/openai/speech";
 import type { runPromptParams, SystemPrompt } from "./types";
 import { getSystemPrompt, SYSTEM_PROMPTS } from "./system";
-import { LogLevel, LogType, SourceType } from "@/services/logger/types";
+import { LogLevel, LogType, SourceType } from "@/services/logger";
 
 let systemPromptsConfig: SystemPrompt;
 

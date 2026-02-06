@@ -37,7 +37,7 @@ import type { CanvasAgentMessage, CanvasAgentParams, CanvasMessage } from "@/ai/
 import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
 import type { ModelConfigParameters } from "@/ai/models/types";
-import { SourceType } from "@/services/logger/types";
+import { SourceType } from "@/services/logger";
 import { fileService } from "@/services/file.service";
 
 export class PromptsController {

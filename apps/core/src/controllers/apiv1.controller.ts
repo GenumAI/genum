@@ -7,7 +7,7 @@ import {
 } from "@/services/validate";
 import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
-import { SourceType } from "@/services/logger/types";
+import { SourceType } from "@/services/logger";
 import { PromptService } from "@/services/prompt.service";
 
 export class ApiV1Controller {
