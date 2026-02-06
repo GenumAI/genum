@@ -129,6 +129,7 @@ export function LogsPage() {
 	useRefetchOnWorkspaceChange(() => {
 		setPage(1);
 		fetchLogs();
+		fetchPrompts();
 	});
 
 	const [promptsData, setPromptsData] = useState<
@@ -138,18 +139,18 @@ export function LogsPage() {
 		| undefined
 	>(undefined);
 	const promptsRequestIdRef = useRef(0);
-	React.useEffect(() => {
-		const fetchPrompts = async () => {
-			const requestId = ++promptsRequestIdRef.current;
-			try {
-				const data = await promptApi.getPrompts();
-				if (requestId === promptsRequestIdRef.current) {
-					setPromptsData(data);
-				}
-			} catch {}
-		};
-		void fetchPrompts();
+	const fetchPrompts = useCallback(async () => {
+		const requestId = ++promptsRequestIdRef.current;
+		try {
+			const data = await promptApi.getPrompts();
+			if (requestId === promptsRequestIdRef.current) {
+				setPromptsData(data);
+			}
+		} catch {}
 	}, []);
+	React.useEffect(() => {
+		void fetchPrompts();
+	}, [fetchPrompts]);
 
 	const promptId = selectedLog?.prompt_id || filter.promptId;
 
