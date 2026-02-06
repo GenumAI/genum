@@ -109,6 +109,13 @@ export default function ApiEndpoint() {
 							{`{
   "id": YOUR_PROMPT_ID,               // Required: The ID of your prompt
   "question": "Your input text here", // Required: The text to process
+  "files": [                          // Optional: up to 3 files, total request max 50MB
+    {
+      "fileName": "invoice.pdf",
+      "contentType": "application/pdf",
+      "base64": "JVBERi0xLjQKJ..."      // Base64 content (raw or data URL)
+    }
+  ],
   "memoryKey": "optional-memory-key", // Optional: Key for memory context
   "productive": boolean               // Optional: use committed prompt. Default is true
 }`}

@@ -9,9 +9,11 @@ import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
 import { SourceType } from "@/services/logger";
 import { PromptService } from "@/services/prompt.service";
+import type { FileInput } from "@/services/file.service";
 
 export class ApiV1Controller {
 	private readonly promptService: PromptService;
+	private static readonly MAX_TOTAL_FILES_SIZE_BYTES = 50 * 1024 * 1024;
 
 	constructor() {
 		this.promptService = new PromptService(db);
@@ -41,9 +43,56 @@ export class ApiV1Controller {
 		return { project, key };
 	}
 
+	private parseApiFiles(files: { fileName: string; contentType: string; base64: string }[]) {
+		const parsedFiles: FileInput[] = [];
+		let totalBytes = 0;
+
+		for (let i = 0; i < files.length; i++) {
+			const file = files[i];
+			const normalizedBase64 = this.normalizeBase64(file.base64);
+			const buffer = Buffer.from(normalizedBase64, "base64");
+
+			if (!this.isValidBase64(normalizedBase64, buffer)) {
+				throw new Error(`Invalid base64 payload for file "${file.fileName}"`);
+			}
+
+			totalBytes += buffer.length;
+			if (totalBytes > ApiV1Controller.MAX_TOTAL_FILES_SIZE_BYTES) {
+				throw new Error("Total files size exceeds 50MB limit");
+			}
+
+			parsedFiles.push({
+				id: `external-${i}`,
+				fileName: file.fileName,
+				contentType: file.contentType,
+				buffer,
+			});
+		}
+
+		return parsedFiles;
+	}
+
+	private normalizeBase64(value: string) {
+		const withoutDataUrl = value.includes(",") ? value.slice(value.indexOf(",") + 1) : value;
+		return withoutDataUrl.replace(/\s/g, "").replace(/-/g, "+").replace(/_/g, "/");
+	}
+
+	private isValidBase64(value: string, decoded: Buffer) {
+		if (value.length === 0) {
+			return false;
+		}
+
+		const normalizedInput = value.replace(/=+$/g, "");
+		const normalizedDecoded = decoded.toString("base64").replace(/=+$/g, "");
+
+		return normalizedInput === normalizedDecoded;
+	}
+
 	async runPrompt(req: Request, res: Response) {
 		const { project, key } = await this.verifyRequest(req);
-		const { id, question, memoryKey, productive } = RunPromptSchema.parse(req.body);
+		const { id, question, memoryKey, productive, files } = RunPromptSchema.parse(
+			req.body,
+		);
 
 		const organization = await db.organization.getOrganizationById(project.organizationId);
 		if (!organization) {
@@ -87,6 +136,14 @@ export class ApiV1Controller {
 			prompt = promptWithCommit;
 		}
 
+		let fileInputs: FileInput[] = [];
+		try {
+			fileInputs = this.parseApiFiles(files);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Invalid files payload";
+			return res.status(400).json({ error: message });
+		}
+
 		const run = await runPrompt({
 			prompt: prompt,
 			question,
@@ -96,6 +153,7 @@ export class ApiV1Controller {
 			userOrgId: organization.id,
 			user_id: key.authorId,
 			api_key_id: key.id,
+			files: fileInputs,
 		});
 
 		res.status(200).json({
