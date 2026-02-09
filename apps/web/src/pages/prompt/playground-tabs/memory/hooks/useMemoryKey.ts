@@ -6,8 +6,12 @@ import type { Memory } from "@/api/prompt/prompt.api";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { usePlaygroundActions, usePlaygroundTestcase } from "@/stores/playground.store";
 import { toast } from "@/hooks/useToast";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
+import { usePromptMemories, promptMemoriesQueryKey } from "@/hooks/usePromptMemories";
 
 export const useMemoryKey = (promptId: number) => {
+	const queryClient = useQueryClient();
+
 	const { setSelectedMemoryId, setSelectedMemoryKeyName, setPersistedMemoryId } =
 		usePlaygroundActions();
 	const { selectedMemoryKeyName, persistedMemoryId } = usePlaygroundTestcase();
@@ -29,40 +33,49 @@ export const useMemoryKey = (promptId: number) => {
 	const [searchParams] = useSearchParams();
 	const testcaseId = searchParams.get("testcaseId");
 
-	const [memories, setMemories] = useState<Memory[]>([]);
-	const [testcase, setTestcase] = useState<any>(null);
-	const [isPending, setIsPending] = useState(false);
+	// --- react-query: memories ---
+	const { data: memories = [] } = usePromptMemories(promptId);
 
-	const fetchMemories = useCallback(async () => {
-		if (!promptId) return;
-		try {
-			const data = await promptApi.getMemories(promptId);
-			setMemories(data.memories);
-		} catch (error) {
-			console.error("Failed to fetch memories", error);
-		}
-	}, [promptId]);
+	// --- react-query: single testcase ---
+	const { data: testcaseData } = useQuery({
+		queryKey: ["testcase", testcaseId],
+		queryFn: () => testcasesApi.getTestcase(testcaseId as string),
+		enabled: !!testcaseId,
+	});
+	const testcase = testcaseData ?? null;
 
-	const fetchTestcase = useCallback(async () => {
-		if (!testcaseId) {
-			setTestcase(null);
-			return;
-		}
-		try {
-			const data = await testcasesApi.getTestcase(testcaseId);
-			setTestcase(data);
-		} catch (error) {
-			console.error("Failed to fetch testcase", error);
-		}
-	}, [testcaseId]);
+	// --- mutations ---
+	const updateMemoryMutation = useMutation({
+		mutationFn: ({ memoryId, value }: { memoryId: number; value: string }) =>
+			promptApi.updateMemory(promptId, memoryId, { value }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: promptMemoriesQueryKey(promptId) });
+		},
+	});
 
-	useEffect(() => {
-		fetchMemories();
-	}, [fetchMemories]);
+	const createMemoryMutation = useMutation({
+		mutationFn: ({ key, value }: { key: string; value: string }) =>
+			promptApi.createMemory(promptId, { key, value }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: promptMemoriesQueryKey(promptId) });
+		},
+	});
 
-	useEffect(() => {
-		fetchTestcase();
-	}, [fetchTestcase]);
+	const updateTestcaseMutation = useMutation({
+		mutationFn: ({
+			tcId,
+			data,
+		}: {
+			tcId: string;
+			data: { memoryId: number | null };
+		}) => testcasesApi.updateTestcase(tcId, data),
+		onSuccess: () => {
+			if (testcaseId) {
+				queryClient.invalidateQueries({ queryKey: ["testcase", testcaseId] });
+			}
+			queryClient.invalidateQueries({ queryKey: promptMemoriesQueryKey(promptId) });
+		},
+	});
 
 	const prevPromptIdRef = useRef<number | undefined>(promptId);
 	const prevTestcaseIdRef = useRef<string | null>(testcaseId);
@@ -93,7 +106,7 @@ export const useMemoryKey = (promptId: number) => {
 		prevPromptIdRef.current = currentPromptId;
 	}, [promptId, syncSelection]);
 
-	// Reset when testcase changes
+	// Reset when leaving testcase context
 	useEffect(() => {
 		const prevTestcaseId = prevTestcaseIdRef.current;
 		const currentTestcaseId = testcaseId;
@@ -101,10 +114,29 @@ export const useMemoryKey = (promptId: number) => {
 		if (prevTestcaseId !== currentTestcaseId) {
 			isInitializedRef.current = false;
 			setIsManuallyCleared(false);
+
+			// Leaving testcase context → full reset + cache cleanup
+			if (prevTestcaseId && !currentTestcaseId) {
+				isUpdatingRef.current = true;
+
+				setSelectedKey("");
+				setMemoryValue("");
+				originalValueRef.current = "";
+				selectedKeyRef.current = "";
+				syncSelection("", "");
+
+				// Remove stale testcase from react-query cache
+				queryClient.removeQueries({ queryKey: ["testcase", prevTestcaseId] });
+
+				// Release the lock after React processes the state updates
+				setTimeout(() => {
+					isUpdatingRef.current = false;
+				}, 0);
+			}
 		}
 
 		prevTestcaseIdRef.current = currentTestcaseId;
-	}, [testcaseId]);
+	}, [testcaseId, syncSelection, queryClient]);
 
 	useEffect(() => {
 		if (isUpdatingRef.current) {
@@ -123,7 +155,7 @@ export const useMemoryKey = (promptId: number) => {
 		}
 	}, [persistedMemoryId, selectedKey, isManuallyCleared]);
 
-	// Initialize and sync memory selection
+	// Initialize and sync memory selection from TESTCASE only
 	useEffect(() => {
 		if (isUpdatingRef.current || memories.length === 0) {
 			return;
@@ -133,9 +165,10 @@ export const useMemoryKey = (promptId: number) => {
 			return;
 		}
 
+		// Only use testcase's memoryId as the source of truth for auto-loading.
+		// persistedMemoryId is NOT used here — it may be stale from a previous testcase.
 		const testcaseMemoryId = testcase?.testcase?.memoryId;
-		const memoryIdToLoad =
-			persistedMemoryId || (testcaseMemoryId ? String(testcaseMemoryId) : "");
+		const memoryIdToLoad = testcaseMemoryId ? String(testcaseMemoryId) : "";
 		const currentSelectedKey = selectedKeyRef.current;
 
 		if (memoryIdToLoad && memoryIdToLoad !== currentSelectedKey && !isManuallyCleared) {
@@ -147,7 +180,13 @@ export const useMemoryKey = (promptId: number) => {
 				originalValueRef.current = memory.value;
 				syncSelection(String(memory.id), memory.key);
 			}
-		} else if (!memoryIdToLoad && currentSelectedKey && !isManuallyCleared) {
+		} else if (
+			!memoryIdToLoad &&
+			currentSelectedKey &&
+			!isManuallyCleared &&
+			!testcaseId &&
+			!persistedMemoryId
+		) {
 			setSelectedKey("");
 			setMemoryValue("");
 			originalValueRef.current = "";
@@ -157,7 +196,7 @@ export const useMemoryKey = (promptId: number) => {
 		if (!isInitializedRef.current) {
 			isInitializedRef.current = true;
 		}
-	}, [memories, testcase, persistedMemoryId, testcaseId, isManuallyCleared, syncSelection]);
+	}, [memories, testcase, testcaseId, isManuallyCleared, persistedMemoryId, syncSelection]);
 
 	// Update memory value when selectedKey changes
 	useEffect(() => {
@@ -194,46 +233,32 @@ export const useMemoryKey = (promptId: number) => {
 			if (selectedMemoryKeyName !== memory.key) {
 				setSelectedMemoryKeyName(memory.key);
 			}
-		} else if (persistedMemoryId) {
-			const memory = memories.find((item) => item.id === Number(persistedMemoryId));
-			if (!memory) {
-				syncSelection("", "");
-				return;
-			}
-
-			if (selectedMemoryKeyName !== memory.key) {
-				setSelectedMemoryKeyName(memory.key);
-			}
 		}
-	}, [
-		memories,
-		selectedKey,
-		persistedMemoryId,
-		selectedMemoryKeyName,
-		setSelectedMemoryKeyName,
-		syncSelection,
-	]);
+	}, [memories, selectedKey, selectedMemoryKeyName, setSelectedMemoryKeyName, syncSelection]);
 
 	const displayMemoryName = useMemo(() => {
+		if (!testcaseId && !selectedKey) {
+			return "";
+		}
+
 		if (selectedMemoryKeyName) {
 			return selectedMemoryKeyName;
 		}
 
-		if (persistedMemoryId && memories.length > 0) {
-			const memory = memories.find((item) => item.id === Number(persistedMemoryId));
+		if (selectedKey && memories.length > 0) {
+			const memory = memories.find((item) => item.id === Number(selectedKey));
 			return memory?.key || "";
 		}
 
 		return "";
-	}, [selectedMemoryKeyName, persistedMemoryId, memories]);
+	}, [selectedMemoryKeyName, selectedKey, memories, testcaseId]);
 
 	const updateMemory = async (_promptId: number, value: string) => {
 		const memory = memories.find((item) => item.id === Number(selectedKey));
 		if (memory) {
 			try {
-				await promptApi.updateMemory(promptId, memory.id, { value });
+				await updateMemoryMutation.mutateAsync({ memoryId: memory.id, value });
 				originalValueRef.current = value;
-				fetchMemories();
 			} catch {
 				toast({
 					title: "Something went wrong",
@@ -281,10 +306,10 @@ export const useMemoryKey = (promptId: number) => {
 
 		if (testcaseId) {
 			try {
-				await testcasesApi.updateTestcase(testcaseId, {
-					memoryId: memory ? memory.id : null,
+				await updateTestcaseMutation.mutateAsync({
+					tcId: testcaseId,
+					data: { memoryId: memory ? memory.id : null },
 				});
-				await Promise.all([fetchMemories(), fetchTestcase()]);
 				setTimeout(() => {
 					isUpdatingRef.current = false;
 				}, 100);
@@ -318,14 +343,15 @@ export const useMemoryKey = (promptId: number) => {
 
 		if (testcaseId) {
 			try {
-				await testcasesApi.updateTestcase(testcaseId, { memoryId: null });
+				await updateTestcaseMutation.mutateAsync({
+					tcId: testcaseId,
+					data: { memoryId: null },
+				});
 
 				toast({
 					title: "Memory cleared",
 					description: "Memory selection has been reset",
 				});
-
-				await Promise.all([fetchMemories(), fetchTestcase()]);
 
 				setTimeout(() => {
 					isUpdatingRef.current = false;
@@ -348,9 +374,8 @@ export const useMemoryKey = (promptId: number) => {
 	};
 
 	const createMemoryHandler = async (key: string, value: string) => {
-		setIsPending(true);
 		try {
-			const response = await promptApi.createMemory(promptId, { key, value });
+			const response = await createMemoryMutation.mutateAsync({ key, value });
 			setCreateMemoryModalOpen(false);
 			setIsManuallyCleared(false);
 			isUpdatingRef.current = true;
@@ -361,8 +386,6 @@ export const useMemoryKey = (promptId: number) => {
 				return;
 			}
 
-			await fetchMemories();
-
 			setSelectedKey(String(newMemoryId));
 			setMemoryValue(value);
 			originalValueRef.current = value;
@@ -371,10 +394,10 @@ export const useMemoryKey = (promptId: number) => {
 
 			if (testcaseId) {
 				try {
-					await testcasesApi.updateTestcase(testcaseId, {
-						memoryId: newMemoryId,
+					await updateTestcaseMutation.mutateAsync({
+						tcId: testcaseId,
+						data: { memoryId: newMemoryId },
 					});
-					await fetchTestcase();
 				} catch {
 					console.error("Failed to update testcase");
 				}
@@ -394,8 +417,6 @@ export const useMemoryKey = (promptId: number) => {
 				title: "Something went wrong",
 				variant: "destructive",
 			});
-		} finally {
-			setIsPending(false);
 		}
 	};
 
@@ -406,7 +427,7 @@ export const useMemoryKey = (promptId: number) => {
 		selectedKey,
 		memoryValue,
 		memories,
-		isPending,
+		isPending: createMemoryMutation.isPending,
 		createMemoryModalOpen,
 		setCreateMemoryModalOpen,
 		isOpenMemory,

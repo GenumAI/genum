@@ -15,6 +15,8 @@ import { toast } from "@/hooks/useToast";
 import { SearchInput } from "@/components/ui/searchInput";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 import { promptApi } from "@/api/prompt";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { usePromptMemories, promptMemoriesQueryKey } from "@/hooks/usePromptMemories";
 
 interface Memory {
 	id: number;
@@ -36,22 +38,55 @@ export default function Memory() {
 
 	const { id } = useParams<{ id: string }>();
 	const [currentPromptId, setCurrentPromptId] = useState(id);
-	const [memories, setMemories] = useState<Memory[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
-	const [isPending, setIsPending] = useState(false);
+	const promptId = id ? Number(id) : undefined;
 
-	const fetchMemories = useCallback(async () => {
-		if (!id) return;
-		setIsLoading(true);
-		try {
-			const result = await promptApi.getMemories(id);
-			setMemories(result.memories);
-		} catch (error) {
-			console.error("Failed to fetch memories", error);
-		} finally {
-			setIsLoading(false);
-		}
-	}, [id]);
+	const queryClient = useQueryClient();
+	const { data: memories = [], isLoading } = usePromptMemories(promptId);
+
+	// --- mutations ---
+	const createMemoryMutation = useMutation({
+		mutationFn: ({ key, value }: { key: string; value: string }) => {
+			if (!id) throw new Error("No prompt id");
+			return promptApi.createMemory(id, { key, value });
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: promptMemoriesQueryKey(promptId) });
+			setCreateMemoryModal(false);
+		},
+		onError: () => {
+			toast({ title: "Something went wrong", variant: "destructive" });
+		},
+	});
+
+	const editMemoryMutation = useMutation({
+		mutationFn: ({ memoryId, value }: { memoryId: number; value: string }) => {
+			if (!id) throw new Error("No prompt id");
+			return promptApi.updateMemory(id, memoryId, { value });
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: promptMemoriesQueryKey(promptId) });
+			setEditMemoryModal(false);
+			setEditingMemory(undefined);
+		},
+		onError: () => {
+			toast({ title: "Something went wrong", variant: "destructive" });
+		},
+	});
+
+	const deleteMemoryMutation = useMutation({
+		mutationFn: (memoryId: number) => {
+			if (!id) throw new Error("No prompt id");
+			return promptApi.deleteMemory(id, memoryId);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: promptMemoriesQueryKey(promptId) });
+			setConfirmModalOpen(false);
+			setSelectedMemory(null);
+		},
+		onError: () => {
+			toast({ title: "Something went wrong", variant: "destructive" });
+		},
+	});
 
 	const handleRowClick = (memory: Memory, event: React.MouseEvent) => {
 		const target = event.target as HTMLElement;
@@ -102,49 +137,20 @@ export default function Memory() {
 
 	const createMemoryHandler = async (key: string, value: string) => {
 		if (!id) return;
-		setIsPending(true);
-		try {
-			await promptApi.createMemory(id, { key, value });
-			await fetchMemories();
-			setCreateMemoryModal(false);
-		} catch {
-			toast({ title: "Something went wrong", variant: "destructive" });
-		} finally {
-			setIsPending(false);
-		}
+		createMemoryMutation.mutate({ key, value });
 	};
 
 	const editMemoryHandler = async (value: string) => {
 		if (!editingMemory || !id) return;
-		setIsPending(true);
-		try {
-			await promptApi.updateMemory(id, editingMemory.id, { value });
-			await fetchMemories();
-			setEditMemoryModal(false);
-			setEditingMemory(undefined);
-		} catch {
-			toast({ title: "Something went wrong", variant: "destructive" });
-		} finally {
-			setIsPending(false);
-		}
+		editMemoryMutation.mutate({ memoryId: editingMemory.id, value });
 	};
 
 	const confirmationDeleteHandler = async () => {
 		if (!selectedMemory || !id) return;
-		setIsPending(true);
-		try {
-			await promptApi.deleteMemory(id, selectedMemory.id);
-			await fetchMemories();
-			setConfirmModalOpen(false);
-			setSelectedMemory(null);
-		} catch {
-			toast({ title: "Something went wrong", variant: "destructive" });
-		} finally {
-			setIsPending(false);
-		}
+		deleteMemoryMutation.mutate(selectedMemory.id);
 	};
 
-	const getSortIcon = (column: any) => {
+	const getSortIcon = (column: { getIsSorted: () => false | "asc" | "desc" }) => {
 		const isSorted = column.getIsSorted();
 		if (isSorted === "asc") {
 			return (
@@ -180,9 +186,10 @@ export default function Memory() {
 		}
 	}, [id, currentPromptId]);
 
-	useEffect(() => {
-		fetchMemories();
-	}, [fetchMemories]);
+	const isPending =
+		createMemoryMutation.isPending ||
+		editMemoryMutation.isPending ||
+		deleteMemoryMutation.isPending;
 
 	return (
 		<>

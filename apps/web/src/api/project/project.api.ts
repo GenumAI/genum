@@ -64,6 +64,7 @@ export interface ProjectAPIKey {
 		name: string;
 		email: string;
 		picture?: string;
+		avatar?: string;
 	};
 }
 
