@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatDate, formatFullDate, formatAPIKey, getUserInitials } from "../../utils/formatters";
+import { formatDate, formatFullDate, formatAPIKey } from "../../utils/formatters";
+import { getAvatarColor, getAvatarInitial, getAvatarUrl } from "@/lib/avatarUtils";
 import type { APIKeyTableRowProps } from "../../utils/types";
 
 export function APIKeyTableRow({
@@ -12,6 +13,11 @@ export function APIKeyTableRow({
 	showProject = false,
 	isDeleting = false,
 }: APIKeyTableRowProps) {
+	const authorName = keyData.author?.name || "Unknown";
+	const authorAvatar = getAvatarUrl(keyData.author);
+	const authorInitial = getAvatarInitial(authorName);
+	const authorColor = getAvatarColor(authorName);
+
 	return (
 		<TableRow>
 			{showProject && keyData.project && (
@@ -27,13 +33,16 @@ export function APIKeyTableRow({
 			</TableCell>
 			<TableCell className="px-4 py-3 text-center">
 				<div className="flex items-center justify-center gap-2">
-					<Avatar className="h-6 w-6">
-						<AvatarImage src={keyData.author?.picture} />
-						<AvatarFallback className="text-xs">
-							{getUserInitials(keyData.author?.name || "Unknown")}
+					<Avatar className="h-6 w-6 rounded-lg">
+						<AvatarImage
+							src={authorAvatar ?? "/assets/avatars/shadcn.jpg"}
+							alt={authorName}
+						/>
+						<AvatarFallback className={`rounded-lg text-xs font-bold ${authorColor}`}>
+							{authorInitial}
 						</AvatarFallback>
 					</Avatar>
-					<span className="text-sm">{keyData.author?.name || "Unknown"}</span>
+					<span className="text-sm">{authorName}</span>
 				</div>
 			</TableCell>
 			<TableCell className="px-4 py-3 text-center">

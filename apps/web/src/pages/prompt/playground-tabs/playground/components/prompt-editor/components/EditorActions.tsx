@@ -1,9 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Popover, PopoverTrigger } from "@/components/ui/popover";
-import PromptActionPopover from "@/components/popovers/PromptActionPopover";
+import AIGenerateButton from "../../settings-block/models-settings/components/ai-interface-editor/shared/code-editor/components/AIGenerateButton";
 import { CircleNotchIcon, ChartBarIcon } from "@phosphor-icons/react";
-import { TuneIcon } from "@/lib/icons/TuneIcon";
 import Brush from "@/assets/brush.svg";
 import { cn } from "@/lib/utils";
 
@@ -106,75 +104,38 @@ export const EditorActions = ({
 				</TooltipProvider>
 			)}
 
-			{/* Generate Button */}
-			{editorIsEmpty && main && (
-				<Popover open={isGeneratePopoverOpen} onOpenChange={setIsGeneratePopoverOpen}>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<PopoverTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-6 w-6 text-[#437BEF] hover:bg-accent hover:text-accent-foreground dark:hover:text-white [&_svg]:size-5"
-									>
-										<TuneIcon />
-									</Button>
-								</PopoverTrigger>
-							</TooltipTrigger>
-							<TooltipContent>
-								<p>Generate prompt</p>
-							</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
+		{/* Generate Button */}
+		{editorIsEmpty && main && (
+			<AIGenerateButton
+				mode="prompt-generate"
+				value={promptText}
+				onChange={setPromptText}
+				onAction={handleGenerate}
+				isOpen={isGeneratePopoverOpen}
+				setIsOpen={setIsGeneratePopoverOpen}
+				isLoading={loading}
+				placeholder="What would you like to generate?"
+				buttonText="Generate"
+				tooltipText="Generate prompt"
+			/>
+		)}
 
-					<PromptActionPopover
-						placeholder="What would you like to generate?"
-						value={promptText}
-						onChange={setPromptText}
-						onAction={handleGenerate}
-						buttonText="Generate"
-						buttonIcon={<TuneIcon stroke="currentColor" />}
-						loading={loading}
-						disabled={promptText.trim() === ""}
-					/>
-				</Popover>
-			)}
-
-			{/* Tune Button */}
-			{!editorIsEmpty && main && (
-				<Popover open={isTunePopoverOpen} onOpenChange={setIsTunePopoverOpen}>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<PopoverTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-6 w-6 text-[#437BEF] hover:bg-accent hover:text-accent-foreground dark:hover:text-white [&_svg]:size-5"
-									>
-										<TuneIcon />
-									</Button>
-								</PopoverTrigger>
-							</TooltipTrigger>
-							<TooltipContent>
-								<p>Tune prompt</p>
-							</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
-
-					<PromptActionPopover
-						placeholder="What would you like to tune?"
-						value={tuneText}
-						onChange={setTuneText}
-						onAction={handleTune}
-						buttonText="Tune"
-						buttonIcon={<TuneIcon stroke="currentColor" />}
-						loading={loading}
-						textareaClassName="text-primary"
-					/>
-				</Popover>
-			)}
+		{/* Tune Button */}
+		{!editorIsEmpty && main && (
+			<AIGenerateButton
+				mode="prompt-tune"
+				value={tuneText}
+				onChange={setTuneText}
+				onAction={handleTune}
+				isOpen={isTunePopoverOpen}
+				setIsOpen={setIsTunePopoverOpen}
+				isLoading={loading}
+				placeholder="What would you like to tune?"
+				buttonText="Tune"
+				tooltipText="Tune prompt"
+				textareaClassName="text-primary"
+			/>
+		)}
 
 			{/* Clear Button */}
 			{!editorIsEmpty && !main && (

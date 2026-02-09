@@ -58,6 +58,7 @@ export interface OrgKey {
 		name: string;
 		email: string;
 		picture?: string;
+		avatar?: string;
 	};
 }
 
@@ -317,6 +318,7 @@ export interface APIKeyTableRowProps {
 			name: string;
 			email: string;
 			picture?: string;
+			avatar?: string;
 		};
 	};
 	onDelete: () => void;
