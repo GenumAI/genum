@@ -41,8 +41,8 @@ export function useRunPrompt() {
 			try {
 				if (testcaseId) {
 					try {
-						const testcase = await testcasesApi.runTestcase(testcaseId, payload);
-						const formattedOutput = formatTestcaseOutput(testcase.lastOutput);
+						const response = await testcasesApi.runTestcase(testcaseId, payload);
+						const formattedOutput = formatTestcaseOutput(response);
 						setResult(formattedOutput);
 						return formattedOutput;
 					} catch (testcaseError: any) {
