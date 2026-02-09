@@ -41,7 +41,7 @@ Genum centralizes prompt development so teams can create, evaluate, and compare 
 ### 1) Clone
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/GenumAI/genum
 cd genum
 ```
 
@@ -124,8 +124,6 @@ docker-compose down -v
 ## Troubleshooting
 
 ### Logs
-```
-
 - Review logs
 ```bash
 docker-compose logs
