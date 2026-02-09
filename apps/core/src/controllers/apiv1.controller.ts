@@ -90,9 +90,7 @@ export class ApiV1Controller {
 
 	async runPrompt(req: Request, res: Response) {
 		const { project, key } = await this.verifyRequest(req);
-		const { id, question, memoryKey, productive, files } = RunPromptSchema.parse(
-			req.body,
-		);
+		const { id, question, memoryKey, productive, files } = RunPromptSchema.parse(req.body);
 
 		const organization = await db.organization.getOrganizationById(project.organizationId);
 		if (!organization) {
