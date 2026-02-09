@@ -4,9 +4,17 @@ import { getAvatarColor, getAvatarInitial, getAvatarUrl } from "@/lib/avatarUtil
 
 export interface CommitAuthorAvatarProps {
 	author: { name: string; picture?: string | null; avatar?: string | null };
+	size?: string;
+	textSize?: string;
+	rounded?: string;
 }
 
-export function CommitAuthorAvatar({ author }: CommitAuthorAvatarProps) {
+export function CommitAuthorAvatar({ 
+	author, 
+	size = "h-5 w-5",
+	textSize = "text-[10px]",
+	rounded = "rounded-full"
+}: CommitAuthorAvatarProps) {
 	const [imageLoaded, setImageLoaded] = useState(false);
 	const [imageError, setImageError] = useState(false);
 
@@ -46,20 +54,20 @@ export function CommitAuthorAvatar({ author }: CommitAuthorAvatarProps) {
 	}, [avatarUrl, hasPicture]);
 
 	return (
-		<Avatar className="h-5 w-5 rounded-full">
+		<Avatar className={`${size} ${rounded}`}>
 			{hasPicture && !imageLoaded && !imageError && (
-				<div className="h-5 w-5 rounded-full bg-muted/40 animate-pulse" />
+				<div className={`${size} ${rounded} bg-muted/40 animate-pulse`} />
 			)}
 			{hasPicture && imageLoaded && !imageError && avatarUrl && (
 				<AvatarImage
 					src={avatarUrl}
 					alt={author.name}
 					referrerPolicy="no-referrer"
-					className="rounded-full"
+					className={rounded}
 				/>
 			)}
 			{(!hasPicture || imageError) && (
-				<AvatarFallback className={`rounded-full text-[10px] font-bold ${colorClass}`}>
+				<AvatarFallback className={`${rounded} ${textSize} font-bold ${colorClass}`}>
 					{initial}
 				</AvatarFallback>
 			)}

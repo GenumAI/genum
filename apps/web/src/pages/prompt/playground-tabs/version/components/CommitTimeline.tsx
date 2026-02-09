@@ -4,6 +4,8 @@ import { GitCommitHorizontal } from "lucide-react";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 import { formatUserLocalDateTime } from "@/lib/formatUserLocalDateTime";
 import { getAvatarColorByFirstLetter, getAvatarInitial } from "@/lib/avatarUtils";
+import { isCloudAuth } from "@/lib/auth";
+import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
 import type { Branch, PromptVersion } from "../utils/types";
 
 interface GroupedCommits {
@@ -123,6 +125,7 @@ export default function CommitTimeline({ branches }: CommitTimelineProps) {
 							)}
 						>
 							{group.commits.map((version) => {
+								const isCloud = isCloudAuth();
 								const authorBg = getAvatarColorByFirstLetter(version.author.name);
 								const authorInitial = getAvatarInitial(version.author.name);
 								return (
@@ -130,15 +133,24 @@ export default function CommitTimeline({ branches }: CommitTimelineProps) {
 										key={version.id}
 										className="flex items-start gap-4 relative py-3 pl-4 border-b border-border hover:bg-muted/60 transition-colors"
 									>
-										<div
-											className={clsx(
-												"w-8 h-8 rounded-md flex items-center justify-center font-semibold",
-												"text-slate-800 dark:text-slate-900",
-												authorBg,
-											)}
-										>
-											{authorInitial}
-										</div>
+										{isCloud ? (
+											<CommitAuthorAvatar 
+												author={version.author} 
+												size="h-8 w-8" 
+												textSize="text-xs"
+												rounded="rounded-md"
+											/>
+										) : (
+											<div
+												className={clsx(
+													"w-8 h-8 rounded-md flex items-center justify-center font-semibold",
+													"text-slate-800 dark:text-slate-900",
+													authorBg,
+												)}
+											>
+												{authorInitial}
+											</div>
+										)}
 
 										<div className="flex-1">
 											<div className="flex justify-between items-center">
