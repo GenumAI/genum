@@ -1,7 +1,7 @@
 import { EyeIcon, CornersOutIcon, EyeClosedIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { AIGenerateButton } from "./AIGenerateButton";
+import AIGenerateButton from "../../settings-block/models-settings/components/ai-interface-editor/shared/code-editor/components/AIGenerateButton";
 
 interface InputActionsProps {
 	// AI Button props
@@ -38,14 +38,16 @@ export const InputActions = ({
 	return (
 		<div className="flex items-center gap-2">
 			<AIGenerateButton
+				mode="input"
 				isActive={isAIButtonActive}
 				inactiveReason={aiInactiveReason}
-				isPopoverOpen={isAIPopoverOpen}
-				setIsPopoverOpen={setIsAIPopoverOpen}
-				aiQuery={aiQuery}
-				setAiQuery={setAiQuery}
-				onGenerate={onGenerate}
+				isOpen={isAIPopoverOpen}
+				setIsOpen={setIsAIPopoverOpen}
+				value={aiQuery}
+				onChange={setAiQuery}
+				onAction={onGenerate}
 				isLoading={isGenerating}
+				allowEmpty={true}
 			/>
 
 			<TooltipProvider>

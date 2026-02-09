@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CircleNotch } from "phosphor-react";
-import { TuneIcon } from "@/lib/icons/TuneIcon";
+import AIGenerateButton from "@/pages/prompt/playground-tabs/playground/components/settings-block/models-settings/components/ai-interface-editor/shared/code-editor/components/AIGenerateButton";
 
 export interface CommitDialogProps {
 	open: boolean;
@@ -55,23 +55,23 @@ const CommitDialog: React.FC<CommitDialogProps> = ({
 					<DialogTitle>New Commit</DialogTitle>
 				</DialogHeader>
 
-				<div className="mb-2">
-					<div className="flex items-center justify-between mb-2">
-						<p className="text-xs text-foreground/50 font-medium">Commit message</p>
-						<button
-							type="button"
-							aria-label="Generate commit message automatically"
-							className="p-1.5 rounded-md transition-all hover:bg-[#437BEF]/10 text-[#437BEF] disabled:opacity-50 disabled:cursor-not-allowed group relative"
-							disabled={isCommitting || isGenerating}
-							onClick={onGenerate}
-						>
-							{isGenerating ? (
-								<CircleNotch size={18} className="animate-spin" />
-							) : (
-								<TuneIcon stroke="currentColor" />
-							)}
-						</button>
-					</div>
+			<div className="mb-2">
+				<div className="flex items-center justify-between mb-2">
+					<p className="text-xs text-foreground/50 font-medium">Commit message</p>
+					<AIGenerateButton
+						mode="commit"
+						value=""
+						onChange={() => {}}
+						onAction={onGenerate}
+						isOpen={false}
+						setIsOpen={() => {}}
+						isLoading={isGenerating}
+						disabled={isCommitting || isGenerating}
+						simpleButton={true}
+						tooltipText="Generate commit message automatically"
+						buttonClassName="p-1.5 rounded-md transition-all hover:bg-[#437BEF]/10 text-[#437BEF] disabled:opacity-50 disabled:cursor-not-allowed group relative"
+					/>
+				</div>
 					<Textarea
 						ref={textareaRef}
 						placeholder="Enter message"
