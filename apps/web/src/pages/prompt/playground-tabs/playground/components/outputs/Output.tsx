@@ -24,6 +24,7 @@ interface OutputBlockProps {
 	onRegisterClearFunction?: (clearFn: () => void) => void;
 	selectedFiles?: Array<{ id: string }>;
 	onTestcaseLoadingChange?: (isLoading: boolean) => void;
+	isRunning?: boolean;
 }
 
 const OutputBlock: React.FC<OutputBlockProps> = ({
@@ -32,6 +33,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	onRegisterClearFunction,
 	selectedFiles,
 	onTestcaseLoadingChange,
+	isRunning,
 }) => {
 	// Route params
 	const { id } = useParams<{ id: string }>();
@@ -155,6 +157,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 				modifiedValue={modifiedValue}
 				onSaveAsExpected={handleSaveAsExpected}
 				onAddTestcase={handleAddTestcase}
+				isRunning={isRunning}
 			/>
 
 			<ExpandedOutputDialog
@@ -169,6 +172,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 				onSaveModifiedValue={saveModifiedValue}
 				onSaveAsExpected={handleSaveAsExpected}
 				onAddTestcase={handleAddTestcase}
+				isRunning={isRunning}
 			/>
 		</div>
 	);

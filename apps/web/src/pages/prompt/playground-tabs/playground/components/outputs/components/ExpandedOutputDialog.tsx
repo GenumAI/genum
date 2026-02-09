@@ -19,6 +19,7 @@ interface ExpandedOutputDialogProps {
 	onSaveModifiedValue: (value: string) => void;
 	onSaveAsExpected: () => void;
 	onAddTestcase: () => void;
+	isRunning?: boolean;
 }
 
 export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
@@ -33,6 +34,7 @@ export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
 	onSaveModifiedValue,
 	onSaveAsExpected,
 	onAddTestcase,
+	isRunning,
 }) => {
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -84,7 +86,7 @@ export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
 												size="sm"
 												onClick={onAddTestcase}
 												disabled={
-													isTestcaseLoading || !modifiedValue.trim()
+													isTestcaseLoading || !modifiedValue.trim() || isRunning
 												}
 												className="text-[14px] h-[36px]"
 											>

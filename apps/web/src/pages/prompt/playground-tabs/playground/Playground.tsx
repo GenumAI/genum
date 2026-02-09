@@ -197,6 +197,7 @@ export default function Playground() {
 								onRegisterClearFunction={actions.testcase.registerClearFn}
 								selectedFiles={selectedFiles}
 								onTestcaseLoadingChange={setIsTestcaseLoading}
+								isRunning={ui.loading.run}
 							/>
 						</>
 					)}

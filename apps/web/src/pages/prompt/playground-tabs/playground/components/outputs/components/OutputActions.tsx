@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,6 +10,7 @@ interface OutputActionsProps {
 	modifiedValue: string;
 	onSaveAsExpected: () => void;
 	onAddTestcase: () => void;
+	isRunning?: boolean;
 }
 
 export const OutputActions: React.FC<OutputActionsProps> = ({
@@ -19,6 +20,7 @@ export const OutputActions: React.FC<OutputActionsProps> = ({
 	modifiedValue,
 	onSaveAsExpected,
 	onAddTestcase,
+	isRunning,
 }) => {
 	return (
 		<div className="grid grid-cols-2 justify-items-end">
@@ -43,7 +45,7 @@ export const OutputActions: React.FC<OutputActionsProps> = ({
 									<Button
 										size="sm"
 										onClick={onAddTestcase}
-										disabled={isTestcaseLoading || !modifiedValue.trim()}
+										disabled={isTestcaseLoading || !modifiedValue.trim() || isRunning}
 										className="text-[14px] h-[32px] w-[138px]"
 									>
 										{isTestcaseLoading && (
