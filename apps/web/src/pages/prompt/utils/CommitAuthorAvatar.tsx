@@ -1,65 +1,23 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState, useEffect } from "react";
-
-const COMMIT_AVATAR_LETTER_COLOR_MAP: Record<string, string> = {
-	A: "bg-[#D6CFFF]",
-	B: "bg-[#BBCAFF]",
-	C: "bg-[#BFDEFF]",
-	D: "bg-[#D5F0FF]",
-	E: "bg-[#D7EFEB]",
-	F: "bg-[#D6F6E6]",
-	G: "bg-[#DEEADE]",
-	H: "bg-[#E7F5C8]",
-	I: "bg-[#FFE4F2]",
-	J: "bg-[#FFD7D8]",
-	K: "bg-[#FFE6B1]",
-	L: "bg-[#F9ECDB]",
-	M: "bg-[#D6CFFF]",
-	N: "bg-[#BBCAFF]",
-	O: "bg-[#BFDEFF]",
-	P: "bg-[#D5F0FF]",
-	Q: "bg-[#D7EFEB]",
-	R: "bg-[#D6F6E6]",
-	S: "bg-[#DEEADE]",
-	T: "bg-[#E7F5C8]",
-	U: "bg-[#FFE4F2]",
-	V: "bg-[#FFD7D8]",
-	W: "bg-[#FFE6B1]",
-	X: "bg-[#F9ECDB]",
-	Y: "bg-[#D6CFFF]",
-	Z: "bg-[#BBCAFF]",
-};
-
-function getCommitAvatarColor(name: string): string {
-	const firstLetter = name[0]?.toUpperCase() || "";
-	return COMMIT_AVATAR_LETTER_COLOR_MAP[firstLetter] ?? "bg-[#D6CFFF]";
-}
-
-function isLetter(char: string): boolean {
-	return /^[a-zA-Z]$/.test(char);
-}
+import { getAvatarColor, getAvatarInitial, getAvatarUrl } from "@/lib/avatarUtils";
 
 export interface CommitAuthorAvatarProps {
-	author: { name: string; picture?: string | null };
+	author: { name: string; picture?: string | null; avatar?: string | null };
 }
 
 export function CommitAuthorAvatar({ author }: CommitAuthorAvatarProps) {
 	const [imageLoaded, setImageLoaded] = useState(false);
 	const [imageError, setImageError] = useState(false);
 
-	const firstChar = author.name?.[0] ?? "";
-	const isNonLetter = !firstChar || !isLetter(firstChar);
-
-	const initial = isNonLetter ? "G" : firstChar.toUpperCase();
-	const colorClass = isNonLetter
-		? "bg-black text-white"
-		: getCommitAvatarColor(author.name ?? "U");
-
-	const hasPicture = Boolean(author.picture);
+	const initial = getAvatarInitial(author.name ?? "U");
+	const colorClass = getAvatarColor(author.name ?? "U");
+	const avatarUrl = getAvatarUrl(author);
+	const hasPicture = Boolean(avatarUrl);
 
 	// Предзагрузка изображения
 	useEffect(() => {
-		if (!hasPicture || !author.picture) {
+		if (!hasPicture || !avatarUrl) {
 			setImageLoaded(false);
 			setImageError(false);
 			return;
@@ -69,7 +27,7 @@ export function CommitAuthorAvatar({ author }: CommitAuthorAvatarProps) {
 		setImageError(false);
 
 		const img = new Image();
-		img.src = author.picture;
+		img.src = avatarUrl;
 
 		img.onload = () => {
 			setImageLoaded(true);
@@ -85,16 +43,16 @@ export function CommitAuthorAvatar({ author }: CommitAuthorAvatarProps) {
 			img.onload = null;
 			img.onerror = null;
 		};
-	}, [author.picture, hasPicture]);
+	}, [avatarUrl, hasPicture]);
 
 	return (
 		<Avatar className="h-5 w-5 rounded-full">
 			{hasPicture && !imageLoaded && !imageError && (
 				<div className="h-5 w-5 rounded-full bg-muted/40 animate-pulse" />
 			)}
-			{hasPicture && imageLoaded && !imageError && author.picture && (
+			{hasPicture && imageLoaded && !imageError && avatarUrl && (
 				<AvatarImage
-					src={author.picture}
+					src={avatarUrl}
 					alt={author.name}
 					referrerPolicy="no-referrer"
 					className="rounded-full"
