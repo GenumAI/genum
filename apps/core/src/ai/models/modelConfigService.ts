@@ -1,13 +1,7 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, resolve, extname } from "node:path";
-import {
-	ModelsConfigSchema,
-	type ModelsConfig,
-	type ModelConfig,
-	type ModelConfigParameters,
-} from "./types";
+import type { ModelConfig, ModelConfigParameters, ModelsConfig } from "./types";
+import { toModelConfig } from "./builder";
+import { ALL_MODELS } from "./vendors";
 import { AiVendor } from "@/prisma";
-import z from "zod";
 
 interface ParameterSchema {
 	allowed?: string[];
@@ -15,8 +9,6 @@ interface ParameterSchema {
 	max?: number;
 	default: string | number | Array<unknown>;
 }
-
-const currentDir = dirname(__filename);
 
 export class ModelConfigService {
 	private config: ModelsConfig = { models: [] };
@@ -26,40 +18,9 @@ export class ModelConfigService {
 	}
 
 	private loadConfig() {
-		const configDir = resolve(currentDir, "config");
-		const allModels: ModelConfig[] = [];
-
-		try {
-			// read all files in config directory
-			const files = readdirSync(configDir);
-
-			// filter only json files
-			const jsonFiles = files.filter((file) => extname(file) === ".json");
-
-			for (const configFile of jsonFiles) {
-				try {
-					const configPath = resolve(configDir, configFile);
-					const configData = JSON.parse(readFileSync(configPath, "utf-8"));
-
-					const parsed = ModelsConfigSchema.safeParse(configData);
-					if (!parsed.success) {
-						console.warn(
-							`Invalid model config schema in ${configFile}:`,
-							z.treeifyError(parsed.error),
-						);
-						continue;
-					}
-
-					allModels.push(...parsed.data.models);
-				} catch (error) {
-					console.warn(`Failed to load config from ${configFile}:`, error);
-				}
-			}
-		} catch (error) {
-			console.error("Failed to read config directory:", error);
-		}
-
-		this.config = { models: allModels };
+		this.config = {
+			models: ALL_MODELS.map(toModelConfig),
+		};
 	}
 
 	public getModelConfig(name: string, vendor: AiVendor): ModelConfig | undefined {
