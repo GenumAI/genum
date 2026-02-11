@@ -50,7 +50,7 @@
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "@sentry/node": "^10.30.0",
-    "axios": "^1.7.9",
+    "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
