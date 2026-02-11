@@ -1,5 +1,10 @@
-import { type ContentListUnion, type GenerateContentConfig, Type } from "@google/genai";
-import type { FunctionCall } from "../../models/types";
+import {
+	type ContentListUnion,
+	type GenerateContentConfig,
+	ThinkingLevel,
+	Type,
+} from "@google/genai";
+import type { FunctionCall, REASONING_EFFORT } from "../../models/types";
 import type { ProviderRequest } from "..";
 
 interface GeminiSchema {
@@ -122,6 +127,11 @@ export function mapConfigToGemini(request: ProviderRequest): GenerateContentConf
 						},
 					]
 				: undefined,
+		thinkingConfig: {
+			thinkingLevel: mapReasoningEffortToGeminiThinkingLevel(
+				request.parameters.reasoning_effort,
+			),
+		},
 	};
 }
 
@@ -139,5 +149,22 @@ export function mapContentsToGeminiFormat(request: ProviderRequest): ContentList
 		return contents;
 	} else {
 		return request.question;
+	}
+}
+
+function mapReasoningEffortToGeminiThinkingLevel(
+	effort?: REASONING_EFFORT,
+): ThinkingLevel | undefined {
+	switch (effort) {
+		case "minimal":
+			return ThinkingLevel.MINIMAL;
+		case "low":
+			return ThinkingLevel.LOW;
+		case "medium":
+			return ThinkingLevel.MEDIUM;
+		case "high":
+			return ThinkingLevel.HIGH;
+		default:
+			return undefined;
 	}
 }

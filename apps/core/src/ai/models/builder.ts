@@ -1,5 +1,5 @@
 import type { AiVendor } from "@/prisma";
-import type { ModelConfig, ModelParameters } from "./types";
+import type { ModelConfig, ModelParameters, REASONING_EFFORT, RESPONSE_FORMAT } from "./types";
 
 /** Fields used by seed/DB (LanguageModel table) */
 export type SeedModelFields = {
@@ -76,7 +76,7 @@ function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
 			return builder;
 		},
 
-		responseFormat(allowed: readonly string[], defaultValue) {
+		responseFormat(allowed: readonly RESPONSE_FORMAT[], defaultValue: RESPONSE_FORMAT) {
 			state.parameters.response_format = {
 				allowed: [...allowed],
 				default: defaultValue,
@@ -89,7 +89,7 @@ function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
 			return builder;
 		},
 
-		reasoningEffort(allowed: readonly string[], defaultValue: string) {
+		reasoningEffort(allowed: readonly REASONING_EFFORT[], defaultValue: REASONING_EFFORT) {
 			state.parameters.reasoning_effort = {
 				allowed: [...allowed],
 				default: defaultValue,
@@ -130,9 +130,15 @@ export interface ModelBuilder {
 	limits(contextTokensMax: number, completionTokensMax: number): ModelBuilder;
 	temperature(min: number, max: number, defaultValue: number): ModelBuilder;
 	maxTokens(min: number, max: number, defaultValue?: number): ModelBuilder;
-	responseFormat(allowed?: readonly string[], defaultValue?: string): ModelBuilder;
+	responseFormat(
+		allowed?: readonly RESPONSE_FORMAT[],
+		defaultValue?: RESPONSE_FORMAT,
+	): ModelBuilder;
 	tools(defaultValue?: unknown[]): ModelBuilder;
-	reasoningEffort(allowed: readonly string[], defaultValue: string): ModelBuilder;
+	reasoningEffort(
+		allowed: readonly REASONING_EFFORT[],
+		defaultValue: REASONING_EFFORT,
+	): ModelBuilder;
 	verbosity(allowed: readonly string[], defaultValue: string): ModelBuilder;
 	build(): BuiltModel;
 }

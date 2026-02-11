@@ -85,12 +85,16 @@ export function getDefaultParameters(modelConfig: ModelConfig): Record<string, u
 	return defaults;
 }
 
+export type RESPONSE_FORMAT = "text" | "json_object" | "json_schema";
+export type REASONING_EFFORT = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+export type VERBOSITY = "low" | "medium" | "high";
+
 export type ModelConfigParameters = {
 	temperature?: number;
-	response_format?: "text" | "json_object" | "json_schema";
+	response_format?: RESPONSE_FORMAT;
 	tools?: FunctionCall[];
 	max_tokens?: number;
 	json_schema?: string;
-	reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
-	verbosity?: "low" | "medium" | "high";
+	reasoning_effort?: REASONING_EFFORT;
+	verbosity?: VERBOSITY;
 };

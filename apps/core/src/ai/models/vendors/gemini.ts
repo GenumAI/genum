@@ -28,9 +28,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 
 	model("gemini-2.0-flash-lite", AiVendor.GOOGLE)
 		.displayName("Gemini 2.0 Flash Lite")
-		.description(
-			"A Gemini 2.0 Flash model optimized for cost efficiency and low latency.",
-		)
+		.description("A Gemini 2.0 Flash model optimized for cost efficiency and low latency.")
 		.pricing(0.075, 0.3)
 		.limits(1_048_576, 8_192)
 		.temperature(...GEMINI_TEMPERATURE)
@@ -67,9 +65,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 
 	model("gemini-2.5-flash-lite", AiVendor.GOOGLE)
 		.displayName("Gemini 2.5 Flash Lite")
-		.description(
-			"A Gemini 2.5 Flash model optimized for cost efficiency and low latency.",
-		)
+		.description("A Gemini 2.5 Flash model optimized for cost efficiency and low latency.")
 		.pricing(0.1, 0.4)
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
@@ -86,6 +82,21 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.pricing(2, 12)
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
+		.reasoningEffort(["low", "high"], "high")
+		.maxTokens(1, 65_536)
+		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gemini-3-flash-preview", AiVendor.GOOGLE)
+		.displayName("Gemini 3 Flash Preview")
+		.description(
+			"Gemini 3 Flash Preview is a Gemini 3 model optimized for cost efficiency and low latency.",
+		)
+		.pricing(0.5, 3)
+		.limits(1_048_576, 65_536)
+		.temperature(...GEMINI_TEMPERATURE)
+		.reasoningEffort(["minimal", "low", "medium", "high"], "medium")
 		.maxTokens(1, 65_536)
 		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
 		.tools()
