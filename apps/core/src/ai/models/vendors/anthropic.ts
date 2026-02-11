@@ -45,4 +45,16 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.maxTokens(1, ANTHROPIC_MAX_TOKENS)
 		.tools()
 		.build(),
+
+	model("claude-haiku-4-5", AiVendor.ANTHROPIC)
+		.displayName("Claude Haiku 4.5")
+		.description(
+			"Claude Haiku is a model for fast, effective reasoning with exceptionally efficient performance in coding and visual tasks.",
+		)
+		.pricing(1, 5)
+		.limits(200_000, 64_000)
+		.temperature(...ANTHROPIC_TEMPERATURE)
+		.maxTokens(1, ANTHROPIC_MAX_TOKENS)
+		.tools()
+		.build(),
 ];
