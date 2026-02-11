@@ -58,9 +58,6 @@ COPY --from=builder /app/apps/core/docker-entrypoint.sh ./apps/core/docker-entry
 
 COPY --from=builder /app/apps/core/src/ai ./apps/core/src/ai
 
-# Copy static files (JSON configs) that are not compiled by TypeScript
-COPY --from=builder /app/apps/core/src/ai/models/config ./apps/core/dist/ai/models/config
-
 # Copy Prisma schema, config and generated client
 COPY --from=builder /app/apps/core/prisma ./apps/core/prisma
 COPY --from=builder /app/apps/core/prisma.config.ts ./apps/core/prisma.config.ts
