@@ -1,8 +1,6 @@
+import { hashPassword } from "@/auth/local/password";
 import type { Database } from "@/database/db";
 import { SYSTEM_CONFIG_KEY } from "@/database/repositories/SystemRepository";
-import bcrypt from "bcrypt";
-
-const SALT_ROUNDS = 10;
 
 /**
  * System Service
@@ -49,7 +47,7 @@ export class SystemService {
 	 */
 	async createSystemUser(adminEmail: string, adminPassword: string) {
 		// Hash password before creating user
-		const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+		const passwordHash = await hashPassword(adminPassword);
 
 		// Create admin user via repository with proper credentials
 		const systemUser = await this.db.users.createLocalUser(adminEmail, "system", passwordHash);
@@ -107,7 +105,7 @@ export class SystemService {
 			console.log(`🔄 Migrating old system user (ID: ${oldSystemUser.id}) to admin...`);
 
 			// Hash password
-			const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+			const passwordHash = await hashPassword(adminPassword);
 
 			// Update user email and name
 			await this.db.users.updateUserEmailAndName(oldSystemUser.id, adminEmail, "system");
