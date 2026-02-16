@@ -2,22 +2,14 @@ import { AiVendor, OrganizationRole } from "@/.generated/prisma-client/client";
 import { db } from "@/database/db";
 import { env } from "@/env";
 import { OrganizationService } from "@/services/organization.service";
+import { SystemService } from "@/services/system.service";
 
 /**
  * create system organization if it doesn't exist
  */
 export async function createSystemOrganizationIfNotExists() {
-	const systemOrganizationId = await db.system.getSystemOrganizationId();
-
-	if (systemOrganizationId) {
-		console.log(`System organization already exists, skipping...`);
-		return systemOrganizationId;
-	}
-
-	console.log("Creating system organization...");
-	const createdOrganization = await db.system.createSystemOrganization();
-	console.log(`System organization created`);
-	return createdOrganization.id;
+	const systemService = new SystemService(db);
+	return await systemService.ensureSystemOrganizationExists();
 }
 
 /**
@@ -25,17 +17,8 @@ export async function createSystemOrganizationIfNotExists() {
  * @returns system user ID
  */
 export async function createSystemUserIfNotExists(): Promise<number> {
-	const systemUser = await db.system.getSystemUser();
-	if (systemUser) {
-		console.log(`System user already exists, skipping...`);
-		return systemUser.id;
-	}
-
-	console.log("Creating system user...");
-	const createdUser = await db.system.createSystemUser();
-	console.log(`System user created`);
-
-	return createdUser.id;
+	const systemService = new SystemService(db);
+	return await systemService.ensureSystemUserExists(env.ADMIN_EMAIL, env.ADMIN_PASSWORD);
 }
 
 const DEFAULT_SYSTEM_PROMPTS_DATA = [

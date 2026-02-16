@@ -327,4 +327,37 @@ export class UsersRepository {
 			where: { id: sessionId },
 		});
 	}
+
+	public async getUserCredential(userId: number) {
+		return await this.prisma.userCredential.findUnique({
+			where: { userId },
+		});
+	}
+
+	public async createUserCredential(userId: number, passwordHash: string) {
+		return await this.prisma.userCredential.create({
+			data: {
+				userId,
+				passwordHash,
+			},
+		});
+	}
+
+	public async updateUserCredential(userId: number, passwordHash: string) {
+		return await this.prisma.userCredential.update({
+			where: { userId },
+			data: { passwordHash },
+		});
+	}
+
+	/**
+	 * Update user email and name (for system migrations)
+	 * Direct prisma update bypassing validation
+	 */
+	public async updateUserEmailAndName(userId: number, email: string, name: string) {
+		return await this.prisma.user.update({
+			where: { id: userId },
+			data: { email, name },
+		});
+	}
 }

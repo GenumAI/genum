@@ -15,6 +15,9 @@ import { prisma } from "@/database/prisma";
  */
 async function main() {
 	await syncModels();
+	
+	// System user creation now includes migration logic internally
+	// (backward compatibility with v1.3.0 and earlier is handled in SystemService.ensureSystemUserExists)
 	const systemUserId = await createSystemUserIfNotExists();
 	const systemOrganizationId = await createSystemOrganizationIfNotExists();
 	await addSystemUserToOrganization(systemUserId, systemOrganizationId);

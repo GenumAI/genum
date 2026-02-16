@@ -175,6 +175,37 @@ export class OrganizationRepository {
 		return newSharedOrganization;
 	}
 
+	/**
+	 * Create system organization with initial project (without members)
+	 * Used for creating the system organization during database seeding
+	 */
+	public async createSystemOrganization(name: string, description: string, projectName: string, projectDescription: string) {
+		const systemOrganization = await this.prisma.organization.create({
+			data: {
+				name,
+				description,
+				personal: false,
+				quota: {
+					create: {
+						balance: 0,
+					},
+				},
+				projects: {
+					create: {
+						name: projectName,
+						description: projectDescription,
+						initial: true,
+					},
+				},
+			},
+			include: {
+				projects: true,
+			},
+		});
+
+		return systemOrganization;
+	}
+
 	public async getMemberByUserId(organizationId: number, userId: number) {
 		return await this.prisma.organizationMember.findUnique({
 			where: {

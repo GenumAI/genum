@@ -16,6 +16,9 @@ const EnvSchema = z.object({
 	CLICKHOUSE_PASSWORD: z.string().optional(),
 	// Frontend
 	FRONTEND_URL: z.url(),
+	// Admin User
+	ADMIN_EMAIL: z.email().optional().default("admin@admin.com"),
+	ADMIN_PASSWORD: z.string().min(8).optional().default("changeme"),
 	// AI Provider
 	OPENAI_KEY: z.string().optional(),
 	ANTHROPIC_KEY: z.string().optional(),
