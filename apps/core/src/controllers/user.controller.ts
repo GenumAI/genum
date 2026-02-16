@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { db } from "@/database/db";
-import { OrganizationCreateSchema, stringSchema } from "@/services/validate";
+import { stringSchema } from "@/services/validate";
 import { FeedbackCreateSchema, UserUpdateSchema } from "@/services/validate/types/user.type";
 import { env } from "@/env";
 import { webhooks } from "@/services/webhooks/webhooks";
@@ -92,21 +92,6 @@ export class UserController {
 
 		res.status(200).json({
 			invite: invite_data,
-		});
-	}
-
-	public async createOrganization(req: Request, res: Response) {
-		const metadata = req.genumMeta.ids;
-		const data = OrganizationCreateSchema.parse(req.body);
-
-		const organization = await db.organization.createSharedOrganization(
-			data.name,
-			data.description,
-			metadata.userID,
-		);
-
-		res.status(200).json({
-			organization,
 		});
 	}
 

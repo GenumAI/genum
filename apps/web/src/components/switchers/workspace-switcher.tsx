@@ -277,14 +277,18 @@ export function TeamSwitcher({
 											{team.name}{" "}
 										</DropdownMenuItem>
 									))}
-									<DropdownMenuSeparator />
-									<DropdownMenuItem
-										onClick={handleAddOrgClick}
-										className="gap-2 p-2 h-8 text-[14px]"
-									>
-										<PlusCircle className="h-4 w-4" />
-										Create organization
-									</DropdownMenuItem>
+									{user?.isSystemUser && (
+										<>
+											<DropdownMenuSeparator />
+											<DropdownMenuItem
+												onClick={handleAddOrgClick}
+												className="gap-2 p-2 h-8 text-[14px]"
+											>
+												<PlusCircle className="h-4 w-4" />
+												Create organization
+											</DropdownMenuItem>
+										</>
+									)}
 								</DropdownMenuContent>
 							</DropdownMenu>
 							{projects &&

@@ -21,9 +21,14 @@ export class UserService {
 
 		const { organizationMemberships: _, ...userDataWithoutMembers } = userData;
 
+		// Check if user is system user
+		const systemUserId = await this.db.system.getSystemUserId();
+		const isSystemUser = systemUserId === userId;
+
 		return {
 			...userDataWithoutMembers,
 			organizations,
+			isSystemUser,
 		};
 	}
 }

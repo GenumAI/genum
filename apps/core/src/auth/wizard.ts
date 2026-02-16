@@ -120,11 +120,30 @@ export function createAuthMiddleware() {
 		}
 	};
 
+	const requireSystemUser = () => async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const metadata = req.genumMeta.ids;
+			const systemUserId = await db.system.getSystemUserId();
+
+			if (!systemUserId || metadata.userID !== systemUserId) {
+				res.status(403).json({ error: "Forbidden. System user access required." });
+				return;
+			}
+
+			next();
+		} catch (error) {
+			console.error(`error checking system user`, error);
+			res.status(500).json({ error: "Internal server error" });
+			return;
+		}
+	};
+
 	return {
 		hasProjectRole,
 		hasOrganizationRole,
 		attachUserContext,
 		attachOrgContext,
 		attachProjContext,
+		requireSystemUser,
 	};
 }

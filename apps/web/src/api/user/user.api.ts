@@ -9,6 +9,7 @@ import { OrganizationWithProjects } from "@/types/Organization";
 export interface CurrentUser extends UserType {
 	avatar?: string;
 	picture?: string;
+	isSystemUser?: boolean;
 }
 
 export type CurrentUserApiResponse = CurrentUser | { user: CurrentUser };
@@ -195,14 +196,14 @@ export const userApi = {
 	},
 
 	/**
-	 * Create a new organization for the current user
+	 * Create a new organization (system user only)
 	 */
 	createOrganization: async (
 		data: CreateOrganizationPayload,
 		config?: ApiRequestConfig,
 	): Promise<CreateOrganizationResponse> => {
 		const response = await apiClient.post<CreateOrganizationResponse>(
-			"/user/organization",
+			"/system/organizations",
 			data,
 			config,
 		);

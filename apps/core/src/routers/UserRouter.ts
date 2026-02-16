@@ -22,12 +22,6 @@ export function createUserRouter(): Router {
 		asyncHandler(userController.getInvitationByToken.bind(userController)),
 	);
 
-	// create new organization
-	router.post(
-		"/organization",
-		asyncHandler(userController.createOrganization.bind(userController)),
-	);
-
 	router.post("/feedback", asyncHandler(userController.createFeedback.bind(userController)));
 
 	// notifications

@@ -11,6 +11,7 @@ import { createProjectRouter } from "./routers/ProjectRouter";
 import { createHelpersRouter } from "./routers/HelpersRouter";
 import { createLocalUserRouter } from "./routers/LocalUserRouter";
 import { createFileRouter } from "./routers/FileRouter";
+import { createSystemRouter } from "./routers/SystemRouter";
 
 export function setupRoutes(app: Express): void {
 	const w = createAuthMiddleware();
@@ -66,4 +67,5 @@ export function setupRoutes(app: Express): void {
 		w.attachProjContext(),
 		createFileRouter(),
 	);
+	app.use(`/system`, w.attachUserContext(), w.requireSystemUser(), createSystemRouter());
 }
