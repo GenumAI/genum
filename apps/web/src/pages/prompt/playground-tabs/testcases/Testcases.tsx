@@ -1,20 +1,14 @@
 import { useParams } from "react-router-dom";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
-import type { TestStatus } from "@/types/TestСase";
 import { useTestcasesTable } from "./hooks/useTestcasesTable";
 import TestcasesToolbar from "./components/TestcasesToolbar";
 import TestcasesTable from "./components/TestcasesTable";
-
-export type FilterState = {
-	testcasesStatus: TestStatus[];
-};
 
 export default function Testcases() {
 	const { id } = useParams<{ id: string; orgId: string; projectId: string }>();
 	const promptId = id ? Number(id) : undefined;
 
 	const {
-		// State
 		search,
 		setSearch,
 		selectedValues,
@@ -26,18 +20,15 @@ export default function Testcases() {
 		isRunning,
 		isDeleting,
 
-		// Table
 		table,
 
-		// Handlers
 		runTestHandler,
 		confirmationDeleteHandler,
 		handleRowClick,
 		handleFilterChange,
 
-		// Computed
 		getRowCount,
-	} = useTestcasesTable(promptId);
+	} = useTestcasesTable({ promptId });
 
 	return (
 		<>

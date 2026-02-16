@@ -1,8 +1,49 @@
 import type { TestStatus } from "@/types/TestСase";
 
-/**
- * Получить начальный статус фильтрации из URL параметров
- */
+export type UsedOptionValue = "all" | "nok" | "selected" | "need_run" | "passed";
+
+export type UsedOption = {
+	label: string;
+	value: UsedOptionValue;
+};
+
+export const usedOptions: UsedOption[] = [
+	{ label: "All", value: "all" },
+	{ label: "Need Run", value: "need_run" },
+	{ label: "Passed", value: "passed" },
+	{ label: "Failed", value: "nok" },
+	{ label: "Selected", value: "selected" },
+];
+
+export const testcaseStatusOptions: { value: TestStatus; label: string }[] = [
+	{ value: "OK", label: "Passed" },
+	{ value: "NOK", label: "Failed" },
+	{ value: "NEED_RUN", label: "Need run" },
+];
+
+const RUN_TESTS_LABELS: Record<UsedOptionValue, string> = {
+	all: "Run All",
+	nok: "Run All Failed",
+	need_run: "Run All Need Run",
+	passed: "Run All Passed",
+	selected: "Run Selected",
+};
+
+const STATUS_CHIP_LABELS: Record<TestStatus, string> = {
+	OK: "Passed",
+	NOK: "Failed",
+	NEED_RUN: "Need run",
+};
+
+const AUTO_SELECT_STATUS_BY_OPTION: Partial<Record<UsedOptionValue, TestStatus>> = {
+	nok: "NOK",
+	need_run: "NEED_RUN",
+	passed: "OK",
+};
+
+export const truncateText = (text: string, maxLength = 18): string =>
+	text.length <= maxLength ? text : `${text.slice(0, maxLength)}...`;
+
 export const getInitialStatus = (searchParams: URLSearchParams): TestStatus[] => {
 	const status = searchParams.get("status");
 	if (status === "passed") return ["OK"];
@@ -10,38 +51,19 @@ export const getInitialStatus = (searchParams: URLSearchParams): TestStatus[] =>
 	return [];
 };
 
-/**
- * Получить текст для кнопки запуска тестов в зависимости от выбранного фильтра
- */
 export const getRunTestsButtonLabel = (selectedValue: string): string => {
-	switch (selectedValue) {
-		case "all":
-			return "Run All";
-		case "nok":
-			return "Run All Failed";
-		case "need_run":
-			return "Run All Need Run";
-		case "passed":
-			return "Run All Passed";
-		case "selected":
-			return "Run Selected";
-		default:
-			return "Run Tests";
-	}
+	return RUN_TESTS_LABELS[selectedValue as UsedOptionValue] ?? "Run Tests";
 };
 
-/**
- * Получить читаемый текст для чипса статуса
- */
 export const getStatusChipLabel = (status: TestStatus): string => {
-	switch (status) {
-		case "OK":
-			return "Passed";
-		case "NOK":
-			return "Failed";
-		case "NEED_RUN":
-			return "Need run";
-		default:
-			return status;
-	}
+	return STATUS_CHIP_LABELS[status] ?? status;
 };
+
+export const getAutoSelectStatus = (selectedValue: UsedOptionValue): TestStatus | null =>
+	AUTO_SELECT_STATUS_BY_OPTION[selectedValue] ?? null;
+
+export const isSelectionBasedFilter = (selectedValue: UsedOptionValue): boolean =>
+	selectedValue !== "all";
+
+export const isCheckboxesDisabledForFilter = (selectedValue: UsedOptionValue): boolean =>
+	selectedValue === "nok" || selectedValue === "need_run" || selectedValue === "passed";

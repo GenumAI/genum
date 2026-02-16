@@ -31,12 +31,16 @@ export default function TestcasesTable({ table, onRowClick }: TestcasesTableProp
 								<TableHead key={header.id} className="h-auto py-[16px] px-[14px]">
 									<div
 										className={
-											header.column.id === "name"
+											header.column.id === "name" ||
+											header.column.id === "prompt"
 												? "w-full text-left"
 												: "flex items-center justify-center w-full"
 										}
 									>
-										{flexRender(header.column.columnDef.header, header.getContext())}
+										{flexRender(
+											header.column.columnDef.header,
+											header.getContext(),
+										)}
 									</div>
 								</TableHead>
 							))}
@@ -47,27 +51,32 @@ export default function TestcasesTable({ table, onRowClick }: TestcasesTableProp
 					{table.getRowModel().rows.length > 0 ? (
 						table.getRowModel().rows.map((row) => (
 							<TableRow
-								key={row.id}
+								key={String(row.original.id)}
 								className="cursor-pointer [&_td:first-child]:text-left [&_td:last-child]:text-right"
 							>
 								{row.getVisibleCells().map((cell) => (
 									<TableCell
-										key={cell.id}
+										key={`${row.original.id}-${cell.column.id}`}
 										className="text-left"
 										onClick={
-											cell.column.id !== "actions" && cell.column.id !== "select"
+											cell.column.id !== "actions" &&
+											cell.column.id !== "select"
 												? () => onRowClick(row.original)
 												: undefined
 										}
 									>
 										<div
 											className={
-												cell.column.id === "name"
+												cell.column.id === "name" ||
+												cell.column.id === "prompt"
 													? "w-full text-left"
 													: "flex items-center justify-center w-full"
 											}
 										>
-											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											{flexRender(
+												cell.column.columnDef.cell,
+												cell.getContext(),
+											)}
 										</div>
 									</TableCell>
 								))}

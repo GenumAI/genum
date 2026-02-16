@@ -1,24 +1,47 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
 	useReactTable,
 	getCoreRowModel,
 	getSortedRowModel,
 	type SortingState,
 } from "@tanstack/react-table";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import useTestcasesColumns from "@/hooks/useTestcasesColumns";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { testcasesFilter } from "@/lib/testcasesFilter";
 import { usePromptTestcases } from "@/hooks/usePromptTestcases";
 import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
 import type { TestCase } from "@/types/TestСase";
-import type { FilterState } from "../Testcases";
-import { getInitialStatus } from "../utils/testcases.utils";
+import type { Prompt } from "@/pages/prompt/Prompts";
+import type { FilterState } from "../TestCasesFilter";
+import {
+	getAutoSelectStatus,
+	getInitialStatus,
+	isCheckboxesDisabledForFilter,
+	isSelectionBasedFilter,
+	type UsedOptionValue,
+} from "../utils/testcases.utils";
+import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
 
-export type UsedOptionValue = "all" | "nok" | "selected" | "need_run" | "passed";
+type UseTestcasesTableOptions = {
+	promptId?: number;
+	prompts?: Prompt[];
+	hidePromptColumn?: boolean;
+	resetOnWorkspaceChange?: boolean;
+	initialFilterState?: FilterState;
+};
 
-export const useTestcasesTable = (promptId?: number) => {
+const createDefaultFilterState = (): FilterState => ({ prompts: [], testcasesStatus: [] });
+
+export const useTestcasesTable = ({
+	promptId,
+	prompts,
+	hidePromptColumn,
+	resetOnWorkspaceChange = false,
+	initialFilterState,
+}: UseTestcasesTableOptions = {}) => {
+	const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>();
 	const [searchParams] = useSearchParams();
 	const currentTestcaseId = searchParams.get("testcaseId");
 	const navigate = useNavigate();
@@ -27,8 +50,15 @@ export const useTestcasesTable = (promptId?: number) => {
 
 	const [search, setSearch] = useState("");
 	const [selectedValues, setSelectedValues] = useState<UsedOptionValue[]>(["all"]);
-	const [filterState, setFilterState] = useState<FilterState>({
-		testcasesStatus: getInitialStatus(searchParams),
+	const [filterState, setFilterState] = useState<FilterState>(() => {
+		if (initialFilterState) return initialFilterState;
+		if (promptId) {
+			return {
+				prompts: [],
+				testcasesStatus: getInitialStatus(searchParams),
+			};
+		}
+		return createDefaultFilterState();
 	});
 	const [runningRows, setRunningRows] = useState<number[]>([]);
 	const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -37,24 +67,43 @@ export const useTestcasesTable = (promptId?: number) => {
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [sorting, setSorting] = useState<SortingState>([]);
 
-	const { data: testcases = [] } = usePromptTestcases(promptId);
+	const {
+		data: promptTestcases = [],
+		isLoading: isPromptLoading,
+		refetch: refetchPromptTestcases,
+	} = usePromptTestcases(promptId);
+	const {
+		data: projectTestcases = [],
+		isLoading: isProjectLoading,
+		refetch: refetchProjectTestcases,
+	} = useQuery({
+		queryKey: ["testcases", orgId, projectId],
+		queryFn: async () => {
+			const response = await testcasesApi.getTestcases();
+			return response.testcases || [];
+		},
+		enabled: !promptId && !!orgId && !!projectId,
+		refetchOnMount: "always",
+	});
 
-	const isCheckboxesDisabled =
-		selectedValues[0] === "nok" ||
-		selectedValues[0] === "need_run" ||
-		selectedValues[0] === "passed";
+	const testcases = promptId ? promptTestcases : projectTestcases;
+	const isLoading = promptId ? isPromptLoading : isProjectLoading;
+
+	const selectedValue = selectedValues[0];
+	const isCheckboxesDisabled = isCheckboxesDisabledForFilter(selectedValue);
 
 	const columns = useTestcasesColumns({
+		prompts,
 		selected:
-			selectedValues[0] === "selected" ||
-			selectedValues[0] === "nok" ||
-			selectedValues[0] === "need_run" ||
-			selectedValues[0] === "passed",
+			selectedValue === "selected" ||
+			selectedValue === "nok" ||
+			selectedValue === "need_run" ||
+			selectedValue === "passed",
 		runningRows,
 		setConfirmModalOpen,
 		setSelectedTestcase,
 		checkboxesDisabled: isCheckboxesDisabled,
-		hidePromptColumn: true,
+		hidePromptColumn: hidePromptColumn ?? !!promptId,
 		currentTestcaseId: currentTestcaseId ? Number(currentTestcaseId) : undefined,
 	});
 
@@ -75,6 +124,7 @@ export const useTestcasesTable = (promptId?: number) => {
 	const table = useReactTable({
 		data: testcasesFiltered,
 		columns,
+		getRowId: (row) => String(row.id),
 		getCoreRowModel: getCoreRowModel(),
 		enableRowSelection: true,
 		state: {
@@ -87,47 +137,47 @@ export const useTestcasesTable = (promptId?: number) => {
 	const selectedRows = table.getSelectedRowModel().rows.map((row) => row.original);
 
 	useEffect(() => {
-		if (selectedValues[0] === "nok") {
-			table.getRowModel().rows.forEach((row) => {
-				if (row.original.status === "NOK") {
-					row.toggleSelected(true);
-				} else {
-					row.toggleSelected(false);
-				}
-			});
-		} else if (selectedValues[0] === "need_run") {
-			table.getRowModel().rows.forEach((row) => {
-				if (row.original.status === "NEED_RUN") {
-					row.toggleSelected(true);
-				} else {
-					row.toggleSelected(false);
-				}
-			});
-		} else if (selectedValues[0] === "passed") {
-			table.getRowModel().rows.forEach((row) => {
-				if (row.original.status === "OK") {
-					row.toggleSelected(true);
-				} else {
-					row.toggleSelected(false);
-				}
-			});
-		} else if (selectedValues[0] === "all" || selectedValues[0] === "selected") {
+		const statusForAutoSelect = getAutoSelectStatus(selectedValue);
+		if (!statusForAutoSelect) {
 			table.toggleAllRowsSelected(false);
+			return;
 		}
-	}, [selectedValues, table]);
 
+		table.getRowModel().rows.forEach((row) => {
+			row.toggleSelected(row.original.status === statusForAutoSelect);
+		});
+	}, [selectedValue, table]);
+
+	const resetTableState = useCallback(() => {
+		setSearch("");
+		setSelectedValues(["all"]);
+		setFilterState(initialFilterState ?? createDefaultFilterState());
+		setRunningRows([]);
+		setSorting([]);
+	}, [initialFilterState]);
+
+	const refetchActiveSource = useCallback(async () => {
+		if (promptId) {
+			await refetchPromptTestcases();
+			return;
+		}
+		await refetchProjectTestcases();
+	}, [promptId, refetchPromptTestcases, refetchProjectTestcases]);
+
+	useRefetchOnWorkspaceChange(
+		async () => {
+			resetTableState();
+			await refetchActiveSource();
+		},
+		{ skip: !resetOnWorkspaceChange },
+	);
 
 	const runTestHandler = async () => {
 		let testcasesForRun: TestCase[] = [];
 
-		if (selectedValues[0] === "all") {
+		if (selectedValue === "all") {
 			testcasesForRun = testcasesFiltered;
-		} else if (
-			selectedValues[0] === "nok" ||
-			selectedValues[0] === "selected" ||
-			selectedValues[0] === "need_run" ||
-			selectedValues[0] === "passed"
-		) {
+		} else if (isSelectionBasedFilter(selectedValue)) {
 			testcasesForRun = selectedRows;
 		}
 
@@ -135,6 +185,7 @@ export const useTestcasesTable = (promptId?: number) => {
 			setIsRunning(true);
 			const testCaseIds = testcasesForRun.map((item) => item.id);
 			setRunningRows(testCaseIds);
+			const affectedPromptIds = new Set<number>();
 
 			try {
 				for (let i = 0; i < testcasesForRun.length; i++) {
@@ -143,16 +194,29 @@ export const useTestcasesTable = (promptId?: number) => {
 					try {
 						const response = await testcasesApi.runTestcase(item.id);
 						const updatedTestcase = response.testcase;
-						
-						queryClient.setQueryData<TestCase[]>(
-							["prompt-testcases", promptId],
-							(oldData) => {
-								if (!oldData) return oldData;
-								return oldData.map((tc) =>
-									tc.id === updatedTestcase.id ? updatedTestcase : tc,
-								);
-							},
-						);
+						affectedPromptIds.add(updatedTestcase.promptId);
+
+						if (promptId) {
+							queryClient.setQueryData<TestCase[]>(
+								["prompt-testcases", promptId],
+								(oldData) => {
+									if (!oldData) return oldData;
+									return oldData.map((tc) =>
+										tc.id === updatedTestcase.id ? updatedTestcase : tc,
+									);
+								},
+							);
+						} else {
+							queryClient.setQueryData<TestCase[]>(
+								["testcases", orgId, projectId],
+								(oldData) => {
+									if (!oldData) return oldData;
+									return oldData.map((tc) =>
+										tc.id === updatedTestcase.id ? updatedTestcase : tc,
+									);
+								},
+							);
+						}
 
 						setRunningRows((prevState) =>
 							prevState.filter((state) => Number(state) !== Number(item.id)),
@@ -164,11 +228,13 @@ export const useTestcasesTable = (promptId?: number) => {
 						);
 					}
 				}
-				if (promptId) {
-					queryClient.invalidateQueries({
-						queryKey: ["testcase-status-counts", promptId],
-					});
-				}
+				await Promise.all(
+					[...affectedPromptIds].map((affectedPromptId) =>
+						queryClient.invalidateQueries({
+							queryKey: ["testcase-status-counts", affectedPromptId],
+						}),
+					),
+				);
 			} catch (error) {
 				console.error("Failed to run test cases:", error);
 				setRunningRows([]);
@@ -183,12 +249,29 @@ export const useTestcasesTable = (promptId?: number) => {
 			setIsDeleting(true);
 			try {
 				await testcasesApi.deleteTestcase(selectedTestcase.id);
-				
-				await Promise.all([
-					queryClient.invalidateQueries({ queryKey: ["testcase-status-counts", promptId] }),
-					queryClient.invalidateQueries({ queryKey: ["prompt-testcases", promptId] }),
-				]);
-				
+
+				if (promptId) {
+					queryClient.setQueryData<TestCase[]>(
+						["prompt-testcases", promptId],
+						(oldData) => {
+							if (!oldData) return oldData;
+							return oldData.filter((tc) => tc.id !== selectedTestcase.id);
+						},
+					);
+				} else {
+					queryClient.setQueryData<TestCase[]>(
+						["testcases", orgId, projectId],
+						(oldData) => {
+							if (!oldData) return oldData;
+							return oldData.filter((tc) => tc.id !== selectedTestcase.id);
+						},
+					);
+				}
+
+				await queryClient.invalidateQueries({
+					queryKey: ["testcase-status-counts", selectedTestcase.promptId],
+				});
+
 				setConfirmModalOpen(false);
 				setSelectedTestcase(null);
 			} catch (error) {
@@ -210,14 +293,10 @@ export const useTestcasesTable = (promptId?: number) => {
 	};
 
 	const getRowCount = () => {
-		if (selectedValues[0] === "all") {
+		if (selectedValue === "all") {
 			return table.getRowModel().rows.length;
-		} else if (
-			selectedValues[0] === "nok" ||
-			selectedValues[0] === "need_run" ||
-			selectedValues[0] === "selected" ||
-			selectedValues[0] === "passed"
-		) {
+		}
+		if (isSelectionBasedFilter(selectedValue)) {
 			return table.getSelectedRowModel().rows.length;
 		}
 		return 0;
@@ -235,6 +314,7 @@ export const useTestcasesTable = (promptId?: number) => {
 		selectedTestcase,
 		isRunning,
 		isDeleting,
+		isLoading,
 
 		table,
 		columns,
