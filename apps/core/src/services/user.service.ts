@@ -28,7 +28,7 @@ export class UserService {
 		return {
 			...userDataWithoutMembers,
 			organizations,
-			isSystemUser,
+			...(isSystemUser && { isSystemUser }),
 		};
 	}
 }
