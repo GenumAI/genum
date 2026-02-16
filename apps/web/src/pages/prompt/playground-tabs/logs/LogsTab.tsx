@@ -12,7 +12,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { LogsFilter } from "@/pages/logs/LogsFilter";
+import { LogsFilter } from "@/pages/logs/components/LogsFilter";
 import { LogDetailsDialog } from "@/pages/prompt/playground-tabs/logs/components/LogDetailsDialog";
 import { LogsTable } from "./components/LogsTable";
 import { useLogsData } from "./hooks/useLogsData";

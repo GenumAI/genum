@@ -1,36 +1,37 @@
-import { useMemo } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
+import { projectApi } from "@/api/project";
 import { promptApi } from "@/api/prompt";
 import type { LogsFilterState } from "@/pages/logs/components/LogsFilter";
 import type { LogsResponse, MemoriesResponse } from "@/types/logs";
 
-interface UseLogsDataParams {
-	promptId?: number;
+interface UseProjectLogsDataParams {
 	page: number;
 	pageSize: number;
 	logsFilter: LogsFilterState;
+	selectedPromptId?: number;
 	shouldFetchMemories?: boolean;
 }
 
-export function useLogsData({
-	promptId,
+export function useProjectLogsData({
 	page,
 	pageSize,
 	logsFilter,
+	selectedPromptId,
 	shouldFetchMemories = false,
-}: UseLogsDataParams) {
+}: UseProjectLogsDataParams) {
 	const fromDate = logsFilter.dateRange?.from?.toISOString();
 	const toDate = logsFilter.dateRange?.to?.toISOString();
-	const logLevel = logsFilter.logLevel || undefined;
-	const model = logsFilter.model || undefined;
+	const logLevel =
+		logsFilter.logLevel && logsFilter.logLevel !== "all" ? logsFilter.logLevel : undefined;
+	const model = logsFilter.model && logsFilter.model !== "all" ? logsFilter.model : undefined;
 	const source = logsFilter.source || undefined;
 	const query = logsFilter.query || undefined;
+	const promptId = logsFilter.promptId || undefined;
 
 	const logsQuery = useQuery<LogsResponse>({
 		queryKey: [
-			"prompt-logs-tab",
-			promptId,
+			"project-logs",
 			page,
 			pageSize,
 			fromDate,
@@ -39,12 +40,12 @@ export function useLogsData({
 			model,
 			source,
 			query,
+			promptId,
 		],
-		enabled: Boolean(promptId),
 		refetchOnMount: "always",
 		placeholderData: keepPreviousData,
 		queryFn: async () => {
-			return promptApi.getLogs(promptId as number, {
+			return projectApi.getLogs({
 				page,
 				pageSize,
 				fromDate,
@@ -53,33 +54,30 @@ export function useLogsData({
 				model,
 				source,
 				query,
+				promptId,
 			});
 		},
 	});
 
 	const memoriesQuery = useQuery<MemoriesResponse>({
-		queryKey: ["prompt-memories-tab", promptId],
-		enabled: Boolean(promptId && shouldFetchMemories),
+		queryKey: ["project-logs-memories", selectedPromptId],
+		enabled: Boolean(selectedPromptId && shouldFetchMemories),
 		refetchOnMount: "always",
 		queryFn: async () => {
-			return promptApi.getMemories(promptId as number) as Promise<MemoriesResponse>;
+			return promptApi.getMemories(selectedPromptId as number) as Promise<MemoriesResponse>;
 		},
 	});
 
-	const logs = useMemo(() => logsQuery.data?.logs ?? [], [logsQuery.data]);
-	const total = logsQuery.data?.total ?? 0;
 	const isInitialLoadingLogs = logsQuery.isPending && !logsQuery.data;
 
 	return {
-		logs,
-		total,
-		logsData: logsQuery.data,
+		logs: logsQuery.data?.logs ?? [],
+		total: logsQuery.data?.total ?? 0,
 		memoriesData: memoriesQuery.data,
 		isFetchingLogs: logsQuery.isFetching,
 		isInitialLoadingLogs,
 		logsError: logsQuery.error,
 		isLogsError: logsQuery.isError,
-		isFetchingMemories: memoriesQuery.isFetching,
 		refetchLogs: logsQuery.refetch,
 		refetchMemories: memoriesQuery.refetch,
 	};

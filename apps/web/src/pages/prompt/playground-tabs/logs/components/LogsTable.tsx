@@ -60,7 +60,11 @@ function LogsTableComponent({
 							<th
 								key={column.label}
 								className="h-12 px-4 font-medium text-center text-muted-foreground whitespace-nowrap"
-								style={{ width: column.width, minWidth: column.width, maxWidth: column.width }}
+								style={{
+									width: column.width,
+									minWidth: column.width,
+									maxWidth: column.width,
+								}}
 							>
 								{column.label}
 							</th>
@@ -106,7 +110,10 @@ function LogsTableComponent({
 												{formatUserLocalDateTime(log.timestamp)}
 											</td>
 
-											<td className="p-4 text-center capitalize" style={{ width: 100 }}>
+											<td
+												className="p-4 text-center capitalize"
+												style={{ width: 100 }}
+											>
 												{log.source === "ui" ? "UI" : log.source}
 											</td>
 
@@ -131,7 +138,9 @@ function LogsTableComponent({
 													{promptDeleted ? (
 														<Tooltip>
 															<TooltipTrigger asChild>
-																<span className="text-destructive">{promptDisplay}</span>
+																<span className="text-destructive">
+																	{promptDisplay}
+																</span>
 															</TooltipTrigger>
 															<TooltipContent>
 																<p>Prompt was deleted</p>
@@ -147,14 +156,19 @@ function LogsTableComponent({
 												{log.tokens_sum}
 											</td>
 
-											<td className="p-4 text-center tabular-nums" style={{ width: 90 }}>
+											<td
+												className="p-4 text-center tabular-nums"
+												style={{ width: 90 }}
+											>
 												${log.cost.toFixed(6)}
 											</td>
 
 											<td className="p-4 text-center" style={{ width: 80 }}>
 												<Tooltip>
 													<TooltipTrigger asChild>
-														<span>{formatResponseTime(log.response_ms)}</span>
+														<span>
+															{formatResponseTime(log.response_ms)}
+														</span>
 													</TooltipTrigger>
 													<TooltipContent>
 														<p>{Math.round(log.response_ms)} ms</p>
@@ -176,8 +190,12 @@ function LogsTableComponent({
 											className="max-w-[364px] p-4 bg-popover text-popover-foreground border border-border shadow-lg rounded-lg mb-[-50px] ml-[20%]"
 										>
 											<div className="space-y-2">
-												<h3 className="text-sm font-semibold">Error Description</h3>
-												<p className="text-sm dark:text-[#FFFFFF]">{log.description}</p>
+												<h3 className="text-sm font-semibold">
+													Error Description
+												</h3>
+												<p className="text-sm dark:text-[#FFFFFF]">
+													{log.description}
+												</p>
 											</div>
 										</TooltipContent>
 									)}

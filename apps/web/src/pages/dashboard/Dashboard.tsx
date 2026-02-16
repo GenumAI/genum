@@ -10,7 +10,7 @@ import { TablePromptStats } from "@/pages/dashboard/TablePromptStats";
 import { TestcaseStats } from "@/pages/dashboard/TestcaseStats";
 import { UserActivityTable } from "@/pages/dashboard/UserActivityTable";
 import { Card } from "@/components/ui/card";
-import { LogsFilter, LogsFilterState } from "@/pages/logs/LogsFilter";
+import { LogsFilter, LogsFilterState } from "@/pages/logs/components/LogsFilter";
 import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
 
 export default function DashboardPage() {

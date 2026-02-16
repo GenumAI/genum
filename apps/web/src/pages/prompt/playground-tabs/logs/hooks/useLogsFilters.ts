@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import type { LogsFilterState } from "@/pages/logs/LogsFilter";
+import type { LogsFilterState } from "@/pages/logs/components/LogsFilter";
 import { getDefaultDateRange } from "../utils/getDefaultDateRange";
 
 export function useLogsFilters() {
