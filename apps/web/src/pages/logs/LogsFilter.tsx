@@ -154,8 +154,6 @@ export function LogsFilter({
 										<SelectContent>
 											<SelectItem value="all">All levels</SelectItem>
 											<SelectItem value="SUCCESS">Success</SelectItem>
-											<SelectItem value="INFO">Info</SelectItem>
-											<SelectItem value="WARN">Warning</SelectItem>
 											<SelectItem value="ERROR">Error</SelectItem>
 										</SelectContent>
 									</Select>

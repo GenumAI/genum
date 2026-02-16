@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from "react";
-import { LogsTable } from "./LogsTable";
-import type { Log } from "./LogsTable";
+import { LogsTable } from "../prompt/playground-tabs/logs/components/LogsTable";
+import type { Log } from "../prompt/playground-tabs/logs/components/LogsTable";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { LogsFilter } from "./LogsFilter";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/useToast";
 import { useCreateTestcase } from "@/hooks/useCreateTestcase";
-import { LogDetailsDialog } from "@/components/dialogs/LogDetailsDialog";
+import { LogDetailsDialog } from "@/pages/prompt/playground-tabs/logs/components/LogDetailsDialog";
 import { promptApi } from "@/api/prompt";
 import { projectApi } from "@/api/project";
 import { getOrgId, getProjectId } from "@/api/client";
