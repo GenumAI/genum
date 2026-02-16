@@ -7,7 +7,6 @@ import { requestLog } from "./utils/request-log";
 import z, { ZodError } from "zod";
 import { setupRoutes } from "./routes";
 import { initSystemPromptsConfig } from "./ai/runner/run";
-import { initializeClickHouse } from "./services/logger/init";
 import {
 	initializeSentry,
 	captureSentryException,
@@ -71,8 +70,9 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 	});
 });
 
-// initialize system prompts config and ClickHouse before starting server
-Promise.all([initSystemPromptsConfig(), initializeClickHouse()])
+// Load runtime configuration (system prompts from DB) before starting server
+// Note: Database and ClickHouse initialization should be done via `pnpm run db-init` before starting the server
+initSystemPromptsConfig()
 	.then(() => {
 		app.listen(env.CORE_PORT, () => {
 			console.log(
@@ -86,6 +86,6 @@ Promise.all([initSystemPromptsConfig(), initializeClickHouse()])
 		});
 	})
 	.catch((error) => {
-		console.error("Failed to initialize:", error);
+		console.error("Failed to initialize system prompts config:", error);
 		process.exit(1);
 	});
