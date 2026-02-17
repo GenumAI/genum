@@ -9,6 +9,7 @@ const CompareDiffEditor = ({
 	onBlur,
 	renderOverviewRuler = true,
 	maxHeight,
+	loading,
 	...props
 }: DiffEditorProps & {
 	onChange?: (value: string) => void;
@@ -151,6 +152,7 @@ const CompareDiffEditor = ({
 			language={originalData.language}
 			theme={monacoTheme}
 			height={typeof editorHeight === "number" ? `${editorHeight}px` : editorHeight}
+			loading={loading ?? null}
 			options={{
 				renderSideBySide: true,
 				enableSplitViewResizing: false,

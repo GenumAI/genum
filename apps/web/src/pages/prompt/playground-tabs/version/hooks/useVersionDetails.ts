@@ -1,27 +1,21 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { promptApi } from "@/api/prompt";
 import type { AuditData } from "../utils/types";
 
+export const VERSION_DETAILS_QUERY_KEY = ["version-details"] as const;
+
 export const useVersionDetails = (id: string | undefined, versionId: string | undefined) => {
-	const [data, setData] = useState<any>(null);
-	const [isLoading, setIsLoading] = useState(false);
+	const query = useQuery({
+		queryKey: [...VERSION_DETAILS_QUERY_KEY, id, versionId],
+		queryFn: async () => {
+			if (!id || !versionId) throw new Error("Missing id or versionId");
+			return promptApi.getVersion(id, versionId);
+		},
+		enabled: Boolean(id && versionId),
+	});
 
-	const fetchData = useCallback(async () => {
-		if (!id || !versionId) return;
-		setIsLoading(true);
-		try {
-			const versionData = await promptApi.getVersion(id, versionId);
-			setData(versionData);
-		} catch (error) {
-			console.error("Failed to fetch version details", error);
-		} finally {
-			setIsLoading(false);
-		}
-	}, [id, versionId]);
-
-	useEffect(() => {
-		fetchData();
-	}, [fetchData]);
+	const data = query.data ?? null;
 
 	const parsedSchema = useMemo(() => {
 		try {
@@ -74,11 +68,11 @@ export const useVersionDetails = (id: string | undefined, versionId: string | un
 
 	return {
 		data,
-		isLoading,
+		isLoading: query.isLoading,
 		parsedSchema,
 		parsedTools,
 		auditData,
 		modelConfigParams,
-		refresh: fetchData,
+		refresh: query.refetch,
 	};
 };

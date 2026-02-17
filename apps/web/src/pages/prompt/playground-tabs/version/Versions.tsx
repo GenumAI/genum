@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import CommitTimeline from "@/pages/prompt/playground-tabs/version/components/CommitTimeline";
@@ -9,7 +9,7 @@ import { getOrgId, getProjectId } from "@/api/client";
 
 import { useVersionsData } from "./hooks/useVersionsData";
 import { VersionsToolbar } from "./components/VersionsToolbar";
-import type { Branch, PromptVersion } from "./utils/types";
+import type { PromptVersion } from "./utils/types";
 
 export default function Versions() {
 	const { id } = useParams<{ id: string }>();
@@ -17,7 +17,6 @@ export default function Versions() {
 	const projectId = getProjectId();
 	const navigate = useNavigate();
 
-	const [branch, setBranch] = useState("");
 	const [search, setSearch] = useState("");
 
 	const {
@@ -27,12 +26,6 @@ export default function Versions() {
 		setIsCommitted,
 		refresh,
 	} = useVersionsData(id);
-
-	useEffect(() => {
-		if (data?.branches && data.branches.length > 0 && !branch) {
-			setBranch(data.branches[0].name);
-		}
-	}, [data, branch]);
 
 	const {
 		isOpen: commitDialogOpen,
@@ -53,7 +46,7 @@ export default function Versions() {
 
 	const selectedBranchData = useMemo(() => {
 		if (!data?.branches) return [];
-		const found = data.branches.find((b: Branch) => b.name === branch);
+		const found = data.branches[0];
 		if (!found) return [];
 		
 		const productiveCommitId =
@@ -68,7 +61,7 @@ export default function Versions() {
 		});
 
 		return [{ ...found, promptVersions: filteredVersions, productiveCommitId }];
-	}, [data, branch, search]);
+	}, [data, search]);
 
 	const handleCompare = () => {
 		if (id && orgId && projectId) {
