@@ -4,22 +4,16 @@ import { useSearchParams } from "react-router-dom";
 import { promptApi } from "@/api/prompt";
 import type { Memory } from "@/api/prompt/prompt.api";
 import { testcasesApi } from "@/api/testcases/testcases.api";
-import { usePlaygroundActions, usePlaygroundTestcase } from "@/stores/playground.store";
 import { toast } from "@/hooks/useToast";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import {
 	usePromptMemories,
 	promptMemoriesQueryKey,
 } from "@/pages/prompt/playground-tabs/memory/hooks/usePromptMemories";
+import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
 
 export const useMemoryKey = (promptId: number) => {
 	const queryClient = useQueryClient();
-
-	const { setSelectedMemoryId, setSelectedMemoryKeyName, setPersistedMemoryId } =
-		usePlaygroundActions();
-	const { selectedMemoryKeyName, persistedMemoryId } = usePlaygroundTestcase();
-
-	const [selectedKey, setSelectedKey] = useState(persistedMemoryId || "");
 	const [memoryValue, setMemoryValue] = useState("");
 	const [createMemoryModalOpen, setCreateMemoryModalOpen] = useState(false);
 	const [isManuallyCleared, setIsManuallyCleared] = useState(false);
@@ -27,14 +21,19 @@ export const useMemoryKey = (promptId: number) => {
 	const originalValueRef = useRef("");
 	const isUpdatingRef = useRef(false);
 	const isInitializedRef = useRef(false);
+
+	const [searchParams] = useSearchParams();
+	const testcaseId = searchParams.get("testcaseId");
+	const { selection, setSelection } = useMemorySelection(promptId, testcaseId);
+	const selectedMemoryId = selection.selectedMemoryId;
+	const selectedMemoryKeyName = selection.selectedMemoryKeyName;
+
+	const [selectedKey, setSelectedKey] = useState(selectedMemoryId || "");
 	const selectedKeyRef = useRef(selectedKey);
 
 	useEffect(() => {
 		selectedKeyRef.current = selectedKey;
 	}, [selectedKey]);
-
-	const [searchParams] = useSearchParams();
-	const testcaseId = searchParams.get("testcaseId");
 
 	const { data: memories = [] } = usePromptMemories(promptId);
 
@@ -77,11 +76,12 @@ export const useMemoryKey = (promptId: number) => {
 
 	const syncSelection = useCallback(
 		(memoryId: string, memoryKeyName = "") => {
-			setSelectedMemoryId(memoryId);
-			setPersistedMemoryId(memoryId);
-			setSelectedMemoryKeyName(memoryKeyName);
+			setSelection({
+				selectedMemoryId: memoryId,
+				selectedMemoryKeyName: memoryKeyName,
+			});
 		},
-		[setSelectedMemoryId, setPersistedMemoryId, setSelectedMemoryKeyName],
+		[setSelection],
 	);
 
 	useEffect(() => {
@@ -133,17 +133,17 @@ export const useMemoryKey = (promptId: number) => {
 			return;
 		}
 
-		if (!persistedMemoryId && selectedKey) {
+		if (!selectedMemoryId && selectedKey) {
 			setSelectedKey("");
 			setMemoryValue("");
 			originalValueRef.current = "";
 			return;
 		}
 
-		if (persistedMemoryId && persistedMemoryId !== selectedKey && !isManuallyCleared) {
-			setSelectedKey(persistedMemoryId);
+		if (selectedMemoryId && selectedMemoryId !== selectedKey && !isManuallyCleared) {
+			setSelectedKey(selectedMemoryId);
 		}
-	}, [persistedMemoryId, selectedKey, isManuallyCleared]);
+	}, [selectedMemoryId, selectedKey, isManuallyCleared]);
 
 	useEffect(() => {
 		if (isUpdatingRef.current || memories.length === 0) {
@@ -172,7 +172,7 @@ export const useMemoryKey = (promptId: number) => {
 			currentSelectedKey &&
 			!isManuallyCleared &&
 			!testcaseId &&
-			!persistedMemoryId
+			!selectedMemoryId
 		) {
 			setSelectedKey("");
 			setMemoryValue("");
@@ -183,7 +183,7 @@ export const useMemoryKey = (promptId: number) => {
 		if (!isInitializedRef.current) {
 			isInitializedRef.current = true;
 		}
-	}, [memories, testcase, testcaseId, isManuallyCleared, persistedMemoryId, syncSelection]);
+	}, [memories, testcase, testcaseId, isManuallyCleared, selectedMemoryId, syncSelection]);
 
 	useEffect(() => {
 		if (isUpdatingRef.current || !isInitializedRef.current) {
@@ -217,10 +217,10 @@ export const useMemoryKey = (promptId: number) => {
 			}
 
 			if (selectedMemoryKeyName !== memory.key) {
-				setSelectedMemoryKeyName(memory.key);
+				syncSelection(selectedKey, memory.key);
 			}
 		}
-	}, [memories, selectedKey, selectedMemoryKeyName, setSelectedMemoryKeyName, syncSelection]);
+	}, [memories, selectedKey, selectedMemoryKeyName, syncSelection]);
 
 	const displayMemoryName = useMemo(() => {
 		if (!testcaseId && !selectedKey) {

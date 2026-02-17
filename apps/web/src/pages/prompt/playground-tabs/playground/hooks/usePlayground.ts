@@ -14,6 +14,7 @@ import { usePlaygroundRunController } from "@/pages/prompt/playground-tabs/playg
 import { usePlaygroundAuditController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAudit";
 import type { PlaygroundControllerReturn } from "@/pages/prompt/playground-tabs/playground/hooks/types";
 import { usePromptTestcases } from "@/hooks/usePromptTestcases";
+import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
 
 import type { FileMetadata } from "@/api/files";
 
@@ -59,7 +60,9 @@ export function usePlaygroundController({
 		hasPromptContent,
 		hasInputContent,
 	} = usePlaygroundContent();
-	const { currentAssertionType, selectedMemoryId } = usePlaygroundTestcase();
+	const { currentAssertionType } = usePlaygroundTestcase();
+	const { selection } = useMemorySelection(promptId, testcaseId);
+	const selectedMemoryId = selection.selectedMemoryId;
 	const {
 		modalOpen,
 		status,
