@@ -24,8 +24,6 @@ export const useMemorySelection = (promptId: number | undefined, testcaseId: str
 		queryKey,
 		queryFn: async () => DEFAULT_SELECTION,
 		initialData: DEFAULT_SELECTION,
-		staleTime: Infinity,
-		gcTime: Infinity,
 	});
 
 	const setSelection = useCallback(
