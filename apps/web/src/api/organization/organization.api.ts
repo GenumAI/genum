@@ -184,6 +184,7 @@ export interface LanguageModel {
 	description: string;
 	apiKeyId?: number;
 	parametersConfig?: Record<string, ModelParameterConfig>;
+	enabled?: boolean; // For organization models list
 }
 
 export interface UpdateCustomModelData {
@@ -476,6 +477,52 @@ export const organizationApi = {
 			data,
 			config,
 		);
+		return response.data;
+	},
+
+	// ============================================================================
+	// Organization Models Management
+	// ============================================================================
+
+	/**
+	 * Get all models with enabled/disabled status for organization
+	 */
+	getOrganizationModels: async (
+		config?: ApiRequestConfig,
+	): Promise<{ models: LanguageModel[] }> => {
+		const response = await apiClient.get<{ models: LanguageModel[] }>(
+			"/organization/models",
+			config,
+		);
+		return response.data;
+	},
+
+	/**
+	 * Toggle model enabled/disabled status
+	 */
+	toggleOrganizationModel: async (
+		modelId: number,
+		enabled: boolean,
+		config?: ApiRequestConfig,
+	): Promise<{ success: boolean; enabled: boolean }> => {
+		const response = await apiClient.patch<{ success: boolean; enabled: boolean }>(
+			`/organization/models/${modelId}/toggle`,
+			{ enabled },
+			config,
+		);
+		return response.data;
+	},
+
+	/**
+	 * Get model usage information
+	 */
+	getModelUsage: async (
+		modelId: number,
+		config?: ApiRequestConfig,
+	): Promise<{ usage: { promptCount: number; commitCount: number } }> => {
+		const response = await apiClient.get<{
+			usage: { promptCount: number; commitCount: number };
+		}>(`/organization/models/${modelId}/usage`, config);
 		return response.data;
 	},
 };

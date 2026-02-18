@@ -24,6 +24,7 @@ import UserProfile from "../../pages/settings/components/UserProfile";
 import OrgGeneral from "../../pages/settings/components/OrgGeneral";
 import OrgMembers from "../../pages/settings/components/OrgMembers";
 import OrgProjects from "../../pages/settings/components/OrgProjects";
+import OrgModels from "../../pages/settings/components/OrgModels";
 import OrgAIKeys from "../../pages/settings/components/OrgAIKeys/OrgAIKeys";
 import OrgAPIKeys from "../../pages/settings/components/OrgAPIKeys";
 import ProjectDetails from "../../pages/settings/components/ProjectDetails";
@@ -61,6 +62,7 @@ export const router = createBrowserRouter([
 					{ path: "org/details", element: <OrgGeneral /> },
 					{ path: "org/members", element: <OrgMembers /> },
 					{ path: "org/projects", element: <OrgProjects /> },
+					{ path: "org/models", element: <OrgModels /> },
 					{ path: "org/ai-keys", element: <OrgAIKeys /> },
 					{ path: "org/api-keys", element: <OrgAPIKeys /> },
 					{ path: "project/details", element: <ProjectDetails /> },

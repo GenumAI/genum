@@ -24,8 +24,9 @@ const MENU: MenuSection[] = [
 			{ label: "Details", to: "/settings/org/details" },
 			{ label: "Members", to: "/settings/org/members" },
 			{ label: "Projects", to: "/settings/org/projects" },
-			{ label: "LLM API Keys", to: "/settings/org/ai-keys" },
-			{ label: "API Keys", to: "/settings/org/api-keys" },
+			{ label: "LLM Providers", to: "/settings/org/ai-keys" },
+			{ label: "Models", to: "/settings/org/models" },
+			{ label: "API", to: "/settings/org/api-keys" },
 		],
 	},
 	{
@@ -33,7 +34,7 @@ const MENU: MenuSection[] = [
 		items: [
 			{ label: "Details", to: "/settings/project/details" },
 			// { label: "Members", to: "/settings/project/members" },
-			{ label: "API Keys", to: "/settings/project/api-keys" },
+			{ label: "API", to: "/settings/project/api-keys" },
 		],
 	},
 ];
