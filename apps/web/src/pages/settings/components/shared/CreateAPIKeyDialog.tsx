@@ -68,13 +68,13 @@ export function CreateAPIKeyDialog({
 			<DialogTrigger asChild>
 				<Button size="default" className="[&_svg]:size-6">
 					<PlusCircleIcon />
-					Add API Key
+					Create API Key
 				</Button>
 			</DialogTrigger>
 
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
-					<DialogTitle>Add API Key</DialogTitle>
+					<DialogTitle>Create API Key</DialogTitle>
 				</DialogHeader>
 				{newKeyResponse ? (
 					<div className="space-y-4">

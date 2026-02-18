@@ -1,4 +1,5 @@
-import React from "react";
+import type React from "react";
+import { XIcon  } from "@phosphor-icons/react";
 
 export type FilterChip = {
 	key: string | number;
@@ -12,23 +13,13 @@ const ActiveFilterChips: React.FC<{
 	<div className="flex items-center gap-2 overflow-x-auto">
 		{chips.map((chip) => (
 			<button
+				type="button"
 				key={chip.key}
 				className="flex items-center gap-1 px-4 py-2 text-sm bg-muted rounded-full whitespace-nowrap"
 				onClick={chip.onRemove}
 			>
 				<span className="whitespace-nowrap">{chip.label}</span>
-				<svg
-					className="h-4 w-4 ml-1 rotate-45"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="2"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-				>
-					<line x1="12" y1="5" x2="12" y2="19" />
-					<line x1="5" y1="12" x2="19" y2="12" />
-				</svg>
+				<XIcon className="ml-1 rotate-65" />
 			</button>
 		))}
 	</div>

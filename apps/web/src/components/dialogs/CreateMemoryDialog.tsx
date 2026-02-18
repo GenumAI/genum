@@ -42,7 +42,7 @@ const CreateMemoryDialog: React.FC<DeleteConfirmDialogProps> = ({
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Create New Memory</DialogTitle>
+					<DialogTitle>Create Memory</DialogTitle>
 				</DialogHeader>
 
 				<div className="space-y-4">

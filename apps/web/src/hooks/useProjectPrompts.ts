@@ -1,39 +1,46 @@
-import { useParams } from "react-router-dom";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getOrgId, getProjectId } from "@/api/client";
 import type { Prompt } from "@/pages/prompt/Prompts";
 import { promptApi } from "@/api/prompt";
 
 export function useProjectPrompts() {
-	const { projectId } = useParams<{ projectId: string }>();
-	const [prompts, setPrompts] = useState<Prompt[]>([]);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const orgId = getOrgId();
+	const projectId = getProjectId();
+	const queryClient = useQueryClient();
 
-	const fetchPrompts = useCallback(async () => {
-		if (!projectId) return;
-		setLoading(true);
-		setError(null);
-		try {
+	const queryKey = ["prompts", orgId, projectId] as const;
+	const query = useQuery({
+		queryKey,
+		queryFn: async () => {
 			const data = await promptApi.getPrompts();
-			setPrompts(data.prompts);
-		} catch (err: any) {
-			setError(err.message || "Failed to fetch prompts");
-		} finally {
-			setLoading(false);
-		}
-	}, [projectId]);
+			return data.prompts ?? [];
+		},
+		enabled: !!orgId && !!projectId,
+		refetchOnMount: "always",
+	});
 
-	useEffect(() => {
-		fetchPrompts();
-	}, [fetchPrompts]);
+	const prompts = query.data ?? [];
+	const loading = query.isLoading;
+	const error = query.error ? "Failed to fetch prompts" : null;
 
 	const removePromptLocally = (id: number) => {
-		setPrompts((prev) => prev.filter((p) => p.id !== id));
+		queryClient.setQueryData<Prompt[]>(queryKey, (prev) => {
+			if (!prev) return prev;
+			return prev.filter((p) => p.id !== id);
+		});
 	};
 
 	const addPromptLocally = (prompt: Prompt) => {
-		setPrompts((prev) => [prompt, ...prev]);
+		queryClient.setQueryData<Prompt[]>(queryKey, (prev) => {
+			if (!prev) return [prompt];
+			return [prompt, ...prev];
+		});
 	};
+
+	const fetchPrompts = useCallback(async () => {
+		await query.refetch();
+	}, [query]);
 
 	return {
 		prompts,

@@ -20,7 +20,7 @@ import { usePromptMemories, promptMemoriesQueryKey } from "@/hooks/usePromptMemo
 
 interface Memory {
 	id: number;
-	key: string;	
+	key: string;
 	value: string;
 	promptId?: number;
 	updatedAt?: string;
@@ -205,7 +205,7 @@ export default function Memory() {
 					</div>
 					<Button className="px-7" onClick={() => setCreateMemoryModal(true)}>
 						<CirclePlus className="mr-2 h-4 w-4" />
-						Create New Memory
+						Create Memory
 					</Button>
 				</div>
 
