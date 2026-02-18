@@ -186,7 +186,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 										</td>
 										<td className="p-4 border" colSpan={3}>
 											<div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-												<div className="rounded-md border bg-muted/30 px-3 py-2 md:col-span-3">
+												<div className="px-3 py-2 md:col-span-3">
 													<div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
 														Tokens
 													</div>
@@ -211,7 +211,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 														</div>
 													</div>
 												</div>
-												<div className="rounded-md border bg-muted/30 px-3 py-2 flex flex-col">
+												<div className="px-3 py-2 flex flex-col">
 													<div className="text-xs uppercase text-muted-foreground text-center">Time</div>
 													<div className="flex-1 flex items-center justify-center">
 														<TooltipProvider>
@@ -226,7 +226,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 														</TooltipProvider>
 													</div>
 												</div>
-												<div className="rounded-md border bg-muted/30 px-3 py-2 flex flex-col">
+												<div className="px-3 py-2 flex flex-col">
 													<div className="text-xs uppercase text-muted-foreground text-center">Cost</div>
 													<div className="flex-1 flex items-center justify-center">
 														<div className="font-medium text-center">

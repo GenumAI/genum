@@ -28,28 +28,29 @@ export function getSourceLabel(source: string | undefined) {
 
 export function normalizeVendorName(vendor: string | undefined): string {
 	if (!vendor) return "-";
-	
+
 	const vendorMap: Record<string, string> = {
 		OPENAI: "OpenAI",
 		GOOGLE: "Google",
 		ANTHROPIC: "Anthropic",
 	};
-	
+
 	return vendorMap[vendor.toUpperCase()] || vendor;
 }
 
 export function formatResponseTime(ms: number | undefined): string {
 	if (ms === undefined || ms === null) return "-";
-	
+
 	const seconds = ms / 1000;
-	
+
+	if (seconds === 0) {
+		return "0s";
+	}
 	if (seconds < 1) {
-		return `${seconds.toFixed(3)} s`;
+		return `${seconds.toFixed(3)}s`;
 	}
-	
 	if (seconds < 10) {
-		return `${seconds.toFixed(2)} s`;
+		return `${seconds.toFixed(2)}s`;
 	}
-	
-	return `${seconds.toFixed(1)} s`;
+	return `${seconds.toFixed(1)}s`;
 }
