@@ -130,7 +130,7 @@ export interface PromptVersion {
 	branch?: {
 		name: string;
 	};
-	languageModel?: {
+	languageModel: {
 		id: number;
 		name: string;
 		vendor: string;
