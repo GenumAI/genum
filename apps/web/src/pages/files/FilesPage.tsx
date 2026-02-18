@@ -1,12 +1,4 @@
-import { useState, useMemo } from "react";
-import {
-	flexRender,
-	useReactTable,
-	getCoreRowModel,
-	getSortedRowModel,
-	type SortingState,
-	type ColumnDef,
-} from "@tanstack/react-table";
+import { flexRender } from "@tanstack/react-table";
 import {
 	Table,
 	TableBody,
@@ -16,187 +8,26 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Eye, File, Image as ImageIcon } from "lucide-react";
-import { filesApi, type FileMetadata } from "@/api/files";
-import FileUploadDialog from "@/components/dialogs/FileUploadDialog";
+import { Plus } from "lucide-react";
+import FileUploadDialog from "@/pages/files/components/FileUploadDialog";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
-import TableSortButton from "@/components/ui/TableSortButton";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
-
-const formatFileSize = (bytes: number): string => {
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-};
-
-const getFileIcon = (contentType: string) => {
-	if (contentType.startsWith("image/")) {
-		return <ImageIcon className="h-5 w-5 text-blue-500" />;
-	}
-	if (contentType === "application/pdf") {
-		return <File className="h-5 w-5 text-red-500" />;
-	}
-	return <File className="h-5 w-5 text-gray-500" />;
-};
+import { useFilesPage } from "./hooks/useFilesPage";
 
 export default function FilesPage() {
-	const [sorting, setSorting] = useState<SortingState>([]);
-	const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const [selectedFile, setSelectedFile] = useState<FileMetadata | null>(null);
-	const [isUploading, setIsUploading] = useState(false);
-	const [isDeleting, setIsDeleting] = useState(false);
-	const queryClient = useQueryClient();
-
-	// Fetch files
 	const {
-		data: files = [],
+		table,
+		columnsCount,
 		isLoading,
-		refetch,
-	} = useQuery({
-		queryKey: ["files"],
-		queryFn: () => filesApi.listFiles(),
-	});
-
-	useRefetchOnWorkspaceChange(() => {
-		refetch();
-	});
-
-	// Define columns
-	const columns = useMemo<ColumnDef<FileMetadata>[]>(
-		() => [
-			{
-				accessorKey: "name",
-				header: ({ column }) => <TableSortButton column={column} headerText="Name" />,
-				cell: ({ row }) => {
-					const file = row.original;
-					return (
-						<div className="flex items-center gap-3">
-							{getFileIcon(file.contentType)}
-							<span className="font-medium">{file.name}</span>
-						</div>
-					);
-				},
-				enableSorting: true,
-			},
-			{
-				accessorKey: "contentType",
-				header: ({ column }) => <TableSortButton column={column} headerText="Type" />,
-				cell: ({ row }) => {
-					const contentType = row.getValue("contentType") as string;
-					if (contentType.startsWith("image/")) {
-						return <span className="text-sm">Image</span>;
-					}
-					if (contentType === "application/pdf") {
-						return <span className="text-sm">PDF</span>;
-					}
-					return <span className="text-sm">{contentType}</span>;
-				},
-				enableSorting: true,
-			},
-			{
-				accessorKey: "size",
-				header: ({ column }) => <TableSortButton column={column} headerText="Size" />,
-				cell: ({ row }) => {
-					const size = row.getValue("size") as number;
-					return <span className="text-sm">{formatFileSize(size)}</span>;
-				},
-				enableSorting: true,
-			},
-			{
-				accessorKey: "createdAt",
-				header: ({ column }) => <TableSortButton column={column} headerText="Uploaded" />,
-				cell: ({ row }) => {
-					const date = new Date(row.getValue("createdAt"));
-					return (
-						<span className="text-sm">
-							{formatDistanceToNow(date, { addSuffix: true })}
-						</span>
-					);
-				},
-				enableSorting: true,
-			},
-			{
-				id: "actions",
-				header: "Actions",
-				cell: ({ row }) => {
-					const file = row.original;
-					return (
-						<div className="flex items-center gap-2 justify-end">
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={async () => {
-									try {
-										const url = await filesApi.getFileUrl(file.id);
-										window.open(url, "_blank");
-									} catch (error) {
-										console.error("Failed to get file URL:", error);
-									}
-								}}
-							>
-								<Eye className="h-4 w-4" />
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => {
-									setSelectedFile(file);
-									setDeleteDialogOpen(true);
-								}}
-							>
-								<Trash2 className="h-4 w-4" />
-							</Button>
-						</div>
-					);
-				},
-			},
-		],
-		[],
-	);
-
-	// Setup table
-	const table = useReactTable({
-		data: files,
-		columns,
-		getCoreRowModel: getCoreRowModel(),
-		state: {
-			sorting,
-		},
-		onSortingChange: setSorting,
-		getSortedRowModel: getSortedRowModel(),
-	});
-
-	// Handle file upload
-	const handleUpload = async (file: File) => {
-		setIsUploading(true);
-		try {
-			await filesApi.uploadFile(file);
-			await queryClient.invalidateQueries({ queryKey: ["files"] });
-		} finally {
-			setIsUploading(false);
-		}
-	};
-
-	// Handle file deletion
-	const handleDelete = async () => {
-		if (!selectedFile) return;
-
-		setIsDeleting(true);
-		try {
-			await filesApi.deleteFile(selectedFile.id);
-			await queryClient.invalidateQueries({ queryKey: ["files"] });
-			setDeleteDialogOpen(false);
-			setSelectedFile(null);
-		} catch (error) {
-			console.error("Failed to delete file:", error);
-		} finally {
-			setIsDeleting(false);
-		}
-	};
+		uploadDialogOpen,
+		setUploadDialogOpen,
+		deleteDialogOpen,
+		setDeleteDialogOpen,
+		isUploading,
+		isDeleting,
+		handleUpload,
+		handleDelete,
+	} = useFilesPage();
 
 	return (
 		<>
@@ -241,10 +72,7 @@ export default function FilesPage() {
 						<TableBody>
 							{isLoading ? (
 								<TableRow>
-									<TableCell
-										colSpan={columns.length}
-										className="text-center py-8"
-									>
+									<TableCell colSpan={columnsCount} className="text-center py-8">
 										Loading...
 									</TableCell>
 								</TableRow>
@@ -275,7 +103,7 @@ export default function FilesPage() {
 							) : (
 								<TableRow className="transition-none border-0 hover:bg-transparent">
 									<TableCell
-										colSpan={columns.length}
+										colSpan={columnsCount}
 										className="px-0 border-0 hover:bg-transparent"
 									>
 										<EmptyState

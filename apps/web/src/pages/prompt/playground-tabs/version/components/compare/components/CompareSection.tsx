@@ -67,11 +67,7 @@ export const CompareSection: React.FC<CompareSectionProps> = ({
 	theme,
 }) => {
 	return (
-		<Collapsible
-			open={isOpen}
-			onOpenChange={onOpenChange}
-			className="rounded-lg"
-		>
+		<Collapsible open={isOpen} onOpenChange={onOpenChange} className="rounded-lg">
 			<CollapsibleTrigger asChild>
 				<div>
 					<button

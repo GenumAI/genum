@@ -6,7 +6,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import CreateMemoryDialog from "@/components/dialogs/CreateMemoryDialog";
+import CreateMemoryDialog from "@/pages/prompt/playground-tabs/memory/components/CreateMemoryDialog";
 import { PlusCircle, Inbox, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Memory } from "@/api/prompt/prompt.api";
@@ -44,7 +44,10 @@ const MemoryKey = ({ promptId }: MemoryKeyProps) => {
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<PopoverTrigger asChild>
-								<button type="button" className="w-[130px] h-[32px] px-3 rounded-md transition-colors flex items-center gap-2 hover:bg-muted/20">
+								<button
+									type="button"
+									className="w-[130px] h-[32px] px-3 rounded-md transition-colors flex items-center gap-2 hover:bg-muted/20"
+								>
 									<h2 className="text-[#18181B] dark:text-[#FFFFFF] text-[12px] not-italic font-bold flex-shrink-0">
 										Memory:
 									</h2>

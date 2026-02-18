@@ -68,6 +68,7 @@ const MonacoEditor = ({
 	options,
 	autoDispose = true,
 	ariaLabel,
+	loading,
 	...props
 }: MonacoEditorProps) => {
 	const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -97,6 +98,7 @@ const MonacoEditor = ({
 	return (
 		<Editor
 			theme={monacoTheme}
+			loading={loading ?? null}
 			options={mergedOptions}
 			onMount={handleEditorDidMount}
 			{...props}

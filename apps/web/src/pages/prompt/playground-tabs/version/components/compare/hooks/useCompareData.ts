@@ -1,84 +1,66 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { promptApi } from "@/api/prompt";
 import type { BranchesResponse } from "../types";
 
-export const useCompareData = (id: string | undefined, commitA: string, commitB: string) => {
-	const [branchesRes, setBranchesRes] = useState<BranchesResponse | undefined>(undefined);
-	const [branchesLoading, setBranchesLoading] = useState(false);
-	const [dataA, setDataA] = useState<any>(null);
-	const [dataB, setDataB] = useState<any>(null);
-	const [error, setError] = useState<string | null>(null);
+const UNKNOWN_AUTHOR = {
+	id: 0,
+	name: "Unknown",
+	email: "",
+	picture: "",
+};
 
-	const fetchBranches = useCallback(async () => {
-		if (!id) return;
-		setBranchesLoading(true);
-		setError(null);
-		try {
+const COMPARE_BRANCHES_QUERY_KEY = ["compare-branches"] as const;
+const COMPARE_VERSION_QUERY_KEY = ["compare-version"] as const;
+
+export const useCompareData = (id: string | undefined, commitA: string, commitB: string) => {
+	const branchesQuery = useQuery({
+		queryKey: [...COMPARE_BRANCHES_QUERY_KEY, id],
+		queryFn: async () => {
+			if (!id) throw new Error("No id");
 			const result = await promptApi.getBranches(id);
-			const transformed: BranchesResponse = {
-				branches: result.branches.map((branch: any) => ({
+			return {
+				branches: result.branches.map((branch) => ({
 					...branch,
-					promptVersions: branch.promptVersions.map((version: any) => ({
+					promptVersions: branch.promptVersions.map((version) => ({
 						...version,
-						author: version.author || {
-							id: 0,
-							name: "Unknown",
-							email: "",
-							picture: "",
-						},
+						author: version.author || UNKNOWN_AUTHOR,
 					})),
 				})),
-			};
-			setBranchesRes(transformed);
-		} catch (err: unknown) {
-			console.error("Failed to fetch branches", err);
-			setError("Failed to fetch branches");
-		} finally {
-			setBranchesLoading(false);
-		}
-	}, [id]);
+			} as BranchesResponse;
+		},
+		enabled: Boolean(id),
+	});
 
-	const fetchDataA = useCallback(async () => {
-		if (!id) return;
-		try {
-			let result: unknown;
+	const dataAQuery = useQuery({
+		queryKey: [...COMPARE_VERSION_QUERY_KEY, id, "A", commitA],
+		queryFn: async () => {
+			if (!id) throw new Error("No id");
 			if (!commitA || commitA === "current") {
-				result = await promptApi.getPrompt(id);
-			} else {
-				result = await promptApi.getVersion(id, commitA);
+				return promptApi.getPrompt(id);
 			}
-			setDataA(result);
-		} catch (err: unknown) {
-			console.error("Failed to fetch dataA", err);
-		}
-	}, [id, commitA]);
+			return promptApi.getVersion(id, commitA);
+		},
+		enabled: Boolean(id),
+	});
 
-	const fetchDataB = useCallback(async () => {
-		if (!id || !commitB) return;
-		try {
-			let result: unknown;
+	const dataBQuery = useQuery({
+		queryKey: [...COMPARE_VERSION_QUERY_KEY, id, "B", commitB],
+		queryFn: async () => {
+			if (!id || !commitB) throw new Error("Missing id or commitB");
 			if (commitB === "current") {
-				result = await promptApi.getPrompt(id);
-			} else {
-				result = await promptApi.getVersion(id, commitB);
+				return promptApi.getPrompt(id);
 			}
-			setDataB(result);
-		} catch (err: unknown) {
-			console.error("Failed to fetch dataB", err);
-		}
-	}, [id, commitB]);
+			return promptApi.getVersion(id, commitB);
+		},
+		enabled: Boolean(id && commitB),
+	});
 
-	useEffect(() => {
-		fetchBranches();
-	}, [fetchBranches]);
-
-	useEffect(() => {
-		fetchDataA();
-	}, [fetchDataA]);
-
-	useEffect(() => {
-		fetchDataB();
-	}, [fetchDataB]);
+	const branchesRes = branchesQuery.data;
+	const dataA = dataAQuery.data ?? null;
+	const dataB = dataBQuery.data ?? null;
+	const branchesLoading = branchesQuery.isLoading;
+	const error = branchesQuery.isError ? "Failed to fetch branches" : null;
 
 	const versions = useMemo(
 		() =>
