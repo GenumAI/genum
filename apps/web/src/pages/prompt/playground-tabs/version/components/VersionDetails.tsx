@@ -61,12 +61,12 @@ export default function VersionDetails() {
 							commitMsg={data.version.commitMsg}
 							commitHash={data.version.commitHash}
 							createdAt={data.version.createdAt}
-							authorName={data.version.author?.name}
+							authorName={data.version.author?.name ?? "Unknown author"}
 						/>
 
 						<ModelConfigCard
-							vendor={data.version.languageModel?.vendor}
-							name={data.version.languageModel?.name}
+							vendor={data.version.languageModel.vendor}
+							name={data.version.languageModel.name}
 							params={modelConfigParams}
 						/>
 
