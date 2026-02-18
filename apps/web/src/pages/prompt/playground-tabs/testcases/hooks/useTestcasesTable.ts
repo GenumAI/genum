@@ -77,7 +77,7 @@ export const useTestcasesTable = ({
 		isLoading: isProjectLoading,
 		refetch: refetchProjectTestcases,
 	} = useQuery({
-		queryKey: ["testcases", orgId, projectId],
+		queryKey: ["testcases-list", orgId, projectId],
 		queryFn: async () => {
 			const response = await testcasesApi.getTestcases();
 			return response.testcases || [];
@@ -208,7 +208,7 @@ export const useTestcasesTable = ({
 							);
 						} else {
 							queryClient.setQueryData<TestCase[]>(
-								["testcases", orgId, projectId],
+								["testcases-list", orgId, projectId],
 								(oldData) => {
 									if (!oldData) return oldData;
 									return oldData.map((tc) =>
@@ -260,7 +260,7 @@ export const useTestcasesTable = ({
 					);
 				} else {
 					queryClient.setQueryData<TestCase[]>(
-						["testcases", orgId, projectId],
+						["testcases-list", orgId, projectId],
 						(oldData) => {
 							if (!oldData) return oldData;
 							return oldData.filter((tc) => tc.id !== selectedTestcase.id);
