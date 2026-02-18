@@ -10,6 +10,7 @@ import { transcribeOpenAI } from "../providers/openai/speech";
 import type { runPromptParams, SystemPrompt } from "./types";
 import { getSystemPrompt, SYSTEM_PROMPTS } from "./system";
 import { LogLevel, LogType, SourceType } from "@/services/logger";
+import { HttpError } from "@/utils/errors";
 
 let systemPromptsConfig: SystemPrompt;
 
@@ -94,6 +95,11 @@ export async function runPrompt(data: runPromptParams) {
 
 	let instruction = data.system_instructions ?? prompt.value;
 
+	// org, proj, user ids for logging. if system prompt - use system org and project
+	const runOrgId = data.systemPrompt ? systemPromptsConfig.org.id : data.userOrgId;
+	const runProjectId = data.systemPrompt ? systemPromptsConfig.project.id : data.userProjectId;
+	const runUserId = data.systemPrompt ? undefined : data.user_id; // do not log user id for system prompts
+
 	// get quota
 	const quota = await db.organization.getQuotaByOrgId(data.userOrgId);
 	if (quota === null) {
@@ -104,6 +110,15 @@ export async function runPrompt(data: runPromptParams) {
 	const model = await db.prompts.getModelById(prompt.languageModelId);
 	if (model === null) {
 		throw new Error(`Model with id ${prompt.languageModelId} not found`);
+	}
+
+	// Enforce org-level model restrictions for non-system runs
+	const isDisabled = await db.organization.isModelDisabled(runOrgId, model.id);
+	if (isDisabled) {
+		throw new HttpError(
+			400,
+			"This model is disabled for your organization. Please contact your administrator.",
+		);
 	}
 
 	// For custom providers, get API key and baseUrl from the model's linked apiKey
@@ -137,16 +152,6 @@ export async function runPrompt(data: runPromptParams) {
 			memoryKey = memory.key;
 		}
 	}
-
-	// if system prompt - log with system org and project
-	if (data.systemPrompt && !systemPromptsConfig) {
-		throw new Error(
-			"System prompts config not initialized. Call initSystemPromptsConfig() first.",
-		);
-	}
-	const logOrgId = data.systemPrompt ? systemPromptsConfig.org.id : data.userOrgId;
-	const logProjectId = data.systemPrompt ? systemPromptsConfig.project.id : data.userProjectId;
-	const logUserId = data.systemPrompt ? undefined : data.user_id; // do not log user id for system prompts
 
 	try {
 		// run prompt
@@ -183,10 +188,10 @@ export async function runPrompt(data: runPromptParams) {
 			source: data.source,
 			log_type: LogType.PromptRunSuccess,
 			log_lvl: LogLevel.success,
-			orgId: logOrgId,
-			project_id: logProjectId,
+			orgId: runOrgId,
+			project_id: runProjectId,
 			prompt_id: prompt.id,
-			user_id: logUserId,
+			user_id: runUserId,
 			vendor: model.vendor,
 			model: model.name,
 			tokens_in: completion.tokens.prompt,
@@ -212,8 +217,8 @@ export async function runPrompt(data: runPromptParams) {
 			source: data.source,
 			log_type: LogType.AIError,
 			log_lvl: LogLevel.error,
-			orgId: logOrgId,
-			project_id: logProjectId,
+			orgId: runOrgId,
+			project_id: runProjectId,
 			prompt_id: prompt.id,
 			vendor: model.vendor,
 			model: model.name,
@@ -226,7 +231,7 @@ export async function runPrompt(data: runPromptParams) {
 			out: "",
 			memory_key: memoryKey,
 			description: error instanceof Error ? error.message : "Error occurred",
-			user_id: logUserId,
+			user_id: runUserId,
 			testcase_id: data.testcase_id ? data.testcase_id : undefined,
 			api_key_id: data.api_key_id ? data.api_key_id : undefined,
 		});
