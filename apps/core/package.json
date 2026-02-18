@@ -15,6 +15,7 @@
     "clickhouse:init:dev": "dotenv -e ../../.env tsx src/services/logger/init-clickhouse.ts",
     "clickhouse:init:prod": "node dist/services/logger/init-clickhouse.js",
     "db:generate": "prisma generate",
+    "db:migrate:dev": "dotenv -e ../../.env pnpm prisma migrate dev",
     "dev:db-init": "pnpm run db:generate && dotenv -e ../../.env prisma migrate dev && dotenv -e ../../.env pnpm run clickhouse:init:dev && dotenv -e ../../.env pnpm run seed:dev",
     "db-init": "prisma migrate deploy && pnpm run clickhouse:init:prod && pnpm run seed:prod",
     "lint": "eslint . --ext .ts",
