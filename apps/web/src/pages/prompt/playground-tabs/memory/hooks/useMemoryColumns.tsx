@@ -3,15 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Ellipsis, Trash2, Edit } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { useState } from "react";
-
-export interface MemoryTypes {
-	id: number;
-	key: string;
-	value: string;
-	promptId?: number;
-	createdAt?: string;
-	updatedAt?: string;
-}
+import type { Memory } from "@/api/prompt";
 
 const useMemoryColumns = ({
 	setConfirmModalOpen,
@@ -19,12 +11,12 @@ const useMemoryColumns = ({
 	onEditClick,
 }: {
 	setConfirmModalOpen: (open: boolean) => void;
-	setSelectedMemory: (memory: MemoryTypes) => void;
-	onEditClick: (memory: MemoryTypes) => void;
+	setSelectedMemory: (memory: Memory) => void;
+	onEditClick: (memory: Memory) => void;
 }) => {
 	const [openPromptId, setOpenPromptId] = useState<number | null>(null);
 
-	const columns: ColumnDef<MemoryTypes>[] = [
+	const columns: ColumnDef<Memory>[] = [
 		{
 			accessorKey: "key",
 			header: "Key",
@@ -103,7 +95,7 @@ const useMemoryColumns = ({
 				const memory = row.original;
 
 				return (
-					<div className="flex justify-end">
+					<div className="flex justify-center">
 						<Popover
 							open={openPromptId === memory.id}
 							onOpenChange={(open) => setOpenPromptId(open ? memory.id : null)}

@@ -1,17 +1,15 @@
-import { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 
-import { Ellipsis, Trash2, Loader2, ChevronUp, ChevronDown } from "lucide-react";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Trash2, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import TestCaseStatus from "@/pages/prompt/playground-tabs/testcases/TestCaseStatus";
-import { useState } from "react";
-import { Prompt } from "@/pages/prompt/Prompts";
+import { useMemo } from "react";
+import type { Prompt } from "@/pages/prompt/Prompts";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 import TableSortButton from "@/components/ui/TableSortButton";
-import { TestCase, TestStatus } from "@/types/TestСase";
+import type { TestCase, TestStatus } from "@/types/TestСase";
 
 export const useTestcasesColumns = ({
 	prompts,
@@ -32,7 +30,10 @@ export const useTestcasesColumns = ({
 	hidePromptColumn?: boolean;
 	currentTestcaseId?: number;
 }) => {
-	const [openPromptId, setOpenPromptId] = useState<number | null>(null);
+	const promptNameById = useMemo(
+		() => new Map((prompts || []).map((prompt) => [prompt.id, prompt.name])),
+		[prompts],
+	);
 
 	const selectColumn: ColumnDef<TestCase> = {
 		id: "select",
@@ -68,20 +69,17 @@ export const useTestcasesColumns = ({
 
 	const promptColumn: ColumnDef<TestCase> = {
 		id: "prompt",
-		accessorFn: (row) => {
-			const prompt = prompts?.find((item) => item.id === row.promptId);
-			return prompt?.name ?? "";
-		},
+		accessorFn: (row) => promptNameById.get(row.promptId) ?? "",
 		header: ({ column }) => (
 			<div>
 				<TableSortButton column={column} headerText="Prompt" />
 			</div>
 		),
 		cell: ({ row }) => {
-			const prompt = prompts?.find((item) => item.id === row.original.promptId);
-			return prompt ? (
+			const promptName = promptNameById.get(row.original.promptId);
+			return promptName ? (
 				<div className="flex flex-col text-left">
-					<span>{prompt.name}</span>
+					<span>{promptName}</span>
 				</div>
 			) : (
 				<span className="text-muted-foreground text-left">Unknown</span>
@@ -100,7 +98,12 @@ export const useTestcasesColumns = ({
 		...(!hidePromptColumn ? [promptColumn] : []),
 		{
 			id: "memoryKey",
-			accessorFn: (row) => row.memory?.key ?? null,
+			accessorFn: (row) => {
+				const testcaseWithMemory = row as TestCase & {
+					memory?: { key?: string | null } | null;
+				};
+				return testcaseWithMemory.memory?.key ?? null;
+			},
 			header: ({ column }) => <TableSortButton column={column} headerText="Memory Key" />,
 			cell: ({ row }) => {
 				const memoryKey = row.getValue("memoryKey") as string | null;

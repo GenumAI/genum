@@ -1,15 +1,12 @@
-import { Dispatch, SetStateAction, useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { ListFilter } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Prompt } from "@/pages/prompt/Prompts";
-import { TestStatus } from "@/types/TestСase";
-
-const truncateText = (text: string, maxLength: number = 18) => {
-	if (text.length <= maxLength) return text;
-	return text.slice(0, maxLength) + "...";
-};
+import type { Prompt } from "@/pages/prompt/Prompts";
+import type { TestStatus } from "@/types/TestСase";
+import { testcaseStatusOptions, truncateText } from "./utils/testcases.utils";
 
 export type FilterState = {
 	prompts?: number[];
@@ -22,24 +19,6 @@ type TestCasesFilterProps = {
 	setFilterState: Dispatch<SetStateAction<FilterState>>;
 };
 
-const testOptions: {
-	value: TestStatus;
-	label: string;
-}[] = [
-	{
-		value: "OK",
-		label: "Passed",
-	},
-	{
-		value: "NOK",
-		label: "Failed",
-	},
-	{
-		value: "NEED_RUN",
-		label: "Need run",
-	},
-];
-
 const TestCasesFilter = ({ prompts, filterState, setFilterState }: TestCasesFilterProps) => {
 	const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -51,35 +30,39 @@ const TestCasesFilter = ({ prompts, filterState, setFilterState }: TestCasesFilt
 		}
 	}, [filtersOpen, filterState]);
 
-	const toggleArrayValue = (
-		value: number | TestStatus,
-		arrayName: "prompts" | "testcasesStatus",
-	) => {
-		const currentArray = [...(tempFilters[arrayName] || [])];
-		if (currentArray.includes(value)) {
-			setTempFilters({
-				...tempFilters,
-				[arrayName]: currentArray.filter((v) => v !== value),
-			});
-		} else {
-			setTempFilters({
-				...tempFilters,
-				[arrayName]: [...currentArray, value],
-			});
-		}
-	};
+	const toggleArrayValue = useCallback(
+		(value: number | TestStatus, arrayName: "prompts" | "testcasesStatus") => {
+			setTempFilters((prevState) => {
+				const currentArray = [...(prevState[arrayName] || [])];
+				const nextArray = currentArray.includes(value)
+					? currentArray.filter((item) => item !== value)
+					: [...currentArray, value];
 
-	const resetFilters = () => {
+				return {
+					...prevState,
+					[arrayName]: nextArray,
+				};
+			});
+		},
+		[],
+	);
+
+	const resetFilters = useCallback(() => {
 		setTempFilters({
 			prompts: [],
 			testcasesStatus: [],
 		});
-	};
+	}, []);
 
-	const applyFilters = () => {
+	const applyFilters = useCallback(() => {
 		setFilterState({ ...tempFilters });
 		setFiltersOpen(false);
-	};
+	}, [setFilterState, tempFilters]);
+
+	const selectedPromptIds = useMemo(
+		() => new Set<number>(tempFilters.prompts ?? []),
+		[tempFilters.prompts],
+	);
 	return (
 		<Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
 			<PopoverTrigger asChild>
@@ -98,19 +81,17 @@ const TestCasesFilter = ({ prompts, filterState, setFilterState }: TestCasesFilt
 							Testcases Status
 						</span>
 						<div className="grid gap-2">
-							{testOptions.map(({ value, label }) => (
-								<label
-									key={value}
-									className="flex items-center space-x-2 cursor-pointer"
-								>
+							{testcaseStatusOptions.map(({ value, label }) => (
+								<div key={value} className="flex items-center space-x-2 cursor-pointer">
 									<Checkbox
 										checked={tempFilters.testcasesStatus.includes(value)}
 										onCheckedChange={() =>
 											toggleArrayValue(value, "testcasesStatus")
 										}
+										aria-label={label}
 									/>
 									<span className="text-sm break-all">{label}</span>
-								</label>
+								</div>
 							))}
 						</div>
 					</div>
@@ -124,10 +105,11 @@ const TestCasesFilter = ({ prompts, filterState, setFilterState }: TestCasesFilt
 								{prompts.map((item) => (
 									<div key={item.id} className="flex items-center space-x-2">
 										<Checkbox
-											checked={tempFilters.prompts!.includes(item.id)}
+											checked={selectedPromptIds.has(item.id)}
 											onCheckedChange={() =>
 												toggleArrayValue(item.id, "prompts")
 											}
+											aria-label={item.name}
 										/>
 										<span className="text-sm break-all" title={item.name}>
 											{truncateText(item.name)}
@@ -153,4 +135,4 @@ const TestCasesFilter = ({ prompts, filterState, setFilterState }: TestCasesFilt
 	);
 };
 
-export default TestCasesFilter;
+export default memo(TestCasesFilter);
