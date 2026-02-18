@@ -34,7 +34,8 @@ export interface TestCase {
 	assertionThoughts: string;
 	createdAt: string;
 	updatedAt: string;
-	memory: Memory | null;
+	assertionType: "AI" | "STRICT";
+	assertionValue: string;
 	files?: TestCaseFile[];
 }
 
