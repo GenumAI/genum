@@ -1,6 +1,6 @@
-import { apiClient, ApiRequestConfig } from "../client";
-import { TestCase, TestCaseResponse } from "@/types/TestСase";
-import { PromptResponse } from "@/hooks/useRunPrompt";
+import { apiClient } from "../client";
+import type { ApiRequestConfig } from "../client";
+import type { TestCase, TestCaseResponse } from "@/types/TestСase";
 
 // ============================================================================
 // Types
@@ -33,6 +33,22 @@ export interface RunTestcaseData {
 	memoryId?: number;
 	question?: string;
 	files?: string[];
+}
+
+export interface RunTestcaseResponse {
+	answer: string;
+	tokens: {
+		prompt: number;
+		completion: number;
+		total: number;
+	};
+	response_time_ms: number;
+	cost: {
+		prompt: number;
+		completion: number;
+		total: number;
+	};
+	testcase: TestCase;
 }
 
 // ============================================================================
@@ -103,8 +119,8 @@ export const testcasesApi = {
 		testcaseId: number | string,
 		data?: RunTestcaseData,
 		config?: ApiRequestConfig,
-	): Promise<TestCase> => {
-		const response = await apiClient.post<TestCase>(
+	): Promise<RunTestcaseResponse> => {
+		const response = await apiClient.post<RunTestcaseResponse>(
 			`/testcases/${testcaseId}/run`,
 			data,
 			config,
