@@ -11,6 +11,8 @@ export interface Model {
 	description: string;
 	createdAt: string;
 	updatedAt: string;
+	/** True when the model is disabled for the current organization but still assigned to this prompt. */
+	isDisabled?: boolean;
 }
 
 interface ModelParameter {

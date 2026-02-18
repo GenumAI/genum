@@ -102,15 +102,25 @@ export function useModelsSettings({
 	const { control, watch, setValue, getValues, reset } = form;
 	const responseFormat = watch("responseFormat");
 
+	// If the prompt's current model was disabled after being assigned, it won't appear in the
+	// available models list. Inject it back so the selector can still display it (with a warning).
+	const effectiveModels = useMemo((): Model[] => {
+		const base = (models as Model[]) ?? [];
+		if (!prompt?.languageModel) return base;
+		const alreadyPresent = base.some((m) => m.id === prompt.languageModel.id);
+		if (alreadyPresent) return base;
+		return [...base, { ...prompt.languageModel, isDisabled: true }];
+	}, [models, prompt?.languageModel]);
+
 	// Computed values
-	const currentModel = models?.find((model) => model.name === selectedModelName);
+	const currentModel = effectiveModels.find((model) => model.name === selectedModelName);
 	const activeModelConfig = currentModelConfig || modelConfig;
 
 	const isCurrentModelReasoning = Boolean(activeModelConfig?.parameters?.reasoning_effort);
 
 	const isDataReady = useMemo(() => {
-		return !!(prompt && models && models.length > 0);
-	}, [prompt, models]);
+		return !!(prompt && effectiveModels.length > 0);
+	}, [prompt, effectiveModels]);
 
 	const isFormValid = useMemo(() => {
 		if (!prompt?.languageModel) {
@@ -120,9 +130,8 @@ export function useModelsSettings({
 	}, [selectedModelName, selectedModelId, prompt?.languageModel]);
 
 	const groupedModels = useMemo(() => {
-		if (!models) return {};
-		return groupModelsByVendor(models);
-	}, [models]);
+		return groupModelsByVendor(effectiveModels);
+	}, [effectiveModels]);
 
 	const getResponseFormatOptions = useMemo(() => {
 		const configOptions = activeModelConfig?.parameters.response_format?.allowed || ["text"];
@@ -210,8 +219,17 @@ export function useModelsSettings({
 	// Model change handler
 	const handleModelChange = useCallback(
 		async (value: string) => {
-			const model = models?.find((m) => m.name === value);
+			const model = effectiveModels.find((m) => m.name === value);
 			if (!model || !promptId || isUpdatingModel) {
+				return;
+			}
+			if (model.isDisabled) {
+				toast({
+					title: "Model disabled",
+					description:
+						"This model is disabled for your organization. Please contact your administrator.",
+					variant: "destructive",
+				});
 				return;
 			}
 
@@ -318,7 +336,7 @@ export function useModelsSettings({
 			}
 		},
 		[
-			models,
+			effectiveModels,
 			promptId,
 			isUpdatingModel,
 			debouncedUpdateSettings,
@@ -693,6 +711,7 @@ export function useModelsSettings({
 		forceRenderKey,
 
 		// Model data
+		effectiveModels,
 		selectedModelName,
 		selectedModelId,
 		currentModel,

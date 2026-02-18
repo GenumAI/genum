@@ -27,6 +27,9 @@ export const ModelSelector = memo(
 		disabled,
 		control,
 	}: ModelSelectorProps) => {
+		const selectedModel = models?.find((m) => m.name === selectedModelName);
+		const isSelectedDisabled = selectedModel?.isDisabled === true;
+
 		return (
 			<FormField
 				control={control}
@@ -64,6 +67,7 @@ export const ModelSelector = memo(
 							}}
 							renderOption={({ option, isSelected, onSelect }) => {
 								const model = models?.find((m) => m.name === option.value);
+								const isModelDisabled = model?.isDisabled === true;
 								const label =
 									option.label && option.label.length > 40
 										? `${option.label.slice(0, 40)}…`
@@ -72,26 +76,44 @@ export const ModelSelector = memo(
 									<Tooltip key={option.value}>
 										<TooltipTrigger asChild>
 											<div
-												onClick={onSelect}
+												onClick={isModelDisabled ? undefined : onSelect}
 												onKeyDown={(e) => {
-													if (e.key === "Enter" || e.key === " ") {
+													if (
+														!isModelDisabled &&
+														(e.key === "Enter" || e.key === " ")
+													) {
 														onSelect();
 													}
 												}}
-												className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-muted"
+												className={`flex items-center gap-2 px-2 py-1.5 text-sm ${
+													isModelDisabled
+														? "cursor-not-allowed opacity-50"
+														: "cursor-pointer hover:bg-muted"
+												}`}
 												role="option"
 												aria-selected={isSelected}
-												tabIndex={0}
+												aria-disabled={isModelDisabled}
+												tabIndex={isModelDisabled ? -1 : 0}
 											>
 												<span>{label}</span>
+												{isModelDisabled && (
+													<span className="ml-auto text-xs text-amber-500 font-medium shrink-0">
+														Disabled
+													</span>
+												)}
 											</div>
 										</TooltipTrigger>
-										{model && (
-											<TooltipContent side="right" align="start">
-												<TooltipArrow />
-												<ModelTooltipContent model={model} />
-											</TooltipContent>
-										)}
+										<TooltipContent side="right" align="start">
+											<TooltipArrow />
+											{isModelDisabled ? (
+												<p className="text-xs max-w-[200px]">
+													This model is disabled for your organization.
+													Please select a different model.
+												</p>
+											) : (
+												model && <ModelTooltipContent model={model} />
+											)}
+										</TooltipContent>
 									</Tooltip>
 								);
 							}}
@@ -109,7 +131,11 @@ export const ModelSelector = memo(
 									disabled={disabled}
 									selectedValue={selectedValue}
 									setIsPopoverOpen={setIsPopoverOpen}
-									className={`mt-1 text-[14px] dark:border-[#3C3D3F] h-9 ${!selectedModelName ? "border-red-500" : ""}`}
+									className={`mt-1 text-[14px] dark:border-[#3C3D3F] h-9 ${
+										!selectedModelName || isSelectedDisabled
+											? "border-amber-500"
+											: ""
+									}`}
 								/>
 							)}
 						</InputSelect>
@@ -117,6 +143,12 @@ export const ModelSelector = memo(
 						{!selectedModelName && (
 							<p className="text-[12px] text-red-500">
 								Please select a model before running the prompt
+							</p>
+						)}
+						{isSelectedDisabled && (
+							<p className="text-[12px] text-amber-500">
+								This model is disabled for your organization. Please select a
+								different model.
 							</p>
 						)}
 					</FormItem>

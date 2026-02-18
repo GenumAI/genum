@@ -26,6 +26,7 @@ const ModelsSettings = ({
 		isDataReady,
 		loading,
 		forceRenderKey,
+		effectiveModels,
 		selectedModelName,
 		selectedModelId,
 		activeModelConfig,
@@ -105,9 +106,9 @@ const ModelsSettings = ({
 			<Form {...form}>
 				<form className="flex flex-col gap-2">
 					<div className="flex flex-col gap-2">
-						<ModelSelector
-							models={models}
-							groupedModels={groupedModels}
+					<ModelSelector
+						models={effectiveModels}
+						groupedModels={groupedModels}
 							selectedModelName={selectedModelName}
 							onModelChange={handleModelChange}
 							disabled={isUpdatingModel || loading}
