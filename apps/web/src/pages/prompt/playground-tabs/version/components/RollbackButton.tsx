@@ -12,18 +12,26 @@ import { toast } from "@/hooks/useToast";
 import { useState } from "react";
 import { promptApi } from "@/api/prompt";
 import { ArrowBendUpLeftIcon } from "@phosphor-icons/react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+	VERSIONS_QUERY_KEY,
+	PROMPT_COMMITTED_QUERY_KEY,
+} from "../hooks/useVersionsData";
 
 export const RollBackButton = () => {
 	const { isOn, onToggle, offToggle } = useToggle();
 	const [showSuccess, setShowSuccess] = useState(false);
 	const [pending, setPending] = useState(false);
 	const params = useParams();
+	const queryClient = useQueryClient();
 
 	const handleRollback = async () => {
 		if (!params.id || !params.versionId) return;
 		setPending(true);
 		try {
 			await promptApi.rollbackVersion(params.id, params.versionId);
+			queryClient.invalidateQueries({ queryKey: [...VERSIONS_QUERY_KEY, params.id] });
+			queryClient.invalidateQueries({ queryKey: [...PROMPT_COMMITTED_QUERY_KEY, params.id] });
 			setShowSuccess(true);
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : "Something went wrong";

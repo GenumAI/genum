@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { DateRange } from "react-day-picker";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DateRange } from "react-day-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,12 @@ import { DateRangePopoverField } from "@/components/popovers/DateRangePopoverFie
 import { ListFilter } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { addDays, isSameDay } from "date-fns";
+import {
+	type RangeTab,
+	getDatePresets,
+	getTabByRange,
+	isPresetTab,
+} from "../utils/logsFilterUtils";
 
 export interface LogsFilterState {
 	dateRange?: DateRange;
@@ -44,46 +49,141 @@ export function LogsFilter({
 	queryInput,
 	onQueryChange,
 }: LogsFilterProps) {
-	const [tab, setTab] = useState<"day" | "week" | "month" | "custom">("month");
+	const today = useMemo(() => new Date(), []);
+	const presets = useMemo(() => getDatePresets(today), [today]);
+
+	const getTabByRangeForFilter = useCallback(
+		(range?: DateRange): RangeTab => {
+			return getTabByRange(range, presets);
+		},
+		[presets],
+	);
+
+	const [tab, setTab] = useState<RangeTab>(() => getTabByRangeForFilter(filter.dateRange));
 	const [customDate, setCustomDate] = useState<DateRange | undefined>(filter.dateRange);
 	const dateRangeRef = useRef<HTMLDivElement>(null);
 
-	const today = new Date();
-	const presets = {
-		day: { from: addDays(today, -1), to: today },
-		week: { from: addDays(today, -7), to: today },
-		month: { from: addDays(today, -30), to: today },
-	};
-
-	function getTabByRange(range?: DateRange): "day" | "week" | "month" | "custom" {
-		if (!range?.from || !range?.to) return "custom";
-		if (isSameDay(range.from, presets.day.from) && isSameDay(range.to, presets.day.to))
-			return "day";
-		if (isSameDay(range.from, presets.week.from) && isSameDay(range.to, presets.week.to))
-			return "week";
-		if (isSameDay(range.from, presets.month.from) && isSameDay(range.to, presets.month.to))
-			return "month";
-		return "custom";
-	}
-
-	const handleCustomApply = (range: DateRange | undefined) => {
-		setFilter({ ...filter, dateRange: range });
-		const detectedTab = getTabByRange(range);
+	useEffect(() => {
+		const detectedTab = getTabByRangeForFilter(filter.dateRange);
 		setTab(detectedTab);
-		if (detectedTab === "custom") setCustomDate(range);
-	};
-
-	const handleTabChange = (value: string) => {
-		setTab(value as any);
-		if (value === "custom") {
-			if (customDate?.from && customDate?.to) {
-				setFilter({ ...filter, dateRange: customDate });
-			}
-			dateRangeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-		} else {
-			setFilter({ ...filter, dateRange: presets[value as keyof typeof presets] });
+		if (detectedTab === "custom") {
+			setCustomDate(filter.dateRange);
 		}
-	};
+	}, [filter.dateRange, getTabByRangeForFilter]);
+
+	const updateFilter = useCallback(
+		(patch: Partial<LogsFilterState>) => {
+			setFilter({
+				...filter,
+				...patch,
+			});
+		},
+		[filter, setFilter],
+	);
+
+	const handleCustomApply = useCallback(
+		(range: DateRange | undefined) => {
+			updateFilter({
+				dateRange: range,
+			});
+			const detectedTab = getTabByRangeForFilter(range);
+			setTab(detectedTab);
+			if (detectedTab === "custom") setCustomDate(range);
+		},
+		[getTabByRangeForFilter, updateFilter],
+	);
+
+	const handleTabChange = useCallback(
+		(value: string) => {
+			if (value === "custom") {
+				setTab("custom");
+				if (customDate?.from && customDate?.to) {
+					updateFilter({
+						dateRange: customDate,
+					});
+				}
+				dateRangeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+				return;
+			}
+
+			if (!isPresetTab(value)) return;
+			setTab(value);
+			updateFilter({
+				dateRange: presets[value],
+			});
+		},
+		[customDate, presets, updateFilter],
+	);
+
+	const handleQueryInputChange = useCallback(
+		(value: string) => {
+			if (onQueryChange) {
+				onQueryChange(value);
+				return;
+			}
+
+			updateFilter({
+				query: value,
+			});
+		},
+		[onQueryChange, updateFilter],
+	);
+
+	const handleLogLevelChange = useCallback(
+		(value: string) => {
+			updateFilter({
+				logLevel: value === "all" ? undefined : value,
+			});
+		},
+		[updateFilter],
+	);
+
+	const handleSourceChange = useCallback(
+		(value: string) => {
+			updateFilter({
+				source: value === "all" ? undefined : value,
+			});
+		},
+		[updateFilter],
+	);
+
+	const handlePromptChange = useCallback(
+		(value: string) => {
+			updateFilter({
+				promptId: value === "all" ? undefined : Number(value),
+			});
+		},
+		[updateFilter],
+	);
+
+	const handleReset = useCallback(() => {
+		updateFilter({
+			logLevel: undefined,
+			model: undefined,
+			source: undefined,
+			promptId: undefined,
+			query: showQueryField ? undefined : filter.query,
+		});
+		if (showQueryField && onQueryChange) {
+			onQueryChange("");
+		}
+	}, [filter.query, onQueryChange, showQueryField, updateFilter]);
+
+	const queryValue = queryInput !== undefined ? queryInput : filter.query || "";
+
+	const promptValue = filter.promptId ? String(filter.promptId) : "all";
+	const logLevelValue = filter.logLevel || "all";
+	const sourceValue = filter.source || "all";
+
+	const hasPrompts = promptNames.length > 0;
+
+	const promptOptions = useMemo(() => {
+		return promptNames.map((prompt) => (
+			<SelectItem key={prompt.id} value={String(prompt.id)}>
+				{prompt.name}
+			</SelectItem>
+		));
+	}, [promptNames]);
 
 	return (
 		<div className="flex items-end gap-4">
@@ -106,14 +206,8 @@ export function LogsFilter({
 				{showQueryField && (
 					<Input
 						placeholder="Search logs..."
-						value={queryInput !== undefined ? queryInput : filter.query || ""}
-						onChange={(e) => {
-							if (onQueryChange) {
-								onQueryChange(e.target.value);
-							} else {
-								setFilter({ ...filter, query: e.target.value });
-							}
-						}}
+						value={queryValue}
+						onChange={(e) => handleQueryInputChange(e.target.value)}
 						className="w-[200px]"
 					/>
 				)}
@@ -136,17 +230,12 @@ export function LogsFilter({
 								</h3>
 
 								<div>
-									<label className="block text-sm font-medium mb-1 text-muted-foreground">
+									<p className="block text-sm font-medium mb-1 text-muted-foreground">
 										Log Level
-									</label>
+									</p>
 									<Select
-										value={filter.logLevel || "all"}
-										onValueChange={(value) =>
-											setFilter({
-												...filter,
-												logLevel: value === "all" ? undefined : value,
-											})
-										}
+										value={logLevelValue}
+										onValueChange={handleLogLevelChange}
 									>
 										<SelectTrigger className="w-full">
 											<SelectValue placeholder="Log Level" />
@@ -154,8 +243,6 @@ export function LogsFilter({
 										<SelectContent>
 											<SelectItem value="all">All levels</SelectItem>
 											<SelectItem value="SUCCESS">Success</SelectItem>
-											<SelectItem value="INFO">Info</SelectItem>
-											<SelectItem value="WARN">Warning</SelectItem>
 											<SelectItem value="ERROR">Error</SelectItem>
 										</SelectContent>
 									</Select>
@@ -164,17 +251,12 @@ export function LogsFilter({
 								<Separator className="my-2" />
 
 								<div>
-									<label className="block text-sm font-medium mb-1 text-muted-foreground">
+									<p className="block text-sm font-medium mb-1 text-muted-foreground">
 										Source
-									</label>
+									</p>
 									<Select
-										value={filter.source || "all"}
-										onValueChange={(value) =>
-											setFilter({
-												...filter,
-												source: value === "all" ? undefined : value,
-											})
-										}
+										value={sourceValue}
+										onValueChange={handleSourceChange}
 									>
 										<SelectTrigger className="w-full">
 											<SelectValue placeholder="Choose a Source" />
@@ -188,42 +270,23 @@ export function LogsFilter({
 									</Select>
 								</div>
 
-								{promptNames.length > 0 && (
+								{hasPrompts && (
 									<>
 										<Separator className="my-2" />
 										<div>
-											<label className="block text-sm font-medium mb-1 text-muted-foreground">
+											<p className="block text-sm font-medium mb-1 text-muted-foreground">
 												Prompt
-											</label>
+											</p>
 											<Select
-												value={
-													filter.promptId
-														? String(filter.promptId)
-														: "all"
-												}
-												onValueChange={(value) =>
-													setFilter({
-														...filter,
-														promptId:
-															value === "all"
-																? undefined
-																: Number(value),
-													})
-												}
+												value={promptValue}
+												onValueChange={handlePromptChange}
 											>
 												<SelectTrigger className="w-full">
 													<SelectValue placeholder="Choose a prompt" />
 												</SelectTrigger>
 												<SelectContent className="max-h-[200px]">
 													<SelectItem value="all">All prompts</SelectItem>
-													{promptNames.map((prompt) => (
-														<SelectItem
-															key={prompt.id}
-															value={String(prompt.id)}
-														>
-															{prompt.name}
-														</SelectItem>
-													))}
+													{promptOptions}
 												</SelectContent>
 											</Select>
 										</div>
@@ -233,19 +296,7 @@ export function LogsFilter({
 								<Button
 									variant="secondary"
 									className="w-full mt-2"
-									onClick={() => {
-										setFilter({
-											...filter,
-											logLevel: undefined,
-											model: undefined,
-											source: undefined,
-											promptId: undefined,
-											query: showQueryField ? undefined : filter.query,
-										});
-										if (showQueryField && onQueryChange) {
-											onQueryChange("");
-										}
-									}}
+									onClick={handleReset}
 								>
 									Reset
 								</Button>

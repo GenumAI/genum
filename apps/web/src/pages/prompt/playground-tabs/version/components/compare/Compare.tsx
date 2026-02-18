@@ -9,12 +9,7 @@ import { formatUserLocalDateTime } from "@/lib/formatUserLocalDateTime";
 
 import { useCompareData } from "./hooks/useCompareData";
 import { CompareSection } from "./components/CompareSection";
-import {
-	AccordionKeys,
-	getByPath,
-	formatCompareValue,
-	getChangedLinesStats,
-} from "./utils";
+import { AccordionKeys, getByPath, formatCompareValue, getChangedLinesStats } from "./utils";
 import { getOrgId, getProjectId } from "@/api/client";
 
 const Compare = () => {
@@ -27,16 +22,13 @@ const Compare = () => {
 	const commitA = searchParams.get("commitA") || "";
 	const commitB = searchParams.get("commitB") || "";
 
-	const {
-		dataA,
-		dataB,
-		branchesLoading,
-		sortedVersions,
-		versions,
-	} = useCompareData(id, commitA, commitB);
+	const { dataA, dataB, sortedVersions, versions } = useCompareData(id, commitA, commitB);
 
 	const initialOpenState = useMemo(() => {
-		const entries = Object.entries(AccordionKeys).map(([, value], index) => [value, index === 0]);
+		const entries = Object.entries(AccordionKeys).map(([, value], index) => [
+			value,
+			index === 0,
+		]);
 		return Object.fromEntries(entries);
 	}, []);
 
@@ -59,28 +51,26 @@ const Compare = () => {
 		};
 	};
 
-	if (branchesLoading) return <p className="p-6">Loading...</p>;
-
 	const renderCompareSections = () => {
 		if (!dataA || !dataB) return null;
 
 		return (
 			<div className="border rounded-lg px-6 py-3 flex-1 overflow-y-auto mb-20">
 				{Object.entries(AccordionKeys).map(([title, key]) => {
-					const leftRaw = getByPath(
+					const leftSource =
 						!commitA || commitA === "current"
-							? dataA?.prompt || dataA
-							: dataA?.version || dataA,
-						key,
-					);
-					const rightRaw = getByPath(
-						commitB === "current" ? dataB?.prompt || dataB : dataB?.version || dataB,
-						key,
-					);
+							? (dataA && "prompt" in dataA ? dataA.prompt : dataA)
+							: (dataA && "version" in dataA ? dataA.version : dataA);
+					const rightSource =
+						!commitB || commitB === "current"
+							? (dataB && "prompt" in dataB ? dataB.prompt : dataB)
+							: (dataB && "version" in dataB ? dataB.version : dataB);
+
+					const leftRaw = getByPath(leftSource, key);
+					const rightRaw = getByPath(rightSource, key);
 
 					if (!leftRaw && !rightRaw) return null;
 
-					// Special check for empty tools
 					if (key === AccordionKeys.Tools) {
 						if (
 							Array.isArray(leftRaw) &&

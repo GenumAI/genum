@@ -2,8 +2,8 @@ import { useState, useCallback } from "react";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import type { TestcasePayload } from "@/hooks/useCreateTestcase";
 import { useToast } from "@/hooks/useToast";
-import { usePlaygroundTestcase } from "@/stores/playground.store";
 import { useQueryClient } from "@tanstack/react-query";
+import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
 
 interface UseTestcaseActionsProps {
 	promptId: number | undefined;
@@ -14,7 +14,8 @@ interface UseTestcaseActionsProps {
 export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }: UseTestcaseActionsProps) => {
 	const [isTestcaseLoading, setIsTestcaseLoading] = useState(false);
 	const { toast } = useToast();
-	const { selectedMemoryId } = usePlaygroundTestcase();
+	const { selection } = useMemorySelection(promptId, null);
+	const selectedMemoryId = selection.selectedMemoryId;
 	const queryClient = useQueryClient();
 
 	const createTestcase = useCallback(
