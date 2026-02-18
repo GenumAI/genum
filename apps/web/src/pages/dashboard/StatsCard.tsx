@@ -17,24 +17,27 @@ export function StatsCards({ data }: { data: any }) {
 
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-			<StatsCardWithLineChart
-				title="Total Requests"
-				value={data.total_requests.toString()}
-				subtitle="Runs made"
-				data={requestsChartData}
-			/>
-			<StatsCardWithLineChart
-				title="Total Tokens"
-				value={data.total_tokens_sum.toLocaleString()}
-				subtitle="Tokens used"
-				data={tokensChartData}
-			/>
-			<StatsCardWithLineChart
-				title="Total Cost"
-				value={`$${data.total_cost.toFixed(2)}`}
-				subtitle="Usage cost"
-				data={costChartData}
-			/>
+		<StatsCardWithLineChart
+			title="Total Requests"
+			label="Requests"
+			value={data.total_requests.toString()}
+			subtitle="Runs made"
+			data={requestsChartData}
+		/>
+		<StatsCardWithLineChart
+			title="Total Tokens"
+			label="Tokens"
+			value={data.total_tokens_sum.toLocaleString()}
+			subtitle="Tokens used"
+			data={tokensChartData}
+		/>
+		<StatsCardWithLineChart
+			title="Total Cost"
+			label="Cost"
+			value={`$${data.total_cost.toFixed(2)}`}
+			subtitle="Usage cost"
+			data={costChartData}
+		/>
 		</div>
 	);
 }

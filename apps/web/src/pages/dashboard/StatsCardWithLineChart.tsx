@@ -15,14 +15,8 @@ interface Props {
 	value: string;
 	subtitle?: string;
 	data: { date: string; value: number }[];
+	label?: string;
 }
-
-const chartConfig: ChartConfig = {
-	value: {
-		label: "Value",
-		color: "#6C98F2",
-	},
-};
 
 function getTextWidth(text: string, font = "12px Arial") {
 	const canvas = document.createElement("canvas");
@@ -32,7 +26,17 @@ function getTextWidth(text: string, font = "12px Arial") {
 	return context.measureText(text).width;
 }
 
-export function StatsCardWithLineChart({ title, value, subtitle, data }: Props) {
+export function StatsCardWithLineChart({ title, value, subtitle, data, label }: Props) {
+	const chartConfig: ChartConfig = useMemo(
+		() => ({
+			value: {
+				label: label ?? title,
+				color: "#6C98F2",
+			},
+		}),
+		[label, title],
+	);
+
 	const leftMargin = useMemo(() => {
 		const maxValue = Math.max(...data.map((d) => d.value));
 		const maxValueFormatted = maxValue.toLocaleString(undefined, { maximumFractionDigits: 5 });
