@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt";
-import { testcasesApi, TestcasesListResponse } from "@/api/testcases/testcases.api";
+import { testcasesApi } from "@/api/testcases/testcases.api";
 
 interface Testcase {
 	id: number;
@@ -13,14 +13,6 @@ interface Testcase {
 interface Prompt {
 	id: number;
 	name: string;
-}
-
-interface TestcasesData {
-	testcases: Testcase[];
-}
-
-interface PromptsData {
-	prompts: Prompt[];
 }
 
 interface ChartDataItem {
@@ -52,11 +44,12 @@ const useTestcasesGroupedByPrompt = (filteredPrompts?: PromptStats[]) => {
 		isLoading: testcasesLoading,
 		error: testcasesError,
 		refetch: refetchTestcases,
-	} = useQuery<TestcasesListResponse>({
-		queryKey: ["testcases", organizationId, projectId],
+	} = useQuery<Testcase[]>({
+		queryKey: ["testcases-list", organizationId, projectId],
 		enabled: !!organizationId && !!projectId,
 		queryFn: async () => {
-			return await testcasesApi.getTestcases();
+			const response = await testcasesApi.getTestcases();
+			return response.testcases ?? [];
 		},
 	});
 
@@ -64,20 +57,17 @@ const useTestcasesGroupedByPrompt = (filteredPrompts?: PromptStats[]) => {
 		data: promptsData,
 		isLoading: promptsLoading,
 		error: promptsError,
-	} = useQuery<PromptsData>({
-		queryKey: ["prompts", organizationId, projectId],
+	} = useQuery<Prompt[]>({
+		queryKey: ["prompts-list", organizationId, projectId],
 		enabled: !!organizationId && !!projectId,
 		queryFn: async () => {
-			return await promptApi.getPrompts();
+			const response = await promptApi.getPrompts();
+			return response.prompts ?? [];
 		},
 	});
 
 	const processedData = useMemo(() => {
-		if (
-			!testcasesData?.testcases ||
-			!Array.isArray(testcasesData.testcases) ||
-			!promptsData?.prompts
-		) {
+		if (!Array.isArray(testcasesData) || !Array.isArray(promptsData)) {
 			return [];
 		}
 
@@ -85,7 +75,7 @@ const useTestcasesGroupedByPrompt = (filteredPrompts?: PromptStats[]) => {
 			? new Set(filteredPrompts.map((p) => p.prompt_id))
 			: null;
 
-		const promptNamesMap = promptsData.prompts.reduce(
+		const promptNamesMap = promptsData.reduce(
 			(acc: Record<number, string>, prompt: Prompt) => {
 				acc[prompt.id] = prompt.name;
 				return acc;
@@ -93,7 +83,7 @@ const useTestcasesGroupedByPrompt = (filteredPrompts?: PromptStats[]) => {
 			{},
 		);
 
-		const groupedByPrompt = testcasesData.testcases.reduce(
+		const groupedByPrompt = testcasesData.reduce(
 			(acc: Record<number, ChartDataItem>, testcase: Testcase) => {
 				const promptId = testcase.promptId;
 

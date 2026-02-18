@@ -9,7 +9,7 @@ export function useProjectPrompts() {
 	const projectId = getProjectId();
 	const queryClient = useQueryClient();
 
-	const queryKey = ["prompts", orgId, projectId] as const;
+	const queryKey = ["prompts-list", orgId, projectId] as const;
 	const query = useQuery({
 		queryKey,
 		queryFn: async () => {
