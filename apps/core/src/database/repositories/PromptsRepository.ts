@@ -730,4 +730,17 @@ export class PromptsRepository {
 		});
 		return last?.id ?? 0;
 	}
+
+	public async getLanguageModelById(modelId: number) {
+		return await this.prisma.languageModel.findUnique({
+			where: { id: modelId },
+			include: {
+				apiKey: {
+					select: {
+						organizationId: true,
+					},
+				},
+			},
+		});
+	}
 }

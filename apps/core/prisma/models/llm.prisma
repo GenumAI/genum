@@ -27,8 +27,9 @@ model LanguageModel {
     // Example: { "temperature": { "enabled": true, "min": 0, "max": 2, "default": 0.7 }, ... }
     parametersConfig Json?
 
-    Prompts       Prompt[]
-    PromptVersion PromptVersion[]
+    Prompts                   Prompt[]
+    PromptVersion             PromptVersion[]
+    disabledInOrganizations   OrganizationDisabledModel[]
 
     // Global models: apiKeyId is null, unique by [vendor, name]
     // Org models: apiKeyId is set, unique by [apiKeyId, name]

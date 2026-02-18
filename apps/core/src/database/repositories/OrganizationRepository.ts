@@ -644,4 +644,145 @@ export class OrganizationRepository {
 			},
 		});
 	}
+
+	// ==================== Organization Models Management ====================
+
+	/**
+	 * Get all available models for an organization (excluding disabled ones)
+	 * Returns both global models and organization's custom models
+	 */
+	public async getAvailableModels(orgId: number) {
+		// Get all models (global + custom for this org)
+		const allModels = await this.prisma.languageModel.findMany({
+			where: {
+				OR: [
+					{ apiKeyId: null }, // Global models
+					{ apiKey: { organizationId: orgId } }, // Custom models for this org
+				],
+			},
+			orderBy: [{ vendor: "asc" }, { name: "asc" }],
+		});
+
+		// Get disabled models for this organization
+		const disabledModels = await this.prisma.organizationDisabledModel.findMany({
+			where: { organizationId: orgId },
+			select: { modelId: true },
+		});
+
+		const disabledIds = new Set(disabledModels.map((d) => d.modelId));
+
+		// Filter out disabled models
+		return allModels.filter((model) => !disabledIds.has(model.id));
+	}
+
+	/**
+	 * Get all models (including disabled status) for organization settings page
+	 */
+	public async getAllModelsWithStatus(orgId: number) {
+		// Get all models (global + custom for this org)
+		const allModels = await this.prisma.languageModel.findMany({
+			where: {
+				OR: [
+					{ apiKeyId: null }, // Global models
+					{ apiKey: { organizationId: orgId } }, // Custom models for this org
+				],
+			},
+			orderBy: [{ vendor: "asc" }, { name: "asc" }],
+		});
+
+		// Get disabled models for this organization
+		const disabledModels = await this.prisma.organizationDisabledModel.findMany({
+			where: { organizationId: orgId },
+			select: { modelId: true },
+		});
+
+		const disabledIds = new Set(disabledModels.map((d) => d.modelId));
+
+		// Add enabled/disabled status to each model
+		return allModels.map((model) => ({
+			...model,
+			enabled: !disabledIds.has(model.id),
+		}));
+	}
+
+	/**
+	 * Disable a model for an organization
+	 */
+	public async disableModel(orgId: number, modelId: number) {
+		return await this.prisma.organizationDisabledModel.create({
+			data: {
+				organizationId: orgId,
+				modelId,
+			},
+		});
+	}
+
+	/**
+	 * Enable a model for an organization (remove from disabled list)
+	 */
+	public async enableModel(orgId: number, modelId: number) {
+		return await this.prisma.organizationDisabledModel.delete({
+			where: {
+				organizationId_modelId: {
+					organizationId: orgId,
+					modelId,
+				},
+			},
+		});
+	}
+
+	/**
+	 * Check if a model is disabled for an organization
+	 */
+	public async isModelDisabled(orgId: number, modelId: number): Promise<boolean> {
+		const disabled = await this.prisma.organizationDisabledModel.findUnique({
+			where: {
+				organizationId_modelId: {
+					organizationId: orgId,
+					modelId,
+				},
+			},
+		});
+
+		return disabled !== null;
+	}
+
+	/**
+	 * Get usage info for a model in an organization
+	 * Returns counts of prompts and commits using this model
+	 */
+	public async getModelUsageInfo(orgId: number, modelId: number) {
+		// Get all projects in the organization
+		const projects = await this.prisma.project.findMany({
+			where: { organizationId: orgId },
+			select: { id: true },
+		});
+
+		const projectIds = projects.map((p) => p.id);
+
+		// Count prompts using this model
+		const promptCount = await this.prisma.prompt.count({
+			where: {
+				projectId: { in: projectIds },
+				languageModelId: modelId,
+			},
+		});
+
+		// Count prompt versions (commits) using this model
+		const commitCount = await this.prisma.promptVersion.count({
+			where: {
+				branch: {
+					prompt: {
+						projectId: { in: projectIds },
+					},
+				},
+				languageModelId: modelId,
+			},
+		});
+
+		return {
+			promptCount,
+			commitCount,
+		};
+	}
 }

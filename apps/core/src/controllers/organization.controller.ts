@@ -12,6 +12,7 @@ import {
 	CustomProviderApiKeyCreateSchema,
 	TestProviderConnectionSchema,
 	UpdateCustomModelSchema,
+	ToggleModelSchema,
 } from "../services/validate";
 import { getOrganizationDailyUsageStats } from "../services/logger/logger";
 import {
@@ -572,5 +573,53 @@ export class OrganizationController {
 		}
 
 		res.status(200).json({ model: updatedModel });
+	}
+
+	// ==================== Organization Models Management ====================
+
+	/**
+	 * Get all models with enabled/disabled status for organization
+	 * GET /api/organization/models
+	 */
+	public async getOrganizationModels(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+
+		const models = await this.organizationService.getOrganizationModels(metadata.orgID);
+
+		res.status(200).json({ models });
+	}
+
+	/**
+	 * Toggle model enabled/disabled status
+	 * PATCH /api/organization/models/:id/toggle
+	 */
+	public async toggleOrganizationModel(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const modelId = numberSchema.parse(req.params.id);
+		const { enabled } = ToggleModelSchema.parse(req.body);
+
+		try {
+			await this.organizationService.toggleModel(metadata.orgID, modelId, enabled);
+			res.status(200).json({ success: true, enabled });
+		} catch (error) {
+			if (error instanceof Error) {
+				res.status(400).json({ error: error.message });
+			} else {
+				throw error;
+			}
+		}
+	}
+
+	/**
+	 * Get model usage information
+	 * GET /api/organization/models/:id/usage
+	 */
+	public async getModelUsage(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const modelId = numberSchema.parse(req.params.id);
+
+		const usage = await this.organizationService.getModelUsage(metadata.orgID, modelId);
+
+		res.status(200).json({ usage });
 	}
 }

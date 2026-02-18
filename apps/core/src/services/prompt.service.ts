@@ -19,7 +19,8 @@ export class PromptService {
 	}
 
 	public async getModelsForOrganization(orgId: number) {
-		return await this.db.prompts.getModelsByOrganization(orgId);
+		// Use getAvailableModels to filter out disabled models
+		return await this.db.organization.getAvailableModels(orgId);
 	}
 
 	public async updateCommitedStatus(prompt: Prompt): Promise<Prompt> {

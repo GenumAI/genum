@@ -261,4 +261,49 @@ export class OrganizationService {
 			inviteUrl,
 		};
 	}
+
+	// ==================== Organization Models Management ====================
+
+	/**
+	 * Get all models with enabled/disabled status for organization
+	 */
+	public async getOrganizationModels(orgId: number) {
+		return await this.db.organization.getAllModelsWithStatus(orgId);
+	}
+
+	/**
+	 * Toggle model enabled/disabled status for organization
+	 */
+	public async toggleModel(orgId: number, modelId: number, enabled: boolean) {
+		// Check if model exists and is accessible to this organization
+		const model = await this.db.prompts.getLanguageModelById(modelId);
+		if (!model) {
+			throw new Error("Model not found");
+		}
+
+		// Check if it's a global model or belongs to this organization
+		const isGlobalModel = model.apiKeyId === null;
+		const isOrgModel = model.apiKey?.organizationId === orgId;
+
+		if (!isGlobalModel && !isOrgModel) {
+			throw new Error("Model not accessible to this organization");
+		}
+
+		if (enabled) {
+			// Enable: remove from disabled list
+			await this.db.organization.enableModel(orgId, modelId);
+		} else {
+			// Disable: add to disabled list
+			await this.db.organization.disableModel(orgId, modelId);
+		}
+
+		return { success: true };
+	}
+
+	/**
+	 * Get usage information for a model
+	 */
+	public async getModelUsage(orgId: number, modelId: number) {
+		return await this.db.organization.getModelUsageInfo(orgId, modelId);
+	}
 }

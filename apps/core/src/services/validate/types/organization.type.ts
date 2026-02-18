@@ -143,3 +143,16 @@ export const UpdateCustomModelSchema = z
 	.strict();
 
 export type UpdateCustomModelType = z.infer<typeof UpdateCustomModelSchema>;
+
+// ==================== Organization Models Management Schemas ====================
+
+/**
+ * Schema for toggling model enabled/disabled status
+ */
+export const ToggleModelSchema = z
+	.object({
+		enabled: z.boolean(),
+	})
+	.strict();
+
+export type ToggleModelType = z.infer<typeof ToggleModelSchema>;

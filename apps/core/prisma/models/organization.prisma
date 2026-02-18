@@ -5,15 +5,16 @@ enum OrganizationRole {
 }
 
 model Organization {
-    id          Int                      @id @default(autoincrement())
-    name        String                   @db.VarChar(255)
-    description String?
-    personal    Boolean                  @default(true)
-    quota       OrganizationQuota?
-    members     OrganizationMember[]
-    projects    Project[]
-    invitations OrganizationInvitation[]
-    apiKeys     OrganizationApiKey[]
+    id             Int                          @id @default(autoincrement())
+    name           String                       @db.VarChar(255)
+    description    String?
+    personal       Boolean                      @default(true)
+    quota          OrganizationQuota?
+    members        OrganizationMember[]
+    projects       Project[]
+    invitations    OrganizationInvitation[]
+    apiKeys        OrganizationApiKey[]
+    disabledModels OrganizationDisabledModel[]
 }
 
 model OrganizationQuota {
@@ -70,4 +71,18 @@ model OrganizationApiKey {
 
     // Only one API key per vendor per organization
     @@unique([organizationId, vendor])
+}
+
+model OrganizationDisabledModel {
+    id             Int      @id @default(autoincrement())
+    organizationId Int
+    modelId        Int
+    disabledAt     DateTime @default(now()) @db.Timestamp(6)
+
+    organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    model        LanguageModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+    @@unique([organizationId, modelId])
+    @@index([organizationId])
+    @@index([modelId])
 }

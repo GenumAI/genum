@@ -155,6 +155,17 @@ export class PromptsController {
 
 		const prompt = await checkPromptAccess(id, metadata.projID);
 
+		if (
+			!(await ensureModelEnabledForOrg(
+				metadata.orgID,
+				prompt.languageModelId,
+				res,
+				"Cannot commit: This prompt uses a model that is disabled for your organization. Please change the model first.",
+			))
+		) {
+			return;
+		}
+
 		const version = await db.prompts.commit(id, commitMessage, metadata.userID);
 
 		// change prompt to commited
@@ -430,6 +441,10 @@ export class PromptsController {
 		const metadata = req.genumMeta.ids;
 
 		const prompt = await checkPromptAccess(promptId, metadata.projID);
+
+		if (!(await ensureModelEnabledForOrg(metadata.orgID, modelId, res))) {
+			return;
+		}
 
 		// Get the new model
 		const newModel = await db.prompts.getModelById(modelId);
@@ -846,4 +861,28 @@ function chatMessagesToHuman(messages: CanvasMessage[]): CanvasAgentMessage[] {
 		return true;
 	});
 	return filteredR;
+}
+
+/** Default error when model is disabled for the organization. */
+const MODEL_DISABLED_MESSAGE =
+	"This model is disabled for your organization. Please contact your administrator.";
+
+/**
+ * Ensures the given model is enabled for the organization.
+ * Sends 400 with error and returns false if disabled; returns true if enabled.
+ */
+async function ensureModelEnabledForOrg(
+	orgId: number,
+	modelId: number,
+	res: Response,
+	customMessage?: string,
+): Promise<boolean> {
+	const isDisabled = await db.organization.isModelDisabled(orgId, modelId);
+	if (isDisabled) {
+		res.status(400).json({
+			error: customMessage ?? MODEL_DISABLED_MESSAGE,
+		});
+		return false;
+	}
+	return true;
 }

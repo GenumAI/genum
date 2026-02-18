@@ -131,6 +131,23 @@ export function createOrganizationRouter(): Router {
 		asyncHandler(orgController.updateCustomModel.bind(orgController)),
 	);
 
+	// Organization models management
+	router.get(
+		"/models",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.getOrganizationModels.bind(orgController)),
+	);
+	router.patch(
+		"/models/:id/toggle",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.toggleOrganizationModel.bind(orgController)),
+	);
+	router.get(
+		"/models/:id/usage",
+		w.hasOrganizationRole(OrganizationRole.ADMIN),
+		asyncHandler(orgController.getModelUsage.bind(orgController)),
+	);
+
 	// Quota
 	router.get(
 		"/quota",
