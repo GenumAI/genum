@@ -81,6 +81,7 @@ export const navigation = {
 			title: "Settings",
 			icon: Settings,
 			url: "/settings/user/profile",
+			activePrefix: "/settings",
 		},
 	],
 	help: [

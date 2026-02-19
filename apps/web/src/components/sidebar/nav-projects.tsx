@@ -15,6 +15,7 @@ export function NavProjects({
 		title: string;
 		url: string;
 		icon?: LucideIcon;
+		activePrefix?: string;
 	}[];
 }) {
 	const location = useLocation();
@@ -39,7 +40,10 @@ export function NavProjects({
 
 					const fullUrl = isExternal ? item.url : `/${orgId}/${projectId}${item.url}`;
 
-					const isActive = !isExternal && pathname.startsWith(fullUrl);
+					const activeUrl = item.activePrefix
+					? `/${orgId}/${projectId}${item.activePrefix}`
+					: fullUrl;
+				const isActive = !isExternal && pathname.startsWith(activeUrl);
 
 					return (
 						<SidebarMenuItem key={item.title}>
