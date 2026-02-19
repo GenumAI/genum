@@ -10,6 +10,7 @@ import { runPrompt } from "@/ai/runner/run";
 import { SourceType } from "@/services/logger";
 import { PromptService } from "@/services/prompt.service";
 import type { FileInput } from "@/services/file.service";
+import { extractBearerToken } from "@/utils/http";
 
 export class ApiV1Controller {
 	private readonly promptService: PromptService;
@@ -20,14 +21,9 @@ export class ApiV1Controller {
 	}
 
 	private async verifyRequest(req: Request) {
-		const authHeader = req.headers.authorization;
-		if (!authHeader) {
-			throw new Error("Authorization header is missing");
-		}
-
-		const apiKey = authHeader.split(" ")[1];
+		const apiKey = extractBearerToken(req.headers.authorization);
 		if (!apiKey) {
-			throw new Error("Authorization header is missing");
+			throw new Error("Invalid or missing Authorization header. Expected: Bearer <token>");
 		}
 
 		const key = await db.project.getProjectApiKeyByToken(apiKey);
