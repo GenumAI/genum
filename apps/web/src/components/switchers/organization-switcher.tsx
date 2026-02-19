@@ -1,4 +1,4 @@
-import { ChevronsUpDown, Loader2, PlusCircle, Info } from "lucide-react";
+import { ChevronsUpDown, Loader2, PlusCircle, Info, Building2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -178,6 +178,9 @@ export function OrganizationSwitcher({
 		return null;
 	}
 
+	// If user has only 1 org and is not system user - hide org selector
+	const shouldShowOrgSelector = organizations.length > 1 || user?.isSystemUser;
+
 	const handleOrganizationSelect = (organizationId: string | number) => {
 		if (!organizationId) return;
 
@@ -225,69 +228,75 @@ export function OrganizationSwitcher({
 		setIsCreateDialogOpen(false);
 	};
 
-	const firstLetter = activeOrganization.name
-		.match(/[a-zA-Z]/g)
+	const orgInitials = activeOrganization.name
+		.match(/[\p{L}\d]/gu)
 		?.slice(0, 2)
 		.join("")
-		.toUpperCase();
+		.toUpperCase() || null;
 
 	return (
 		<>
 			<div className="flex items-center gap-1.5 group-data-[collapsible=icon]:hidden">
 				<div className="flex aspect-square w-[36px] h-[36px] shrink-0 border-2 border-[#f4f4f5] dark:border-[#27272a] items-center justify-center rounded-lg bg-sidebar-primary dark:bg-white dark:text-black text-sidebar-primary-foreground font-semibold text-[14px]">
-					{firstLetter}
+					{orgInitials ?? <Building2 className="h-4 w-4" />}
 				</div>
 
-				<div className="flex flex-col h-[32px] items-start group-data-[collapsible=icon]:hidden">
-					<DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-						<DropdownMenuTrigger asChild>
-							<SidebarMenuButton
-								size="sm"
-								className="dark:text-sidebar-foreground dark:hover:bg-[#18181b] data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground p-1 gap-0.5 h-[18px] text-[#3f3f46] hover:bg-[#e4e4e7] [&>svg]:size-3 w-auto"
-							>
-								<div className="grid text-left text-[12px] leading-tight">
-									<span className="truncate font-semibold">
-										{activeOrganization.name}
-									</span>
-								</div>
-								<ChevronsUpDown className="ml-auto w-[12px] h-[11px]" />
-							</SidebarMenuButton>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent
-							className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-							align="start"
-							side="bottom"
-							sideOffset={4}
-						>
-							<DropdownMenuLabel className="text-xs text-muted-foreground">
-								Organizations
-							</DropdownMenuLabel>
-							<DropdownMenuSeparator />
-							{organizations.map((org) => (
-								<DropdownMenuItem
-									key={org.name}
-									onClick={() => handleOrganizationSelect(String(org?.id))}
-									className={`gap-2 p-2 h-8 text-[14px] ${
-										org?.id === currentOrgId && "font-bold"
-									}`}
+				<div
+					className={`flex flex-col h-[32px] group-data-[collapsible=icon]:hidden ${
+						shouldShowOrgSelector ? "items-start" : "items-center justify-center"
+					}`}
+				>
+					{shouldShowOrgSelector && (
+						<DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+							<DropdownMenuTrigger asChild>
+								<SidebarMenuButton
+									size="sm"
+									className="dark:text-sidebar-foreground dark:hover:bg-[#18181b] data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground p-1 gap-0.5 h-[18px] text-[#3f3f46] hover:bg-[#e4e4e7] [&>svg]:size-3 w-auto"
 								>
-									{org.name}
-								</DropdownMenuItem>
-							))}
-							{user?.isSystemUser && (
-								<>
-									<DropdownMenuSeparator />
+									<div className="grid text-left text-[12px] leading-tight">
+										<span className="truncate font-semibold">
+											{activeOrganization.name}
+										</span>
+									</div>
+									<ChevronsUpDown className="ml-auto w-[12px] h-[11px]" />
+								</SidebarMenuButton>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent
+								className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+								align="start"
+								side="bottom"
+								sideOffset={4}
+							>
+								<DropdownMenuLabel className="text-xs text-muted-foreground">
+									Organizations
+								</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								{organizations.map((org) => (
 									<DropdownMenuItem
-										onClick={handleAddOrgClick}
-										className="gap-2 p-2 h-8 text-[14px]"
+										key={org.name}
+										onClick={() => handleOrganizationSelect(String(org?.id))}
+										className={`gap-2 p-2 h-8 text-[14px] ${
+											org?.id === currentOrgId && "font-bold"
+										}`}
 									>
-										<PlusCircle className="h-4 w-4" />
-										Create organization
+										{org.name}
 									</DropdownMenuItem>
-								</>
-							)}
-						</DropdownMenuContent>
-					</DropdownMenu>
+								))}
+								{user?.isSystemUser && (
+									<>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											onClick={handleAddOrgClick}
+											className="gap-2 p-2 h-8 text-[14px]"
+										>
+											<PlusCircle className="h-4 w-4" />
+											Create organization
+										</DropdownMenuItem>
+									</>
+								)}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
 					{projects && projects.length > 0 && selectedProjectId && onProjectChange && (
 						<ProjectSwitcher
 							projects={projects}
