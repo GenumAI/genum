@@ -22,12 +22,6 @@ import localLogoDark from "@/assets/genum_logo/dark_theme_logo.png";
 import localBackgroundLight from "@/assets/background/light_theme_background.png";
 import localBackgroundDark from "@/assets/background/dark_theme_background.png";
 
-const LOGO_LIGHT =
-	"https://community.genum.ai/uploads/default/original/1X/ec2ab5e22a40c2197bdd0bb4c1848a10ec9f518e.png";
-const LOGO_DARK =
-	"https://community.genum.ai/uploads/default/original/1X/134ee90e24a8c5fd4d0f7c9d3ce451bb36830e01.png";
-const BACKGROUND_IMAGE = "https://cdn.genum.ai/background/auth_background.png?=1";
-
 interface SignupFormData {
 	name: string;
 	email: string;
@@ -44,18 +38,6 @@ export default function Signup() {
 	const { resolvedTheme } = useTheme();
 	const [isLoading, setIsLoading] = useState(false);
 	const isDark = resolvedTheme === "dark";
-	const logoSrc = isCloud
-		? isDark
-			? LOGO_LIGHT
-			: LOGO_DARK
-		: isDark
-			? localLogoDark
-			: localLogoLight;
-	const backgroundImage = isCloud
-		? BACKGROUND_IMAGE
-		: isDark
-			? localBackgroundDark
-			: localBackgroundLight;
 
 	useEffect(() => {
 		if (isCloud) {
@@ -83,6 +65,8 @@ export default function Signup() {
 		navigate("/");
 		return null;
 	}
+	const logoSrc = isDark ? localLogoDark : localLogoLight;
+	const backgroundImage = isDark ? localBackgroundDark : localBackgroundLight;
 
 	const onSubmit = async (data: SignupFormData) => {
 		if (data.password !== data.confirmPassword) {
