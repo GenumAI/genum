@@ -32,8 +32,8 @@ import ProjectAPIKeys from "../../pages/settings/components/ProjectAPIKeys";
 
 import AcceptInvitePage from "@/pages/invite/AcceptInvitePage";
 import GettingStarted from "@/pages/getting-started/GettingStarted";
-import Login from "@/pages/Login";
-import Signup from "@/pages/Signup";
+import Login from "@/pages/auth/Login";
+import Signup from "@/pages/auth/Signup";
 import { ErrorPage } from "@/pages/info-pages/ErrorPage";
 import { NotFoundPage } from "@/pages/info-pages/NotFoundPage";
 import FilesPage from "@/pages/files/FilesPage";
