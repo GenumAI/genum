@@ -108,18 +108,20 @@ export const CommitDropdowns = ({
 							versions={sortedVersions}
 							placeholder="Select second commit"
 						/>
-						<Button
-							variant="secondary"
-							className="font-normal"
-							disabled={!commitB}
-							onClick={() =>
-								navigate(
-									`/${params.orgId}/${params.projectId}/prompt/${params.id}/versions/${commitB}`,
-								)
-							}
-						>
-							View
-						</Button>
+						{commitB !== "current" && (
+							<Button
+								variant="secondary"
+								className="font-normal"
+								disabled={!commitB}
+								onClick={() =>
+									navigate(
+										`/${params.orgId}/${params.projectId}/prompt/${params.id}/versions/${commitB}`,
+									)
+								}
+							>
+								View
+							</Button>
+						)}
 					</div>
 					{secondAuthor && (
 						<div className="flex items-center gap-2">
