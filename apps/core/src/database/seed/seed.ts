@@ -25,7 +25,6 @@ async function main() {
 	await createSystemPromptsIfNotExists(systemUserId);
 }
 
-console.time("seed-start");
 main()
 	.catch((e) => {
 		console.error("❌ Error during seeding:", e);
