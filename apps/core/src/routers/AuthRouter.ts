@@ -1,11 +1,11 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { AuthController } from "../controllers/auth.controller";
+import { AdminController } from "../controllers/admin.controller";
 import { env } from "@/env";
 import { asyncHandler } from "@/utils/asyncHandler";
 
-export function createAuthRouter(): Router {
+export function createAdminRouter(): Router {
 	const router = Router();
-	const controller = new AuthController();
+	const controller = new AdminController();
 
 	// apply middleware to all routes
 	router.use(checkApiKey);

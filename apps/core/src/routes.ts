@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createAuthMiddleware } from "./auth/wizard";
 import { checkJwt } from "./auth/jwt";
-import { createAuthRouter } from "./routers/AuthRouter";
+import { createAdminRouter } from "./routers/AuthRouter";
 import { createApiV1Router } from "./routers/ApiV1Router";
 import { createUserRouter } from "./routers/UserRouter";
 import { createPromptsRouter } from "./routers/PromptsRouter";
@@ -18,7 +18,8 @@ export function setupRoutes(app: Express): void {
 
 	// auth
 	app.use(`/auth/local`, createLocalUserRouter());
-	app.use(`/auth`, createAuthRouter());
+	app.use(`/auth`, createAdminRouter());
+	app.use(`/admin`, createAdminRouter());
 
 	// api
 	app.use(`/api/v1`, createApiV1Router());

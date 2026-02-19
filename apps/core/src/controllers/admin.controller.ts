@@ -5,7 +5,7 @@ import { AuthNewUserSchema, NewNotificationSchema } from "@/services/validate/ty
 import { countRunsByDate } from "@/services/logger";
 import { webhooks } from "@/services/webhooks/webhooks";
 
-export class AuthController {
+export class AdminController {
 	public async createNewUser(req: Request, res: Response) {
 		const user = AuthNewUserSchema.parse(req.body.user);
 		console.log("user:", user);
