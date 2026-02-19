@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { isCloudAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
 	Form,
 	FormControl,
@@ -18,12 +17,10 @@ import {
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { useTheme } from "@/components/theme/theme-provider";
-
-const LOGO_LIGHT =
-	"https://community.genum.ai/uploads/default/original/1X/ec2ab5e22a40c2197bdd0bb4c1848a10ec9f518e.png";
-const LOGO_DARK =
-	"https://community.genum.ai/uploads/default/original/1X/134ee90e24a8c5fd4d0f7c9d3ce451bb36830e01.png";
-const BACKGROUND_IMAGE = "https://cdn.genum.ai/background/auth_background.png?=1";
+import localLogoLight from "@/assets/genum_logo/light_theme_logo.png";
+import localLogoDark from "@/assets/genum_logo/dark_theme_logo.png";
+import localBackgroundLight from "@/assets/background/light_theme_background.png";
+import localBackgroundDark from "@/assets/background/dark_theme_background.png";
 
 interface SignupFormData {
 	name: string;
@@ -68,6 +65,8 @@ export default function Signup() {
 		navigate("/");
 		return null;
 	}
+	const logoSrc = isDark ? localLogoDark : localLogoLight;
+	const backgroundImage = isDark ? localBackgroundDark : localBackgroundLight;
 
 	const onSubmit = async (data: SignupFormData) => {
 		if (data.password !== data.confirmPassword) {
@@ -103,13 +102,13 @@ export default function Signup() {
 	return (
 		<div
 			className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat flex items-center justify-center dark:bg-zinc-950"
-			style={{ backgroundImage: `url('${BACKGROUND_IMAGE}')` }}
+			style={{ backgroundImage: `url('${backgroundImage}')` }}
 		>
 			<div className="flex flex-col gap-6 w-[400px] shadow-[0_4px_16px_#00000014] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] rounded-[24px] p-[52px] bg-white dark:bg-zinc-900 dark:border dark:border-zinc-800 max-h-[90vh] overflow-y-auto">
 				<div className="text-center">
 					<div className="mx-auto flex h-[32px] w-[140px] items-center justify-center">
 						<img
-							src={isDark ? LOGO_LIGHT : LOGO_DARK}
+							src={logoSrc}
 							alt="Logo"
 							className="max-h-full max-w-full object-contain object-center dark:invert-0"
 						/>
