@@ -1,4 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("@/env", () => ({
+	env: { AUTH_BCRYPT_ROUNDS: 10 },
+}));
+
 import { hashPassword, verifyPassword } from "./password";
 
 describe("password utility", () => {
