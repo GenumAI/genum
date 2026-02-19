@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 import TestCaseStatus from "@/pages/prompt/playground-tabs/testcases/TestCaseStatus";
 import { useMemo } from "react";
-import type { Prompt } from "@/pages/prompt/Prompts";
+import type { Prompt } from "@/pages/prompt/utils/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import TableSortButton from "@/components/ui/TableSortButton";
 import type { TestCase, TestStatus } from "@/types/TestСase";

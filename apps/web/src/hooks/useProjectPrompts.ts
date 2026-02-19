@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getOrgId, getProjectId } from "@/api/client";
-import type { Prompt } from "@/pages/prompt/Prompts";
+import type { Prompt } from "@/pages/prompt/utils/types";
 import { promptApi } from "@/api/prompt";
 
 export function useProjectPrompts() {

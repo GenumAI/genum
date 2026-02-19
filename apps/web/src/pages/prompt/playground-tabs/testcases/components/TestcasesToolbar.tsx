@@ -11,7 +11,7 @@ import {
 	getStatusChipLabel,
 	usedOptions,
 } from "../utils/testcases.utils";
-import type { Prompt } from "@/pages/prompt/Prompts";
+import type { Prompt } from "@/pages/prompt/utils/types";
 
 type TestcasesToolbarProps = {
 	search: string;
