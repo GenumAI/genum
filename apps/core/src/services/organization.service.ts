@@ -1,7 +1,6 @@
 import type { Database } from "@/database/db";
 import { ProjectRole, OrganizationRole } from "@/prisma";
 import { webhooks } from "./webhooks/webhooks";
-import { env } from "@/env";
 
 // Custom errors for provider operations
 export class ProviderNotConfiguredError extends Error {
@@ -251,10 +250,7 @@ export class OrganizationService {
 
 		const inviteUrl = `${process.env.FRONTEND_URL}/invite/${invitation.token}`;
 
-		// send email with token if instance is cloud
-		if (env.INSTANCE_TYPE === "cloud") {
-			await webhooks.sendEmail(email, inviteUrl, orgName);
-		}
+		await webhooks.sendEmail(email, inviteUrl, orgName);
 
 		return {
 			invitation,

@@ -1,30 +1,49 @@
 import { env } from "@/env";
 import axios from "axios";
 
-async function sendEmail(to: string, url: string, organizationName: string) {
-	const response = await axios.post(
-		env.WEBHOOK_EMAIL_URL,
-		{
-			to,
-			url,
-			organizationName,
-		},
-		{
-			auth: webhookAuth(),
-		},
-	);
+type WebhookPayload =
+	| {
+			type: "orgInviteEmail";
+			data: { to: string; url: string; organizationName: string };
+	  }
+	| {
+			type: "sendFeedback";
+			data: {
+				type: string;
+				subject: string;
+				message: string;
+				userID: number;
+				userEmail: string;
+				stage: string;
+			};
+	  }
+	| {
+			type: "postRegister";
+			data: {
+				id: number;
+				email: string;
+				name: string;
+				created_at: string;
+				ip?: string;
+				geo?: string;
+				stage: string;
+			};
+	  };
+
+async function send(payload: WebhookPayload) {
+	if (!env.WEBHOOK_URL) return;
+
+	const response = await axios.post(env.WEBHOOK_URL, payload, {
+		auth: webhookAuth(),
+	});
 
 	return response.data;
 }
 
-type Feedback = {
-	type: string;
-	subject: string;
-	message: string;
-	userID: number;
-	userEmail: string;
-	stage: string;
-};
+async function sendEmail(to: string, url: string, organizationName: string) {
+	return send({ type: "orgInviteEmail", data: { to, url, organizationName } });
+}
+
 async function sendFeedback(feedback: {
 	type: string;
 	subject: string;
@@ -33,20 +52,7 @@ async function sendFeedback(feedback: {
 	userEmail: string;
 	stage: string;
 }) {
-	const response = await axios.post(
-		env.WEBHOOK_FEEDBACK_URL,
-		{
-			message: formatFeedback(feedback),
-		},
-		{
-			auth: webhookAuth(),
-		},
-	);
-
-	return response.data;
-}
-function formatFeedback(feedback: Feedback) {
-	return `📞 Feedback ${feedback.stage}\nType: ${feedback.type}\nUser: ${feedback.userEmail}(${feedback.userID})\nSubject: ${feedback.subject}\n\n${feedback.message}\n\nDate: ${new Date().toLocaleDateString("ru-RU")}`;
+	return send({ type: "sendFeedback", data: feedback });
 }
 
 async function postRegister(user: {
@@ -59,15 +65,7 @@ async function postRegister(user: {
 	stage: string;
 }) {
 	try {
-		await axios.post(
-			env.WEBHOOK_NEW_USER_URL,
-			{
-				message: user,
-			},
-			{
-				auth: webhookAuth(),
-			},
-		);
+		await send({ type: "postRegister", data: user });
 	} catch (error) {
 		console.error(error);
 	}
