@@ -7,7 +7,7 @@ const EnvSchema = z.object({
 	NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 	CORE_PORT: z.coerce.number().int().positive(),
 	INSTANCE_TYPE: z.enum(["local", "cloud"]).default("local"),
-	AUTH_BCRYPT_ROUNDS: z.union([z.string(), z.coerce.number().int().positive()]).default(10),
+	AUTH_BCRYPT_ROUNDS: z.coerce.number().int().positive().default(10),
 	// Database
 	DATABASE_URL: z.url(),
 	// ClickHouse
