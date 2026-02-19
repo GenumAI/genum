@@ -13,7 +13,7 @@ import { testcasesFilter } from "@/lib/testcasesFilter";
 import { usePromptTestcases } from "@/hooks/usePromptTestcases";
 import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
 import type { TestCase } from "@/types/TestСase";
-import type { Prompt } from "@/pages/prompt/Prompts";
+import type { Prompt } from "@/pages/prompt/utils/types";
 import type { FilterState } from "../TestCasesFilter";
 import {
 	getAutoSelectStatus,
