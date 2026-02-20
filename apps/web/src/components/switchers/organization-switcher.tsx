@@ -29,9 +29,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectSwitcher } from "@/components/switchers/project-switcher";
 import { useToast } from "@/hooks/useToast";
-import { CURRENT_USER_QUERY_KEY, useCurrentUser } from "@/hooks/useCurrentUser";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { userApi } from "@/api/user";
 import { getOrgId } from "@/api/client";
+import { authKeys } from "@/query-keys/auth.keys";
 
 const organizationFormSchema = z.object({
 	name: z.string().min(1, { message: "Organization name is required" }),
@@ -74,7 +75,7 @@ function CreateOrganizationForm({ onClose, onSuccess }: CreateOrganizationFormPr
 				duration: 3000,
 			});
 
-			await queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+			await queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
 			onSuccess(response.organization.id);
 		} catch (error) {
 			console.error("Error creating organization:", error);

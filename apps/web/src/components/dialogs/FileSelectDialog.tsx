@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import FileUploadDialog from "./FileUploadDialog";
+import { fileKeys } from "@/query-keys/files.keys";
 
 interface FileSelectDialogProps {
 	open: boolean;
@@ -43,7 +44,7 @@ const FileSelectDialog: React.FC<FileSelectDialogProps> = ({
 	const queryClient = useQueryClient();
 
 	const { data: files = [], isLoading } = useQuery({
-		queryKey: ["files"],
+		queryKey: fileKeys.all(),
 		queryFn: () => filesApi.listFiles(),
 		enabled: open,
 	});
@@ -85,7 +86,7 @@ const FileSelectDialog: React.FC<FileSelectDialogProps> = ({
 		try {
 			await filesApi.uploadFile(file);
 			// Refresh files list
-			await queryClient.invalidateQueries({ queryKey: ["files"] });
+			await queryClient.invalidateQueries({ queryKey: fileKeys.all() });
 			setUploadDialogOpen(false);
 		} catch (error) {
 			throw error;

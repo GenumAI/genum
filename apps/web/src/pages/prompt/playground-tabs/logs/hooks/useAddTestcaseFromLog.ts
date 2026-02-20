@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
 import { useCreateTestcase } from "@/hooks/useCreateTestcase";
 import type { Log, MemoriesResponse } from "@/types/logs";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 interface UseAddTestcaseFromLogParams {
 	promptId?: number;
@@ -48,8 +49,12 @@ export function useAddTestcaseFromLog({
 					variant: "default",
 				});
 
-				queryClient.invalidateQueries({ queryKey: ["prompt-testcases", targetPromptId] });
-				queryClient.invalidateQueries({ queryKey: ["testcase-status-counts", targetPromptId] });
+				queryClient.invalidateQueries({
+					queryKey: testcaseKeys.promptTestcases(targetPromptId),
+				});
+				queryClient.invalidateQueries({
+					queryKey: testcaseKeys.statusCounts(targetPromptId),
+				});
 				return;
 			}
 

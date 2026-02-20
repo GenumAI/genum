@@ -1,15 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
 import { organizationApi, type Invite } from "@/api/organization";
-
-export const ORG_INVITES_QUERY_KEY = ["org", "invites"] as const;
+import { organizationKeys } from "@/query-keys/organization.keys";
 
 export function useOrgInvites(orgId: string | undefined) {
 	const { toast } = useToast();
 	const queryClient = useQueryClient();
 
 	const query = useQuery({
-		queryKey: [...ORG_INVITES_QUERY_KEY, orgId],
+		queryKey: organizationKeys.invites(orgId),
 		queryFn: () => organizationApi.getInvites(),
 		enabled: Boolean(orgId),
 		refetchOnMount: "always",
@@ -18,7 +17,7 @@ export function useOrgInvites(orgId: string | undefined) {
 	const deleteMutation = useMutation({
 		mutationFn: (invite: Invite) => organizationApi.deleteInvite(invite.token),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [...ORG_INVITES_QUERY_KEY, orgId] });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.invites(orgId) });
 		},
 	});
 

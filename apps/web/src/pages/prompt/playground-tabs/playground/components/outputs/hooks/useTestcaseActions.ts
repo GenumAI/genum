@@ -4,6 +4,7 @@ import type { TestcasePayload } from "@/hooks/useCreateTestcase";
 import { useToast } from "@/hooks/useToast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 interface UseTestcaseActionsProps {
 	promptId: number | undefined;
@@ -47,10 +48,10 @@ export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }:
 
 				if (promptId) {
 					queryClient.invalidateQueries({
-						queryKey: ["prompt-testcases", promptId],
+						queryKey: testcaseKeys.promptTestcases(promptId),
 					});
 					queryClient.invalidateQueries({
-						queryKey: ["testcase-status-counts", promptId],
+						queryKey: testcaseKeys.statusCounts(promptId),
 					});
 				}
 				onTestcaseAdded?.();

@@ -1,13 +1,11 @@
 import { useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
 import { projectApi } from "@/api/project";
 import type { ProjectAPIKey } from "@/api/project";
 import type { NewKeyResponse } from "../utils/types";
 import { getOrgId, getProjectId } from "@/api/client";
-
-export const PROJECT_API_KEYS_QUERY_KEY = ["project", "apiKeys"] as const;
+import { projectKeys } from "@/query-keys/project.keys";
 
 export function useProjectAPIKeys() {
 	const { toast } = useToast();
@@ -20,7 +18,7 @@ export function useProjectAPIKeys() {
 	const [newKeyResponse, setNewKeyResponse] = useState<NewKeyResponse | null>(null);
 
 	const query = useQuery({
-		queryKey: [...PROJECT_API_KEYS_QUERY_KEY, orgId, projectId],
+		queryKey: projectKeys.apiKeys(orgId, projectId),
 		queryFn: () => projectApi.getAPIKeys(),
 		enabled: Boolean(orgId && projectId),
 		refetchOnMount: "always",
@@ -30,7 +28,7 @@ export function useProjectAPIKeys() {
 		mutationFn: (name: string) => projectApi.createAPIKey({ name: name.trim() }),
 		onSuccess: (data) => {
 			queryClient.invalidateQueries({
-				queryKey: [...PROJECT_API_KEYS_QUERY_KEY, orgId, projectId],
+				queryKey: projectKeys.apiKeys(orgId, projectId),
 			});
 			setNewKeyResponse({ key: data.apiKey.key });
 		},
@@ -40,7 +38,7 @@ export function useProjectAPIKeys() {
 		mutationFn: (keyId: string | number) => projectApi.deleteAPIKey(keyId),
 		onSuccess: () => {
 			queryClient.invalidateQueries({
-				queryKey: [...PROJECT_API_KEYS_QUERY_KEY, orgId, projectId],
+				queryKey: projectKeys.apiKeys(orgId, projectId),
 			});
 		},
 	});

@@ -11,6 +11,7 @@ import {
 	promptMemoriesQueryKey,
 } from "@/pages/prompt/playground-tabs/memory/hooks/usePromptMemories";
 import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 export const useMemoryKey = (promptId: number) => {
 	const queryClient = useQueryClient();
@@ -38,7 +39,7 @@ export const useMemoryKey = (promptId: number) => {
 	const { data: memories = [] } = usePromptMemories(promptId);
 
 	const { data: testcaseData } = useQuery({
-		queryKey: ["testcase", testcaseId],
+		queryKey: testcaseKeys.byId(testcaseId),
 		queryFn: () => testcasesApi.getTestcase(testcaseId as string),
 		enabled: !!testcaseId,
 	});
@@ -65,7 +66,7 @@ export const useMemoryKey = (promptId: number) => {
 			testcasesApi.updateTestcase(tcId, data),
 		onSuccess: () => {
 			if (testcaseId) {
-				queryClient.invalidateQueries({ queryKey: ["testcase", testcaseId] });
+				queryClient.invalidateQueries({ queryKey: testcaseKeys.byId(testcaseId) });
 			}
 			queryClient.invalidateQueries({ queryKey: promptMemoriesQueryKey(promptId) });
 		},
@@ -117,7 +118,7 @@ export const useMemoryKey = (promptId: number) => {
 				selectedKeyRef.current = "";
 				syncSelection("", "");
 
-				queryClient.removeQueries({ queryKey: ["testcase", prevTestcaseId] });
+				queryClient.removeQueries({ queryKey: testcaseKeys.byId(prevTestcaseId) });
 
 				setTimeout(() => {
 					isUpdatingRef.current = false;

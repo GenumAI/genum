@@ -2,8 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
 import { organizationApi } from "@/api/organization";
 import { projectApi } from "@/api/project";
-
-export const ORG_API_KEYS_QUERY_KEY = ["org", "api-keys"] as const;
+import { organizationKeys } from "@/query-keys/organization.keys";
 
 export interface OrgKey {
 	id: number;
@@ -36,7 +35,7 @@ export function useOrgAPIKeys(): UseOrgAPIKeysReturn {
 	const queryClient = useQueryClient();
 
 	const query = useQuery({
-		queryKey: ORG_API_KEYS_QUERY_KEY,
+		queryKey: organizationKeys.apiKeys(),
 		queryFn: () => organizationApi.getProjectKeys(),
 		refetchOnMount: "always",
 	});
@@ -44,7 +43,7 @@ export function useOrgAPIKeys(): UseOrgAPIKeysReturn {
 	const deleteMutation = useMutation({
 		mutationFn: (keyId: number) => projectApi.deleteAPIKey(keyId),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORG_API_KEYS_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.apiKeys() });
 		},
 	});
 

@@ -4,9 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
 import { organizationApi } from "@/api/organization";
-import { ORG_MEMBERS_QUERY_KEY } from "./hooks/useOrgMembers";
-import { ORG_INVITES_QUERY_KEY } from "./hooks/useOrgInvites";
 import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
+import { organizationKeys } from "@/query-keys/organization.keys";
 
 type MenuSection = {
 	title: string;
@@ -68,11 +67,11 @@ export default function Settings() {
 	React.useEffect(() => {
 		if (orgId) {
 			queryClient.prefetchQuery({
-				queryKey: [...ORG_MEMBERS_QUERY_KEY, orgId],
+				queryKey: organizationKeys.members(orgId),
 				queryFn: () => organizationApi.getMembers(),
 			});
 			queryClient.prefetchQuery({
-				queryKey: [...ORG_INVITES_QUERY_KEY, orgId],
+				queryKey: organizationKeys.invites(orgId),
 				queryFn: () => organizationApi.getInvites(),
 			});
 		}

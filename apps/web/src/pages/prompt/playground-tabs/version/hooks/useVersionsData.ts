@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt";
 import type { BranchesResponse } from "../utils/types";
+import { versionKeys } from "@/query-keys/version.keys";
 
 const SYSTEM_AUTHOR = {
 	id: 0,
@@ -9,14 +10,11 @@ const SYSTEM_AUTHOR = {
 	picture: "",
 };
 
-export const VERSIONS_QUERY_KEY = ["versions"] as const;
-export const PROMPT_COMMITTED_QUERY_KEY = ["prompt-committed"] as const;
-
 export const useVersionsData = (id: string | undefined) => {
 	const queryClient = useQueryClient();
 
 	const branchesQuery = useQuery({
-		queryKey: [...VERSIONS_QUERY_KEY, id],
+		queryKey: versionKeys.versions(id),
 		queryFn: async () => {
 			if (!id) throw new Error("No id");
 			const result = await promptApi.getBranches(id);
@@ -34,7 +32,7 @@ export const useVersionsData = (id: string | undefined) => {
 	});
 
 	const promptQuery = useQuery({
-		queryKey: [...PROMPT_COMMITTED_QUERY_KEY, id],
+		queryKey: versionKeys.committed(id),
 		queryFn: async () => {
 			if (!id) throw new Error("No id");
 			const result = await promptApi.getPrompt(id);
@@ -45,13 +43,13 @@ export const useVersionsData = (id: string | undefined) => {
 
 	const refresh = () => {
 		if (!id) return;
-		queryClient.invalidateQueries({ queryKey: [...VERSIONS_QUERY_KEY, id] });
-		queryClient.invalidateQueries({ queryKey: [...PROMPT_COMMITTED_QUERY_KEY, id] });
+		queryClient.invalidateQueries({ queryKey: versionKeys.versions(id) });
+		queryClient.invalidateQueries({ queryKey: versionKeys.committed(id) });
 	};
 
 	const isCommitted = promptQuery.data ?? false;
 	const setIsCommitted = (value: boolean) => {
-		queryClient.setQueryData([...PROMPT_COMMITTED_QUERY_KEY, id], value);
+		queryClient.setQueryData(versionKeys.committed(id), value);
 	};
 
 	return {

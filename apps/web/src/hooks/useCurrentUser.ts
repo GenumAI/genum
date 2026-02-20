@@ -2,14 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { userApi } from "@/api/user";
 import type { CurrentUser } from "@/api/user/user.api";
-
-export const CURRENT_USER_QUERY_KEY = ["currentUser"] as const;
+import { authKeys } from "@/query-keys/auth.keys";
 
 export function useCurrentUser() {
 	const { isAuthenticated, isLoading: isLoadingAuth } = useAuth();
 
 	const query = useQuery({
-		queryKey: CURRENT_USER_QUERY_KEY,
+		queryKey: authKeys.currentUser(),
 		queryFn: () => userApi.getCurrentUser(),
 		enabled: isAuthenticated && !isLoadingAuth,
 		staleTime: 1000 * 60 * 5,
@@ -25,15 +24,15 @@ export function useCurrentUser() {
 
 export function useInvalidateCurrentUser() {
 	const queryClient = useQueryClient();
-	return () => queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+	return () => queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
 }
 
 export function useRemoveCurrentUser() {
 	const queryClient = useQueryClient();
-	return () => queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+	return () => queryClient.removeQueries({ queryKey: authKeys.currentUser() });
 }
 
 export function useSetCurrentUser() {
 	const queryClient = useQueryClient();
-	return (user: CurrentUser) => queryClient.setQueryData(CURRENT_USER_QUERY_KEY, user);
+	return (user: CurrentUser) => queryClient.setQueryData(authKeys.currentUser(), user);
 }

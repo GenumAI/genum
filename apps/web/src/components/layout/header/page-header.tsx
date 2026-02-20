@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { CircleAlert, CircleCheck, CirclePlus, Loader2 } from "lucide-react";
 import clsx from "clsx";
 import { testcasesApi } from "@/api/testcases/testcases.api";
+import { promptKeys } from "@/query-keys/prompt.keys";
 
 type NavItem = {
 	label: string;
@@ -227,7 +228,7 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 					}),
 				);
 
-				queryClient.invalidateQueries({ queryKey: ["prompt", promptId] });
+				queryClient.invalidateQueries({ queryKey: promptKeys.byId(promptId) });
 			} catch (error) {
 				console.error("Error updating prompt name:", error);
 				setEditableTitle(prompt?.prompt?.name || title);

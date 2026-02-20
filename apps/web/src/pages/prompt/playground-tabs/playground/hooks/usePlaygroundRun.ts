@@ -6,6 +6,7 @@ import type { PromptSettings } from "@/types/Prompt";
 import type { TestCase } from "@/types/TestСase";
 import type { FileMetadata } from "@/api/files";
 import { useQueryClient } from "@tanstack/react-query";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 export function usePlaygroundRunController({
 	promptId,
@@ -71,9 +72,11 @@ export function usePlaygroundRunController({
 				setRunState({ loading: false, wasRun: true });
 
 				if (promptId) {
-					queryClient.invalidateQueries({ queryKey: ["prompt-testcases", promptId] });
 					queryClient.invalidateQueries({
-						queryKey: ["testcase-status-counts", promptId],
+						queryKey: testcaseKeys.promptTestcases(promptId),
+					});
+					queryClient.invalidateQueries({
+						queryKey: testcaseKeys.statusCounts(promptId),
 					});
 				}
 				window.dispatchEvent(new CustomEvent("testcaseUpdated"));
@@ -82,8 +85,10 @@ export function usePlaygroundRunController({
 		} catch (error) {
 			console.error("Failed to run prompt/testcase:", error);
 			if (testcaseId && promptId) {
-				queryClient.invalidateQueries({ queryKey: ["prompt-testcases", promptId] });
-				queryClient.invalidateQueries({ queryKey: ["testcase-status-counts", promptId] });
+				queryClient.invalidateQueries({
+					queryKey: testcaseKeys.promptTestcases(promptId),
+				});
+				queryClient.invalidateQueries({ queryKey: testcaseKeys.statusCounts(promptId) });
 			}
 		} finally {
 			setRunState({ loading: false });

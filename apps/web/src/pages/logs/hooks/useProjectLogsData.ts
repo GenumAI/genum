@@ -4,6 +4,7 @@ import { projectApi } from "@/api/project";
 import { promptApi } from "@/api/prompt";
 import type { LogsFilterState } from "@/pages/logs/components/LogsFilter";
 import type { LogsResponse, MemoriesResponse } from "@/types/logs";
+import { logsKeys } from "@/query-keys/logs.keys";
 
 interface UseProjectLogsDataParams {
 	page: number;
@@ -30,8 +31,7 @@ export function useProjectLogsData({
 	const promptId = logsFilter.promptId || undefined;
 
 	const logsQuery = useQuery<LogsResponse>({
-		queryKey: [
-			"project-logs",
+		queryKey: logsKeys.projectLogs({
 			page,
 			pageSize,
 			fromDate,
@@ -41,7 +41,7 @@ export function useProjectLogsData({
 			source,
 			query,
 			promptId,
-		],
+		}),
 		refetchOnMount: "always",
 		placeholderData: keepPreviousData,
 		queryFn: async () => {
@@ -60,7 +60,7 @@ export function useProjectLogsData({
 	});
 
 	const memoriesQuery = useQuery<MemoriesResponse>({
-		queryKey: ["project-logs-memories", selectedPromptId],
+		queryKey: logsKeys.projectMemories(selectedPromptId),
 		enabled: Boolean(selectedPromptId && shouldFetchMemories),
 		refetchOnMount: "always",
 		queryFn: async () => {

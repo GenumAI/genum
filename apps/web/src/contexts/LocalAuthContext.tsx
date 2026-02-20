@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getAuthMode } from "@/lib/auth";
 import { userApi } from "@/api/user";
 import { authApi } from "@/api/auth";
-import { CURRENT_USER_QUERY_KEY } from "@/hooks/useCurrentUser";
+import { authKeys } from "@/query-keys/auth.keys";
 
 interface LocalAuthUser {
 	sub: string;
@@ -64,7 +64,7 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 				setIsAuthenticated(false);
 				setUser(null);
 				setIsLoading(false);
-				queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+				queryClient.removeQueries({ queryKey: authKeys.currentUser() });
 				return;
 			}
 
@@ -77,11 +77,11 @@ export function LocalAuthProvider({ children }: LocalAuthProviderProps) {
 
 			setUser(authUser);
 			setIsAuthenticated(true);
-			queryClient.setQueryData(CURRENT_USER_QUERY_KEY, userData);
+			queryClient.setQueryData(authKeys.currentUser(), userData);
 		} catch {
 			setIsAuthenticated(false);
 			setUser(null);
-			queryClient.removeQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+			queryClient.removeQueries({ queryKey: authKeys.currentUser() });
 		} finally {
 			setIsLoading(false);
 		}

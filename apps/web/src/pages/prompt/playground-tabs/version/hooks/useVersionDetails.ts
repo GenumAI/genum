@@ -2,12 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { promptApi } from "@/api/prompt";
 import type { AuditData } from "../utils/types";
-
-export const VERSION_DETAILS_QUERY_KEY = ["version-details"] as const;
+import { versionKeys } from "@/query-keys/version.keys";
 
 export const useVersionDetails = (id: string | undefined, versionId: string | undefined) => {
 	const query = useQuery({
-		queryKey: [...VERSION_DETAILS_QUERY_KEY, id, versionId],
+		queryKey: versionKeys.details(id, versionId),
 		queryFn: async () => {
 			if (!id || !versionId) throw new Error("Missing id or versionId");
 			return promptApi.getVersion(id, versionId);

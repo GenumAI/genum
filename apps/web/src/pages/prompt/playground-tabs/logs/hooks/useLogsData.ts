@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt";
 import type { LogsFilterState } from "@/pages/logs/components/LogsFilter";
 import type { LogsResponse, MemoriesResponse } from "@/types/logs";
+import { logsKeys } from "@/query-keys/logs.keys";
 
 interface UseLogsDataParams {
 	promptId?: number;
@@ -28,8 +29,7 @@ export function useLogsData({
 	const query = logsFilter.query || undefined;
 
 	const logsQuery = useQuery<LogsResponse>({
-		queryKey: [
-			"prompt-logs-tab",
+		queryKey: logsKeys.promptLogs({
 			promptId,
 			page,
 			pageSize,
@@ -39,7 +39,7 @@ export function useLogsData({
 			model,
 			source,
 			query,
-		],
+		}),
 		enabled: Boolean(promptId),
 		refetchOnMount: "always",
 		placeholderData: keepPreviousData,
@@ -58,7 +58,7 @@ export function useLogsData({
 	});
 
 	const memoriesQuery = useQuery<MemoriesResponse>({
-		queryKey: ["prompt-memories-tab", promptId],
+		queryKey: logsKeys.promptMemoriesTab(promptId),
 		enabled: Boolean(promptId && shouldFetchMemories),
 		refetchOnMount: "always",
 		queryFn: async () => {

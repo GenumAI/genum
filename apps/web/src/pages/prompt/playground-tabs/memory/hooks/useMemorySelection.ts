@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { memoryKeys } from "@/query-keys/memory.keys";
 
 export type MemorySelectionState = {
 	selectedMemoryId: string;
@@ -14,7 +15,7 @@ const DEFAULT_SELECTION: MemorySelectionState = {
 export const memorySelectionQueryKey = (
 	promptId: number | undefined,
 	testcaseId: string | null,
-) => ["memory-selection", promptId ?? "unknown", testcaseId ?? "prompt"] as const;
+) => memoryKeys.selection(promptId, testcaseId);
 
 export const useMemorySelection = (promptId: number | undefined, testcaseId: string | null) => {
 	const queryClient = useQueryClient();

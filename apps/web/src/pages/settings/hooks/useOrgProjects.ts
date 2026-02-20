@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
-import { CURRENT_USER_QUERY_KEY } from "@/hooks/useCurrentUser";
 import { organizationApi } from "@/api/organization";
 import type { NavigateFunction } from "react-router-dom";
-
-export const ORG_PROJECTS_QUERY_KEY = ["org", "projects"] as const;
+import { organizationKeys } from "@/query-keys/organization.keys";
+import { authKeys } from "@/query-keys/auth.keys";
 
 export interface Project {
 	id: number;
@@ -36,7 +35,7 @@ export function useOrgProjects() {
 	const [deletingId, setDeletingId] = useState<number | null>(null);
 
 	const query = useQuery({
-		queryKey: ORG_PROJECTS_QUERY_KEY,
+		queryKey: organizationKeys.projects(),
 		queryFn: () => organizationApi.getProjects(),
 		refetchOnMount: "always",
 	});
@@ -48,16 +47,16 @@ export function useOrgProjects() {
 				description: values.description?.trim() || undefined,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORG_PROJECTS_QUERY_KEY });
-			queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.projects() });
+			queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
 		},
 	});
 
 	const deleteMutation = useMutation({
 		mutationFn: (projectId: number) => organizationApi.deleteProject(projectId),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORG_PROJECTS_QUERY_KEY });
-			queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.projects() });
+			queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
 		},
 	});
 
