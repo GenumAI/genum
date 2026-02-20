@@ -42,7 +42,7 @@ export function createProjectRouter(): Router {
 	router.get("/", asyncHandler(projectController.getProjectDetails.bind(projectController)));
 	router.put(
 		"/",
-		w.hasProjectRole(ProjectRole.OWNER),
+		w.hasMinProjectRole(ProjectRole.OWNER),
 		asyncHandler(projectController.updateProject.bind(projectController)),
 	);
 
