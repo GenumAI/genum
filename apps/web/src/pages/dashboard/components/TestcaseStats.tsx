@@ -1,38 +1,42 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
 import {
-	ChartConfig,
 	ChartContainer,
 	ChartTooltip,
 	ChartTooltipContent,
 } from "@/components/ui/chart";
 import { CheckCircle2, XCircle, AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import useTestcasesGroupedByPrompt from "@/hooks/useTestcasesGroupedByPrompt";
-import { getOrgId, getProjectId } from "@/api/client";
+import type { PromptStats } from "@/pages/dashboard/hooks/useTestcasesGroupedByPrompt";
+import { useTestcaseStats } from "@/pages/dashboard/hooks/useTestcaseStats";
+import {
+	truncateChartLabel,
+	testcaseBarColors,
+	testcaseChartConfig,
+} from "@/pages/dashboard/utils/testcaseStats";
 
-const chartConfig = {
-	passed: { label: "Passed", color: "hsl(var(--chart-2))" },
-	failed: { label: "Failed", color: "hsl(var(--chart-6))" },
-	label: { color: "hsl(var(--foreground))" },
-} satisfies ChartConfig;
+type HoveredBar = { promptId: number; dataKey: "passed" | "failed" } | null;
 
-const BAR_COLORS = {
-	passed: { base: "hsl(var(--chart-2) / 0.75)", hover: "hsl(var(--chart-2))" },
-	failed: { base: "hsl(var(--chart-6) / 0.75)", hover: "hsl(var(--chart-6))" },
-};
+interface TooltipPayloadItem {
+	dataKey?: string;
+}
 
-interface PromptStats {
-	prompt_id: number;
-	total_requests: number;
-	total_tokens_in: number;
-	total_tokens_out: number;
-	average_response_ms: number;
-	total_cost: number;
-	error_rate: number;
-	last_used: string;
+interface FilteredTooltipProps {
+	active?: boolean;
+	payload?: TooltipPayloadItem[];
+	hoveredBar: HoveredBar;
+}
+
+function FilteredChartTooltip({ hoveredBar, ...props }: FilteredTooltipProps) {
+	if (hoveredBar) {
+		const filteredPayload =
+			props.payload?.filter((p) => p.dataKey === hoveredBar.dataKey) ?? [];
+		return <ChartTooltipContent {...props} payload={filteredPayload} />;
+	}
+	if (!props.active || !props.payload?.length) {
+		return null;
+	}
+	return <ChartTooltipContent {...props} />;
 }
 
 interface Props {
@@ -40,55 +44,22 @@ interface Props {
 }
 
 export function TestcaseStats({ prompts }: Props) {
-	const [showAll, setShowAll] = useState(false);
-	const [hoveredBar, setHoveredBar] = useState<{ index: number; dataKey: string } | null>(null);
-	const navigate = useNavigate();
-	const orgId = getOrgId();
-	const projectId = getProjectId();
-
-	const { chartData, isLoading, error } = useTestcasesGroupedByPrompt(prompts);
-
-	const dataToShow = showAll ? chartData : chartData.slice(0, 5);
-	const hasMoreData = chartData.length > 5;
-
-	const totalStats = useMemo(() => {
-		if (!chartData.length) return { total: 0, passed: 0, failed: 0, needRun: 0 };
-		return chartData.reduce(
-			(
-				acc: { total: number; passed: number; failed: number; needRun: number },
-				item: any,
-			) => ({
-				total: acc.total + item.passed + item.failed,
-				passed: acc.passed + item.passed,
-				failed: acc.failed + item.failed,
-				needRun: acc.needRun + item.needRun,
-			}),
-			{ total: 0, passed: 0, failed: 0, needRun: 0 },
-		);
-	}, [chartData]);
-
-	const errorRate = useMemo(() => {
-		if (totalStats.total === 0) return 0;
-		return Math.round((totalStats.failed / totalStats.total) * 100);
-	}, [totalStats]);
-
-	const truncateText = (text: unknown, maxLength: number = 20): string => {
-		const str = typeof text === "string" ? text : String(text ?? "");
-		if (str.length <= maxLength) return str;
-		return str.substring(0, maxLength) + "...";
-	};
-
-	const CustomTooltip = (props: any) => {
-		if (hoveredBar) {
-			const filteredPayload =
-				props.payload?.filter((p: any) => p.dataKey === hoveredBar.dataKey) ?? [];
-			return <ChartTooltipContent {...props} payload={filteredPayload} />;
-		}
-		if (!props.active || !props.payload?.length) {
-			return null;
-		}
-		return <ChartTooltipContent {...props} />;
-	};
+	const {
+		isLoading,
+		error,
+		chartData,
+		dataToShow,
+		hasMoreData,
+		totalStats,
+		errorRate,
+		showAll,
+		hoveredBar,
+		toggleShowAll,
+		setHovered,
+		clearHovered,
+		isHovered,
+		navigateToPromptTestcases,
+	} = useTestcaseStats(prompts);
 
 	if (isLoading) {
 		return (
@@ -116,8 +87,8 @@ export function TestcaseStats({ prompts }: Props) {
 						Prompt Executions Statistics
 					</CardTitle>
 				</CardHeader>
-				<CardContent>
-					<ChartContainer config={chartConfig}>
+					<CardContent>
+						<ChartContainer config={testcaseChartConfig}>
 						<BarChart layout="vertical" data={dataToShow}>
 							<CartesianGrid
 								horizontal={false}
@@ -146,7 +117,7 @@ export function TestcaseStats({ prompts }: Props) {
 													textAnchor="start"
 												>
 													<tspan x={0}>
-														{truncateText(payload?.value)}
+														{truncateChartLabel(payload?.value)}
 													</tspan>
 												</text>
 											)
@@ -154,7 +125,10 @@ export function TestcaseStats({ prompts }: Props) {
 								}
 							/>
 
-							<ChartTooltip cursor={false} content={<CustomTooltip />} />
+							<ChartTooltip
+								cursor={false}
+								content={<FilteredChartTooltip hoveredBar={hoveredBar} />}
+							/>
 
 							<Bar
 								dataKey="passed"
@@ -162,26 +136,23 @@ export function TestcaseStats({ prompts }: Props) {
 								radius={[4, 4, 4, 4]}
 								barSize={18}
 								name="Passed"
-								onMouseEnter={(_, index: number) =>
-									setHoveredBar({ index, dataKey: "passed" })
+								onMouseEnter={(data) =>
+									setHovered(data.prompt_id, "passed")
 								}
-								onMouseLeave={() => setHoveredBar(null)}
+								onMouseLeave={clearHovered}
 								style={{ cursor: "pointer" }}
 								fill="hsl(var(--chart-2))"
 								onClick={(data) => {
-									navigate(
-										`/${orgId}/${projectId}/prompt/${data.prompt_id}/testcases?status=passed`,
-									);
+									navigateToPromptTestcases(data.prompt_id, "passed");
 								}}
 							>
-								{dataToShow.map((_, index) => (
+								{dataToShow.map((item) => (
 									<Cell
-										key={`cell-passed-${index}`}
+										key={`cell-passed-${item.prompt_id}`}
 										fill={
-											hoveredBar?.index === index &&
-											hoveredBar?.dataKey === "passed"
-												? BAR_COLORS.passed.hover
-												: BAR_COLORS.passed.base
+											isHovered(item.prompt_id, "passed")
+												? testcaseBarColors.passed.hover
+												: testcaseBarColors.passed.base
 										}
 										style={{ transition: "fill 0.2s ease", cursor: "pointer" }}
 									/>
@@ -194,26 +165,23 @@ export function TestcaseStats({ prompts }: Props) {
 								radius={[4, 4, 4, 4]}
 								barSize={18}
 								name="Failed"
-								onMouseEnter={(_, index: number) =>
-									setHoveredBar({ index, dataKey: "failed" })
+								onMouseEnter={(data) =>
+									setHovered(data.prompt_id, "failed")
 								}
-								onMouseLeave={() => setHoveredBar(null)}
+								onMouseLeave={clearHovered}
 								style={{ cursor: "pointer" }}
 								fill="hsl(var(--chart-6))"
 								onClick={(data) => {
-									navigate(
-										`/${orgId}/${projectId}/prompt/${data.prompt_id}/testcases?status=failed`,
-									);
+									navigateToPromptTestcases(data.prompt_id, "failed");
 								}}
 							>
-								{dataToShow.map((_, index) => (
+								{dataToShow.map((item) => (
 									<Cell
-										key={`cell-failed-${index}`}
+										key={`cell-failed-${item.prompt_id}`}
 										fill={
-											hoveredBar?.index === index &&
-											hoveredBar?.dataKey === "failed"
-												? BAR_COLORS.failed.hover
-												: BAR_COLORS.failed.base
+											isHovered(item.prompt_id, "failed")
+												? testcaseBarColors.failed.hover
+												: testcaseBarColors.failed.base
 										}
 										style={{ transition: "fill 0.2s ease", cursor: "pointer" }}
 									/>
@@ -225,7 +193,7 @@ export function TestcaseStats({ prompts }: Props) {
 					{hasMoreData && (
 						<Button
 							variant="outline"
-							onClick={() => setShowAll(!showAll)}
+							onClick={toggleShowAll}
 							className="w-[100px] text-[14px] mt-4 bg-muted hover:bg-muted/80 border-border text-foreground"
 						>
 							{showAll ? (

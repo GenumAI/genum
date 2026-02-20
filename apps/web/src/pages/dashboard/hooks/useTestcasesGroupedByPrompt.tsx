@@ -1,23 +1,14 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { getOrgId, getProjectId } from "@/api/client";
 import { promptApi } from "@/api/prompt";
+import type { Prompt } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import { promptKeys } from "@/query-keys/prompt.keys";
+import type { TestCase } from "@/types/TestСase";
 
-interface Testcase {
-	id: number;
-	name: string;
-	promptId: number;
-	status: "OK" | "NOK" | "NEED_RUN";
-}
-
-interface Prompt {
-	id: number;
-	name: string;
-}
-
-interface ChartDataItem {
+export interface ChartDataItem {
 	name: string;
 	passed: number;
 	failed: number;
@@ -25,7 +16,7 @@ interface ChartDataItem {
 	prompt_id: number;
 }
 
-interface PromptStats {
+export interface PromptStats {
 	prompt_id: number;
 	total_requests: number;
 	total_tokens_in: number;
@@ -37,16 +28,15 @@ interface PromptStats {
 }
 
 const useTestcasesGroupedByPrompt = (filteredPrompts?: PromptStats[]) => {
-	const pathParts = window.location.pathname.split("/");
-	const organizationId = pathParts[1];
-	const projectId = pathParts[2];
+	const organizationId = getOrgId();
+	const projectId = getProjectId();
 
 	const {
 		data: testcasesData,
 		isLoading: testcasesLoading,
 		error: testcasesError,
 		refetch: refetchTestcases,
-	} = useQuery<Testcase[]>({
+	} = useQuery<TestCase[]>({
 		queryKey: testcaseKeys.list(organizationId, projectId),
 		enabled: !!organizationId && !!projectId,
 		queryFn: async () => {
@@ -59,6 +49,7 @@ const useTestcasesGroupedByPrompt = (filteredPrompts?: PromptStats[]) => {
 		data: promptsData,
 		isLoading: promptsLoading,
 		error: promptsError,
+		refetch: refetchPrompts,
 	} = useQuery<Prompt[]>({
 		queryKey: promptKeys.list(organizationId, projectId),
 		enabled: !!organizationId && !!projectId,
@@ -86,7 +77,7 @@ const useTestcasesGroupedByPrompt = (filteredPrompts?: PromptStats[]) => {
 		);
 
 		const groupedByPrompt = testcasesData.reduce(
-			(acc: Record<number, ChartDataItem>, testcase: Testcase) => {
+			(acc: Record<number, ChartDataItem>, testcase: TestCase) => {
 				const promptId = testcase.promptId;
 
 				if (allowedPromptIds && !allowedPromptIds.has(promptId)) {
@@ -122,13 +113,17 @@ const useTestcasesGroupedByPrompt = (filteredPrompts?: PromptStats[]) => {
 			(a: ChartDataItem, b: ChartDataItem) =>
 				b.passed + b.failed + b.needRun - (a.passed + a.failed + a.needRun),
 		);
-	}, [testcasesData, promptsData, filteredPrompts, organizationId, projectId]);
+	}, [testcasesData, promptsData, filteredPrompts]);
+
+	const refetch = useCallback(async () => {
+		await Promise.all([refetchTestcases(), refetchPrompts()]);
+	}, [refetchPrompts, refetchTestcases]);
 
 	return {
 		chartData: processedData,
 		isLoading: testcasesLoading || promptsLoading,
 		error: testcasesError || promptsError,
-		refetch: refetchTestcases,
+		refetch,
 	};
 };
 

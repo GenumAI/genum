@@ -1,54 +1,16 @@
-"use client";
-
-import { useState, useRef, useEffect } from "react";
-import { format, addDays } from "date-fns";
-import { useProjectUsage } from "@/hooks/useProjectUsage";
-import { StatsCards } from "@/pages/dashboard/StatsCard";
-import { ChartModelDistribution } from "@/pages/dashboard/ChartModelDistribution";
-import { TableModelStats } from "@/pages/dashboard/TableModelStats";
-import { TablePromptStats } from "@/pages/dashboard/TablePromptStats";
-import { TestcaseStats } from "@/pages/dashboard/TestcaseStats";
-import { UserActivityTable } from "@/pages/dashboard/UserActivityTable";
+import { StatsCards } from "@/pages/dashboard/components/StatsCard";
+import { ChartModelDistribution } from "@/pages/dashboard/components/ChartModelDistribution";
+import { TableModelStats } from "@/pages/dashboard/components/TableModelStats";
+import { TablePromptStats } from "@/pages/dashboard/components/TablePromptStats";
+import { TestcaseStats } from "@/pages/dashboard/components/TestcaseStats";
+import { UserActivityTable } from "@/pages/dashboard/components/UserActivityTable";
 import { Card } from "@/components/ui/card";
-import { LogsFilter, LogsFilterState } from "@/pages/logs/components/LogsFilter";
-import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
+import { LogsFilter } from "@/pages/logs/components/LogsFilter";
+import { useDashboardPageData } from "@/pages/dashboard/hooks/useDashboardPageData";
 
 export default function DashboardPage() {
-	const [filter, setFilter] = useState<LogsFilterState>({
-		dateRange: {
-			from: addDays(new Date(), -30),
-			to: new Date(),
-		},
-	});
+	const { filter, setFilter, data } = useDashboardPageData();
 
-	const [apiDate, setApiDate] = useState<{ from: Date; to: Date }>({
-		from: addDays(new Date(), -30),
-		to: new Date(),
-	});
-
-	useEffect(() => {
-		if (filter.dateRange?.from && filter.dateRange?.to) {
-			setApiDate({ from: filter.dateRange.from, to: filter.dateRange.to });
-		}
-	}, [filter.dateRange]);
-
-	const {
-		data: apiData,
-		isLoading,
-		refetch,
-	} = useProjectUsage(format(apiDate.from, "yyyy-MM-dd"), format(apiDate.to, "yyyy-MM-dd"));
-
-	const previousDataRef = useRef(apiData);
-	if (apiData && !isLoading) {
-		previousDataRef.current = apiData;
-	}
-	const data = apiData || previousDataRef.current;
-
-	useRefetchOnWorkspaceChange(() => {
-		refetch();
-	});
-
-	// loading / empty
 	if (!data) {
 		return (
 			<div className="text-foreground space-y-6 max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] ml-3 mr-6 w-full mt-8">

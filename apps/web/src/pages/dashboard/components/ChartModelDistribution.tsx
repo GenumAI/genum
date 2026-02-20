@@ -1,11 +1,14 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import {
+	buildColorByNameMap,
+	getDistributionTotal,
+	toDistributionChartData,
+	type DistributionModelInput,
+} from "@/pages/dashboard/utils/chartDistribution";
 
 interface Props {
-	models: {
-		model: string;
-		total_requests: number;
-	}[];
+	models: DistributionModelInput[];
 }
 
 const CHART_COLORS = [
@@ -24,15 +27,12 @@ const CHART_COLORS = [
 ];
 
 export function ChartModelDistribution({ models }: Props) {
-	const total = models.reduce((sum, m) => sum + m.total_requests, 0);
-
-	const chartData = models.map((m) => ({
-		name: m.model,
-		value: m.total_requests,
-	}));
+	const total = getDistributionTotal(models);
+	const chartData = toDistributionChartData(models);
 
 	const emptyChartData = [{ name: "No data", value: 1 }];
 	const hasData = total > 0;
+	const colorByModelName = buildColorByNameMap(chartData, CHART_COLORS);
 
 	return (
 		<Card className="flex flex-col border-0 shadow-none bg-card text-card-foreground">
@@ -56,10 +56,13 @@ export function ChartModelDistribution({ models }: Props) {
 								stroke={"hsl(var(--background))"}
 							>
 								{hasData ? (
-									chartData.map((_, i) => (
+									chartData.map((entry) => (
 										<Cell
-											key={i}
-											fill={CHART_COLORS[i % CHART_COLORS.length]}
+											key={`pie-cell-${entry.name}`}
+											fill={
+												colorByModelName.get(entry.name) ??
+												CHART_COLORS[0]
+											}
 										/>
 									))
 								) : (
@@ -78,12 +81,13 @@ export function ChartModelDistribution({ models }: Props) {
 				{/* Legend */}
 				<div className="flex flex-col gap-3">
 					{hasData ? (
-						chartData.map((entry, i) => (
-							<div key={i} className="flex items-center gap-2 h-4">
+						chartData.map((entry) => (
+							<div key={`legend-${entry.name}`} className="flex items-center gap-2 h-4">
 								<span
 									className="h-2 w-2 rounded-[2px]"
 									style={{
-										backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+										backgroundColor:
+											colorByModelName.get(entry.name) ?? CHART_COLORS[0],
 									}}
 								/>
 								<span className="text-[12px] text-foreground/90">{entry.name}</span>
