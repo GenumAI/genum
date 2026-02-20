@@ -1,8 +1,9 @@
 import React, { ReactNode } from "react";
-import { Auth0Provider } from "@auth0/auth0-react";
+import { AppState, Auth0Provider } from "@auth0/auth0-react";
 import { LocalAuthProvider } from "@/contexts/LocalAuthContext";
 import { isLocalAuth } from "@/lib/auth";
 import { runtimeConfig } from "@/lib/runtime-config";
+import { useNavigate } from "react-router-dom";
 
 interface AuthProviderProps {
 	children: ReactNode;
@@ -16,9 +17,15 @@ interface AuthProviderProps {
  * that may be accessed regardless of auth mode
  */
 export function AuthProvider({ children }: AuthProviderProps) {
+	const navigate = useNavigate();
+
 	if (isLocalAuth()) {
 		return <LocalAuthProvider>{children}</LocalAuthProvider>;
 	}
+
+	const onRedirectCallback = (appState: AppState | undefined) => {
+		navigate(appState?.returnTo || window.location.pathname, { replace: true });
+	  };
 
 	return (
 		<LocalAuthProvider>
@@ -29,6 +36,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 					redirect_uri: window.location.origin,
 					audience: runtimeConfig.AUTH0_AUDIENCE,
 				}}
+				onRedirectCallback={onRedirectCallback}
 			>
 				{children}
 			</Auth0Provider>

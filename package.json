@@ -1,6 +1,6 @@
 {
   "name": "genum",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "packageManager": "pnpm@10.28.2",
   "author": "support@genum.ai",
