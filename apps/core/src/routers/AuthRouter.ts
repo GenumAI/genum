@@ -31,7 +31,9 @@ export function createAdminRouter(): Router {
 function checkApiKey(req: Request, res: Response, next: NextFunction): void {
 	const apiKey = extractBearerToken(req.headers.authorization);
 	if (!apiKey) {
-		res.status(401).json({ error: "Invalid or missing Authorization header. Expected: Bearer <token>" });
+		res.status(401).json({
+			error: "Invalid or missing Authorization header. Expected: Bearer <token>",
+		});
 		return;
 	}
 
