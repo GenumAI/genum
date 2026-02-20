@@ -1,8 +1,10 @@
 /** biome-ignore-all lint/correctness/noUnusedFunctionParameters: WIP */
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { db } from "../database/db";
 import type { OrganizationRole, ProjectRole } from "@/prisma";
 import { isLocalInstance } from "@/utils/env";
+
+export type ContextScope = "user" | "org" | "project";
 
 export function createAuthMiddleware() {
 	const hasProjectRole =
@@ -41,13 +43,12 @@ export function createAuthMiddleware() {
 			next();
 		};
 
-	const attachUserContext = () => async (req: Request, res: Response, next: NextFunction) => {
+	const attachUserContext: RequestHandler = async (req, res, next) => {
 		try {
 			const metadata = req.genumMeta.ids;
 			const payload = req.auth?.payload;
 
 			const user = await db.auth.getUserById(metadata.userID);
-			// check if user is the same as the user in the payload
 			// Skip sub/authID check for self-hosted instances
 			if (!user || (!isLocalInstance() && payload?.sub !== user.authID)) {
 				res.status(404).json({ error: "User not found" });
@@ -61,7 +62,7 @@ export function createAuthMiddleware() {
 		}
 	};
 
-	const attachOrgContext = () => async (req: Request, res: Response, next: NextFunction) => {
+	const attachOrgContext: RequestHandler = async (req, res, next) => {
 		try {
 			const metadata = req.genumMeta.ids;
 
@@ -93,7 +94,7 @@ export function createAuthMiddleware() {
 		}
 	};
 
-	const attachProjContext = () => async (req: Request, res: Response, next: NextFunction) => {
+	const attachProjContext: RequestHandler = async (req, res, next) => {
 		try {
 			const metadata = req.genumMeta.ids;
 			const projContext = await db.auth.getUserProjectContext(
@@ -120,7 +121,7 @@ export function createAuthMiddleware() {
 		}
 	};
 
-	const requireSystemUser = () => async (req: Request, res: Response, next: NextFunction) => {
+	const requireSystemUser: RequestHandler = async (req, res, next) => {
 		try {
 			const metadata = req.genumMeta.ids;
 			const systemUserId = await db.system.getSystemUserId();
@@ -138,11 +139,23 @@ export function createAuthMiddleware() {
 		}
 	};
 
+	const context = (scope: ContextScope): RequestHandler[] => {
+		const chain: RequestHandler[] = [attachUserContext];
+
+		if (scope === "org" || scope === "project") {
+			chain.push(attachOrgContext);
+		}
+		if (scope === "project") {
+			chain.push(attachProjContext);
+		}
+
+		return chain;
+	};
+
 	return {
 		hasProjectRole,
 		hasOrganizationRole,
-		attachUserContext,
-		attachOrgContext,
+		context,
 		attachProjContext,
 		requireSystemUser,
 	};

@@ -15,7 +15,7 @@ import { prisma } from "@/database/prisma";
  */
 async function main() {
 	await syncModels();
-	
+
 	// System user creation now includes migration logic internally
 	// (backward compatibility with v1.3.0 and earlier is handled in SystemService.ensureSystemUserExists)
 	const systemUserId = await createSystemUserIfNotExists();
@@ -25,7 +25,6 @@ async function main() {
 	await createSystemPromptsIfNotExists(systemUserId);
 }
 
-console.time("seed-start");
 main()
 	.catch((e) => {
 		console.error("❌ Error during seeding:", e);

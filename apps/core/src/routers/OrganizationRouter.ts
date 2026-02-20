@@ -16,7 +16,7 @@ export function createOrganizationRouter(): Router {
 	router.get(
 		"/members/not-in-project",
 		w.hasOrganizationRole(OrganizationRole.ADMIN),
-		w.attachProjContext(),
+		w.attachProjContext,
 		asyncHandler(orgController.getMembersNotInProject.bind(orgController)),
 	);
 	// router.delete('/members/:memberId', w.hasOrganizationRole(OrganizationRole.ADMIN), async (req: Request, res: Response, next: NextFunction) => {
@@ -54,13 +54,13 @@ export function createOrganizationRouter(): Router {
 	router.get(
 		"/projects",
 		w.hasOrganizationRole(OrganizationRole.ADMIN),
-		w.attachProjContext(),
+		w.attachProjContext,
 		asyncHandler(orgController.getOrganizationProjects.bind(orgController)),
 	);
 	router.delete(
 		"/projects/:projectId",
 		w.hasOrganizationRole(OrganizationRole.ADMIN),
-		w.attachProjContext(),
+		w.attachProjContext,
 		asyncHandler(orgController.deleteProject.bind(orgController)),
 	);
 

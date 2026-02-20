@@ -35,7 +35,7 @@ export function APIKeyTableRow({
 				<div className="flex items-center justify-center gap-2">
 					<Avatar className="h-6 w-6 rounded-lg">
 						<AvatarImage
-							src={authorAvatar ?? "/assets/avatars/shadcn.jpg"}
+							src={authorAvatar}
 							alt={authorName}
 						/>
 						<AvatarFallback className={`rounded-lg text-xs font-bold ${authorColor}`}>

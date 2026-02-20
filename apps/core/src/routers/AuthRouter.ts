@@ -1,11 +1,12 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { AuthController } from "../controllers/auth.controller";
+import { AdminController } from "../controllers/admin.controller";
 import { env } from "@/env";
 import { asyncHandler } from "@/utils/asyncHandler";
+import { extractBearerToken } from "@/utils/http";
 
-export function createAuthRouter(): Router {
+export function createAdminRouter(): Router {
 	const router = Router();
-	const controller = new AuthController();
+	const controller = new AdminController();
 
 	// apply middleware to all routes
 	router.use(checkApiKey);
@@ -28,21 +29,15 @@ export function createAuthRouter(): Router {
 
 // Middleware to check API key
 function checkApiKey(req: Request, res: Response, next: NextFunction): void {
-	const authHeader = req.headers.authorization;
-	if (!authHeader) {
-		res.status(401).json({ error: "Authorization header is missing" });
+	const apiKey = extractBearerToken(req.headers.authorization);
+	if (!apiKey) {
+		res.status(401).json({
+			error: "Invalid or missing Authorization header. Expected: Bearer <token>",
+		});
 		return;
 	}
 
-	const parts = authHeader.split(" ");
-	if (parts.length !== 2 || parts[0] !== "Bearer") {
-		res.status(401).json({ error: "Invalid authorization header format" });
-		return;
-	}
-
-	const apiKey = parts[1];
 	const expectedApiKey = env.AUTH0_ACTION_APIKEY || "";
-
 	if (apiKey !== expectedApiKey) {
 		res.status(401).json({ error: "Invalid API key" });
 		return;

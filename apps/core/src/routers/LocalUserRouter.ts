@@ -4,6 +4,8 @@ import { LocalUserLoginSchema, LocalUserRegisterSchema } from "@/services/valida
 import { createSession, destroySession } from "@/auth/local/session";
 import { hashPassword, verifyPassword } from "@/auth/local/password";
 import { asyncHandler } from "@/utils/asyncHandler";
+import { webhooks } from "@/services/webhooks/webhooks";
+import { env } from "@/env";
 
 export function createLocalUserRouter(): Router {
 	const router = Router();
@@ -19,6 +21,15 @@ export function createLocalUserRouter(): Router {
 			await db.organization.createPersonalOrganization(user);
 
 			await createSession(res, user.id);
+
+			webhooks.postRegister({
+				id: user.id,
+				email: user.email,
+				name: user.name,
+				created_at: user.createdAt.toISOString(),
+				stage: env.NODE_ENV,
+				ip: req.ip,
+			});
 
 			res.status(200).json({ userId: user.id });
 		}),

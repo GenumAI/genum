@@ -1,5 +1,5 @@
-import React, { ReactNode } from "react";
-import { Auth0Provider } from "@auth0/auth0-react";
+import type { ReactNode } from "react";
+import { type AppState, Auth0Provider } from "@auth0/auth0-react";
 import { LocalAuthProvider } from "@/contexts/LocalAuthContext";
 import { isLocalAuth } from "@/lib/auth";
 import { runtimeConfig } from "@/lib/runtime-config";
@@ -20,6 +20,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		return <LocalAuthProvider>{children}</LocalAuthProvider>;
 	}
 
+	const onRedirectCallback = (appState: AppState | undefined) => {
+		window.history.replaceState({}, document.title, appState?.returnTo || window.location.pathname);
+	};
+
 	return (
 		<LocalAuthProvider>
 			<Auth0Provider
@@ -29,6 +33,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 					redirect_uri: window.location.origin,
 					audience: runtimeConfig.AUTH0_AUDIENCE,
 				}}
+				onRedirectCallback={onRedirectCallback}
 			>
 				{children}
 			</Auth0Provider>

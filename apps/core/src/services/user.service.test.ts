@@ -8,12 +8,18 @@ describe("UserService", () => {
 		users: {
 			getUserContextByID: ReturnType<typeof vi.fn>;
 		};
+		system: {
+			getSystemUserId: ReturnType<typeof vi.fn>;
+		};
 	};
 
 	beforeEach(() => {
 		mockDb = {
 			users: {
 				getUserContextByID: vi.fn(),
+			},
+			system: {
+				getSystemUserId: vi.fn().mockResolvedValue(null),
 			},
 		};
 		userService = new UserService(mockDb as unknown as Database);

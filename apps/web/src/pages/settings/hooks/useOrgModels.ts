@@ -10,7 +10,6 @@ export function useOrgModels() {
 	const { data, isLoading, error } = useQuery({
 		queryKey: organizationKeys.models(),
 		queryFn: () => organizationApi.getOrganizationModels(),
-		staleTime: 1000 * 60 * 5, // 5 minutes
 	});
 
 	const toggleMutation = useMutation({
