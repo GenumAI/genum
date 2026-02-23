@@ -8,13 +8,12 @@ import { organizationApi } from "@/api/organization";
 import { ORG_MEMBERS_QUERY_KEY } from "./hooks/useOrgMembers";
 import { ORG_INVITES_QUERY_KEY } from "./hooks/useOrgInvites";
 import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
-
-type OrgRole = "OWNER" | "ADMIN" | "READER";
+import { OrganizationRole } from "@/api/organization";
 
 type MenuItem = {
 	label: string;
 	to: string;
-	minRole?: OrgRole;
+	minRole?: OrganizationRole;
 };
 
 type MenuSection = {
@@ -22,13 +21,13 @@ type MenuSection = {
 	items: MenuItem[];
 };
 
-const ORG_ROLE_RANK: Record<OrgRole, number> = {
-	READER: 0,
-	ADMIN: 1,
-	OWNER: 2,
+const ORG_ROLE_RANK: Record<OrganizationRole, number> = {
+	[OrganizationRole.READER]: 0,
+	[OrganizationRole.ADMIN]: 1,
+	[OrganizationRole.OWNER]: 2,
 };
 
-function hasAccess(itemRole: OrgRole | undefined, userRole: OrgRole): boolean {
+function hasAccess(itemRole: OrganizationRole | undefined, userRole: OrganizationRole): boolean {
 	if (!itemRole) return true;
 	return ORG_ROLE_RANK[userRole] >= ORG_ROLE_RANK[itemRole];
 }
@@ -42,11 +41,11 @@ const MENU: MenuSection[] = [
 		title: "Organization",
 		items: [
 			{ label: "Details", to: "/settings/org/details" },
-			{ label: "Members", to: "/settings/org/members", minRole: "ADMIN" },
-			{ label: "Projects", to: "/settings/org/projects", minRole: "ADMIN" },
-			{ label: "AI Providers", to: "/settings/org/ai-keys", minRole: "ADMIN" },
-			{ label: "Models", to: "/settings/org/models", minRole: "ADMIN" },
-			{ label: "API", to: "/settings/org/api-keys", minRole: "ADMIN" },
+			{ label: "Members", to: "/settings/org/members", minRole: OrganizationRole.ADMIN },
+			{ label: "Projects", to: "/settings/org/projects", minRole: OrganizationRole.ADMIN },
+			{ label: "AI Providers", to: "/settings/org/ai-keys", minRole: OrganizationRole.ADMIN },
+			{ label: "Models", to: "/settings/org/models", minRole: OrganizationRole.ADMIN },
+			{ label: "API", to: "/settings/org/api-keys", minRole: OrganizationRole.ADMIN },
 		],
 	},
 	{
@@ -86,7 +85,7 @@ export default function Settings() {
 	const { user } = useCurrentUser();
 
 	const currentOrg = user?.organizations?.find((o) => o.id.toString() === orgId);
-	const orgRole = (currentOrg?.role ?? "READER") as OrgRole;
+	const orgRole = (currentOrg?.role as OrganizationRole) ?? OrganizationRole.READER;
 
 	// Prefetch org members & invites so switching to Members tab uses cache (no refetch)
 	React.useEffect(() => {

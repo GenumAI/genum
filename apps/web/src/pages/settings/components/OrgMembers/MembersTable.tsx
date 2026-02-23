@@ -16,12 +16,13 @@ import {
 	SelectItem,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { OrganizationRole } from "@/api/organization";
 import type { OrgMembersTableProps } from "../../utils/types";
 
-const ROLE_LABELS: Record<string, string> = {
-	OWNER: "Owner",
-	ADMIN: "Admin",
-	READER: "Reader",
+const ROLE_LABELS: Record<OrganizationRole, string> = {
+	[OrganizationRole.OWNER]: "Owner",
+	[OrganizationRole.ADMIN]: "Admin",
+	[OrganizationRole.READER]: "Reader",
 };
 
 export function MembersTable({
@@ -56,37 +57,37 @@ export function MembersTable({
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{members.map((member) => {
-						const isSelf = member.user.email === currentUserEmail;
-						const isOwner = member.role === "OWNER";
-						const canChangeRole = canManageMembers && !isSelf && !isOwner && onRoleChange;
-						const canDelete = canManageMembers && !isSelf && !isOwner && onDelete;
+				{members.map((member) => {
+					const isSelf = member.user.email === currentUserEmail;
+					const isOwner = member.role === OrganizationRole.OWNER;
+					const canChangeRole = canManageMembers && !isSelf && !isOwner && onRoleChange;
+					const canDelete = canManageMembers && !isSelf && !isOwner && onDelete;
 
-						return (
-							<TableRow key={member.id}>
-								<TableCell>{member.user.email}</TableCell>
-								<TableCell>{member.user.name}</TableCell>
-								<TableCell>
-									{canChangeRole ? (
-										<Select
-											value={member.role}
-											onValueChange={(value) => onRoleChange(member.id, value)}
-											disabled={updatingRoleId === member.id}
-										>
-											<SelectTrigger className="w-[110px] text-[14px] h-[30px]">
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="ADMIN">Admin</SelectItem>
-												<SelectItem value="READER">Reader</SelectItem>
-											</SelectContent>
-										</Select>
-									) : (
-										<Badge variant="secondary" className="font-normal">
-											{ROLE_LABELS[member.role] ?? member.role}
-										</Badge>
-									)}
-								</TableCell>
+					return (
+						<TableRow key={member.id}>
+							<TableCell>{member.user.email}</TableCell>
+							<TableCell>{member.user.name}</TableCell>
+							<TableCell>
+								{canChangeRole ? (
+									<Select
+										value={member.role}
+										onValueChange={(value) => onRoleChange(member.id, value as OrganizationRole)}
+										disabled={updatingRoleId === member.id}
+									>
+										<SelectTrigger className="w-[110px] text-[14px] h-[30px]">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value={OrganizationRole.ADMIN}>Admin</SelectItem>
+											<SelectItem value={OrganizationRole.READER}>Reader</SelectItem>
+										</SelectContent>
+									</Select>
+								) : (
+									<Badge variant="secondary" className="font-normal">
+										{ROLE_LABELS[member.role] ?? member.role}
+									</Badge>
+								)}
+							</TableCell>
 								{canManageMembers && (
 									<TableCell className="text-center">
 										<Button

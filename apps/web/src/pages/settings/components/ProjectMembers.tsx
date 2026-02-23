@@ -6,6 +6,7 @@ import { AddMemberDialog } from "./ProjectMembers/AddMemberDialog";
 import { MembersTable } from "./ProjectMembers/MembersTable";
 import { DeleteConfirmDialog } from "./shared/DeleteConfirmDialog";
 import type { ProjectMember } from "@/api/project";
+import { ProjectRole } from "@/api/project";
 
 export default function ProjectMembers() {
 	const { user: userData } = useCurrentUser();
@@ -28,9 +29,9 @@ export default function ProjectMembers() {
 	const [memberToDelete, setMemberToDelete] = useState<ProjectMember | null>(null);
 
 	const currentMember = members.find((m) => m.user.email === userData?.email);
-	const canManageMembers = currentMember?.role === "ADMIN";
+	const canManageMembers = currentMember?.role === ProjectRole.ADMIN;
 
-	const handleAdd = async (userId: number, role: string) => {
+	const handleAdd = async (userId: number, role: ProjectRole) => {
 		return await addMember(userId, role);
 	};
 

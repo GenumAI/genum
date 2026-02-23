@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/useToast";
-import { projectApi } from "@/api/project";
+import { projectApi, ProjectRole } from "@/api/project";
 import { organizationApi } from "@/api/organization/organization.api";
 import type { ProjectMember } from "@/api/project";
 import type { User } from "../utils/types";
@@ -47,7 +47,7 @@ export function useProjectMembers() {
 	}, []);
 
 	const addMember = useCallback(
-		async (userId: number, role: string) => {
+		async (userId: number, role: ProjectRole) => {
 			try {
 				setIsAddingMember(true);
 				await projectApi.addMember({ userId, role });
@@ -75,7 +75,7 @@ export function useProjectMembers() {
 	);
 
 	const updateMemberRole = useCallback(
-		async (id: number, role: string) => {
+		async (id: number, role: ProjectRole) => {
 			try {
 				setUpdatingRoleId(id);
 				setMembers((prev) =>

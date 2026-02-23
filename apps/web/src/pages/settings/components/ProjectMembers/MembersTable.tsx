@@ -15,6 +15,7 @@ import {
 	SelectValue,
 	SelectItem,
 } from "@/components/ui/select";
+import { ProjectRole } from "@/api/project";
 import type { MembersTableProps } from "../../utils/types";
 
 
@@ -52,19 +53,19 @@ export function MembersTable({
 							<TableCell>{member.user.email}</TableCell>
 							<TableCell>{member.user.name}</TableCell>
 							<TableCell>
-								<Select
-									value={member.role}
-									onValueChange={(value) => onRoleChange?.(member.id, value)}
-									disabled={!onRoleChange || updatingRoleId === member.id}
-								>
-									<SelectTrigger className="w-[120px] text-[14px] h-[30px]">
-										<SelectValue placeholder={member.role} />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="ADMIN">Admin</SelectItem>
-										<SelectItem value="MEMBER">Member</SelectItem>
-									</SelectContent>
-								</Select>
+							<Select
+								value={member.role}
+								onValueChange={(value) => onRoleChange?.(member.id, value as ProjectRole)}
+								disabled={!onRoleChange || updatingRoleId === member.id}
+							>
+								<SelectTrigger className="w-[120px] text-[14px] h-[30px]">
+									<SelectValue placeholder={member.role} />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value={ProjectRole.ADMIN}>Admin</SelectItem>
+									<SelectItem value={ProjectRole.MEMBER}>Member</SelectItem>
+								</SelectContent>
+							</Select>
 							</TableCell>
 							<TableCell className="text-center">
 								<Button

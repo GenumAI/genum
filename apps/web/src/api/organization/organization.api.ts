@@ -1,6 +1,16 @@
 import { apiClient, type ApiRequestConfig } from "../client";
 
 // ============================================================================
+// Enums
+// ============================================================================
+
+export enum OrganizationRole {
+	OWNER = "OWNER",
+	ADMIN = "ADMIN",
+	READER = "READER",
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -26,7 +36,7 @@ export interface Member {
 	organizationId?: number;
 	userId?: number;
 	projectId?: number;
-	role: string;
+	role: OrganizationRole;
 	user: {
 		id: number;
 		email: string;
@@ -43,17 +53,17 @@ export interface MembersResponse {
 
 export interface InviteMemberData {
 	email: string;
-	role?: string;
+	role?: OrganizationRole;
 }
 
 export interface UpdateMemberRoleData {
-	role: string;
+	role: OrganizationRole;
 }
 
 export interface Invite {
 	id: number;
 	email: string;
-	role: string;
+	role: OrganizationRole;
 	token: string;
 	createdAt: string;
 }

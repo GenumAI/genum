@@ -1,6 +1,15 @@
 import { apiClient, ApiRequestConfig } from "../client";
 
 // ============================================================================
+// Enums
+// ============================================================================
+
+export enum ProjectRole {
+	ADMIN = "ADMIN",
+	MEMBER = "MEMBER",
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -83,7 +92,7 @@ export interface ProjectMember {
 	organizationId?: number;
 	userId?: number;
 	projectId?: number;
-	role: string;
+	role: ProjectRole;
 	user: {
 		id: number;
 		email: string;
@@ -94,11 +103,11 @@ export interface ProjectMember {
 
 export interface AddMemberData {
 	userId: number;
-	role: string;
+	role: ProjectRole;
 }
 
 export interface UpdateMemberRoleData {
-	role: string;
+	role: ProjectRole;
 }
 
 export interface Project {

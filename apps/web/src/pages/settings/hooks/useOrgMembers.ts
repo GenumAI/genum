@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
-import { organizationApi, type Member } from "@/api/organization";
+import { organizationApi, type Member, OrganizationRole } from "@/api/organization";
 import { ORG_INVITES_QUERY_KEY } from "./useOrgInvites";
 import { isLocalAuth } from "@/lib/auth";
 
@@ -18,7 +18,7 @@ export function useOrgMembers(orgId: string | undefined) {
 	});
 
 	const inviteMutation = useMutation({
-		mutationFn: ({ email, role }: { email: string; role: string }) =>
+		mutationFn: ({ email, role }: { email: string; role: OrganizationRole }) =>
 			organizationApi.inviteMember({ email, role }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [...ORG_MEMBERS_QUERY_KEY, orgId] });
@@ -27,7 +27,7 @@ export function useOrgMembers(orgId: string | undefined) {
 	});
 
 	const updateRoleMutation = useMutation({
-		mutationFn: ({ memberId, role }: { memberId: number; role: string }) =>
+		mutationFn: ({ memberId, role }: { memberId: number; role: OrganizationRole }) =>
 			organizationApi.updateMemberRole(memberId, { role }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: [...ORG_MEMBERS_QUERY_KEY, orgId] });
@@ -45,7 +45,7 @@ export function useOrgMembers(orgId: string | undefined) {
 
 	const inviteMember = async (
 		email: string,
-		role: string,
+		role: OrganizationRole,
 	): Promise<{ success: boolean; inviteUrl?: string }> => {
 		const trimmedEmail = email.trim();
 		if (!trimmedEmail) return { success: false };
@@ -79,7 +79,7 @@ export function useOrgMembers(orgId: string | undefined) {
 		}
 	};
 
-	const updateMemberRole = async (memberId: number, role: string): Promise<boolean> => {
+	const updateMemberRole = async (memberId: number, role: OrganizationRole): Promise<boolean> => {
 		try {
 			await updateRoleMutation.mutateAsync({ memberId, role });
 			toast({ title: "Updated", description: "Member role updated" });
