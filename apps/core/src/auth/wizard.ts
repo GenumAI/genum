@@ -14,7 +14,7 @@ const ORG_ROLE_RANK: Record<OrganizationRole, number> = {
 
 const PROJ_ROLE_RANK: Record<ProjectRole, number> = {
 	[ProjectRole.MEMBER]: 0,
-	[ProjectRole.OWNER]:  1,
+	[ProjectRole.ADMIN]:  1,
 };
 
 export function createAuthMiddleware() {

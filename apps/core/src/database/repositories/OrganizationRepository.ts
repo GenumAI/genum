@@ -114,12 +114,12 @@ export class OrganizationRepository {
 						name: "Personal Project",
 						description: `Personal project for ${user.email}`,
 						initial: true,
-						members: {
-							create: {
-								userId: user.id,
-								role: ProjectRole.OWNER,
-							},
+					members: {
+						create: {
+							userId: user.id,
+							role: ProjectRole.ADMIN,
 						},
+					},
 					},
 				},
 				quota: {
@@ -149,18 +149,18 @@ export class OrganizationRepository {
 					},
 				},
 				projects: {
-					create: {
-						name: "Default Project",
-						description: `Default project for ${name} organization`,
-						initial: true,
-						members: {
-							create: {
-								userId: userId,
-								role: ProjectRole.OWNER,
-							},
+				create: {
+					name: "Default Project",
+					description: `Default project for ${name} organization`,
+					initial: true,
+					members: {
+						create: {
+							userId: userId,
+							role: ProjectRole.ADMIN,
 						},
 					},
 				},
+			},
 				quota: {
 					create: {
 						balance: this.SHARED_ORG_QUOTA,
@@ -238,6 +238,15 @@ export class OrganizationRepository {
 			where: {
 				id: memberId,
 				organizationId: orgId,
+			},
+		});
+	}
+
+	public async getOrganizationOwners(orgId: number) {
+		return await this.prisma.organizationMember.findMany({
+			where: {
+				organizationId: orgId,
+				role: OrganizationRole.OWNER,
 			},
 		});
 	}

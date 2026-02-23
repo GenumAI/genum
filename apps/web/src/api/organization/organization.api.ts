@@ -43,6 +43,11 @@ export interface MembersResponse {
 
 export interface InviteMemberData {
 	email: string;
+	role?: string;
+}
+
+export interface UpdateMemberRoleData {
+	role: string;
 }
 
 export interface Invite {
@@ -241,6 +246,24 @@ export const organizationApi = {
 	 */
 	inviteMember: async (data: InviteMemberData, config?: ApiRequestConfig): Promise<void> => {
 		await apiClient.post("/organization/members/invite", data, config);
+	},
+
+	/**
+	 * Update a member's organization role
+	 */
+	updateMemberRole: async (
+		memberId: number,
+		data: UpdateMemberRoleData,
+		config?: ApiRequestConfig,
+	): Promise<void> => {
+		await apiClient.put(`/organization/members/${memberId}/role`, data, config);
+	},
+
+	/**
+	 * Delete a member from the organization
+	 */
+	deleteMember: async (memberId: number, config?: ApiRequestConfig): Promise<void> => {
+		await apiClient.delete(`/organization/members/${memberId}`, config);
 	},
 
 	/**

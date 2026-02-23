@@ -19,13 +19,19 @@ export function createOrganizationRouter(): Router {
 	router.put("/", asyncHandler(orgController.updateOrganization.bind(orgController)));
 
 	// Members
-	// router.put('/members/:memberId/role', async (req, res, next) => { orgController.updateMemberRole(req, res, next); });
+	router.put(
+		"/members/:memberId/role",
+		asyncHandler(orgController.updateMemberRole.bind(orgController)),
+	);
+	router.delete(
+		"/members/:memberId",
+		asyncHandler(orgController.deleteMember.bind(orgController)),
+	);
 	router.get(
 		"/members/not-in-project",
 		w.attachProjContext,
 		asyncHandler(orgController.getMembersNotInProject.bind(orgController)),
 	);
-	// router.delete('/members/:memberId', async (req, res, next) => { orgController.deleteMember(req, res, next); });
 	router.get("/members", asyncHandler(orgController.getOrganizationMembers.bind(orgController)));
 	router.post("/members/invite", asyncHandler(orgController.inviteMember.bind(orgController)));
 

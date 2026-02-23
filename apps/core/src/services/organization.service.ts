@@ -217,8 +217,7 @@ export class OrganizationService {
 
 		const member = await this.db.organization.addMemberToOrganization(orgId, userId, role);
 
-		// if role is ADMIN - all projects are visible
-		if (role === OrganizationRole.ADMIN) {
+		if (role === OrganizationRole.OWNER || role === OrganizationRole.ADMIN) {
 			await this.syncProjectMembershipByOrganizationRole(orgId, userId);
 		}
 
@@ -228,14 +227,31 @@ export class OrganizationService {
 	private async syncProjectMembershipByOrganizationRole(orgId: number, userId: number) {
 		const projects = await this.db.project.getProjectsByOrgId(orgId);
 		for (const project of projects) {
-			await this.db.project.addMember(project.id, userId, ProjectRole.OWNER);
+			const existing = await this.db.project.getMemberByUserId(project.id, userId);
+			if (!existing) {
+				await this.db.project.addMember(project.id, userId, ProjectRole.ADMIN);
+			} else {
+				await this.db.project.updateMemberRole(existing.id, ProjectRole.ADMIN);
+			}
+		}
+	}
+
+	public async updateMemberRoleSideEffects(
+		orgId: number,
+		member: { id: number; userId: number },
+		newRole: OrganizationRole,
+	) {
+		if (newRole === OrganizationRole.OWNER || newRole === OrganizationRole.ADMIN) {
+			await this.syncProjectMembershipByOrganizationRole(orgId, member.userId);
+		} else if (newRole === OrganizationRole.READER) {
+			await this.db.project.removeFromAllProjects(orgId, member.userId);
 		}
 	}
 
 	public async createMemberInvitation(
 		orgId: number,
 		email: string,
-		_role: OrganizationRole,
+		role: OrganizationRole,
 		orgName: string,
 	) {
 		// Check if user is already a member
@@ -244,9 +260,7 @@ export class OrganizationService {
 			throw new Error("User is already a member");
 		}
 
-		// feature: teamwork
-		const USER_ROLE = OrganizationRole.ADMIN;
-		const invitation = await this.db.organization.inviteMember(orgId, email, USER_ROLE);
+		const invitation = await this.db.organization.inviteMember(orgId, email, role);
 
 		const inviteUrl = `${process.env.FRONTEND_URL}/invite/${invitation.token}`;
 

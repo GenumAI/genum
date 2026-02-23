@@ -16,9 +16,9 @@ export default function ProjectMembers() {
 		isLoading,
 		isAddingMember,
 		deletingId,
-		// updatingRoleId,
+		updatingRoleId,
 		addMember,
-		// updateMemberRole,
+		updateMemberRole,
 		deleteMember,
 		fetchAvailableUsers,
 	} = useProjectMembers();
@@ -26,6 +26,9 @@ export default function ProjectMembers() {
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [memberToDelete, setMemberToDelete] = useState<ProjectMember | null>(null);
+
+	const currentMember = members.find((m) => m.user.email === userData?.email);
+	const canManageMembers = currentMember?.role === "ADMIN";
 
 	const handleAdd = async (userId: number, role: string) => {
 		return await addMember(userId, role);
@@ -55,16 +58,18 @@ export default function ProjectMembers() {
 				<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
 					Project Members
 				</CardTitle>
-				<div className="flex gap-2">
-					<AddMemberDialog
-						open={dialogOpen}
-						onOpenChange={setDialogOpen}
-						onAdd={handleAdd}
-						availableUsers={availableUsers}
-						hasEndpoint={hasAvailableUsersEndpoint}
-						isAdding={isAddingMember}
-					/>
-				</div>
+				{canManageMembers && (
+					<div className="flex gap-2">
+						<AddMemberDialog
+							open={dialogOpen}
+							onOpenChange={setDialogOpen}
+							onAdd={handleAdd}
+							availableUsers={availableUsers}
+							hasEndpoint={hasAvailableUsersEndpoint}
+							isAdding={isAddingMember}
+						/>
+					</div>
+				)}
 			</CardHeader>
 
 			<CardContent className="p-6 pt-0">
@@ -72,9 +77,9 @@ export default function ProjectMembers() {
 					members={members}
 					isLoading={isLoading}
 					currentUserEmail={userData?.email}
-					// updatingRoleId={updatingRoleId}
+					updatingRoleId={updatingRoleId}
 					deletingId={deletingId}
-					// onRoleChange={updateMemberRole}
+					onRoleChange={canManageMembers ? updateMemberRole : undefined}
 					onDelete={handleDeleteClick}
 				/>
 			</CardContent>

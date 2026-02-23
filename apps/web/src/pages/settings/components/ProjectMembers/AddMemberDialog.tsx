@@ -126,7 +126,7 @@ export function AddMemberDialog({
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="MEMBER">Member</SelectItem>
-								<SelectItem value="OWNER">Owner</SelectItem>
+								<SelectItem value="ADMIN">Admin</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>

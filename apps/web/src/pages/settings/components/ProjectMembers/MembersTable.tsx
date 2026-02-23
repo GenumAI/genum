@@ -61,7 +61,7 @@ export function MembersTable({
 										<SelectValue placeholder={member.role} />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="OWNER">Owner</SelectItem>
+										<SelectItem value="ADMIN">Admin</SelectItem>
 										<SelectItem value="MEMBER">Member</SelectItem>
 									</SelectContent>
 								</Select>

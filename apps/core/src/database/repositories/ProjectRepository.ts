@@ -61,10 +61,10 @@ export class ProjectRepository {
 		const projectMembersData = organizationAdmins.map((member) => ({
 			userId: member.userId,
 			projectId: project.id,
-			role: ProjectRole.OWNER,
+			role: ProjectRole.ADMIN,
 		}));
 
-		// add all organization admins to the project as owners
+		// add all organization admins to the project as admins
 		await this.prisma.projectMember.createMany({
 			data: projectMembersData,
 		});

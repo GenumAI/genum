@@ -220,7 +220,7 @@ export interface DeleteConfirmDialogProps {
 export interface InviteMemberDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onInvite: (email: string) => Promise<{ success: boolean; inviteUrl?: string }>;
+	onInvite: (email: string, role: string) => Promise<{ success: boolean; inviteUrl?: string }>;
 	isInviting: boolean;
 }
 
@@ -264,6 +264,12 @@ export interface MembersTableProps {
 export interface OrgMembersTableProps {
 	members: Member[];
 	isLoading: boolean;
+	currentUserEmail?: string;
+	canManageMembers: boolean;
+	updatingRoleId?: number | null;
+	deletingId?: number | null;
+	onRoleChange?: (memberId: number, role: string) => void;
+	onDelete?: (member: Member) => void;
 }
 
 export interface InvitesTableProps {
