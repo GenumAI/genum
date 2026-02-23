@@ -18,7 +18,12 @@ export class ProjectRepository {
 	}
 
 	public async getProjectMembers(projID: number) {
-		return await this.prisma.projectMember.findMany({
+		const project = await this.prisma.project.findUnique({
+			where: { id: projID },
+			select: { organizationId: true },
+		});
+
+		const members = await this.prisma.projectMember.findMany({
 			where: {
 				projectId: projID,
 			},
@@ -29,10 +34,32 @@ export class ProjectRepository {
 						email: true,
 						name: true,
 						picture: true,
+						organizationMemberships: {
+							where: {
+								organizationId: project?.organizationId,
+							},
+							select: {
+								role: true,
+							},
+						},
 					},
 				},
 			},
 		});
+
+		return members.map((m) => ({
+			id: m.id,
+			userId: m.userId,
+			projectId: m.projectId,
+			role: m.role,
+			orgRole: (m.user.organizationMemberships[0]?.role ?? null) as OrganizationRole | null,
+			user: {
+				id: m.user.id,
+				email: m.user.email,
+				name: m.user.name,
+				picture: m.user.picture,
+			},
+		}));
 	}
 
 	public async createSharedProject(orgID: number, data: ProjectCreateType) {

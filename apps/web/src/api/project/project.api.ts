@@ -1,4 +1,5 @@
-import { apiClient, ApiRequestConfig } from "../client";
+import { apiClient, type ApiRequestConfig } from "../client";
+import type { OrganizationRole } from "../organization";
 
 // ============================================================================
 // Enums
@@ -93,6 +94,7 @@ export interface ProjectMember {
 	userId?: number;
 	projectId?: number;
 	role: ProjectRole;
+	orgRole?: OrganizationRole | null;
 	user: {
 		id: number;
 		email: string;

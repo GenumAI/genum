@@ -15,11 +15,24 @@ import {
 	SelectValue,
 	SelectItem,
 } from "@/components/ui/select";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { ProjectRole } from "@/api/project";
 import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
 import { formatEnumLabel } from "../../utils/formatters";
 import type { MembersTableProps } from "../../utils/types";
+
+function OrgRoleBadge() {
+	return (
+		<Badge className="text-muted-foreground bg-[color-mix(in_oklab,_currentColor_8%,_transparent)] text-xs px-[5px] py-[2px] hover:bg-[color-mix(in_oklab,_currentColor_8%,_transparent)] cursor-default border-0 select-none">
+			Organization Admin
+		</Badge>
+	);
+}
 
 export function MembersTable({
 	members,
@@ -58,7 +71,9 @@ export function MembersTable({
 				<TableBody>
 					{members.map((member) => {
 						const isSelf = member.user.email === currentUserEmail;
-						const canEditRole = canManageRoles && !isSelf;
+						const isOrgPrivileged =
+							member.orgRole === "OWNER" || member.orgRole === "ADMIN";
+						const canEditRole = canManageRoles && !isSelf && !isOrgPrivileged;
 
 						return (
 							<TableRow key={member.id}>
@@ -76,6 +91,7 @@ export function MembersTable({
 												You
 											</Badge>
 										)}
+										{isOrgPrivileged && <OrgRoleBadge />}
 									</div>
 								</TableCell>
 								<TableCell>{member.user.email}</TableCell>
@@ -94,13 +110,24 @@ export function MembersTable({
 												<SelectItem value={ProjectRole.MEMBER}>Member</SelectItem>
 											</SelectContent>
 										</Select>
+									) : isOrgPrivileged ? (
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<span className="text-sm text-muted-foreground cursor-default">
+													{formatEnumLabel(member.role)}
+												</span>
+											</TooltipTrigger>
+											<TooltipContent>
+												Role is managed through organization membership
+											</TooltipContent>
+										</Tooltip>
 									) : (
 										<span className="text-sm">{formatEnumLabel(member.role)}</span>
 									)}
 								</TableCell>
 								{showActions && (
 									<TableCell className="text-center">
-										{canDelete && !isSelf && (
+										{canDelete && !isSelf && !isOrgPrivileged && (
 											<Button
 												variant="ghost"
 												onClick={() => onDelete?.(member)}
