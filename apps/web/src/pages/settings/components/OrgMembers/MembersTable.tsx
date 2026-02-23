@@ -71,8 +71,8 @@ export function MembersTable({
 										/>
 										<span>{member.user.name}</span>
 										{isSelf && (
-											<Badge variant="outline" className="text-xs font-normal">
-												you
+											<Badge className="text-[#008635] bg-[color-mix(in_oklab,_#04b84c_15%,_transparent)] text-xs px-[5px] py-[2px] hover:bg-[color-mix(in_oklab,_#04b84c_15%,_transparent)]">
+												You
 											</Badge>
 										)}
 									</div>
