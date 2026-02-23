@@ -15,9 +15,11 @@ import {
 	SelectValue,
 	SelectItem,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { ProjectRole } from "@/api/project";
+import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
+import { formatEnumLabel } from "../../utils/formatters";
 import type { MembersTableProps } from "../../utils/types";
-
 
 export function MembersTable({
 	members,
@@ -28,6 +30,10 @@ export function MembersTable({
 	onRoleChange,
 	onDelete,
 }: MembersTableProps) {
+	const canManageRoles = Boolean(onRoleChange);
+	const canDelete = Boolean(onDelete);
+	const showActions = canManageRoles || canDelete;
+
 	if (isLoading) {
 		return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
 	}
@@ -41,46 +47,74 @@ export function MembersTable({
 			<Table className="rounded-md overflow-hidden">
 				<TableHeader className="bg-[#F4F4F5] dark:bg-[#262626] dark:text-[#fff] h-12 font-medium text-muted-foreground">
 					<TableRow>
-						<TableHead className="text-left p-4">User Email</TableHead>
-						<TableHead className="text-left p-4">User Name</TableHead>
+						<TableHead className="text-left p-4">Name</TableHead>
+						<TableHead className="text-left p-4">Email</TableHead>
 						<TableHead className="text-left p-4">Role</TableHead>
-						<TableHead className="w-[100px] text-center p-4">Actions</TableHead>
+						{showActions && (
+							<TableHead className="w-[100px] text-center p-4">Actions</TableHead>
+						)}
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{members.map((member) => (
-						<TableRow key={member.id}>
-							<TableCell>{member.user.email}</TableCell>
-							<TableCell>{member.user.name}</TableCell>
-							<TableCell>
-							<Select
-								value={member.role}
-								onValueChange={(value) => onRoleChange?.(member.id, value as ProjectRole)}
-								disabled={!onRoleChange || updatingRoleId === member.id}
-							>
-								<SelectTrigger className="w-[120px] text-[14px] h-[30px]">
-									<SelectValue placeholder={member.role} />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value={ProjectRole.ADMIN}>Admin</SelectItem>
-									<SelectItem value={ProjectRole.MEMBER}>Member</SelectItem>
-								</SelectContent>
-							</Select>
-							</TableCell>
-							<TableCell className="text-center">
-								<Button
-									variant="ghost"
-									onClick={() => onDelete(member)}
-									disabled={
-										deletingId === member.id || currentUserEmail === member.user.email
-									}
-									size="sm"
-								>
-									<Trash2 className="h-4 w-4" />
-								</Button>
-							</TableCell>
-						</TableRow>
-					))}
+					{members.map((member) => {
+						const isSelf = member.user.email === currentUserEmail;
+						const canEditRole = canManageRoles && !isSelf;
+
+						return (
+							<TableRow key={member.id}>
+								<TableCell>
+									<div className="flex items-center gap-2">
+										<CommitAuthorAvatar
+											author={{ name: member.user.name, picture: member.user.picture }}
+											size="h-7 w-7"
+											textSize="text-xs leading-none"
+											rounded="rounded-lg"
+										/>
+										<span>{member.user.name}</span>
+										{isSelf && (
+											<Badge variant="outline" className="text-xs font-normal">
+												you
+											</Badge>
+										)}
+									</div>
+								</TableCell>
+								<TableCell>{member.user.email}</TableCell>
+								<TableCell>
+									{canEditRole ? (
+										<Select
+											value={member.role}
+											onValueChange={(value) => onRoleChange?.(member.id, value as ProjectRole)}
+											disabled={updatingRoleId === member.id}
+										>
+											<SelectTrigger className="w-[120px] text-[14px] h-[30px]">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value={ProjectRole.ADMIN}>Admin</SelectItem>
+												<SelectItem value={ProjectRole.MEMBER}>Member</SelectItem>
+											</SelectContent>
+										</Select>
+									) : (
+										<span className="text-sm">{formatEnumLabel(member.role)}</span>
+									)}
+								</TableCell>
+								{showActions && (
+									<TableCell className="text-center">
+										{canDelete && !isSelf && (
+											<Button
+												variant="ghost"
+												onClick={() => onDelete?.(member)}
+												disabled={deletingId === member.id}
+												size="sm"
+											>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										)}
+									</TableCell>
+								)}
+							</TableRow>
+						);
+					})}
 				</TableBody>
 			</Table>
 		</div>

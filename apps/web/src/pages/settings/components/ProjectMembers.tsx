@@ -82,7 +82,7 @@ export default function ProjectMembers() {
 					updatingRoleId={updatingRoleId}
 					deletingId={deletingId}
 					onRoleChange={canManageMembers ? updateMemberRole : undefined}
-					onDelete={handleDeleteClick}
+					onDelete={canManageMembers ? handleDeleteClick : undefined}
 				/>
 			</CardContent>
 

@@ -17,13 +17,9 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { OrganizationRole, hasOrgAccess } from "@/api/organization";
+import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
+import { formatEnumLabel } from "../../utils/formatters";
 import type { OrgMembersTableProps } from "../../utils/types";
-
-const ROLE_LABELS: Record<OrganizationRole, string> = {
-	[OrganizationRole.OWNER]: "Owner",
-	[OrganizationRole.ADMIN]: "Admin",
-	[OrganizationRole.READER]: "Reader",
-};
 
 export function MembersTable({
 	members,
@@ -48,8 +44,8 @@ export function MembersTable({
 			<Table className="rounded-md overflow-hidden">
 				<TableHeader className="bg-[#F4F4F5] dark:bg-[#262626] dark:text-[#fff] h-12">
 					<TableRow>
-						<TableHead className="p-4 text-left">Email</TableHead>
 						<TableHead className="p-4 text-left">Name</TableHead>
+						<TableHead className="p-4 text-left">Email</TableHead>
 						<TableHead className="p-4 text-left">Role</TableHead>
 						{canManageMembers && (
 							<TableHead className="p-4 text-center w-[80px]">Actions</TableHead>
@@ -57,47 +53,62 @@ export function MembersTable({
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-				{members.map((member) => {
-					const isSelf = member.user.email === currentUserEmail;
-					const isOwner = hasOrgAccess(member.role, OrganizationRole.OWNER);
-					const canChangeRole = canManageMembers && !isSelf && !isOwner && onRoleChange;
-					const canDelete = canManageMembers && !isSelf && !isOwner && onDelete;
+					{members.map((member) => {
+						const isSelf = member.user.email === currentUserEmail;
+						const isOwner = hasOrgAccess(member.role, OrganizationRole.OWNER);
+						const canChangeRole = canManageMembers && !isSelf && !isOwner && onRoleChange;
+						const canDeleteMember = canManageMembers && !isSelf && !isOwner && onDelete;
 
-					return (
-						<TableRow key={member.id}>
-							<TableCell>{member.user.email}</TableCell>
-							<TableCell>{member.user.name}</TableCell>
-							<TableCell>
-								{canChangeRole ? (
-									<Select
-										value={member.role}
-										onValueChange={(value) => onRoleChange(member.id, value as OrganizationRole)}
-										disabled={updatingRoleId === member.id}
-									>
-										<SelectTrigger className="w-[110px] text-[14px] h-[30px]">
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value={OrganizationRole.ADMIN}>Admin</SelectItem>
-											<SelectItem value={OrganizationRole.READER}>Reader</SelectItem>
-										</SelectContent>
-									</Select>
-								) : (
-									<Badge variant="secondary" className="font-normal">
-										{ROLE_LABELS[member.role] ?? member.role}
-									</Badge>
-								)}
-							</TableCell>
+						return (
+							<TableRow key={member.id}>
+								<TableCell>
+									<div className="flex items-center gap-2">
+										<CommitAuthorAvatar
+											author={{ name: member.user.name, picture: member.user.picture }}
+											size="h-7 w-7"
+											textSize="text-xs leading-none"
+											rounded="rounded-lg"
+										/>
+										<span>{member.user.name}</span>
+										{isSelf && (
+											<Badge variant="outline" className="text-xs font-normal">
+												you
+											</Badge>
+										)}
+									</div>
+								</TableCell>
+								<TableCell>{member.user.email}</TableCell>
+								<TableCell>
+									{canChangeRole ? (
+										<Select
+											value={member.role}
+											onValueChange={(value) => onRoleChange?.(member.id, value as OrganizationRole)}
+											disabled={updatingRoleId === member.id}
+										>
+											<SelectTrigger className="w-[110px] text-[14px] h-[30px]">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value={OrganizationRole.ADMIN}>Admin</SelectItem>
+												<SelectItem value={OrganizationRole.READER}>Reader</SelectItem>
+											</SelectContent>
+										</Select>
+									) : (
+										<span className="text-sm">{formatEnumLabel(member.role)}</span>
+									)}
+								</TableCell>
 								{canManageMembers && (
 									<TableCell className="text-center">
-										<Button
-											size="icon"
-											variant="ghost"
-											onClick={() => canDelete && onDelete(member)}
-											disabled={!canDelete || deletingId === member.id}
-										>
-											<Trash2 className="h-4 w-4" />
-										</Button>
+										{canDeleteMember && (
+											<Button
+												size="icon"
+												variant="ghost"
+												onClick={() => onDelete?.(member)}
+												disabled={deletingId === member.id}
+											>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										)}
 									</TableCell>
 								)}
 							</TableRow>

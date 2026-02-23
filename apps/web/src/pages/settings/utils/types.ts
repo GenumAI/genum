@@ -259,7 +259,7 @@ export interface MembersTableProps {
 	updatingRoleId?: number | null;
 	deletingId: number | null;
 	onRoleChange?: (id: number, role: ProjectRole) => void;
-	onDelete: (member: ProjectMember) => void;
+	onDelete?: (member: ProjectMember) => void;
 }
 
 export interface OrgMembersTableProps {

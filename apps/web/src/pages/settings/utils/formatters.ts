@@ -59,3 +59,15 @@ export function getUserInitials(name: string): string {
 		.toUpperCase()
 		.substring(0, 2);
 }
+
+/**
+ * Formats enum-like values to readable labels.
+ * Example: "ADMIN" -> "Admin", "SUPER_ADMIN" -> "Super Admin"
+ */
+export function formatEnumLabel(value: string): string {
+	return value
+		.toLowerCase()
+		.split("_")
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(" ");
+}
