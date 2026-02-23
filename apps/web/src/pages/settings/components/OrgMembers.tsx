@@ -10,7 +10,7 @@ import { MembersTable } from "./OrgMembers/MembersTable";
 import { InvitesTable } from "./OrgMembers/InvitesTable";
 import { DeleteConfirmDialog } from "./shared/DeleteConfirmDialog";
 import type { Member } from "@/api/organization";
-import { OrganizationRole } from "@/api/organization";
+import { OrganizationRole, hasOrgAccess } from "@/api/organization";
 
 export default function OrgMembers() {
 	const { orgId } = useParams<{ orgId: string }>();
@@ -33,9 +33,8 @@ export default function OrgMembers() {
 
 	const currentUserEmail = user?.email;
 	const currentMember = members.find((m) => m.user.email === currentUserEmail);
-	const currentUserRole = currentMember?.role;
-	const canManageMembers =
-		currentUserRole === OrganizationRole.OWNER || currentUserRole === OrganizationRole.ADMIN;
+	const currentUserRole = currentMember?.role ?? OrganizationRole.READER;
+	const canManageMembers = hasOrgAccess(currentUserRole, OrganizationRole.ADMIN);
 
 	const handleInvite = async (email: string, role: OrganizationRole) => {
 		return await inviteMember(email, role);

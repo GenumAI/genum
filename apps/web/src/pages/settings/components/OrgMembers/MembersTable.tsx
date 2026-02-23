@@ -16,7 +16,7 @@ import {
 	SelectItem,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { OrganizationRole } from "@/api/organization";
+import { OrganizationRole, hasOrgAccess } from "@/api/organization";
 import type { OrgMembersTableProps } from "../../utils/types";
 
 const ROLE_LABELS: Record<OrganizationRole, string> = {
@@ -59,7 +59,7 @@ export function MembersTable({
 				<TableBody>
 				{members.map((member) => {
 					const isSelf = member.user.email === currentUserEmail;
-					const isOwner = member.role === OrganizationRole.OWNER;
+					const isOwner = hasOrgAccess(member.role, OrganizationRole.OWNER);
 					const canChangeRole = canManageMembers && !isSelf && !isOwner && onRoleChange;
 					const canDelete = canManageMembers && !isSelf && !isOwner && onDelete;
 

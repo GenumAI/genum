@@ -8,7 +8,7 @@ import { organizationApi } from "@/api/organization";
 import { ORG_MEMBERS_QUERY_KEY } from "./hooks/useOrgMembers";
 import { ORG_INVITES_QUERY_KEY } from "./hooks/useOrgInvites";
 import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
-import { OrganizationRole } from "@/api/organization";
+import { OrganizationRole, ORG_ROLE_RANK } from "@/api/organization";
 
 type MenuItem = {
 	label: string;
@@ -19,12 +19,6 @@ type MenuItem = {
 type MenuSection = {
 	title: string;
 	items: MenuItem[];
-};
-
-const ORG_ROLE_RANK: Record<OrganizationRole, number> = {
-	[OrganizationRole.READER]: 0,
-	[OrganizationRole.ADMIN]: 1,
-	[OrganizationRole.OWNER]: 2,
 };
 
 function hasAccess(itemRole: OrganizationRole | undefined, userRole: OrganizationRole): boolean {

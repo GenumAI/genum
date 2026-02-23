@@ -1,18 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { OrganizationRole } from "@/api/organization";
+import { OrganizationRole, ORG_ROLE_RANK } from "@/api/organization";
 
 interface RoleProtectedRouteProps {
 	children: React.ReactNode;
 	minRole?: OrganizationRole;
 }
-
-const ROLE_RANK: Record<OrganizationRole, number> = {
-	[OrganizationRole.READER]: 0,
-	[OrganizationRole.ADMIN]: 1,
-	[OrganizationRole.OWNER]: 2,
-};
 
 export default function RoleProtectedRoute({
 	children,
@@ -24,7 +18,7 @@ export default function RoleProtectedRoute({
 
 	const currentOrg = user?.organizations?.find((o) => o.id.toString() === orgId);
 	const userRole = currentOrg?.role ?? OrganizationRole.READER;
-	const hasAccess = ROLE_RANK[userRole] >= ROLE_RANK[minRole];
+	const hasAccess = ORG_ROLE_RANK[userRole] >= ORG_ROLE_RANK[minRole];
 
 	useEffect(() => {
 		if (!isLoading && !hasAccess) {
