@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
 import {
 	ChartContainer,
@@ -14,6 +15,7 @@ import {
 	testcaseBarColors,
 	testcaseChartConfig,
 } from "@/pages/dashboard/utils/testcaseStats";
+import { TweenNumber } from "./TweenNumber";
 
 type HoveredBar = { promptId: number; dataKey: "passed" | "failed" } | null;
 
@@ -41,12 +43,12 @@ function FilteredChartTooltip({ hoveredBar, ...props }: FilteredTooltipProps) {
 
 interface Props {
 	prompts: PromptStats[];
+	isLoading?: boolean;
 }
 
-export function TestcaseStats({ prompts }: Props) {
+export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: Props) {
 	const {
-		isLoading,
-		error,
+		isLoading: isDataLoading,
 		chartData,
 		dataToShow,
 		hasMoreData,
@@ -60,21 +62,32 @@ export function TestcaseStats({ prompts }: Props) {
 		isHovered,
 		navigateToPromptTestcases,
 	} = useTestcaseStats(prompts);
+	const isLoading = isForcedLoading || isDataLoading;
 
 	if (isLoading) {
 		return (
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-3 border bg-card text-card-foreground shadow-sm rounded-lg">
-				<div className="p-6 text-center">Loading...</div>
-			</div>
-		);
-	}
-
-	if (error) {
-		return (
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-3 border bg-card text-card-foreground shadow-sm rounded-lg">
-				<div className="p-6 text-center text-destructive">
-					Error loading data: {error.message}
-				</div>
+				<Card className="p-0 shadow-none border-none">
+					<CardHeader className="flex flex-row justify-between items-center pb-2">
+						<Skeleton className="h-6 w-[220px]" />
+					</CardHeader>
+					<CardContent>
+						<Skeleton className="h-[230px] w-full rounded-md" />
+					</CardContent>
+				</Card>
+				<Card className="p-0 shadow-none border-none flex flex-col gap-4 justify-start">
+					<CardHeader className="pb-0">
+						<Skeleton className="h-6 w-[180px]" />
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="grid grid-cols-3 gap-3">
+							<Skeleton className="h-20 w-full rounded-lg" />
+							<Skeleton className="h-20 w-full rounded-lg" />
+							<Skeleton className="h-20 w-full rounded-lg" />
+						</div>
+						<Skeleton className="h-24 w-full rounded-lg" />
+					</CardContent>
+				</Card>
 			</div>
 		);
 	}
@@ -227,7 +240,10 @@ export function TestcaseStats({ prompts }: Props) {
 								<CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-[#2da44a]" />
 							</div>
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
-								{totalStats.passed}
+								<TweenNumber
+									value={totalStats.passed}
+									formatValue={(value) => `${Math.round(value)}`}
+								/>
 							</div>
 						</div>
 						<div className="px-6 py-2">
@@ -236,7 +252,10 @@ export function TestcaseStats({ prompts }: Props) {
 								<XCircle className="w-4 h-4 text-rose-600 dark:text-[#D64646]" />
 							</div>
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
-								{totalStats.failed}
+								<TweenNumber
+									value={totalStats.failed}
+									formatValue={(value) => `${Math.round(value)}`}
+								/>
 							</div>
 						</div>
 						<div className="px-6 py-2">
@@ -245,7 +264,10 @@ export function TestcaseStats({ prompts }: Props) {
 								<AlertCircle className="w-4 h-4 text-amber-600 dark:text-[#cd9932]" />
 							</div>
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
-								{totalStats.needRun}
+								<TweenNumber
+									value={totalStats.needRun}
+									formatValue={(value) => `${Math.round(value)}`}
+								/>
 							</div>
 						</div>
 					</div>
@@ -257,7 +279,10 @@ export function TestcaseStats({ prompts }: Props) {
 								Total Testcases
 							</div>
 							<div className="text-[30px] font-semibold leading-[22px] text-foreground">
-								{totalStats.total}
+								<TweenNumber
+									value={totalStats.total}
+									formatValue={(value) => `${Math.round(value)}`}
+								/>
 							</div>
 						</div>
 						<div className="flex flex-col px-6 gap-[42px] text-left flex-1">
@@ -265,7 +290,10 @@ export function TestcaseStats({ prompts }: Props) {
 								Error Rate
 							</div>
 							<div className="text-[30px] font-semibold leading-[22px] text-foreground">
-								{errorRate}%
+								<TweenNumber
+									value={errorRate}
+									formatValue={(value) => `${Number(value.toFixed(2))}%`}
+								/>
 							</div>
 						</div>
 					</div>

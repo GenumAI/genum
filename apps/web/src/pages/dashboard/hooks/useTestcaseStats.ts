@@ -5,6 +5,7 @@ import useTestcasesGroupedByPrompt, {
 	type PromptStats,
 } from "@/pages/dashboard/hooks/useTestcasesGroupedByPrompt";
 import { getTestcaseErrorRate, getTestcaseTotals } from "@/pages/dashboard/utils/testcaseStats";
+import { useSkeletonVisibility } from "@/hooks/useSkeletonVisibility";
 
 type BarDataKey = "passed" | "failed";
 
@@ -19,6 +20,8 @@ export function useTestcaseStats(prompts: PromptStats[]) {
 	const projectId = getProjectId();
 
 	const { chartData, isLoading, error } = useTestcasesGroupedByPrompt(prompts);
+	const showSkeleton = useSkeletonVisibility(isLoading);
+	const forceSkeletonOnError = Boolean(error) && chartData.length === 0;
 
 	const dataToShow = useMemo(
 		() => (showAll ? chartData : chartData.slice(0, 5)),
@@ -57,7 +60,7 @@ export function useTestcaseStats(prompts: PromptStats[]) {
 	);
 
 	return {
-		isLoading,
+		isLoading: showSkeleton || forceSkeletonOnError,
 		error,
 		chartData,
 		dataToShow,

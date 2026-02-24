@@ -6,6 +6,7 @@ import {
 	toDistributionChartData,
 	type DistributionModelInput,
 } from "@/pages/dashboard/utils/chartDistribution";
+import { TweenNumber } from "./TweenNumber";
 
 interface Props {
 	models: DistributionModelInput[];
@@ -59,7 +60,11 @@ export function ChartApiDistribution({ models }: Props) {
 						</PieChart>
 					</ResponsiveContainer>
 					<div className="absolute inset-0 flex items-center justify-center">
-						<div className="text-2xl font-bold">{total}</div>
+						<TweenNumber
+							value={total}
+							className="text-2xl font-bold"
+							formatValue={(value) => `${Math.round(value)}`}
+						/>
 					</div>
 				</div>
 
@@ -73,9 +78,11 @@ export function ChartApiDistribution({ models }: Props) {
 								}}
 							/>
 							<span className="text-[12px] text-[#18181B]">{entry.name}</span>
-							<span className="ml-auto font-semibold text-[#18181B] bg-[#F4F4F5] px-[3px] min-w-[23px] text-center rounded-md text-[10px]">
-								{entry.value}
-							</span>
+							<TweenNumber
+								value={entry.value}
+								className="ml-auto font-semibold text-[#18181B] bg-[#F4F4F5] px-[3px] min-w-[23px] text-center rounded-md text-[10px]"
+								formatValue={(value) => `${Math.round(value)}`}
+							/>
 						</div>
 					))}
 				</div>

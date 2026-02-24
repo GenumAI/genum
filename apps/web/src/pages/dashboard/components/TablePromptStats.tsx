@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import { useMemo } from "react";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableHeader,
@@ -24,13 +25,15 @@ import {
 	formatPromptErrorRate,
 	formatPromptLastUsed,
 } from "@/pages/dashboard/utils/promptStatsTable";
+import { TweenNumber } from "./TweenNumber";
 
 interface Props {
 	prompts: PromptStats[];
 	promptNames: PromptName[];
+	isLoading?: boolean;
 }
 
-export function TablePromptStats({ prompts, promptNames }: Props) {
+export function TablePromptStats({ prompts, promptNames, isLoading = false }: Props) {
 	const {
 		sorting,
 		setSorting,
@@ -71,24 +74,56 @@ export function TablePromptStats({ prompts, promptNames }: Props) {
 			{
 				accessorKey: "total_requests",
 				header: sortableHeader("Requests"),
+				cell: ({ getValue }) => (
+					<TweenNumber
+						value={getValue() as number}
+						className="tabular-nums text-foreground"
+						formatValue={(value) => `${Math.round(value)}`}
+					/>
+				),
 			},
 			{
 				accessorKey: "total_tokens_in",
 				header: sortableHeader("Tokens In"),
+				cell: ({ getValue }) => (
+					<TweenNumber
+						value={getValue() as number}
+						className="tabular-nums text-foreground"
+						formatValue={(value) => `${Math.round(value)}`}
+					/>
+				),
 			},
 			{
 				accessorKey: "total_tokens_out",
 				header: sortableHeader("Tokens Out"),
+				cell: ({ getValue }) => (
+					<TweenNumber
+						value={getValue() as number}
+						className="tabular-nums text-foreground"
+						formatValue={(value) => `${Math.round(value)}`}
+					/>
+				),
 			},
 			{
 				accessorKey: "average_response_ms",
 				header: sortableHeader("Avg Response (ms)"),
+				cell: ({ getValue }) => (
+					<TweenNumber
+						value={getValue() as number}
+						className="tabular-nums text-foreground"
+						formatValue={(value) => `${Math.round(value)}`}
+					/>
+				),
 			},
 			{
 				accessorKey: "total_cost",
 				header: sortableHeader("Cost"),
 				cell: ({ getValue }) => (
-					<span className="tabular-nums text-foreground">{formatPromptCost(getValue() as number)}</span>
+					<TweenNumber
+						value={getValue() as number}
+						className="tabular-nums text-foreground"
+						formatValue={(value) => formatPromptCost(value)}
+					/>
 				),
 			},
 			{
@@ -98,11 +133,11 @@ export function TablePromptStats({ prompts, promptNames }: Props) {
 					const val = getValue() as number;
 					return val > 0 ? (
 						<span className="text-destructive dark:text-[#d64646]">
-							{formatPromptErrorRate(val)}
+							<TweenNumber value={val} formatValue={(value) => formatPromptErrorRate(value)} />
 						</span>
 					) : (
 						<span className="text-emerald-600 dark:text-[#2da44a]">
-							{formatPromptErrorRate(val)}
+							<TweenNumber value={val} formatValue={(value) => formatPromptErrorRate(value)} />
 						</span>
 					);
 				},
@@ -132,6 +167,23 @@ export function TablePromptStats({ prompts, promptNames }: Props) {
 
 	const rowsToShow = showAll ? table.getRowModel().rows : table.getRowModel().rows.slice(0, 5);
 	const hasMoreRows = table.getRowModel().rows.length > 5;
+
+	if (isLoading) {
+		return (
+			<Card className="rounded-lg shadow-sm bg-card text-card-foreground">
+				<CardHeader className="flex flex-row justify-between items-center">
+					<Skeleton className="h-6 w-[240px]" />
+				</CardHeader>
+				<CardContent className="overflow-auto space-y-2">
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+				</CardContent>
+			</Card>
+		);
+	}
 
 	return (
 		<Card className="rounded-lg shadow-sm bg-card text-card-foreground">

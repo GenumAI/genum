@@ -2,6 +2,7 @@ import type { ColumnDef, HeaderContext, SortingState } from "@tanstack/react-tab
 import { useReactTable, getCoreRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -16,6 +17,7 @@ import {
 	formatUserActivityDate,
 	formatUserCost,
 } from "@/pages/dashboard/utils/promptStatsTable";
+import { TweenNumber } from "./TweenNumber";
 
 interface User {
 	user_id: number;
@@ -29,9 +31,10 @@ interface User {
 
 interface Props {
 	users: User[];
+	isLoading?: boolean;
 }
 
-export function UserActivityTable({ users }: Props) {
+export function UserActivityTable({ users, isLoading = false }: Props) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 
 	const columns: ColumnDef<User>[] = [
@@ -44,18 +47,34 @@ export function UserActivityTable({ users }: Props) {
 		{
 			accessorKey: "total_requests",
 			header: sortableHeader("Total Requests"),
-			cell: (info) => <span className="tabular-nums">{info.getValue() as number}</span>,
+			cell: (info) => (
+				<TweenNumber
+					value={info.getValue() as number}
+					className="tabular-nums"
+					formatValue={(value) => `${Math.round(value)}`}
+				/>
+			),
 		},
 		{
 			accessorKey: "total_tokens_sum",
 			header: sortableHeader("Total Tokens"),
-			cell: (info) => <span className="tabular-nums">{info.getValue() as number}</span>,
+			cell: (info) => (
+				<TweenNumber
+					value={info.getValue() as number}
+					className="tabular-nums"
+					formatValue={(value) => `${Math.round(value)}`}
+				/>
+			),
 		},
 		{
 			accessorKey: "total_cost",
 			header: sortableHeader("Total Cost"),
 			cell: (info) => (
-				<span className="tabular-nums">{formatUserCost(info.getValue() as number)}</span>
+				<TweenNumber
+					value={info.getValue() as number}
+					className="tabular-nums"
+					formatValue={(value) => formatUserCost(value)}
+				/>
 			),
 		},
 		{
@@ -86,6 +105,23 @@ export function UserActivityTable({ users }: Props) {
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 	});
+
+	if (isLoading) {
+		return (
+			<Card className="rounded-lg shadow-sm flex-1 bg-card text-card-foreground">
+				<CardHeader className="pb-4">
+					<Skeleton className="h-6 w-[140px]" />
+				</CardHeader>
+				<CardContent className="overflow-auto space-y-2">
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+				</CardContent>
+			</Card>
+		);
+	}
 
 	return (
 		<Card className="rounded-lg shadow-sm flex-1 bg-card text-card-foreground">

@@ -6,6 +6,7 @@ import {
 	getUsageDateParams,
 } from "@/pages/dashboard/utils/dateRange";
 import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
+import { useSkeletonVisibility } from "@/hooks/useSkeletonVisibility";
 
 export function useDashboardPageData() {
 	const [filter, setFilter] = useState<LogsFilterState>({
@@ -14,6 +15,8 @@ export function useDashboardPageData() {
 
 	const { fromDate, toDate } = getUsageDateParams(filter);
 	const usageQuery = useProjectUsage(fromDate, toDate);
+	const showSkeleton = useSkeletonVisibility(usageQuery.isLoading);
+	const forceSkeletonOnError = usageQuery.isError && !usageQuery.data;
 
 	useRefetchOnWorkspaceChange(() => {
 		void usageQuery.refetch();
@@ -23,6 +26,6 @@ export function useDashboardPageData() {
 		filter,
 		setFilter,
 		data: usageQuery.data,
-		isLoading: usageQuery.isLoading,
+		isLoading: showSkeleton || forceSkeletonOnError,
 	};
 }

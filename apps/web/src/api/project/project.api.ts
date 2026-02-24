@@ -1,18 +1,70 @@
 import { apiClient, ApiRequestConfig } from "../client";
+import type { PromptName } from "@/types/logs";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export interface UsageData {
+export interface UsageDailyStat {
+	date: string;
 	total_requests: number;
 	total_tokens_sum: number;
 	total_cost: number;
+}
+
+export type UsageDailyStatField = Exclude<keyof UsageDailyStat, "date">;
+
+export interface UsagePromptStat {
+	prompt_id: number;
+	total_requests: number;
+	total_tokens_in: number;
+	total_tokens_out: number;
+	total_tokens_sum: number;
 	average_response_ms: number;
-	prompts: any[];
-	models: any[];
-	users: any[];
-	promptNames: { id: number; name: string }[];
+	total_cost: number;
+	success_rate: number;
+	error_rate: number;
+	last_used: string;
+	first_used: string;
+}
+
+export interface UsageModelStat {
+	model: string;
+	vendor: string;
+	total_requests: number;
+	total_tokens_in: number;
+	total_tokens_out: number;
+	total_tokens_sum: number;
+	total_cost: number;
+	average_response_ms: number;
+}
+
+export interface UsageUserStat {
+	user_id: number;
+	total_requests: number;
+	total_tokens_sum: number;
+	total_cost: number;
+	last_activity: string;
+	first_activity: string;
+	user_name?: string | null;
+}
+
+export interface UsageData {
+	project_id: number;
+	orgId: number;
+	total_requests: number;
+	total_tokens_in: number;
+	total_tokens_out: number;
+	total_tokens_sum: number;
+	total_cost: number;
+	average_response_ms: number;
+	from_date: string;
+	to_date: string;
+	daily_stats: UsageDailyStat[];
+	prompts: UsagePromptStat[];
+	models: UsageModelStat[];
+	users: UsageUserStat[];
+	promptNames: PromptName[];
 }
 
 export interface LogsQueryParams {
