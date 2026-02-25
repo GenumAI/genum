@@ -349,7 +349,7 @@ function LayoutContent({ user }: { user: UserType }) {
 					</div>
 				</header>
 				<PageHeader title={pageTitle} navItems={routeItems} />
-				<main className="bg-white dark:bg-background h-full mainContent w-full flex justify-center pb-8">
+				<main className="bg-white dark:bg-background h-full mainContent w-full flex justify-center pb-8 [&>*]:w-full [&>*]:min-w-0">
 					<Outlet />
 				</main>
 			</SidebarInset>

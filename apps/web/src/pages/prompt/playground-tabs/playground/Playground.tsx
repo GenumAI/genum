@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import clsx from "clsx";
 import TextEditor from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/TextEditor";
 import OutputBlock from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,6 @@ import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDi
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import { InputTextArea } from "@/pages/prompt/playground-tabs/playground/components/input-textarea/InputTextArea";
-import { useSidebar } from "@/components/sidebar/sidebar";
 import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlayground";
 import { getOrgId, getProjectId } from "@/api/client";
 import SelectedFilesList from "@/pages/files/components/SelectedFilesList";
@@ -38,12 +36,10 @@ export default function Playground() {
 
 	const { prompt, testcase, metrics, ui, models, actions } = controller;
 
-	const sidebar = useSidebar();
-
 	return (
-		<div className="h-full flex flex-grow-0 max-w-[1470px] ml-3 mr-3 lg:mr-6 w-full text-foreground">
-			<div className="flex flex-col lg:flex-row w-full h-full items-start">
-				<div className="flex w-full flex-col bg-card text-card-foreground border border-border rounded-[12px] mt-0 pt-3 pb-4 px-4 gap-8">
+		<div className="h-full w-full min-w-0 max-w-[1470px] overflow-x-hidden px-3 pt-8 text-foreground lg:pr-6">
+			<div className="flex w-full min-w-0 flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start">
+				<div className="flex w-full min-w-0 flex-col gap-8 overflow-hidden rounded-[12px] border border-border bg-card px-4 pb-4 pt-3 text-card-foreground lg:flex-1">
 					{testcaseId && !testcase.data && testcase.loading ? (
 						<div className="flex items-center justify-center h-full">
 							<Loader2 className="animate-spin" />
@@ -76,15 +72,17 @@ export default function Playground() {
 									hasPromptContent={ui.validation.hasPromptContent}
 								/>
 
-								<div className="flex items-center justify-between gap-2 mt-3">
-									<SelectedFilesList
-										selectedFiles={selectedFiles}
-										setSelectedFiles={setSelectedFiles}
-										testcaseId={testcaseId}
-										promptId={promptId}
-										testcaseFiles={testcase.data?.files}
-										maxFiles={3}
-									/>
+								<div className="mt-3 flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
+									<div className="w-full min-w-0 sm:flex-1">
+										<SelectedFilesList
+											selectedFiles={selectedFiles}
+											setSelectedFiles={setSelectedFiles}
+											testcaseId={testcaseId}
+											promptId={promptId}
+											testcaseFiles={testcase.data?.files}
+											maxFiles={3}
+										/>
+									</div>
 									<Button
 										disabled={
 											!ui.validation.hasPromptContent ||
@@ -93,7 +91,7 @@ export default function Playground() {
 											isTestcaseLoading
 										}
 										onClick={actions.run}
-										className="text-[14px] h-[32px] w-[138px] flex-shrink-0"
+										className="h-[32px] w-full flex-shrink-0 text-[14px] sm:w-[138px]"
 									>
 										{ui.loading.run && <Loader2 className="animate-spin" />}
 										{testcaseId ? "Run testcase" : "Run prompt"}
@@ -114,12 +112,7 @@ export default function Playground() {
 					)}
 				</div>
 
-				<div
-					className={clsx(
-						"w-full transition-all md:w-[322px] md:min-w-[322px] 2xl-plus:w-[400px] 2xl-plus:min-w-[400px] lg:pt-0 lg:pl-6",
-						{ "xl:min-w-[400px]": !sidebar.open },
-					)}
-				>
+				<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">
 					<SettingsBar
 						prompt={prompt.data?.prompt}
 						models={models}

@@ -4,6 +4,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 import { formatUserLocalDateTime } from "@/lib/formatUserLocalDateTime";
+import { cn } from "@/lib/utils";
 import type { Log, PromptName } from "@/types/logs";
 import { timeAgo } from "@/components/logs/utils/timeAgo";
 import { getPromptName, isPromptDeleted } from "../utils/promptNames";
@@ -17,7 +18,7 @@ interface LogsTableProps {
 	promptNames?: PromptName[];
 }
 
-type Column = { label: string; width: number };
+type Column = { label: string; className?: string };
 
 function LogsTableComponent({
 	logs,
@@ -28,43 +29,41 @@ function LogsTableComponent({
 }: LogsTableProps) {
 	const columns: Column[] = showPromptColumn
 		? [
-				{ label: "Status", width: 50 },
-				{ label: "Timestamp", width: 170 },
-				{ label: "Source", width: 100 },
-				{ label: "Vendor", width: 100 },
-				{ label: "Model", width: 140 },
-				{ label: "Prompt", width: 180 },
-				{ label: "Total Tokens", width: 110 },
-				{ label: "Cost", width: 90 },
-				{ label: "Response", width: 80 },
-				{ label: "Occurred", width: 120 },
+				{ label: "Status", className: "w-12" },
+				{ label: "Timestamp", className: "w-[180px]" },
+				{ label: "Source", className: "hidden lg:table-cell" },
+				{ label: "Vendor", className: "hidden lg:table-cell" },
+				{ label: "Model", className: "w-[180px]" },
+				{ label: "Prompt", className: "hidden xl:table-cell" },
+				{ label: "Total Tokens", className: "hidden xl:table-cell" },
+				{ label: "Cost", className: "hidden md:table-cell" },
+				{ label: "Response", className: "hidden sm:table-cell" },
+				{ label: "Occurred", className: "hidden sm:table-cell" },
 			]
 		: [
-				{ label: "Status", width: 50 },
-				{ label: "Timestamp", width: 170 },
-				{ label: "Source", width: 100 },
-				{ label: "Vendor", width: 100 },
-				{ label: "Model", width: 160 },
-				{ label: "Total Tokens", width: 110 },
-				{ label: "Cost", width: 90 },
-				{ label: "Response", width: 80 },
-				{ label: "Occurred", width: 120 },
+				{ label: "Status", className: "w-12" },
+				{ label: "Timestamp", className: "w-[180px]" },
+				{ label: "Source", className: "hidden lg:table-cell" },
+				{ label: "Vendor", className: "hidden lg:table-cell" },
+				{ label: "Model", className: "w-[180px]" },
+				{ label: "Total Tokens", className: "hidden xl:table-cell" },
+				{ label: "Cost", className: "hidden md:table-cell" },
+				{ label: "Response", className: "hidden sm:table-cell" },
+				{ label: "Occurred", className: "hidden sm:table-cell" },
 			];
 
 	return (
 		<TooltipProvider>
-			<table className="w-full text-sm border border-border rounded-[6px] overflow-hidden bg-card text-card-foreground">
+			<table className="w-full table-fixed text-sm border border-border rounded-[6px] overflow-hidden bg-card text-card-foreground">
 				<thead className="bg-muted h-[52.5px]">
 					<tr>
 						{columns.map((column) => (
 							<th
 								key={column.label}
-								className="h-12 px-4 font-medium text-center text-muted-foreground whitespace-nowrap"
-								style={{
-									width: column.width,
-									minWidth: column.width,
-									maxWidth: column.width,
-								}}
+								className={cn(
+									"h-12 px-3 font-medium text-center text-muted-foreground whitespace-nowrap",
+									column.className,
+								)}
 							>
 								{column.label}
 							</th>
@@ -98,7 +97,7 @@ function LogsTableComponent({
 											}`}
 											onClick={() => onLogClick(log)}
 										>
-											<td className="p-4 text-center" style={{ width: 50 }}>
+											<td className="w-12 p-3 text-center">
 												{log.log_lvl === "SUCCESS" ? (
 													<CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-[#2da44a] mx-auto" />
 												) : (
@@ -106,33 +105,25 @@ function LogsTableComponent({
 												)}
 											</td>
 
-											<td className="p-4 text-center" style={{ width: 170 }}>
+											<td className="w-[180px] p-3 text-center whitespace-nowrap text-xs sm:text-sm">
 												{formatUserLocalDateTime(log.timestamp)}
 											</td>
 
-											<td
-												className="p-4 text-center capitalize"
-												style={{ width: 100 }}
-											>
+											<td className="hidden lg:table-cell p-3 text-center capitalize truncate">
 												{log.source === "ui" ? "UI" : log.source}
 											</td>
 
-											<td className="p-4 text-center" style={{ width: 100 }}>
+											<td className="hidden lg:table-cell p-3 text-center truncate">
 												{normalizeVendorName(log.vendor)}
 											</td>
 
-											<td
-												className="p-4 text-center truncate"
-												style={{ width: showPromptColumn ? 140 : 160 }}
-												title={log.model}
-											>
+											<td className="w-[180px] p-3 text-center truncate" title={log.model}>
 												{modelDisplay}
 											</td>
 
 											{showPromptColumn && (
 												<td
-													className="p-4 text-center truncate"
-													style={{ width: 180 }}
+													className="hidden xl:table-cell p-3 text-center truncate"
 													title={promptName}
 												>
 													{promptDeleted ? (
@@ -152,18 +143,15 @@ function LogsTableComponent({
 												</td>
 											)}
 
-											<td className="p-4 text-center" style={{ width: 110 }}>
+											<td className="hidden xl:table-cell p-3 text-center">
 												{log.tokens_sum}
 											</td>
 
-											<td
-												className="p-4 text-center tabular-nums"
-												style={{ width: 90 }}
-											>
+											<td className="hidden md:table-cell p-3 text-center tabular-nums">
 												${log.cost.toFixed(6)}
 											</td>
 
-											<td className="p-4 text-center" style={{ width: 80 }}>
+											<td className="hidden sm:table-cell p-3 text-center whitespace-nowrap">
 												<Tooltip>
 													<TooltipTrigger asChild>
 														<span>
@@ -176,7 +164,7 @@ function LogsTableComponent({
 												</Tooltip>
 											</td>
 
-											<td className="p-4 text-center" style={{ width: 120 }}>
+											<td className="hidden sm:table-cell p-3 text-center whitespace-nowrap">
 												{timeAgo(log.timestamp)}
 											</td>
 										</tr>

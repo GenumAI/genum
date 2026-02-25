@@ -225,9 +225,9 @@ const EditorCard = ({
 					)}
 				>
 					<div className="px-2 py-1.5 bg-muted dark:bg-[#27272A] rounded-t-md">
-						<div className="flex flex-wrap items-center gap-1">
-							<div className="flex justify-between w-full">
-								<div className="flex">
+						<div className="flex w-full min-w-0 items-center gap-2">
+							<div className="min-w-0 flex-1 overflow-x-auto">
+								<div className="flex w-max items-center">
 									{/* Text Formatting Buttons */}
 									{toolbarButtons.map((button) => (
 										<EditorToolbarButton
@@ -272,7 +272,9 @@ const EditorCard = ({
 										onClick={onToggleMarkdownPreview || (() => {})}
 									/>
 								</div>
+							</div>
 
+							<div className="shrink-0">
 								<EditorActions
 									main={main}
 									editorIsEmpty={editor?.isEmpty || false}

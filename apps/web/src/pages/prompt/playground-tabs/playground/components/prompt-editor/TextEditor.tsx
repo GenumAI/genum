@@ -118,7 +118,7 @@ const TextEditor = ({
 				ref={editorContainerRef}
 				tabIndex={-1}
 				aria-label="Editor container"
-				className="relative border-0 p-0 m-0"
+				className="relative m-0 w-full min-w-0 border-0 p-0"
 				onBlur={(e) => {
 					if (!e.currentTarget.contains(e.relatedTarget)) {
 						mainEditor.handleEditorBlur();

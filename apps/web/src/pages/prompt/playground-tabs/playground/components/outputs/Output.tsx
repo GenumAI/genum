@@ -113,7 +113,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	};
 
 	return (
-		<div>
+		<div className="w-full min-w-0">
 			<OutputHeader
 				promptId={promptId}
 				currentAssertionType={currentAssertionType}
@@ -128,24 +128,24 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 				onExpand={handleOpenPlayground}
 			/>
 
-			<Card className="w-full shadow-sm border rounded-lg">
-				<div className="grid grid-cols-2 text-xs border-b dark:bg-[#27272A] rounded-t-lg">
-					<div>
+			<Card className="w-full min-w-0 rounded-lg border shadow-sm">
+				<div className="grid grid-cols-1 rounded-t-lg border-b text-xs dark:bg-[#27272A] sm:grid-cols-2">
+					<div className="min-w-0">
 						<MetricsDisplay title="Last Output" content={content || undefined} />
 					</div>
 
-					<div>
+					<div className="min-w-0 border-t sm:border-l sm:border-t-0">
 						<MetricsDisplay title="Expected Output" content={expectedMetrics} />
 					</div>
 				</div>
 
-				<div className="text-sm h-80 pr-px rounded-b-[6px] overflow-hidden">
+				<div className="output-diff-container relative h-80 min-w-0 overflow-hidden rounded-b-[6px] text-sm">
 					<CompareDiffEditor
 						key={`diff-${!!content?.answer}`}
 						original={content?.answer}
 						modified={modifiedValue}
 						onBlur={saveModifiedValue}
-						className="rounded-b-[6px]"
+						className="output-diff-editor w-full min-w-0 rounded-b-[6px]"
 					/>
 				</div>
 			</Card>

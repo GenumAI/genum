@@ -31,15 +31,15 @@ export default function SettingsBar({
 	}
 
 	return (
-		<div className="flex flex-col gap-3 mx-auto">
-			<div className="rounded-2xl border border-[#83ABFF80] py-4 px-3 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A] w-full md:max-w-sm bg-card transition-all">
+		<div className="flex w-full flex-col gap-3">
+			<div className="w-full rounded-2xl border border-[#83ABFF80] bg-card px-3 py-4 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A]">
 				<CanvasChat
 					systemPrompt={prompt?.value ?? ""}
 					updatePromptContent={updatePromptContent}
 				/>
 			</div>
 
-			<div className="flex flex-col gap-3 rounded-xl border bg-card py-4 px-3 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A]">
+			<div className="flex w-full flex-col gap-3 rounded-xl border bg-card px-3 py-4 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A]">
 				<button
 					type="button"
 					onClick={toggleModels}

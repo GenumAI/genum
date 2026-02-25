@@ -45,21 +45,22 @@ export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
 					</div>
 				</div>
 
-				<div className="grid grid-cols-2 text-xs border-b">
-					<div>
+				<div className="grid grid-cols-1 border-b text-xs sm:grid-cols-2">
+					<div className="min-w-0">
 						<MetricsDisplay title="Last Output" content={content || undefined} />
 					</div>
 
-					<div>
+					<div className="min-w-0 border-t sm:border-l sm:border-t-0">
 						<MetricsDisplay title="Expected Output" content={expectedMetrics} />
 					</div>
 				</div>
 
-				<div className="flex-1 px-4">
+				<div className="output-diff-container relative flex-1 min-w-0 overflow-hidden px-4">
 					<CompareDiffEditor
 						original={content?.answer}
 						modified={modifiedValue}
 						onBlur={onSaveModifiedValue}
+						className="output-diff-editor w-full min-w-0"
 					/>
 				</div>
 
