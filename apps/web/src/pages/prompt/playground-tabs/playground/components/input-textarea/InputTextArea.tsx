@@ -11,11 +11,12 @@ interface InputTextAreaProps {
 	onBlur?: () => void;
 	promptId?: number;
 	systemPrompt?: string;
+	hasPromptContent?: boolean;
 }
 
 export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>(
-	({ onBlur, promptId, systemPrompt }, ref) => {
-		const { inputContent, hasPromptContent } = usePlaygroundContent();
+	({ onBlur, promptId, systemPrompt, hasPromptContent = false }, ref) => {
+		const { inputContent } = usePlaygroundContent();
 		const { setInputContent } = usePlaygroundActions();
 
 		// State management

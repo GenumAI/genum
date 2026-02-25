@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Options } from "@/hooks/usePrompt";
 import { usePromptById } from "@/hooks/usePrompt";
 import { useToast } from "@/hooks/useToast";
 import { usePromptStatus } from "@/contexts/PromptStatusContext";
 import { useTestcaseStatusCounts } from "@/hooks/useTestcaseStatusCounts";
 import { usePlaygroundActions } from "@/stores/playground.store";
+import { promptKeys } from "@/query-keys/prompt.keys";
 import type { UpdatePromptContentOptions } from "./types";
 
 export function usePlaygroundPrompt({
@@ -18,23 +20,43 @@ export function usePlaygroundPrompt({
 	projectId: string | undefined;
 }) {
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const { toast } = useToast();
 	const { setIsCommitted, setActivePromptId } = usePromptStatus();
-	const {
-		clearAllState,
-		setCurrentAssertionType,
-		setOriginalPromptContent,
-		setUpdatingPromptContent,
-	} = usePlaygroundActions();
+	const { clearAllState, setCurrentAssertionType } = usePlaygroundActions();
 
 	const {
 		updatePromptName,
 		prompt,
 		loading: promptLoading,
+		isUpdating: isUpdatingPromptContent,
 		error: updatePromptError,
 	} = usePromptById(promptId);
 
 	useTestcaseStatusCounts(promptId);
+
+	const draftKey = promptKeys.draft(promptId);
+	const draftQuery = useQuery<string | undefined>({
+		queryKey: draftKey,
+		queryFn: () => undefined,
+		enabled: false,
+		staleTime: Infinity,
+		gcTime: Infinity,
+	});
+
+	const serverPromptValue = prompt?.prompt?.value || "";
+	const livePromptValue = draftQuery.data ?? serverPromptValue;
+
+	const setLivePromptValue = useCallback(
+		(value: string) => {
+			queryClient.setQueryData<string>(draftKey, value);
+		},
+		[queryClient, draftKey],
+	);
+
+	const clearLivePromptValue = useCallback(() => {
+		queryClient.removeQueries({ queryKey: draftKey, exact: true });
+	}, [queryClient, draftKey]);
 
 	// Cleanup + prompt switching behavior
 	const prevPromptIdRef = useRef<number | undefined>(promptId);
@@ -77,44 +99,33 @@ export function usePlaygroundPrompt({
 		}
 	}, [prompt?.prompt, setIsCommitted]);
 
-	const isUpdatingPromptContentRef = useRef(false);
-
-	// Keep store original prompt content in sync (but don't fight in-flight updates)
-	useEffect(() => {
-		const currentContent = prompt?.prompt?.value || "";
-		if (!isUpdatingPromptContentRef.current) {
-			setOriginalPromptContent(currentContent);
-		}
-	}, [prompt?.prompt?.value, setOriginalPromptContent]);
-
 	const updatePromptContent = useCallback(
 		async (value: string, options?: UpdatePromptContentOptions) => {
-			if (isUpdatingPromptContentRef.current) return;
+			if (options?.isWithoutUpdate) return;
 
-			if (options?.isWithoutUpdate) {
-				// Note: isUncommitted functionality might need to be handled elsewhere
+			const updateValue = options?.isEmpty ? "" : value;
+			setLivePromptValue(updateValue);
+
+			if (updateValue === serverPromptValue) {
+				clearLivePromptValue();
 				return;
 			}
 
-			isUpdatingPromptContentRef.current = true;
-			setUpdatingPromptContent(true);
-
 			try {
-				const currentPromptValue = prompt?.prompt?.value || "";
-				const updateValue = options?.isEmpty ? "" : value;
-
-				if (updateValue !== currentPromptValue) {
-					setIsCommitted(false);
-					await updatePromptName({ value: updateValue }, options as Options);
-				}
+				setIsCommitted(false);
+				await updatePromptName({ value: updateValue }, options as Options);
+				clearLivePromptValue();
 			} catch (error) {
 				console.error("Failed to update prompt content:", error);
-			} finally {
-				isUpdatingPromptContentRef.current = false;
-				setUpdatingPromptContent(false);
 			}
 		},
-		[prompt?.prompt?.value, setUpdatingPromptContent, setIsCommitted, updatePromptName],
+		[
+			serverPromptValue,
+			setLivePromptValue,
+			clearLivePromptValue,
+			setIsCommitted,
+			updatePromptName,
+		],
 	);
 
 	const handlePromptUpdate = useCallback(
@@ -143,5 +154,10 @@ export function usePlaygroundPrompt({
 		updatePromptError,
 		updatePromptContent,
 		handlePromptUpdate,
+		originalPromptContent: serverPromptValue,
+		livePromptValue,
+		hasPromptContent: !!livePromptValue.trim(),
+		isUpdatingPromptContent,
+		setLivePromptValue,
 	};
 }

@@ -111,6 +111,8 @@ export interface PlaygroundActionsGroup {
 		update: (value: string, options?: UpdatePromptContentOptions) => Promise<void>;
 		/** Handle prompt update with toast notifications */
 		handleUpdate: (newPrompt: string) => Promise<void>;
+		/** Keep live prompt draft in sync while typing */
+		setLiveValue: (value: string) => void;
 	};
 	/** Testcase-related actions */
 	testcase: {

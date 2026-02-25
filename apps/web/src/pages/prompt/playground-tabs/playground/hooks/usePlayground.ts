@@ -3,7 +3,6 @@ import usePlaygroundStore, {
 	defaultPromptResponse,
 	usePlaygroundActions,
 	usePlaygroundAudit,
-	usePlaygroundContent,
 	usePlaygroundTestcase,
 	usePlaygroundUI,
 } from "@/stores/playground.store";
@@ -15,6 +14,7 @@ import { usePlaygroundAuditController } from "@/pages/prompt/playground-tabs/pla
 import type { PlaygroundControllerReturn } from "@/pages/prompt/playground-tabs/playground/hooks/types";
 import { usePromptTestcases } from "@/hooks/usePromptTestcases";
 import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
+import { useShallow } from "zustand/react/shallow";
 
 import type { FileMetadata } from "@/api/files";
 
@@ -55,11 +55,16 @@ export function usePlaygroundController({
 		outputContent: storeOutputContent,
 		clearedOutput,
 		currentExpectedThoughts,
-		originalPromptContent,
-		livePromptValue,
-		hasPromptContent,
 		hasInputContent,
-	} = usePlaygroundContent();
+	} = usePlaygroundStore(
+		useShallow((state) => ({
+			inputContent: state.inputContent,
+			outputContent: state.outputContent,
+			clearedOutput: state.clearedOutput,
+			currentExpectedThoughts: state.currentExpectedThoughts,
+			hasInputContent: state.hasInputContent,
+		})),
+	);
 	const { currentAssertionType } = usePlaygroundTestcase();
 	const { selection } = useMemorySelection(promptId, testcaseId);
 	const selectedMemoryId = selection.selectedMemoryId;
@@ -70,7 +75,6 @@ export function usePlaygroundController({
 		isStatusCountsLoading,
 		runLoading,
 		isFixing,
-		isUpdatingPromptContent,
 		showAuditModal,
 		diffModalInfo,
 		isTestcaseLoaded,
@@ -80,8 +84,18 @@ export function usePlaygroundController({
 	const { data: testcases = [] } = usePromptTestcases(promptId);
 
 	const { models } = usePlaygroundModels();
-	const { prompt, promptLoading, updatePromptError, updatePromptContent, handlePromptUpdate } =
-		usePlaygroundPrompt({ promptId, orgId, projectId });
+	const {
+		prompt,
+		promptLoading,
+		updatePromptError,
+		updatePromptContent,
+		handlePromptUpdate,
+		originalPromptContent,
+		livePromptValue,
+		hasPromptContent,
+		isUpdatingPromptContent,
+		setLivePromptValue,
+	} = usePlaygroundPrompt({ promptId, orgId, projectId });
 
 	// Local refs for cross-event consistency
 	const get = usePlaygroundStore.getState;
@@ -165,7 +179,7 @@ export function usePlaygroundController({
 		? undefined
 		: (currentAuditData?.rate ?? prompt?.prompt?.audit?.data?.rate);
 
-	const systemPrompt = livePromptValue || originalPromptContent || prompt?.prompt?.value || "";
+	const systemPrompt = livePromptValue;
 
 	return {
 		prompt: {
@@ -214,6 +228,7 @@ export function usePlaygroundController({
 			prompt: {
 				update: updatePromptContent,
 				handleUpdate: handlePromptUpdate,
+				setLiveValue: setLivePromptValue,
 			},
 			testcase: {
 				saveAsExpected: handleSaveAsExpected,

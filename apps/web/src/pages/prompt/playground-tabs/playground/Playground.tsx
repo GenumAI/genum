@@ -54,7 +54,9 @@ export default function Playground() {
 							<TextEditor
 								title="System Instructions"
 								main={true}
+								content={prompt.content}
 								onUpdatePrompt={actions.prompt.update}
+								onLivePromptChange={actions.prompt.setLiveValue}
 								metrics={metrics}
 								testcaseInput={testcase.data?.input}
 								expectedContent={testcase.expectedContent}
@@ -71,6 +73,7 @@ export default function Playground() {
 									onBlur={actions.testcase.onInputBlur}
 									promptId={promptId}
 									systemPrompt={prompt.content}
+									hasPromptContent={ui.validation.hasPromptContent}
 								/>
 
 								<div className="flex items-center justify-between gap-2 mt-3">

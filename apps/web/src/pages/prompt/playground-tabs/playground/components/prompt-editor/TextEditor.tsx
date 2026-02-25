@@ -22,6 +22,7 @@ export interface EditorMetrics {
 interface TextEditorProps {
 	title: string;
 	main?: boolean;
+	content: string;
 	onUpdatePrompt: (
 		content: string,
 		options?: {
@@ -30,6 +31,7 @@ interface TextEditorProps {
 			isFormattingOnly?: boolean;
 		},
 	) => void;
+	onLivePromptChange?: (content: string) => void;
 	testcaseInput?: string;
 	expectedContent?: any;
 	metrics?: EditorMetrics;
@@ -43,7 +45,9 @@ interface TextEditorProps {
 const TextEditor = ({
 	title,
 	main,
+	content,
 	onUpdatePrompt,
+	onLivePromptChange,
 	testcaseInput,
 	expectedContent,
 	metrics,
@@ -65,6 +69,7 @@ const TextEditor = ({
 		handleMarkdownPreviewToggle,
 		editorHeight,
 		setEditorHeight,
+		livePromptValue,
 		promptText,
 		setPromptText,
 		tuneText,
@@ -78,13 +83,14 @@ const TextEditor = ({
 		scrollToHeading,
 		handleClearContent,
 	} = useTextEditor({
+		content,
 		onUpdatePrompt,
+		onLivePromptChange,
 		testcaseInput,
 		expectedContent,
 	});
 
 	const {
-		editorValueRef,
 		handleEditorChange,
 		handleEditorDidMount,
 		handleStyle,
@@ -122,8 +128,8 @@ const TextEditor = ({
 				<EditorCard
 					title={title}
 					editor={{
-						value: editorValueRef.current,
-						isEmpty: !editorValueRef.current.trim(),
+						value: livePromptValue,
+						isEmpty: !livePromptValue.trim(),
 						commands: editorCommands,
 					}}
 					isExpanded={isExpanded}
@@ -156,7 +162,7 @@ const TextEditor = ({
 						<MonacoEditor
 							height={`${editorHeight}px`}
 							defaultLanguage="markdown"
-							value={editorValueRef.current}
+							value={livePromptValue}
 							onChange={handleEditorChange}
 							onMount={handleEditorDidMount}
 							width="100%"
@@ -189,7 +195,7 @@ const TextEditor = ({
 			<PromptDiff
 				isOpen={promptDiffDialog.isOpenPromptDiff}
 				onOpenChange={promptDiffDialog.setIsOpenPromptDiff}
-				original={mainEditor.editorValueRef.current}
+				original={livePromptValue}
 				modified={promptTuneMutation.data?.prompt ?? ""}
 				chainOfThoughts={promptTuneMutation.data?.chainOfThoughts ?? ""}
 				isLoading={false}
