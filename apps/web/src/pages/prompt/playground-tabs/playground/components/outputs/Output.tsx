@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/useToast";
 import CompareDiffEditor from "@/components/ui/DiffEditor";
 import { usePlaygroundContent } from "@/stores/playground.store";
+import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
 
 import { useExpectedOutput } from "./hooks/useExpectedOutput";
 import { useAssertions } from "./hooks/useAssertions";
@@ -41,8 +42,9 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	const [searchParams] = useSearchParams();
 	const testcaseId = searchParams.get("testcaseId");
 
-	// Store
-	const { inputContent: inputValue, outputContent: content } = usePlaygroundContent();
+	// Store/query state
+	const { outputContent: content } = usePlaygroundContent();
+	const { inputContent: inputValue } = usePlaygroundInput({ promptId, testcaseId });
 	const { toast } = useToast();
 
 	// Local UI state

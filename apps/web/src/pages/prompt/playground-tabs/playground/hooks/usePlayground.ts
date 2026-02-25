@@ -11,6 +11,7 @@ import { usePlaygroundPrompt } from "@/pages/prompt/playground-tabs/playground/h
 import { usePlaygroundTestcaseController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundTestcase";
 import { usePlaygroundRunController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundRun";
 import { usePlaygroundAuditController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAudit";
+import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
 import type { PlaygroundControllerReturn } from "@/pages/prompt/playground-tabs/playground/hooks/types";
 import { usePromptTestcases } from "@/hooks/usePromptTestcases";
 import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
@@ -37,7 +38,6 @@ export function usePlaygroundController({
 		setCurrentExpectedThoughts,
 		resetForNewTestcase,
 		clearAllState,
-		setInputContent,
 		setTestcaseLoadState,
 		setRunState,
 		setClearedOutput,
@@ -51,20 +51,20 @@ export function usePlaygroundController({
 		setFixingState,
 	} = usePlaygroundActions();
 	const {
-		inputContent,
 		outputContent: storeOutputContent,
 		clearedOutput,
 		currentExpectedThoughts,
-		hasInputContent,
 	} = usePlaygroundStore(
 		useShallow((state) => ({
-			inputContent: state.inputContent,
 			outputContent: state.outputContent,
 			clearedOutput: state.clearedOutput,
 			currentExpectedThoughts: state.currentExpectedThoughts,
-			hasInputContent: state.hasInputContent,
 		})),
 	);
+	const { inputContent, setInputContent, hasInputContent } = usePlaygroundInput({
+		promptId,
+		testcaseId,
+	});
 	const { currentAssertionType } = usePlaygroundTestcase();
 	const { selection } = useMemorySelection(promptId, testcaseId);
 	const selectedMemoryId = selection.selectedMemoryId;

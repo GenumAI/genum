@@ -1,11 +1,12 @@
 import { forwardRef, useState, type ChangeEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CardHeader, CardTitle } from "@/components/ui/card";
-import { usePlaygroundContent, usePlaygroundActions } from "@/stores/playground.store";
 import { useInputResize } from "./hooks/useInputResize";
 import { useInputGeneration } from "./hooks/useInputGeneration";
 import { InputContent } from "./components/InputContent";
 import { InputActions } from "./components/InputActions";
 import { InputExpandedDialog } from "./components/InputExpandedDialog";
+import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
 
 interface InputTextAreaProps {
 	onBlur?: () => void;
@@ -16,8 +17,12 @@ interface InputTextAreaProps {
 
 export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>(
 	({ onBlur, promptId, systemPrompt, hasPromptContent = false }, ref) => {
-		const { inputContent } = usePlaygroundContent();
-		const { setInputContent } = usePlaygroundActions();
+		const [searchParams] = useSearchParams();
+		const testcaseId = searchParams.get("testcaseId");
+		const { inputContent, setInputContent } = usePlaygroundInput({
+			promptId,
+			testcaseId,
+		});
 
 		// State management
 		const [isExpanded, setExpanded] = useState(false);
@@ -26,7 +31,11 @@ export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>
 		// Custom hooks
 		const { textareaHeight, handleResizeStart } = useInputResize({ minHeight: 140 });
 		const { aiQuery, setAiQuery, isPopoverOpen, setIsPopoverOpen, handleGenerate, isLoading } =
-			useInputGeneration({ promptId, systemPrompt });
+			useInputGeneration({
+				promptId,
+				systemPrompt,
+				onInputGenerated: setInputContent,
+			});
 
 		// Handlers
 		const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {

@@ -42,26 +42,18 @@ export const useExpectedOutput = ({
 		prevPromptIdRef.current = currentPromptId;
 	}, [promptId, testcaseId, setExpectedOutput]);
 
-	// Sync with initialExpectedContent
+	// Sync with expected output coming from store/query source.
 	useEffect(() => {
 		if (initialExpectedContent?.answer) {
 			setModifiedValue(initialExpectedContent.answer);
-			if (!expectedMetrics || expectedMetrics.answer !== initialExpectedContent.answer) {
-				setExpectedMetrics(initialExpectedContent ?? undefined);
-			}
+			setExpectedMetrics(initialExpectedContent ?? undefined);
 		} else {
-			const prevTestcaseId = prevTestcaseIdRef.current;
-			if (!testcaseId) {
-				if (prevTestcaseId || !initialExpectedContent) {
-					setModifiedValue("");
-					setExpectedMetrics(undefined);
-					clearOutput();
-				}
-			} else if (testcaseId) {
+			setExpectedMetrics(undefined);
+			if (testcaseId) {
 				setModifiedValue("");
 			}
 		}
-	}, [initialExpectedContent, testcaseId, expectedMetrics, clearOutput]);
+	}, [initialExpectedContent, testcaseId]);
 
 	// Clear when testcase is deselected
 	useEffect(() => {
@@ -76,6 +68,7 @@ export const useExpectedOutput = ({
 
 	const clearExpectedOutput = useCallback(() => {
 		setModifiedValue("");
+		setExpectedMetrics(undefined);
 	}, []);
 
 	const saveModifiedValue = useCallback(

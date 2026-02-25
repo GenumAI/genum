@@ -23,8 +23,8 @@ export const OutputActions: React.FC<OutputActionsProps> = ({
 	isRunning,
 }) => {
 	return (
-		<div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-2 pt-3 sm:justify-end">
-			<div>
+		<div className="grid w-full min-w-0 grid-cols-1 gap-2 pt-3 sm:grid-cols-2">
+			<div className="flex items-center justify-end">
 				<Button
 					variant="outline"
 					size="sm"
@@ -36,7 +36,7 @@ export const OutputActions: React.FC<OutputActionsProps> = ({
 				</Button>
 			</div>
 
-			<div>
+			<div className="flex items-center justify-end">
 				{!testcaseId && (
 					<TooltipProvider>
 						<Tooltip>

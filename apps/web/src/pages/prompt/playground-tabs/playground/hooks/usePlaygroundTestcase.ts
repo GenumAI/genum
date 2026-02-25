@@ -5,7 +5,7 @@ import type { UpdateExpected } from "@/pages/prompt/playground-tabs/playground/c
 import { defaultPromptResponse } from "@/stores/playground.store";
 import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
 import type { TestCase } from "@/types/TestСase";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 export function usePlaygroundTestcaseController({
@@ -41,6 +41,31 @@ export function usePlaygroundTestcaseController({
 	const lastSavedInputRef = useRef<string>("");
 	const clearExpectedOutputRef = useRef<(() => void) | null>(null);
 	const queryClient = useQueryClient();
+	const updateTestcaseInputMutation = useMutation({
+		mutationKey: testcaseKeys.updateInput(testcaseId ?? undefined),
+		mutationFn: async (value: string) => {
+			if (!testcaseId) return;
+			await testcasesApi.updateTestcase(testcaseId, { input: value });
+		},
+		onSuccess: async (_data, value) => {
+			lastSavedInputRef.current = value;
+			if (!testcaseId) return;
+			await queryClient.invalidateQueries({
+				queryKey: testcaseKeys.byId(testcaseId),
+			});
+			await queryClient.invalidateQueries({
+				queryKey: testcaseKeys.byIdAlt(testcaseId),
+			});
+			if (promptId) {
+				await queryClient.invalidateQueries({
+					queryKey: testcaseKeys.promptTestcases(promptId),
+				});
+				await queryClient.invalidateQueries({
+					queryKey: testcaseKeys.statusCounts(promptId),
+				});
+			}
+		},
+	});
 
 	const testcase = useMemo(() => {
 		if (!testcaseId || !testcases.length) return null;
@@ -53,10 +78,13 @@ export function usePlaygroundTestcaseController({
 
 		if (prevTestcaseId && (!currentTestcaseId || prevTestcaseId !== currentTestcaseId)) {
 			resetForNewTestcase();
+			if (!currentTestcaseId) {
+				setInputContent("");
+			}
 		}
 
 		prevTestcaseIdRef.current = currentTestcaseId;
-	}, [testcaseId, resetForNewTestcase]);
+	}, [testcaseId, resetForNewTestcase, setInputContent]);
 
 	// Load testcase data into store
 	useEffect(() => {
@@ -162,21 +190,12 @@ export function usePlaygroundTestcaseController({
 
 		if (inputContent !== lastSavedInputRef.current) {
 			try {
-				await testcasesApi.updateTestcase(testcaseId, { input: inputContent });
-				lastSavedInputRef.current = inputContent;
-				if (promptId) {
-					queryClient.invalidateQueries({
-						queryKey: testcaseKeys.promptTestcases(promptId),
-					});
-					queryClient.invalidateQueries({
-						queryKey: testcaseKeys.statusCounts(promptId),
-					});
-				}
+				await updateTestcaseInputMutation.mutateAsync(inputContent);
 			} catch (error) {
 				console.error("Failed to update testcase input:", error);
 			}
 		}
-	}, [inputContent, promptId, testcaseId, queryClient]);
+	}, [inputContent, testcaseId, updateTestcaseInputMutation]);
 
 	const expectedContent = formatTestcaseOutput(testcase?.expectedOutput);
 
