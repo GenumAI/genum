@@ -10,7 +10,7 @@ interface TweenNumberProps {
 export function TweenNumber({
 	value,
 	className,
-	durationMs = 320,
+	durationMs = 700,
 	formatValue,
 }: TweenNumberProps) {
 	const [displayValue, setDisplayValue] = useState(value);

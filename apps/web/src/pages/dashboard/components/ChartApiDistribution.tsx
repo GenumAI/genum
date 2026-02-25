@@ -49,6 +49,10 @@ export function ChartApiDistribution({ models }: Props) {
 								outerRadius={80}
 								dataKey="value"
 								strokeWidth={2}
+								isAnimationActive
+								animationDuration={1100}
+								animationBegin={180}
+								animationEasing="ease-out"
 							>
 								{chartData.map((entry) => (
 									<Cell

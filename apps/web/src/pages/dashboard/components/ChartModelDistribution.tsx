@@ -76,6 +76,10 @@ export function ChartModelDistribution({ models, isLoading = false }: Props) {
 								dataKey="value"
 								strokeWidth={2}
 								stroke={"hsl(var(--background))"}
+								isAnimationActive
+								animationDuration={1100}
+								animationBegin={180}
+								animationEasing="ease-out"
 							>
 								{hasData ? (
 									chartData.map((entry) => (

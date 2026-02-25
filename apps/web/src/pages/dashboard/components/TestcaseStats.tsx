@@ -149,6 +149,10 @@ export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: P
 								radius={[4, 4, 4, 4]}
 								barSize={18}
 								name="Passed"
+								isAnimationActive
+								animationDuration={900}
+								animationBegin={120}
+								animationEasing="ease-out"
 								onMouseEnter={(data) =>
 									setHovered(data.prompt_id, "passed")
 								}
@@ -178,6 +182,10 @@ export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: P
 								radius={[4, 4, 4, 4]}
 								barSize={18}
 								name="Failed"
+								isAnimationActive
+								animationDuration={900}
+								animationBegin={220}
+								animationEasing="ease-out"
 								onMouseEnter={(data) =>
 									setHovered(data.prompt_id, "failed")
 								}

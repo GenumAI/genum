@@ -98,7 +98,8 @@ export function StatsCardWithLineChart({
 								strokeWidth={2}
 								dot={false}
 								isAnimationActive
-								animationDuration={350}
+								animationDuration={950}
+								animationBegin={120}
 								animationEasing="ease-out"
 							/>
 						</LineChart>
