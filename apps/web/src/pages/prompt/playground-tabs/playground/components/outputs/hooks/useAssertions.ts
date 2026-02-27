@@ -9,7 +9,7 @@ interface UseAssertionsProps {
 }
 
 export const useAssertions = ({ promptId }: UseAssertionsProps) => {
-	const { prompt, updatePromptName } = usePromptById(promptId);
+	const { prompt, updatePrompt } = usePromptById(promptId);
 	const { toast } = useToast();
 	const { currentAssertionType, assertionValue, setAssertionType, setAssertionValue } =
 		usePlaygroundAssertion({
@@ -22,7 +22,7 @@ export const useAssertions = ({ promptId }: UseAssertionsProps) => {
 		async (data: { assertionType?: string; assertionValue?: string }) => {
 			if (!promptId) return;
 			try {
-				await updatePromptName(data);
+				await updatePrompt(data);
 			} catch (error) {
 				console.error("Failed to update prompt:", error);
 				toast({
@@ -31,7 +31,7 @@ export const useAssertions = ({ promptId }: UseAssertionsProps) => {
 				});
 			}
 		},
-		[promptId, toast, updatePromptName],
+		[promptId, toast, updatePrompt],
 	);
 
 	// Debounced update for assertion value

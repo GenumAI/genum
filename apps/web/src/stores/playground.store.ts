@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
-import type { PromptResponse } from "@/hooks/useRunPrompt";
+import type { PromptResponse } from "@/api/prompt";
 
 export type MemorySelectionState = {
 	selectedMemoryId: string;
@@ -13,14 +13,8 @@ type ScopeParam = string | number | undefined | null;
 const toKeyPart = (value: ScopeParam) => (value == null ? "" : String(value));
 const draftScopeKey = (promptId: ScopeParam, testcaseId: ScopeParam) =>
 	`${toKeyPart(promptId)}::${toKeyPart(testcaseId)}`;
-const promptScopeKey = (promptId: ScopeParam) => toKeyPart(promptId);
 const memoryValueScopeKey = (promptId: ScopeParam, testcaseId: ScopeParam, memoryId: ScopeParam) =>
 	`${toKeyPart(promptId)}::${toKeyPart(testcaseId)}::${toKeyPart(memoryId)}`;
-
-type AssertionDraft = {
-	type?: string;
-	value?: string;
-};
 
 type PlaygroundSessionDraft = {
 	runLoading: boolean;
@@ -29,27 +23,14 @@ type PlaygroundSessionDraft = {
 	status: string;
 };
 
-interface PlaygroundUIData {
-	modalOpen: boolean;
-	commitMessage: string;
-}
-
 interface PlaygroundDraftData {
 	inputDrafts: Record<string, string>;
 	outputDrafts: Record<string, PromptResponse | null>;
 	expectedOutputDrafts: Record<string, PromptResponse | null>;
 	expectedThoughtsDrafts: Record<string, string>;
-	assertionDrafts: Record<string, AssertionDraft>;
 	sessionDrafts: Record<string, PlaygroundSessionDraft>;
-	promptDrafts: Record<string, string>;
 	memorySelectionDrafts: Record<string, MemorySelectionState>;
 	memoryValueDrafts: Record<string, string>;
-}
-
-interface PlaygroundUIActions {
-	openAssertionModal: () => void;
-	closeAssertionModal: () => void;
-	setCommitMessage: (message: string) => void;
 }
 
 interface PlaygroundDraftActions {
@@ -76,10 +57,6 @@ interface PlaygroundDraftActions {
 
 	clearOutputDrafts: (promptId: ScopeParam, testcaseId: ScopeParam) => void;
 
-	setAssertionDraft: (promptId: ScopeParam, value: AssertionDraft) => void;
-	getAssertionDraft: (promptId: ScopeParam) => AssertionDraft | undefined;
-	clearAssertionDraft: (promptId: ScopeParam) => void;
-
 	setSessionDraft: (
 		promptId: ScopeParam,
 		testcaseId: ScopeParam,
@@ -87,10 +64,6 @@ interface PlaygroundDraftActions {
 	) => void;
 	getSessionDraft: (promptId: ScopeParam, testcaseId: ScopeParam) => PlaygroundSessionDraft;
 	clearSessionDraft: (promptId: ScopeParam, testcaseId: ScopeParam) => void;
-
-	setPromptDraft: (promptId: ScopeParam, value: string) => void;
-	getPromptDraft: (promptId: ScopeParam) => string | undefined;
-	clearPromptDraft: (promptId: ScopeParam) => void;
 
 	setMemorySelectionDraft: (
 		promptId: ScopeParam,
@@ -117,10 +90,7 @@ interface PlaygroundDraftActions {
 	resetForPromptExit: (promptId: ScopeParam, testcaseId: ScopeParam) => void;
 }
 
-type PlaygroundState = PlaygroundUIData &
-	PlaygroundDraftData &
-	PlaygroundUIActions &
-	PlaygroundDraftActions;
+type PlaygroundState = PlaygroundDraftData & PlaygroundDraftActions;
 
 const DEFAULT_MEMORY_SELECTION: MemorySelectionState = {
 	selectedMemoryId: "",
@@ -134,17 +104,12 @@ const DEFAULT_SESSION_DRAFT: PlaygroundSessionDraft = {
 	status: "",
 };
 
-const initialState: PlaygroundUIData & PlaygroundDraftData = {
-	modalOpen: false,
-	commitMessage: "",
-
+const initialState: PlaygroundDraftData = {
 	inputDrafts: {},
 	outputDrafts: {},
 	expectedOutputDrafts: {},
 	expectedThoughtsDrafts: {},
-	assertionDrafts: {},
 	sessionDrafts: {},
-	promptDrafts: {},
 	memorySelectionDrafts: {},
 	memoryValueDrafts: {},
 };
@@ -153,11 +118,6 @@ const usePlaygroundStore = create<PlaygroundState>()(
 	devtools(
 		(set, get) => ({
 			...initialState,
-
-			openAssertionModal: () => set({ modalOpen: true }, false, "openAssertionModal"),
-			closeAssertionModal: () => set({ modalOpen: false }, false, "closeAssertionModal"),
-			setCommitMessage: (commitMessage) =>
-				set({ commitMessage }, false, "setCommitMessage"),
 
 			setInputDraft: (promptId, testcaseId, value) =>
 				set(
@@ -246,33 +206,6 @@ const usePlaygroundStore = create<PlaygroundState>()(
 					"clearOutputDrafts",
 				),
 
-			setAssertionDraft: (promptId, value) =>
-				set(
-					(state) => ({
-						assertionDrafts: {
-							...state.assertionDrafts,
-							[promptScopeKey(promptId)]: {
-								...state.assertionDrafts[promptScopeKey(promptId)],
-								...value,
-							},
-						},
-					}),
-					false,
-					"setAssertionDraft",
-				),
-			getAssertionDraft: (promptId) => get().assertionDrafts[promptScopeKey(promptId)],
-			clearAssertionDraft: (promptId) =>
-				set(
-					(state) => {
-						const key = promptScopeKey(promptId);
-						const next = { ...state.assertionDrafts };
-						delete next[key];
-						return { assertionDrafts: next };
-					},
-					false,
-					"clearAssertionDraft",
-				),
-
 			setSessionDraft: (promptId, testcaseId, updater) =>
 				set(
 					(state) => {
@@ -300,30 +233,6 @@ const usePlaygroundStore = create<PlaygroundState>()(
 					},
 					false,
 					"clearSessionDraft",
-				),
-
-			setPromptDraft: (promptId, value) =>
-				set(
-					(state) => ({
-						promptDrafts: {
-							...state.promptDrafts,
-							[promptScopeKey(promptId)]: value,
-						},
-					}),
-					false,
-					"setPromptDraft",
-				),
-			getPromptDraft: (promptId) => get().promptDrafts[promptScopeKey(promptId)],
-			clearPromptDraft: (promptId) =>
-				set(
-					(state) => {
-						const key = promptScopeKey(promptId);
-						const next = { ...state.promptDrafts };
-						delete next[key];
-						return { promptDrafts: next };
-					},
-					false,
-					"clearPromptDraft",
 				),
 
 			setMemorySelectionDraft: (promptId, testcaseId, value) =>
@@ -453,7 +362,6 @@ const usePlaygroundStore = create<PlaygroundState>()(
 				set(
 					(state) => {
 						const scopeKey = draftScopeKey(promptId, testcaseId);
-						const promptKey = promptScopeKey(promptId);
 						const memorySelectionScope = draftScopeKey(promptId, testcaseId);
 
 						const inputDrafts = { ...state.inputDrafts };
@@ -468,14 +376,8 @@ const usePlaygroundStore = create<PlaygroundState>()(
 						const expectedThoughtsDrafts = { ...state.expectedThoughtsDrafts };
 						delete expectedThoughtsDrafts[scopeKey];
 
-						const assertionDrafts = { ...state.assertionDrafts };
-						delete assertionDrafts[promptKey];
-
 						const sessionDrafts = { ...state.sessionDrafts };
 						delete sessionDrafts[scopeKey];
-
-						const promptDrafts = { ...state.promptDrafts };
-						delete promptDrafts[promptKey];
 
 						const memorySelectionDrafts = { ...state.memorySelectionDrafts };
 						delete memorySelectionDrafts[memorySelectionScope];
@@ -485,9 +387,7 @@ const usePlaygroundStore = create<PlaygroundState>()(
 							outputDrafts,
 							expectedOutputDrafts,
 							expectedThoughtsDrafts,
-							assertionDrafts,
 							sessionDrafts,
-							promptDrafts,
 							memorySelectionDrafts,
 						};
 					},
@@ -499,19 +399,9 @@ const usePlaygroundStore = create<PlaygroundState>()(
 	),
 );
 
-export const usePlaygroundUI = () =>
-	usePlaygroundStore(
-		useShallow((state) => ({
-			modalOpen: state.modalOpen,
-		})),
-	);
-
 export const usePlaygroundActions = () =>
 	usePlaygroundStore(
 		useShallow((state) => ({
-			openAssertionModal: state.openAssertionModal,
-			closeAssertionModal: state.closeAssertionModal,
-			setCommitMessage: state.setCommitMessage,
 			resetForTestcaseExit: state.resetForTestcaseExit,
 			resetAfterAddTestcase: state.resetAfterAddTestcase,
 			resetForPromptExit: state.resetForPromptExit,

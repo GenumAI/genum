@@ -71,7 +71,7 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 
 	const { data: testcaseStatusCounts } = useTestcaseStatusCounts(promptId);
 
-	const { updatePromptName, prompt, loading: promptLoading } = usePromptById(promptId);
+	const { updatePrompt, prompt, loading: promptLoading } = usePromptById(promptId);
 	const queryClient = useQueryClient();
 	const [testcase, setTestcase] = useState<TestCaseResponse["testcase"] | null>(null);
 	const [isTestcaseLoading, setIsTestcaseLoading] = useState(false);
@@ -219,7 +219,7 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 		if (trimmedTitle) {
 			setIsUpdating(true);
 			try {
-				await updatePromptName({ name: trimmedTitle });
+				await updatePrompt({ name: trimmedTitle });
 				setEditableTitle(trimmedTitle);
 
 				window.dispatchEvent(

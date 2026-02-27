@@ -1,4 +1,4 @@
-import type { PromptResponse } from "@/hooks/useRunPrompt";
+import type { PromptResponse } from "@/api/prompt";
 
 export const defaultPromptResponse: PromptResponse = {
 	answer: "",

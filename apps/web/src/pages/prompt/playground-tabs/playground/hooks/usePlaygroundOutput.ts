@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { PromptResponse } from "@/hooks/useRunPrompt";
+import type { PromptResponse } from "@/api/prompt";
 import usePlaygroundStore from "@/stores/playground.store";
 
 export function usePlaygroundOutput({

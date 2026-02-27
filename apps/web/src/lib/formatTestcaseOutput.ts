@@ -1,4 +1,4 @@
-import type { PromptResponse } from "@/hooks/useRunPrompt";
+import type { PromptResponse } from "@/api/prompt";
 import { defaultPromptResponse } from "@/lib/defaultPromptResponse";
 
 export function formatTestcaseOutput(output: any): PromptResponse {

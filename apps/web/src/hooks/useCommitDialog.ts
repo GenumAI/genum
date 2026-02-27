@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { promptApi } from "@/api/prompt";
 import { toast } from "@/hooks/useToast";
-import usePlaygroundStore from "@/stores/playground.store";
+import usePromptStore from "@/stores/prompt.store";
 import { useShallow } from "zustand/react/shallow";
 
 interface UseCommitDialogProps {
@@ -14,7 +14,7 @@ export const useCommitDialog = ({ promptId, onSuccess }: UseCommitDialogProps) =
 	const [isCommitting, setIsCommitting] = useState(false);
 	const [isGenerating, setIsGenerating] = useState(false);
 
-	const { value, setValue } = usePlaygroundStore(
+	const { value, setValue } = usePromptStore(
 		useShallow((state) => ({
 			value: state.commitMessage,
 			setValue: state.setCommitMessage,

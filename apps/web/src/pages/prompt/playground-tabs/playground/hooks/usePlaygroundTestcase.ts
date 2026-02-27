@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import type { PromptResponse } from "@/hooks/useRunPrompt";
+import type { PromptResponse } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import type { UpdateExpected } from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
 import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";

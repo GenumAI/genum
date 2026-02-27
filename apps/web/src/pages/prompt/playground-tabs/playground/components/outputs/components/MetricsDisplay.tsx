@@ -1,7 +1,7 @@
 import type React from "react";
 import { Ticket, Coins, CircleGauge } from "lucide-react";
 import { CardTitle } from "@/components/ui/card";
-import type { PromptResponse } from "@/hooks/useRunPrompt";
+import type { PromptResponse } from "@/api/prompt";
 import { getSeconds, formatNumber } from "../utils/outputUtils";
 
 interface MetricsDisplayProps {

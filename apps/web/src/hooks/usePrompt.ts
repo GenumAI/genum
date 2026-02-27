@@ -55,7 +55,7 @@ export function usePromptById(promptId: number | string | undefined) {
 		},
 	});
 
-	const updatePromptName = async (updateData: Partial<PromptSettings>, _options?: Options) => {
+	const updatePrompt = async (updateData: Partial<PromptSettings>, _options?: Options) => {
 		if (!promptId) return;
 		return await updatePromptMutation.mutateAsync({ updateData, options: _options });
 	};
@@ -71,6 +71,6 @@ export function usePromptById(promptId: number | string | undefined) {
 		loading: promptQuery.isLoading || updatePromptMutation.isPending,
 		isUpdating: updatePromptMutation.isPending,
 		error,
-		updatePromptName,
+		updatePrompt,
 	};
 }

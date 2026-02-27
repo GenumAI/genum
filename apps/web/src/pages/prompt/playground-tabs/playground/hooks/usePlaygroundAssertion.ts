@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import usePlaygroundStore from "@/stores/playground.store";
+import useAssertionStore from "@/stores/assertion.store";
 
 type AssertionDraft = {
 	type: string;
@@ -15,14 +15,14 @@ export function usePlaygroundAssertion({
 	serverAssertionType?: string;
 	serverAssertionValue?: string;
 }) {
-	const assertionDraft = usePlaygroundStore((state) => state.getAssertionDraft(promptId));
+	const assertionDraft = useAssertionStore((state) => state.getAssertionDraft(promptId));
 	const currentAssertionType = assertionDraft?.type ?? serverAssertionType ?? "AI";
 	const assertionValue = assertionDraft?.value ?? serverAssertionValue ?? "";
 
 	const setAssertionType = useCallback(
 		(value: string) => {
-			const previous = usePlaygroundStore.getState().getAssertionDraft(promptId);
-			usePlaygroundStore.getState().setAssertionDraft(promptId, {
+			const previous = useAssertionStore.getState().getAssertionDraft(promptId);
+			useAssertionStore.getState().setAssertionDraft(promptId, {
 				type: value,
 				value: previous?.value ?? serverAssertionValue ?? "",
 			} satisfies AssertionDraft);
@@ -32,8 +32,8 @@ export function usePlaygroundAssertion({
 
 	const setAssertionValue = useCallback(
 		(value: string) => {
-			const previous = usePlaygroundStore.getState().getAssertionDraft(promptId);
-			usePlaygroundStore.getState().setAssertionDraft(promptId, {
+			const previous = useAssertionStore.getState().getAssertionDraft(promptId);
+			useAssertionStore.getState().setAssertionDraft(promptId, {
 				type: previous?.type ?? serverAssertionType ?? "AI",
 				value,
 			} satisfies AssertionDraft);
@@ -42,7 +42,7 @@ export function usePlaygroundAssertion({
 	);
 
 	const clearAssertionDraft = useCallback(() => {
-		usePlaygroundStore.getState().clearAssertionDraft(promptId);
+		useAssertionStore.getState().clearAssertionDraft(promptId);
 	}, [promptId]);
 
 	return {

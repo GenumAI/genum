@@ -5,7 +5,7 @@ import { usePromptById } from "@/hooks/usePrompt";
 import { useToast } from "@/hooks/useToast";
 import { usePromptStatus } from "@/contexts/PromptStatusContext";
 import { useTestcaseStatusCounts } from "@/hooks/useTestcaseStatusCounts";
-import usePlaygroundStore from "@/stores/playground.store";
+import usePromptStore from "@/stores/prompt.store";
 import type { UpdatePromptContentOptions } from "./types";
 
 export function usePlaygroundPrompt({
@@ -22,7 +22,7 @@ export function usePlaygroundPrompt({
 	const { setIsCommitted, setActivePromptId } = usePromptStatus();
 
 	const {
-		updatePromptName,
+		updatePrompt,
 		prompt,
 		loading: promptLoading,
 		isUpdating: isUpdatingPromptContent,
@@ -32,18 +32,18 @@ export function usePlaygroundPrompt({
 	useTestcaseStatusCounts(promptId);
 
 	const serverPromptValue = prompt?.prompt?.value || "";
-	const liveDraftValue = usePlaygroundStore((state) => state.getPromptDraft(promptId));
+	const liveDraftValue = usePromptStore((state) => state.getPromptDraft(promptId));
 	const livePromptValue = liveDraftValue ?? serverPromptValue;
 
 	const setLivePromptValue = useCallback(
 		(value: string) => {
-			usePlaygroundStore.getState().setPromptDraft(promptId, value);
+			usePromptStore.getState().setPromptDraft(promptId, value);
 		},
 		[promptId],
 	);
 
 	const clearLivePromptValue = useCallback(() => {
-		usePlaygroundStore.getState().clearPromptDraft(promptId);
+		usePromptStore.getState().clearPromptDraft(promptId);
 	}, [promptId]);
 
 	// Cleanup + prompt switching behavior
@@ -93,7 +93,7 @@ export function usePlaygroundPrompt({
 
 			try {
 				setIsCommitted(false);
-				await updatePromptName({ value: updateValue }, options as Options);
+				await updatePrompt({ value: updateValue }, options as Options);
 				clearLivePromptValue();
 			} catch (error) {
 				console.error("Failed to update prompt content:", error);
@@ -104,7 +104,7 @@ export function usePlaygroundPrompt({
 			setLivePromptValue,
 			clearLivePromptValue,
 			setIsCommitted,
-			updatePromptName,
+			updatePrompt,
 		],
 	);
 

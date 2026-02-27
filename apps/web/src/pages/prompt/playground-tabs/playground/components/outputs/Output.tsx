@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/useToast";
 import CompareDiffEditor from "@/components/ui/DiffEditor";
-import type { PromptResponse } from "@/hooks/useRunPrompt";
+import type { PromptResponse } from "@/api/prompt";
 import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
 import { usePlaygroundOutput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundOutput";
 

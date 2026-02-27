@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { defaultPromptResponse } from "@/lib/defaultPromptResponse";
-import { usePlaygroundActions, usePlaygroundUI } from "@/stores/playground.store";
+import { usePlaygroundActions } from "@/stores/playground.store";
+import { useAssertionActions, useAssertionUI } from "@/stores/assertion.store";
+import { usePromptActions } from "@/stores/prompt.store";
 import { useAudit } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAudit";
 import { usePlaygroundModels } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundModels";
 import { usePlaygroundPrompt } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundPrompt";
 import { usePlaygroundTestcaseController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundTestcase";
-import { usePlaygroundRunController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundRun";
+import { usePlaygroundPromptRun } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundPromptRun";
 import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
 import { usePlaygroundOutput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundOutput";
 import { usePlaygroundAssertion } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAssertion";
@@ -29,7 +31,16 @@ export function usePlaygroundController({
 	testcaseId: string | null;
 	selectedFiles?: FileMetadata[];
 }) {
-	const { openAssertionModal, closeAssertionModal, resetForPromptExit } = usePlaygroundActions();
+	const { resetForPromptExit } = usePlaygroundActions();
+	const {
+		isAssertionModalOpen,
+	} = useAssertionUI();
+	const {
+		openAssertionModal,
+		closeAssertionModal,
+		resetForPromptExit: resetAssertionStateForPromptExit,
+	} = useAssertionActions();
+	const { resetForPromptExit: resetPromptStateForPromptExit } = usePromptActions();
 	const { inputContent, setInputContent, clearInputContent, hasInputContent } =
 		usePlaygroundInput({
 			promptId,
@@ -49,7 +60,6 @@ export function usePlaygroundController({
 	});
 	const { selection } = useMemorySelection(promptId, testcaseId);
 	const selectedMemoryId = selection.selectedMemoryId;
-	const { modalOpen } = usePlaygroundUI();
 	const [isPromptChangedAfterAudit, setIsPromptChangedAfterAudit] = useState(false);
 	const {
 		status,
@@ -100,9 +110,17 @@ export function usePlaygroundController({
 		cleanupRef.current = {
 			cleanupScope: () => {
 				resetForPromptExit(promptId, testcaseId);
+				resetAssertionStateForPromptExit(promptId);
+				resetPromptStateForPromptExit(promptId);
 			},
 		};
-	}, [promptId, testcaseId, resetForPromptExit]);
+	}, [
+		promptId,
+		testcaseId,
+		resetForPromptExit,
+		resetAssertionStateForPromptExit,
+		resetPromptStateForPromptExit,
+	]);
 
 	useEffect(() => {
 		return () => {
@@ -133,7 +151,7 @@ export function usePlaygroundController({
 		resetPlaygroundState,
 	});
 
-	const { handleRun } = usePlaygroundRunController({
+	const { handleRun } = usePlaygroundPromptRun({
 		promptId,
 		testcaseId,
 		testcase,
@@ -211,7 +229,7 @@ export function usePlaygroundController({
 		},
 		ui: {
 			modals: {
-				assertion: { open: modalOpen, status },
+				assertion: { open: isAssertionModalOpen, status },
 				audit: {
 					open: showAuditModal,
 					data: currentAuditData,
