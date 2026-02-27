@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { filesApi, type FileMetadata } from "@/api/files";
 import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
 import { useFilesTableColumns } from "./useFilesTableColumns";
+import { fileKeys } from "@/query-keys/files.keys";
 
 export function useFilesPage() {
 	const [sorting, setSorting] = useState<SortingState>([]);
@@ -20,7 +21,7 @@ export function useFilesPage() {
 	const queryClient = useQueryClient();
 
 	const { data: files = [], isLoading, refetch } = useQuery({
-		queryKey: ["files"],
+		queryKey: fileKeys.all(),
 		queryFn: () => filesApi.listFiles(),
 	});
 
@@ -62,7 +63,7 @@ export function useFilesPage() {
 		setIsUploading(true);
 		try {
 			await filesApi.uploadFile(file);
-			await queryClient.invalidateQueries({ queryKey: ["files"] });
+			await queryClient.invalidateQueries({ queryKey: fileKeys.all() });
 		} finally {
 			setIsUploading(false);
 		}
@@ -74,7 +75,7 @@ export function useFilesPage() {
 		setIsDeleting(true);
 		try {
 			await filesApi.deleteFile(selectedFile.id);
-			await queryClient.invalidateQueries({ queryKey: ["files"] });
+			await queryClient.invalidateQueries({ queryKey: fileKeys.all() });
 			setDeleteDialogOpen(false);
 			setSelectedFile(null);
 		} catch (error) {

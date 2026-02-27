@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt/prompt.api";
 import { calculateTestcaseStatusCounts } from "@/lib/testcaseUtils";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 export const useTestcaseStatusCounts = (promptIdProp?: number | string) => {
 	const promptId = promptIdProp ? Number(promptIdProp) : undefined;
 	const { data, isLoading, refetch } = useQuery({
-		queryKey: ["testcase-status-counts", promptId],
+		queryKey: testcaseKeys.statusCounts(promptId),
 		queryFn: async () => {
 			if (!promptId) return { ok: 0, nok: 0, needRun: 0 };
 			const response = await promptApi.getPromptTestcases(promptId);

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { FileMetadata } from "@/api/files";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import type { TestCaseFile } from "@/types/TestСase";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 interface UsePlaygroundTestcaseFilesParams {
 	testcaseId: string | null;
@@ -49,10 +50,10 @@ export function usePlaygroundTestcaseFiles({
 		}
 
 		await queryClient.invalidateQueries({
-			queryKey: ["prompt-testcases", promptId],
+			queryKey: testcaseKeys.promptTestcases(promptId),
 		});
 		await queryClient.invalidateQueries({
-			queryKey: ["testcase", testcaseId],
+			queryKey: testcaseKeys.byId(testcaseId),
 		});
 	}, [promptId, queryClient, testcaseId]);
 

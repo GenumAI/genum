@@ -6,6 +6,7 @@ import { defaultPromptResponse } from "@/stores/playground.store";
 import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
 import type { TestCase } from "@/types/TestСase";
 import { useQueryClient } from "@tanstack/react-query";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 export function usePlaygroundTestcaseController({
 	promptId,
@@ -135,9 +136,11 @@ export function usePlaygroundTestcaseController({
 
 				await testcasesApi.updateTestcase(testcaseId, updateData);
 				if (promptId) {
-					queryClient.invalidateQueries({ queryKey: ["prompt-testcases", promptId] });
 					queryClient.invalidateQueries({
-						queryKey: ["testcase-status-counts", promptId],
+						queryKey: testcaseKeys.promptTestcases(promptId),
+					});
+					queryClient.invalidateQueries({
+						queryKey: testcaseKeys.statusCounts(promptId),
 					});
 				}
 			} catch (error) {
@@ -162,9 +165,11 @@ export function usePlaygroundTestcaseController({
 				await testcasesApi.updateTestcase(testcaseId, { input: inputContent });
 				lastSavedInputRef.current = inputContent;
 				if (promptId) {
-					queryClient.invalidateQueries({ queryKey: ["prompt-testcases", promptId] });
 					queryClient.invalidateQueries({
-						queryKey: ["testcase-status-counts", promptId],
+						queryKey: testcaseKeys.promptTestcases(promptId),
+					});
+					queryClient.invalidateQueries({
+						queryKey: testcaseKeys.statusCounts(promptId),
 					});
 				}
 			} catch (error) {

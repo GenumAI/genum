@@ -23,6 +23,7 @@ import {
 	type UsedOptionValue,
 } from "../utils/testcases.utils";
 import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 type UseTestcasesTableOptions = {
 	promptId?: number;
@@ -77,7 +78,7 @@ export const useTestcasesTable = ({
 		isLoading: isProjectLoading,
 		refetch: refetchProjectTestcases,
 	} = useQuery({
-		queryKey: ["testcases-list", orgId, projectId],
+		queryKey: testcaseKeys.list(orgId, projectId),
 		queryFn: async () => {
 			const response = await testcasesApi.getTestcases();
 			return response.testcases || [];
@@ -198,7 +199,7 @@ export const useTestcasesTable = ({
 
 						if (promptId) {
 							queryClient.setQueryData<TestCase[]>(
-								["prompt-testcases", promptId],
+								testcaseKeys.promptTestcases(promptId),
 								(oldData) => {
 									if (!oldData) return oldData;
 									return oldData.map((tc) =>
@@ -208,7 +209,7 @@ export const useTestcasesTable = ({
 							);
 						} else {
 							queryClient.setQueryData<TestCase[]>(
-								["testcases-list", orgId, projectId],
+								testcaseKeys.list(orgId, projectId),
 								(oldData) => {
 									if (!oldData) return oldData;
 									return oldData.map((tc) =>
@@ -231,7 +232,7 @@ export const useTestcasesTable = ({
 				await Promise.all(
 					[...affectedPromptIds].map((affectedPromptId) =>
 						queryClient.invalidateQueries({
-							queryKey: ["testcase-status-counts", affectedPromptId],
+							queryKey: testcaseKeys.statusCounts(affectedPromptId),
 						}),
 					),
 				);
@@ -252,7 +253,7 @@ export const useTestcasesTable = ({
 
 				if (promptId) {
 					queryClient.setQueryData<TestCase[]>(
-						["prompt-testcases", promptId],
+						testcaseKeys.promptTestcases(promptId),
 						(oldData) => {
 							if (!oldData) return oldData;
 							return oldData.filter((tc) => tc.id !== selectedTestcase.id);
@@ -260,7 +261,7 @@ export const useTestcasesTable = ({
 					);
 				} else {
 					queryClient.setQueryData<TestCase[]>(
-						["testcases-list", orgId, projectId],
+						testcaseKeys.list(orgId, projectId),
 						(oldData) => {
 							if (!oldData) return oldData;
 							return oldData.filter((tc) => tc.id !== selectedTestcase.id);
@@ -269,7 +270,7 @@ export const useTestcasesTable = ({
 				}
 
 				await queryClient.invalidateQueries({
-					queryKey: ["testcase-status-counts", selectedTestcase.promptId],
+					queryKey: testcaseKeys.statusCounts(selectedTestcase.promptId),
 				});
 
 				setConfirmModalOpen(false);

@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt/prompt.api";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 export const usePromptTestcases = (promptIdProp: string | number | undefined) => {
 	const promptId = promptIdProp ? Number(promptIdProp) : undefined;
 	return useQuery({
-		queryKey: ["prompt-testcases", promptId],
+		queryKey: testcaseKeys.promptTestcases(promptId),
 		queryFn: async () => {
 			if (!promptId) return [];
 			const response = await promptApi.getPromptTestcases(promptId);

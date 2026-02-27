@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
+import { promptKeys } from "@/query-keys/prompt.keys";
 
 interface Testcase {
 	id: number;
@@ -45,7 +47,7 @@ const useTestcasesGroupedByPrompt = (filteredPrompts?: PromptStats[]) => {
 		error: testcasesError,
 		refetch: refetchTestcases,
 	} = useQuery<Testcase[]>({
-		queryKey: ["testcases-list", organizationId, projectId],
+		queryKey: testcaseKeys.list(organizationId, projectId),
 		enabled: !!organizationId && !!projectId,
 		queryFn: async () => {
 			const response = await testcasesApi.getTestcases();
@@ -58,7 +60,7 @@ const useTestcasesGroupedByPrompt = (filteredPrompts?: PromptStats[]) => {
 		isLoading: promptsLoading,
 		error: promptsError,
 	} = useQuery<Prompt[]>({
-		queryKey: ["prompts-list", organizationId, projectId],
+		queryKey: promptKeys.list(organizationId, projectId),
 		enabled: !!organizationId && !!projectId,
 		queryFn: async () => {
 			const response = await promptApi.getPrompts();

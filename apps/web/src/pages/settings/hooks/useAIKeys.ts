@@ -2,9 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
 import { organizationApi } from "@/api/organization";
 import type { AIKey, Vendor } from "../utils/types";
-
-export const ORG_AI_KEYS_QUERY_KEY = ["org", "ai-keys"] as const;
-export const ORG_QUOTA_QUERY_KEY = ["org", "quota"] as const;
+import { organizationKeys } from "@/query-keys/organization.keys";
 
 interface UseAIKeysReturn {
 	// State
@@ -25,13 +23,13 @@ export function useAIKeys(): UseAIKeysReturn {
 	const queryClient = useQueryClient();
 
 	const keysQuery = useQuery({
-		queryKey: ORG_AI_KEYS_QUERY_KEY,
+		queryKey: organizationKeys.aiKeys(),
 		queryFn: () => organizationApi.getAIKeys(),
 		refetchOnMount: "always",
 	});
 
 	const quotaQuery = useQuery({
-		queryKey: ORG_QUOTA_QUERY_KEY,
+		queryKey: organizationKeys.quota(),
 		queryFn: () => organizationApi.getQuota(),
 		refetchOnMount: "always",
 	});
@@ -40,16 +38,16 @@ export function useAIKeys(): UseAIKeysReturn {
 		mutationFn: ({ key, vendor }: { key: string; vendor: Vendor }) =>
 			organizationApi.createAIKey({ key, vendor }),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORG_AI_KEYS_QUERY_KEY });
-			queryClient.invalidateQueries({ queryKey: ORG_QUOTA_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.aiKeys() });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.quota() });
 		},
 	});
 
 	const deleteKeyMutation = useMutation({
 		mutationFn: (keyId: number) => organizationApi.deleteAIKey(keyId),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ORG_AI_KEYS_QUERY_KEY });
-			queryClient.invalidateQueries({ queryKey: ORG_QUOTA_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.aiKeys() });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.quota() });
 		},
 	});
 

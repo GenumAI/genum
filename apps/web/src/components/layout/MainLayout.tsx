@@ -36,6 +36,7 @@ import clsx from "clsx";
 import VersionStatus from "@/pages/prompt/playground-tabs/version/components/VersionStatus";
 import { PromptStatusProvider, usePromptStatus } from "@/contexts/PromptStatusContext";
 import PendingInviteHandler from "@/pages/invite/PendingInviteHandler";
+import { promptKeys } from "@/query-keys/prompt.keys";
 
 const GENUMLAB_LAST_ORG_ID = "genumlab_last_org_id";
 const GENUMLAB_LAST_PROJECT_ID = "genumlab_last_project_id";
@@ -211,7 +212,7 @@ function LayoutContent({ user }: { user: UserType }) {
 		setIsCommitted(newCommited);
 
 		if (promptId) {
-			queryClient.setQueryData(["prompt", promptId], (oldData: any) => {
+			queryClient.setQueryData(promptKeys.byId(promptId), (oldData: any) => {
 				if (!oldData) return oldData;
 				return {
 					...oldData,

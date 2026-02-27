@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/useToast";
 import { promptApi } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { usePlaygroundActions } from "@/stores/playground.store";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 interface UseInputGenerationProps {
 	promptId?: number;
@@ -45,7 +46,7 @@ export const useInputGeneration = ({ promptId, systemPrompt }: UseInputGeneratio
 						input: response.input,
 					});
 					await queryClient.invalidateQueries({
-						queryKey: ["testcaseById", testcaseId],
+						queryKey: testcaseKeys.byIdAlt(testcaseId),
 					});
 				}
 

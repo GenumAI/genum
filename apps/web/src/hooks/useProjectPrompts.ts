@@ -3,13 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getOrgId, getProjectId } from "@/api/client";
 import type { Prompt } from "@/pages/prompt/utils/types";
 import { promptApi } from "@/api/prompt";
+import { promptKeys } from "@/query-keys/prompt.keys";
 
 export function useProjectPrompts() {
 	const orgId = getOrgId();
 	const projectId = getProjectId();
 	const queryClient = useQueryClient();
 
-	const queryKey = ["prompts-list", orgId, projectId] as const;
+	const queryKey = promptKeys.list(orgId, projectId);
 	const query = useQuery({
 		queryKey,
 		queryFn: async () => {

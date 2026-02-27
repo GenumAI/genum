@@ -3,15 +3,14 @@ import { useToast } from "@/hooks/useToast";
 import { organizationApi, type Member, OrganizationRole } from "@/api/organization";
 import { ORG_INVITES_QUERY_KEY } from "./useOrgInvites";
 import { isLocalAuth } from "@/lib/auth";
-
-export const ORG_MEMBERS_QUERY_KEY = ["org", "members"] as const;
+import { organizationKeys } from "@/query-keys/organization.keys";
 
 export function useOrgMembers(orgId: string | undefined) {
 	const { toast } = useToast();
 	const queryClient = useQueryClient();
 
 	const query = useQuery({
-		queryKey: [...ORG_MEMBERS_QUERY_KEY, orgId],
+		queryKey: organizationKeys.members(orgId),
 		queryFn: () => organizationApi.getMembers(),
 		enabled: Boolean(orgId),
 		refetchOnMount: "always",
@@ -21,8 +20,8 @@ export function useOrgMembers(orgId: string | undefined) {
 		mutationFn: ({ email, role }: { email: string; role: OrganizationRole }) =>
 			organizationApi.inviteMember({ email, role }),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [...ORG_MEMBERS_QUERY_KEY, orgId] });
-			queryClient.invalidateQueries({ queryKey: [...ORG_INVITES_QUERY_KEY, orgId] });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.members(orgId) });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.invites(orgId) });
 		},
 	});
 

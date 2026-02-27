@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { helpersApi, ContentPrettifyResponse } from "@/api/helpers";
 import { useQuery } from "@tanstack/react-query";
+import { helperKeys } from "@/query-keys/helpers.keys";
 
 interface AIPreviewProps {
 	content: string;
@@ -16,7 +17,7 @@ const AIPreview: React.FC<AIPreviewProps> = ({ content, onError }) => {
 	const normalizedContent = content?.trim() || "";
 
 	// Create a cache key based on content - React Query will cache results automatically
-	const cacheKey = ["content-prettify", normalizedContent];
+	const cacheKey = helperKeys.contentPrettify(normalizedContent);
 
 	// Use query for caching - it will cache based on content
 	// Set staleTime to Infinity so React Query won't refetch cached data

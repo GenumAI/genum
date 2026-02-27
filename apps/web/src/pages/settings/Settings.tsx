@@ -5,9 +5,8 @@ import { cn } from "@/lib/utils";
 import { useAddParamsToUrl } from "@/lib/addParamsToUrl";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { organizationApi } from "@/api/organization";
-import { ORG_MEMBERS_QUERY_KEY } from "./hooks/useOrgMembers";
-import { ORG_INVITES_QUERY_KEY } from "./hooks/useOrgInvites";
 import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
+import { organizationKeys } from "@/query-keys/organization.keys";
 import { OrganizationRole, ORG_ROLE_RANK } from "@/api/organization";
 
 type MenuItem = {
@@ -85,11 +84,11 @@ export default function Settings() {
 	React.useEffect(() => {
 		if (orgId) {
 			queryClient.prefetchQuery({
-				queryKey: [...ORG_MEMBERS_QUERY_KEY, orgId],
+				queryKey: organizationKeys.members(orgId),
 				queryFn: () => organizationApi.getMembers(),
 			});
 			queryClient.prefetchQuery({
-				queryKey: [...ORG_INVITES_QUERY_KEY, orgId],
+				queryKey: organizationKeys.invites(orgId),
 				queryFn: () => organizationApi.getInvites(),
 			});
 		}

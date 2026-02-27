@@ -2,8 +2,9 @@ import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
 import { organizationApi } from "@/api/organization";
-import { CURRENT_USER_QUERY_KEY } from "@/hooks/useCurrentUser";
 import * as z from "zod";
+import { authKeys } from "@/query-keys/auth.keys";
+import { organizationKeys } from "@/query-keys/organization.keys";
 
 export const organizationFormSchema = z.object({
 	name: z.string().min(1, { message: "Organization name is required" }),
@@ -12,15 +13,13 @@ export const organizationFormSchema = z.object({
 
 export type OrganizationFormValues = z.infer<typeof organizationFormSchema>;
 
-const ORGANIZATION_QUERY_KEY = ["organization"] as const;
-
 export function useOrganization() {
 	const { toast } = useToast();
 	const queryClient = useQueryClient();
 	const { orgId } = useParams<{ orgId: string }>();
 
 	const query = useQuery({
-		queryKey: [...ORGANIZATION_QUERY_KEY, orgId],
+		queryKey: organizationKeys.byId(orgId),
 		queryFn: () => organizationApi.getOrganization(),
 		enabled: Boolean(orgId),
 	});
@@ -32,8 +31,8 @@ export function useOrganization() {
 				description: values.description?.trim() || "",
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [...ORGANIZATION_QUERY_KEY, orgId] });
-			queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.byId(orgId) });
+			queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
 		},
 	});
 

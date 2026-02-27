@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
 import { projectApi } from "@/api/project";
-import { CURRENT_USER_QUERY_KEY } from "@/hooks/useCurrentUser";
 import * as z from "zod";
 import { getOrgId, getProjectId } from "@/api/client";
+import { projectKeys } from "@/query-keys/project.keys";
+import { authKeys } from "@/query-keys/auth.keys";
 
 export const projectFormSchema = z.object({
 	name: z.string().min(1, { message: "Project name is required" }),
@@ -12,8 +13,6 @@ export const projectFormSchema = z.object({
 
 export type ProjectFormValues = z.infer<typeof projectFormSchema>;
 
-const PROJECT_QUERY_KEY = ["project"] as const;
-
 export function useProject() {
 	const { toast } = useToast();
 	const queryClient = useQueryClient();
@@ -21,7 +20,7 @@ export function useProject() {
 	const projectId = getProjectId();
 
 	const query = useQuery({
-		queryKey: [...PROJECT_QUERY_KEY, orgId, projectId],
+		queryKey: projectKeys.byScope(orgId, projectId),
 		queryFn: () => projectApi.getProject(),
 		enabled: Boolean(orgId && projectId),
 	});
@@ -33,8 +32,8 @@ export function useProject() {
 				description: values.description?.trim() || "",
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [...PROJECT_QUERY_KEY, orgId, projectId] });
-			queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: projectKeys.byScope(orgId, projectId) });
+			queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
 		},
 	});
 

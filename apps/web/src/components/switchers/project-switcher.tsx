@@ -24,8 +24,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/useToast";
 import { useQueryClient } from "@tanstack/react-query";
-import { CURRENT_USER_QUERY_KEY } from "@/hooks/useCurrentUser";
 import { organizationApi } from "@/api/organization";
+import { authKeys } from "@/query-keys/auth.keys";
 
 type Project = {
 	id: string;
@@ -118,7 +118,7 @@ export function ProjectSwitcher({
 			setNewProjectName("");
 			setNewProjectDescription("");
 
-			await queryClient.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY });
+			await queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
 
 			const newId = result?.project?.id;
 			if (newId) handleProjectChange(String(newId));

@@ -1,15 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { organizationApi, type LanguageModel } from "@/api/organization";
 import { useToast } from "@/hooks/useToast";
-
-export const ORG_MODELS_QUERY_KEY = ["organization", "models"];
+import { organizationKeys } from "@/query-keys/organization.keys";
 
 export function useOrgModels() {
 	const { toast } = useToast();
 	const queryClient = useQueryClient();
 
 	const { data, isLoading, error } = useQuery({
-		queryKey: ORG_MODELS_QUERY_KEY,
+		queryKey: organizationKeys.models(),
 		queryFn: () => organizationApi.getOrganizationModels(),
 	});
 
@@ -17,7 +16,7 @@ export function useOrgModels() {
 		mutationFn: ({ modelId, enabled }: { modelId: number; enabled: boolean }) =>
 			organizationApi.toggleOrganizationModel(modelId, enabled),
 		onSuccess: (_, variables) => {
-			queryClient.invalidateQueries({ queryKey: ORG_MODELS_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.models() });
 			toast({
 				title: "Success",
 				description: variables.enabled
