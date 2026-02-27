@@ -29,6 +29,19 @@ const hasVisibleMetrics = (value?: PromptResponse | null) =>
 	(value?.cost?.total ?? 0) > 0 ||
 	(value?.response_time_ms ?? 0) > 0;
 
+const isSameOutputSnapshot = (
+	first?: PromptResponse | null,
+	second?: PromptResponse | null,
+) => {
+	return (
+		(first?.answer ?? "") === (second?.answer ?? "") &&
+		(first?.tokens?.total ?? 0) === (second?.tokens?.total ?? 0) &&
+		(first?.cost?.total ?? 0) === (second?.cost?.total ?? 0) &&
+		(first?.response_time_ms ?? 0) === (second?.response_time_ms ?? 0) &&
+		(first?.status ?? "") === (second?.status ?? "")
+	);
+};
+
 export function usePlaygroundTestcaseController({
 	promptId,
 	testcaseId,
@@ -132,7 +145,14 @@ export function usePlaygroundTestcaseController({
 							status: currentExpectedOutput.status,
 						}
 					: formattedExpectedOutput;
-			setExpectedOutput(mergedExpectedOutput);
+				const isExpectedUnchanged = isSameOutputSnapshot(
+					currentExpectedOutput,
+					mergedExpectedOutput,
+				);
+
+			if (!isExpectedUnchanged) {
+				setExpectedOutput(mergedExpectedOutput);
+			}
 
 			const formattedLastOutput = formatTestcaseOutput(testcase.lastOutput);
 			if (
@@ -153,14 +173,7 @@ export function usePlaygroundTestcaseController({
 							}
 						: formattedLastOutput;
 
-				const isUnchanged =
-					storeOutputContent?.answer === mergedLastOutput.answer &&
-					(storeOutputContent?.tokens?.total ?? 0) ===
-						(mergedLastOutput?.tokens?.total ?? 0) &&
-					(storeOutputContent?.cost?.total ?? 0) === (mergedLastOutput?.cost?.total ?? 0) &&
-					(storeOutputContent?.response_time_ms ?? 0) ===
-						(mergedLastOutput?.response_time_ms ?? 0) &&
-					(storeOutputContent?.status ?? "") === (mergedLastOutput?.status ?? "");
+					const isUnchanged = isSameOutputSnapshot(storeOutputContent, mergedLastOutput);
 
 				if (!isUnchanged) {
 					setOutputContent(mergedLastOutput);
