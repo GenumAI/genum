@@ -106,7 +106,7 @@ export class OrganizationRepository {
 				members: {
 					create: {
 						userId: user.id,
-						role: OrganizationRole.ADMIN,
+						role: OrganizationRole.OWNER,
 					},
 				},
 				projects: {
@@ -145,7 +145,7 @@ export class OrganizationRepository {
 				members: {
 					create: {
 						userId: userId,
-						role: OrganizationRole.ADMIN,
+						role: OrganizationRole.OWNER,
 					},
 				},
 				projects: {
