@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { db } from "@/database/db";
 import { OrganizationRole } from "@/prisma";
+import { ProjectService } from "@/services/project.service";
 import {
 	getProjectUsageWithDailyStats,
 	getProjectLogs,
@@ -19,6 +20,12 @@ import {
 import type { LogLevel, SourceType } from "@/services/logger";
 
 export class ProjectController {
+	private readonly projectService: ProjectService;
+
+	constructor() {
+		this.projectService = new ProjectService(db);
+	}
+
 	public async getProjectDetails(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 
@@ -73,7 +80,7 @@ export class ProjectController {
 			return;
 		}
 
-		await db.project.deleteMember(metadata.projID, memberId);
+		await this.projectService.deleteMember(metadata.projID, memberId);
 
 		res.status(200).json({ message: "Member deleted" });
 	}

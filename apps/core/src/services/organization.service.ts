@@ -1,4 +1,5 @@
 import type { Database } from "@/database/db";
+import { ProjectService } from "@/services/project.service";
 import { ProjectRole, OrganizationRole } from "@/prisma";
 import { webhooks } from "./webhooks/webhooks";
 
@@ -56,7 +57,11 @@ export type ValidatedProvider = {
 };
 
 export class OrganizationService {
-	constructor(private readonly db: Database) {}
+	private readonly projectService: ProjectService;
+
+	constructor(private readonly db: Database) {
+		this.projectService = new ProjectService(db);
+	}
 
 	private async getCustomProviderDeleteInfo(orgId: number) {
 		const provider = await this.db.organization.getCustomProvider(orgId);
@@ -244,7 +249,7 @@ export class OrganizationService {
 		if (newRole === OrganizationRole.OWNER || newRole === OrganizationRole.ADMIN) {
 			await this.syncProjectMembershipByOrganizationRole(orgId, member.userId);
 		} else if (newRole === OrganizationRole.READER) {
-			await this.db.project.removeFromAllProjects(orgId, member.userId);
+			await this.projectService.removeUserFromAllProjects(orgId, member.userId);
 		}
 	}
 

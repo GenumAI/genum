@@ -141,15 +141,35 @@ export class ProjectRepository {
 	}
 
 	public async deleteMember(projID: number, memberId: number) {
-		return await this.prisma.projectMember.delete({
+		const member = await this.prisma.projectMember.findUnique({
 			where: {
 				id: memberId,
 				projectId: projID,
 			},
-			select: {
-				id: true,
-			},
+			select: { userId: true },
 		});
+		if (!member) {
+			throw new Error("Project member not found");
+		}
+
+		await this.prisma.$transaction([
+			// Remove user's API keys for this project — they no longer have access
+			this.prisma.projectApiKey.deleteMany({
+				where: {
+					projectId: projID,
+					authorId: member.userId,
+				},
+			}),
+			this.prisma.projectMember.delete({
+				where: {
+					id: memberId,
+					projectId: projID,
+				},
+				select: { id: true },
+			}),
+		]);
+
+		return { id: memberId };
 	}
 
 	public async deleteProject(projectId: number, orgId: number) {
@@ -162,14 +182,21 @@ export class ProjectRepository {
 	}
 
 	public async removeFromAllProjects(orgId: number, userId: number) {
-		return await this.prisma.projectMember.deleteMany({
-			where: {
-				project: {
-					organizationId: orgId,
+		await this.prisma.$transaction([
+			// Remove user's API keys in all projects of this organization
+			this.prisma.projectApiKey.deleteMany({
+				where: {
+					authorId: userId,
+					project: { organizationId: orgId },
 				},
-				userId: userId,
-			},
-		});
+			}),
+			this.prisma.projectMember.deleteMany({
+				where: {
+					project: { organizationId: orgId },
+					userId: userId,
+				},
+			}),
+		]);
 	}
 
 	public async getProjectApiKeys(projectId: number) {

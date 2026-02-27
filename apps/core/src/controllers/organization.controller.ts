@@ -23,15 +23,18 @@ import {
 	ProviderDeleteNotAllowedError,
 } from "@/services/organization.service";
 import { PromptService } from "@/services/prompt.service";
+import { ProjectService } from "@/services/project.service";
 import { listOpenAICompatibleModels, testProviderConnection } from "@/ai/providers/openai/models";
 
 export class OrganizationController {
 	private readonly organizationService: OrganizationService;
 	private readonly promptService: PromptService;
+	private readonly projectService: ProjectService;
 
 	constructor() {
 		this.organizationService = new OrganizationService(db);
 		this.promptService = new PromptService(db);
+		this.projectService = new ProjectService(db);
 	}
 
 	public async getOrganizationDetails(req: Request, res: Response) {
@@ -166,7 +169,7 @@ export class OrganizationController {
 			}
 		}
 
-		await db.project.removeFromAllProjects(metadata.orgID, member.userId);
+		await this.projectService.removeUserFromAllProjects(metadata.orgID, member.userId);
 		await db.organization.deleteMember(memberId);
 
 		res.status(200).json({ message: "Member deleted successfully" });
