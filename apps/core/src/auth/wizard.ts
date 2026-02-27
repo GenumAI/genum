@@ -1,45 +1,42 @@
 /** biome-ignore-all lint/correctness/noUnusedFunctionParameters: WIP */
-import type { Request, Response, NextFunction, RequestHandler } from "express";
+import type { RequestHandler } from "express";
 import { db } from "../database/db";
-import type { OrganizationRole, ProjectRole } from "@/prisma";
+import { OrganizationRole, ProjectRole } from "@/prisma";
 import { isLocalInstance } from "@/utils/env";
 
 export type ContextScope = "user" | "org" | "project";
 
+const ORG_ROLE_RANK: Record<OrganizationRole, number> = {
+	[OrganizationRole.READER]: 0,
+	[OrganizationRole.ADMIN]: 1,
+	[OrganizationRole.OWNER]: 2,
+};
+
+const PROJ_ROLE_RANK: Record<ProjectRole, number> = {
+	[ProjectRole.MEMBER]: 0,
+	[ProjectRole.ADMIN]: 1,
+};
+
 export function createAuthMiddleware() {
-	const hasProjectRole =
-		(role: ProjectRole) => async (req: Request, res: Response, next: NextFunction) => {
-			// const member = req.genumMeta.projectMember;
-
-			// if (!member) {
-			// 	res.status(403).json({ error: 'Not a member' });
-			// 	return;
-			// }
-
-			// if (member.role !== role) {
-			// 	res.status(403).json({ error: 'Not enough permissions' });
-			// 	return;
-			// }
-
+	const hasMinOrgRole =
+		(minRole: OrganizationRole): RequestHandler =>
+		async (req, res, next) => {
+			const member = req.genumMeta.organizationMember;
+			if (!member || ORG_ROLE_RANK[member.role] < ORG_ROLE_RANK[minRole]) {
+				res.status(403).json({ error: "Insufficient permissions" });
+				return;
+			}
 			next();
 		};
 
-	const hasOrganizationRole =
-		(role: OrganizationRole) => async (req: Request, res: Response, next: NextFunction) => {
-			// feature: teamwork
-			// we do not check any role
-			// const member = req.genumMeta.organizationMember;
-
-			// if (!member) {
-			// 	res.status(403).json({ error: 'Not a member' });
-			// 	return;
-			// }
-
-			// if (member.role !== role) {
-			// 	res.status(403).json({ error: 'Wrong role' });
-			// 	return;
-			// }
-
+	const hasMinProjectRole =
+		(minRole: ProjectRole): RequestHandler =>
+		async (req, res, next) => {
+			const member = req.genumMeta.projectMember;
+			if (!member || PROJ_ROLE_RANK[member.role] < PROJ_ROLE_RANK[minRole]) {
+				res.status(403).json({ error: "Insufficient permissions" });
+				return;
+			}
 			next();
 		};
 
@@ -153,8 +150,8 @@ export function createAuthMiddleware() {
 	};
 
 	return {
-		hasProjectRole,
-		hasOrganizationRole,
+		hasMinOrgRole,
+		hasMinProjectRole,
 		context,
 		attachProjContext,
 		requireSystemUser,

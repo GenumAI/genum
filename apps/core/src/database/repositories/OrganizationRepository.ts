@@ -106,7 +106,7 @@ export class OrganizationRepository {
 				members: {
 					create: {
 						userId: user.id,
-						role: OrganizationRole.ADMIN,
+						role: OrganizationRole.OWNER,
 					},
 				},
 				projects: {
@@ -117,7 +117,7 @@ export class OrganizationRepository {
 						members: {
 							create: {
 								userId: user.id,
-								role: ProjectRole.OWNER,
+								role: ProjectRole.ADMIN,
 							},
 						},
 					},
@@ -145,7 +145,7 @@ export class OrganizationRepository {
 				members: {
 					create: {
 						userId: userId,
-						role: OrganizationRole.ADMIN,
+						role: OrganizationRole.OWNER,
 					},
 				},
 				projects: {
@@ -156,7 +156,7 @@ export class OrganizationRepository {
 						members: {
 							create: {
 								userId: userId,
-								role: ProjectRole.OWNER,
+								role: ProjectRole.ADMIN,
 							},
 						},
 					},
@@ -238,6 +238,15 @@ export class OrganizationRepository {
 			where: {
 				id: memberId,
 				organizationId: orgId,
+			},
+		});
+	}
+
+	public async getOrganizationOwners(orgId: number) {
+		return await this.prisma.organizationMember.findMany({
+			where: {
+				organizationId: orgId,
+				role: OrganizationRole.OWNER,
 			},
 		});
 	}

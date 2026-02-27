@@ -11,8 +11,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectTrigger,
+	SelectContent,
+	SelectValue,
+	SelectItem,
+} from "@/components/ui/select";
 import { InviteUrlDialog } from "./InviteUrlDialog";
 import { isLocalAuth } from "@/lib/auth";
+import { OrganizationRole } from "@/api/organization";
 import type { InviteMemberDialogProps } from "../../utils/types";
 
 export function InviteMemberDialog({
@@ -22,15 +30,16 @@ export function InviteMemberDialog({
 	isInviting,
 }: InviteMemberDialogProps) {
 	const [email, setEmail] = useState("");
+	const [role, setRole] = useState<OrganizationRole>(OrganizationRole.ADMIN);
 	const [inviteUrlDialogOpen, setInviteUrlDialogOpen] = useState(false);
 	const [inviteUrl, setInviteUrl] = useState<string>("");
 
 	const handleInvite = async () => {
-		const result = await onInvite(email);
+		const result = await onInvite(email, role);
 		if (result.success) {
 			setEmail("");
+			setRole(OrganizationRole.ADMIN);
 			onOpenChange(false);
-			// For local instance, show invite URL dialog
 			if (isLocalAuth() && result.inviteUrl) {
 				setInviteUrl(result.inviteUrl);
 				setInviteUrlDialogOpen(true);
@@ -59,8 +68,24 @@ export function InviteMemberDialog({
 								onChange={(e) => setEmail(e.target.value)}
 								placeholder="name@example.com"
 							/>
+						</div>
+						<div className="space-y-2">
+							<Label>Role</Label>
+						<Select
+							value={role}
+							onValueChange={(value) => setRole(value as OrganizationRole)}
+						>
+							<SelectTrigger>
+								<SelectValue placeholder="Select role..." />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={OrganizationRole.ADMIN}>Admin</SelectItem>
+								<SelectItem value={OrganizationRole.READER}>Reader</SelectItem>
+							</SelectContent>
+						</Select>
 							<p className="text-xs text-muted-foreground">
-								At the moment, all team members will have admin permissions.
+								Admins have access to all projects and settings. Readers must be
+								added to individual projects.
 							</p>
 						</div>
 					</div>

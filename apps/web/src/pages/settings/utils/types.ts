@@ -2,13 +2,14 @@
  * Common types for settings pages
  */
 
-import type { ProjectMember, Project } from "@/api/project";
+import type { ProjectMember, Project, ProjectRole } from "@/api/project";
 import type {
 	Member,
 	Invite,
 	CustomProviderDeleteStatus,
 	LanguageModel,
 	CustomProvider,
+	OrganizationRole,
 } from "@/api/organization/organization.api";
 import type { Organization } from "@/api/organization";
 import type { OrganizationFormValues } from "../hooks/useOrganization";
@@ -220,14 +221,14 @@ export interface DeleteConfirmDialogProps {
 export interface InviteMemberDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onInvite: (email: string) => Promise<{ success: boolean; inviteUrl?: string }>;
+	onInvite: (email: string, role: OrganizationRole) => Promise<{ success: boolean; inviteUrl?: string }>;
 	isInviting: boolean;
 }
 
 export interface AddMemberDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onAdd: (userId: number, role: string) => Promise<boolean>;
+	onAdd: (userId: number, role: ProjectRole) => Promise<boolean>;
 	availableUsers: User[];
 	hasEndpoint: boolean;
 	isAdding: boolean;
@@ -257,13 +258,20 @@ export interface MembersTableProps {
 	currentUserEmail?: string;
 	updatingRoleId?: number | null;
 	deletingId: number | null;
-	onRoleChange?: (id: number, role: string) => void;
-	onDelete: (member: ProjectMember) => void;
+	onRoleChange?: (id: number, role: ProjectRole) => void;
+	onDelete?: (member: ProjectMember) => void;
 }
 
 export interface OrgMembersTableProps {
 	members: Member[];
 	isLoading: boolean;
+	currentUserEmail?: string;
+	currentUserRole?: OrganizationRole;
+	canManageMembers: boolean;
+	updatingRoleId?: number | null;
+	deletingId?: number | null;
+	onRoleChange?: (memberId: number, role: OrganizationRole) => void;
+	onDelete?: (member: Member) => void;
 }
 
 export interface InvitesTableProps {
