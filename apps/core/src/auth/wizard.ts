@@ -8,17 +8,18 @@ export type ContextScope = "user" | "org" | "project";
 
 const ORG_ROLE_RANK: Record<OrganizationRole, number> = {
 	[OrganizationRole.READER]: 0,
-	[OrganizationRole.ADMIN]:  1,
-	[OrganizationRole.OWNER]:  2,
+	[OrganizationRole.ADMIN]: 1,
+	[OrganizationRole.OWNER]: 2,
 };
 
 const PROJ_ROLE_RANK: Record<ProjectRole, number> = {
 	[ProjectRole.MEMBER]: 0,
-	[ProjectRole.ADMIN]:  1,
+	[ProjectRole.ADMIN]: 1,
 };
 
 export function createAuthMiddleware() {
-	const hasMinOrgRole = (minRole: OrganizationRole): RequestHandler =>
+	const hasMinOrgRole =
+		(minRole: OrganizationRole): RequestHandler =>
 		async (req, res, next) => {
 			const member = req.genumMeta.organizationMember;
 			if (!member || ORG_ROLE_RANK[member.role] < ORG_ROLE_RANK[minRole]) {
@@ -28,7 +29,8 @@ export function createAuthMiddleware() {
 			next();
 		};
 
-	const hasMinProjectRole = (minRole: ProjectRole): RequestHandler =>
+	const hasMinProjectRole =
+		(minRole: ProjectRole): RequestHandler =>
 		async (req, res, next) => {
 			const member = req.genumMeta.projectMember;
 			if (!member || PROJ_ROLE_RANK[member.role] < PROJ_ROLE_RANK[minRole]) {

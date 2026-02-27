@@ -115,7 +115,9 @@ export class OrganizationController {
 		if (member.role === OrganizationRole.OWNER && newRole !== OrganizationRole.OWNER) {
 			const owners = await db.organization.getOrganizationOwners(metadata.orgID);
 			if (owners.length <= 1) {
-				res.status(400).json({ error: "Cannot change role of the last organization owner" });
+				res.status(400).json({
+					error: "Cannot change role of the last organization owner",
+				});
 				return;
 			}
 		}

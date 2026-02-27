@@ -120,13 +120,19 @@ export class ProjectController {
 			return;
 		}
 
-		const orgMember = await db.organization.getMemberByUserId(metadata.orgID, projectMember.userId);
+		const orgMember = await db.organization.getMemberByUserId(
+			metadata.orgID,
+			projectMember.userId,
+		);
 		if (!orgMember) {
 			res.status(404).json({ error: "Organization member not found" });
 			return;
 		}
 
-		if (orgMember.role === OrganizationRole.OWNER || orgMember.role === OrganizationRole.ADMIN) {
+		if (
+			orgMember.role === OrganizationRole.OWNER ||
+			orgMember.role === OrganizationRole.ADMIN
+		) {
 			res.status(403).json({
 				error: "Cannot change project role of an organization owner or admin",
 			});
