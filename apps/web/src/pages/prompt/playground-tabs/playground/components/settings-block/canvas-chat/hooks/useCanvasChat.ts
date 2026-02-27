@@ -1,6 +1,7 @@
 import { useState, useCallback, type KeyboardEvent } from "react";
 import { useToast } from "@/hooks/useToast";
 import { useAudit } from "@/hooks/useAudit";
+import type { AuditData } from "@/types/audit";
 import type { CanvasChatController, DiffModalInfo } from "../types";
 import { useCanvasChatAPI } from "./useCanvasChatAPI";
 import { useCanvasChatMessages } from "./useCanvasChatMessages";
@@ -38,13 +39,14 @@ export const useCanvasChat = ({
 
 	// Diff modal state
 	const [diffModalInfo, setDiffModalInfo] = useState<DiffModalInfo | null>(null);
+	const [manualAuditData, setManualAuditData] = useState<AuditData | null>(null);
 
 	// Audit modal state
 	const [showAuditModal, setShowAuditModal] = useState(false);
 	const [isFixing, setIsFixing] = useState(false);
 
 	// Audit hook
-	const { currentAuditData, setCurrentAuditData, runAudit, isAuditLoading, fixRisks } = useAudit(
+	const { currentAuditData, runAudit, isAuditLoading, fixRisks } = useAudit(
 		promptId,
 		{
 			onFixSuccess: (fixedPrompt) => {
@@ -59,8 +61,8 @@ export const useCanvasChat = ({
 		onEditPrompt: (value: string) => {
 			setDiffModalInfo({ prompt: value });
 		},
-		onAuditPrompt: (value: any) => {
-			setCurrentAuditData(value);
+		onAuditPrompt: (value: unknown) => {
+			setManualAuditData((value as AuditData) ?? null);
 			setShowAuditModal(true);
 		},
 	});
@@ -167,10 +169,12 @@ export const useCanvasChat = ({
 	// Audit modal handlers
 	const onCloseAudit = useCallback(() => {
 		setShowAuditModal(false);
+		setManualAuditData(null);
 	}, []);
 
 	const onRunAudit = useCallback(async () => {
 		if (promptId) {
+			setManualAuditData(null);
 			await runAudit(promptId);
 		}
 	}, [promptId, runAudit]);
@@ -200,7 +204,7 @@ export const useCanvasChat = ({
 		},
 		audit: {
 			showModal: showAuditModal,
-			currentData: currentAuditData,
+			currentData: manualAuditData ?? currentAuditData,
 			isLoading: isAuditLoading,
 			isFixing,
 			onClose: onCloseAudit,

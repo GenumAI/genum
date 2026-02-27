@@ -31,10 +31,6 @@ type PlaygroundSessionDraft = {
 
 interface PlaygroundUIData {
 	modalOpen: boolean;
-	showAuditModal: boolean;
-	diffModalInfo: { prompt: string } | null;
-	isAuditLoading: boolean;
-	isFixing: boolean;
 	commitMessage: string;
 }
 
@@ -53,11 +49,6 @@ interface PlaygroundDraftData {
 interface PlaygroundUIActions {
 	openAssertionModal: () => void;
 	closeAssertionModal: () => void;
-	openAuditModal: () => void;
-	closeAuditModal: () => void;
-	setDiffModal: (info: { prompt: string } | null) => void;
-	setAuditLoading: (loading: boolean) => void;
-	setFixingState: (fixing: boolean) => void;
 	setCommitMessage: (message: string) => void;
 }
 
@@ -145,10 +136,6 @@ const DEFAULT_SESSION_DRAFT: PlaygroundSessionDraft = {
 
 const initialState: PlaygroundUIData & PlaygroundDraftData = {
 	modalOpen: false,
-	showAuditModal: false,
-	diffModalInfo: null,
-	isAuditLoading: false,
-	isFixing: false,
 	commitMessage: "",
 
 	inputDrafts: {},
@@ -169,12 +156,6 @@ const usePlaygroundStore = create<PlaygroundState>()(
 
 			openAssertionModal: () => set({ modalOpen: true }, false, "openAssertionModal"),
 			closeAssertionModal: () => set({ modalOpen: false }, false, "closeAssertionModal"),
-			openAuditModal: () => set({ showAuditModal: true }, false, "openAuditModal"),
-			closeAuditModal: () => set({ showAuditModal: false }, false, "closeAuditModal"),
-			setDiffModal: (diffModalInfo) => set({ diffModalInfo }, false, "setDiffModal"),
-			setAuditLoading: (isAuditLoading) =>
-				set({ isAuditLoading }, false, "setAuditLoading"),
-			setFixingState: (isFixing) => set({ isFixing }, false, "setFixingState"),
 			setCommitMessage: (commitMessage) =>
 				set({ commitMessage }, false, "setCommitMessage"),
 
@@ -522,10 +503,6 @@ export const usePlaygroundUI = () =>
 	usePlaygroundStore(
 		useShallow((state) => ({
 			modalOpen: state.modalOpen,
-			showAuditModal: state.showAuditModal,
-			diffModalInfo: state.diffModalInfo,
-			isAuditLoading: state.isAuditLoading,
-			isFixing: state.isFixing,
 		})),
 	);
 
@@ -534,11 +511,6 @@ export const usePlaygroundActions = () =>
 		useShallow((state) => ({
 			openAssertionModal: state.openAssertionModal,
 			closeAssertionModal: state.closeAssertionModal,
-			openAuditModal: state.openAuditModal,
-			closeAuditModal: state.closeAuditModal,
-			setDiffModal: state.setDiffModal,
-			setAuditLoading: state.setAuditLoading,
-			setFixingState: state.setFixingState,
 			setCommitMessage: state.setCommitMessage,
 			resetForTestcaseExit: state.resetForTestcaseExit,
 			resetAfterAddTestcase: state.resetAfterAddTestcase,

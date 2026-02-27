@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { defaultPromptResponse } from "@/lib/defaultPromptResponse";
 import { usePlaygroundActions, usePlaygroundUI } from "@/stores/playground.store";
+import { useAudit } from "@/hooks/useAudit";
 import { usePlaygroundModels } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundModels";
 import { usePlaygroundPrompt } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundPrompt";
 import { usePlaygroundTestcaseController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundTestcase";
 import { usePlaygroundRunController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundRun";
-import { usePlaygroundAuditController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAudit";
 import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
 import { usePlaygroundOutput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundOutput";
 import { usePlaygroundAssertion } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAssertion";
@@ -32,10 +32,6 @@ export function usePlaygroundController({
 	const {
 		openAssertionModal,
 		closeAssertionModal,
-		openAuditModal,
-		closeAuditModal,
-		setDiffModal,
-		setFixingState,
 		resetForPromptExit,
 	} = usePlaygroundActions();
 	const { inputContent, setInputContent, clearInputContent, hasInputContent } = usePlaygroundInput({
@@ -56,12 +52,7 @@ export function usePlaygroundController({
 	});
 	const { selection } = useMemorySelection(promptId, testcaseId);
 	const selectedMemoryId = selection.selectedMemoryId;
-	const {
-		modalOpen,
-		isFixing,
-		showAuditModal,
-		diffModalInfo,
-	} = usePlaygroundUI();
+	const { modalOpen } = usePlaygroundUI();
 	const [isPromptChangedAfterAudit, setIsPromptChangedAfterAudit] = useState(false);
 	const {
 		status,
@@ -165,22 +156,32 @@ export function usePlaygroundController({
 	const {
 		currentAuditData,
 		isAuditLoading,
-		auditPrompt,
+		isFixing,
+		showAuditModal,
+		diffModalInfo,
+		setDiffModal,
+		runAudit,
+		canRunAudit,
 		handleOpenAuditModal,
 		handleCloseAuditModal,
-		handleRunAudit,
 		handleFixRisks,
 		handleDiffSave,
-	} = usePlaygroundAuditController({
-		promptId,
-		promptValue: prompt?.prompt?.value,
-		setIsPromptChangedAfterAudit,
-		openAuditModal,
-		closeAuditModal,
-		setDiffModal,
-		setFixingState,
-		updatePromptContent,
+	} = useAudit(promptId, {
+		playgroundFlow: {
+			promptValue: prompt?.prompt?.value,
+			setIsPromptChangedAfterAudit,
+			updatePromptContent,
+		},
 	});
+	const handleRunAudit = useCallback(async () => {
+		if (!promptId) return;
+		await runAudit(promptId);
+	}, [promptId, runAudit]);
+
+	const auditPrompt = useCallback(async () => {
+		if (!canRunAudit || !promptId) return;
+		await runAudit(promptId);
+	}, [canRunAudit, promptId, runAudit]);
 
 	const currentOutput = storeOutputContent;
 
