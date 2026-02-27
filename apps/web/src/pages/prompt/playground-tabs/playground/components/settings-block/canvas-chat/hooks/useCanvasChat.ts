@@ -1,6 +1,6 @@
 import { useState, useCallback, type KeyboardEvent } from "react";
 import { useToast } from "@/hooks/useToast";
-import { useAudit } from "@/hooks/useAudit";
+import { useAudit } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAudit";
 import type { AuditData } from "@/types/audit";
 import type { CanvasChatController, DiffModalInfo } from "../types";
 import { useCanvasChatAPI } from "./useCanvasChatAPI";
@@ -31,22 +31,28 @@ export const useCanvasChat = ({
 
 	// Messages state
 	const messagesController = useCanvasChatMessages({ promptId });
-	const { messages, isLoading, messagesRef, addMessage, addMessages, clearMessages, setLoadingState } =
-		messagesController;
+	const {
+		messages,
+		isLoading,
+		messagesRef,
+		addMessage,
+		addMessages,
+		clearMessages,
+		setLoadingState,
+	} = messagesController;
 
 	// API
 	const api = useCanvasChatAPI({ promptId });
 
 	// Diff modal state
 	const [diffModalInfo, setDiffModalInfo] = useState<DiffModalInfo | null>(null);
-	const [manualAuditData, setManualAuditData] = useState<AuditData | null>(null);
 
 	// Audit modal state
 	const [showAuditModal, setShowAuditModal] = useState(false);
 	const [isFixing, setIsFixing] = useState(false);
 
 	// Audit hook
-	const { currentAuditData, runAudit, isAuditLoading, fixRisks } = useAudit(
+	const { currentAuditData, runAudit, isAuditLoading, fixRisks, hydrateAuditData } = useAudit(
 		promptId,
 		{
 			onFixSuccess: (fixedPrompt) => {
@@ -62,7 +68,7 @@ export const useCanvasChat = ({
 			setDiffModalInfo({ prompt: value });
 		},
 		onAuditPrompt: (value: unknown) => {
-			setManualAuditData((value as AuditData) ?? null);
+			hydrateAuditData((value as AuditData) ?? null);
 			setShowAuditModal(true);
 		},
 	});
@@ -84,7 +90,10 @@ export const useCanvasChat = ({
 
 			try {
 				const data = await api.sendMessage(messageText, ui.mode);
-				const agentMessages = processAgentResponse(data.response, actionsController.processAction);
+				const agentMessages = processAgentResponse(
+					data.response,
+					actionsController.processAction,
+				);
 				addMessages(agentMessages);
 			} catch (error) {
 				console.error("Error sending message:", error);
@@ -169,12 +178,10 @@ export const useCanvasChat = ({
 	// Audit modal handlers
 	const onCloseAudit = useCallback(() => {
 		setShowAuditModal(false);
-		setManualAuditData(null);
 	}, []);
 
 	const onRunAudit = useCallback(async () => {
 		if (promptId) {
-			setManualAuditData(null);
 			await runAudit(promptId);
 		}
 	}, [promptId, runAudit]);
@@ -204,7 +211,7 @@ export const useCanvasChat = ({
 		},
 		audit: {
 			showModal: showAuditModal,
-			currentData: manualAuditData ?? currentAuditData,
+			currentData: currentAuditData,
 			isLoading: isAuditLoading,
 			isFixing,
 			onClose: onCloseAudit,

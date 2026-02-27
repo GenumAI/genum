@@ -139,6 +139,13 @@ export function useAudit(promptId: string | number | undefined, options?: UseAud
 		});
 	}, [auditDataKey, promptId, queryClient]);
 
+	const hydrateAuditData = useCallback(
+		(value: AuditData | null) => {
+			queryClient.setQueryData<AuditData | null>(auditDataKey, value);
+		},
+		[auditDataKey, queryClient],
+	);
+
 	const handleOpenAuditModal = useCallback(() => {
 		openAuditModal();
 	}, [openAuditModal]);
@@ -187,6 +194,7 @@ export function useAudit(promptId: string | number | undefined, options?: UseAud
 		runAudit,
 		fixRisks,
 		clearAuditData,
+		hydrateAuditData,
 		setDiffModal,
 		handleOpenAuditModal,
 		handleCloseAuditModal,

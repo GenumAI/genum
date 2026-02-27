@@ -1,5 +1,5 @@
 import React from "react";
-import { Message } from "@/types/Canvas";
+import type{ Message } from "@/types/Canvas";
 import { ChatMessage } from "./ChatMessage";
 import { LoadingIndicator } from "./LoadingIndicator";
 

@@ -136,7 +136,7 @@ export default function Playground() {
 			)}
 
 			<AuditResultsModal
-				auditData={ui.modals.audit.data || prompt.data?.prompt?.audit?.data || null}
+				auditData={ui.modals.audit.data || null}
 				isLoading={ui.loading.audit}
 				isFixing={ui.loading.fixing}
 				isOpen={ui.modals.audit.open}

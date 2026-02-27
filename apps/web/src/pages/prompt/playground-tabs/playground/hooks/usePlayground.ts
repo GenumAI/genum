@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { defaultPromptResponse } from "@/lib/defaultPromptResponse";
 import { usePlaygroundActions, usePlaygroundUI } from "@/stores/playground.store";
-import { useAudit } from "@/hooks/useAudit";
+import { useAudit } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAudit";
 import { usePlaygroundModels } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundModels";
 import { usePlaygroundPrompt } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundPrompt";
 import { usePlaygroundTestcaseController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundTestcase";
@@ -29,15 +29,12 @@ export function usePlaygroundController({
 	testcaseId: string | null;
 	selectedFiles?: FileMetadata[];
 }) {
-	const {
-		openAssertionModal,
-		closeAssertionModal,
-		resetForPromptExit,
-	} = usePlaygroundActions();
-	const { inputContent, setInputContent, clearInputContent, hasInputContent } = usePlaygroundInput({
-		promptId,
-		testcaseId,
-	});
+	const { openAssertionModal, closeAssertionModal, resetForPromptExit } = usePlaygroundActions();
+	const { inputContent, setInputContent, clearInputContent, hasInputContent } =
+		usePlaygroundInput({
+			promptId,
+			testcaseId,
+		});
 	const {
 		outputContent: storeOutputContent,
 		expectedOutput: currentExpectedOutput,
@@ -189,9 +186,7 @@ export function usePlaygroundController({
 	const currentCost = currentOutput?.cost || defaultPromptResponse.cost;
 	const currentResponseTime = currentOutput?.response_time_ms || null;
 
-	const currentAuditRate = isPromptChangedAfterAudit
-		? undefined
-		: (currentAuditData?.rate ?? prompt?.prompt?.audit?.data?.rate);
+	const currentAuditRate = isPromptChangedAfterAudit ? undefined : currentAuditData?.rate;
 
 	const systemPrompt = livePromptValue;
 
