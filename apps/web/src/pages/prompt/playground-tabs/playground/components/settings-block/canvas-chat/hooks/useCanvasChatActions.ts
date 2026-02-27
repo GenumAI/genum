@@ -14,7 +14,7 @@ export const useCanvasChatActions = ({
 	);
 
 	const handleAuditPrompt = useCallback(
-		(value: any) => {
+		(value: unknown) => {
 			onAuditPrompt(value);
 		},
 		[onAuditPrompt],
