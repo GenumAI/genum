@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
-import { organizationApi, type Member, OrganizationRole } from "@/api/organization";
-import { ORG_INVITES_QUERY_KEY } from "./useOrgInvites";
+import { organizationApi, type Member, type OrganizationRole } from "@/api/organization";
 import { isLocalAuth } from "@/lib/auth";
 import { organizationKeys } from "@/query-keys/organization.keys";
 
@@ -29,14 +28,14 @@ export function useOrgMembers(orgId: string | undefined) {
 		mutationFn: ({ memberId, role }: { memberId: number; role: OrganizationRole }) =>
 			organizationApi.updateMemberRole(memberId, { role }),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [...ORG_MEMBERS_QUERY_KEY, orgId] });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.members(orgId) });
 		},
 	});
 
 	const deleteMutation = useMutation({
 		mutationFn: (memberId: number) => organizationApi.deleteMember(memberId),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [...ORG_MEMBERS_QUERY_KEY, orgId] });
+			queryClient.invalidateQueries({ queryKey: organizationKeys.members(orgId) });
 		},
 	});
 
