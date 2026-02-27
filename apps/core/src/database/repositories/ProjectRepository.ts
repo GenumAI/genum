@@ -76,11 +76,11 @@ export class ProjectRepository {
 			},
 		});
 
-		// assign all ADMINS of the organization to the project
+		// assign all OWNERS and ADMINS of the organization to the project
 		const organizationAdmins = await this.prisma.organizationMember.findMany({
 			where: {
 				organizationId: orgID,
-				role: OrganizationRole.ADMIN,
+				role: { in: [OrganizationRole.ADMIN, OrganizationRole.OWNER] },
 			},
 		});
 
