@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 
 import RedirectedToProjectRoute from "@/app/router/RedirectedToProjectRoute";
@@ -108,6 +108,7 @@ export const router = createBrowserRouter([
 			],
 		},
 			{ path: "prompt/:id/playground", element: <Playground /> },
+			{ path: "prompt/:id", element: <Navigate to="playground" replace /> },
 			{ path: "prompt/:id/testcases", element: <PromptTestcases /> },
 			{ path: "prompt/:id/versions", element: <Versions /> },
 			{

@@ -11,10 +11,12 @@ import { SourceType } from "@/services/logger";
 import { PromptService } from "@/services/prompt.service";
 import type { FileInput } from "@/services/file.service";
 import { extractBearerToken } from "@/utils/http";
+import { env } from "@/env";
 
 export class ApiV1Controller {
 	private readonly promptService: PromptService;
 	private static readonly MAX_TOTAL_FILES_SIZE_BYTES = 50 * 1024 * 1024;
+	private static readonly PROMPT_PATH_SEGMENT = "prompt";
 
 	constructor() {
 		this.promptService = new PromptService(db);
@@ -82,6 +84,11 @@ export class ApiV1Controller {
 		const normalizedDecoded = decoded.toString("base64").replace(/=+$/g, "");
 
 		return normalizedInput === normalizedDecoded;
+	}
+
+	private buildPromptPublicUrl(orgId: number, projectId: number, promptId: number): string {
+		const frontendUrl = env.FRONTEND_URL.replace(/\/+$/g, "");
+		return `${frontendUrl}/${orgId}/${projectId}/${ApiV1Controller.PROMPT_PATH_SEGMENT}/${promptId}`;
 	}
 
 	async runPrompt(req: Request, res: Response) {
@@ -159,8 +166,12 @@ export class ApiV1Controller {
 		const { project } = await this.verifyRequest(req);
 
 		const prompts = await db.prompts.getProjectPrompts(project.id);
+		const promptsWithPublicUrl = prompts.map((prompt) => ({
+			...prompt,
+			publicUrl: this.buildPromptPublicUrl(project.organizationId, project.id, prompt.id),
+		}));
 
-		res.status(200).json({ prompts });
+		res.status(200).json({ prompts: promptsWithPublicUrl });
 	}
 
 	async getPrompt(req: Request, res: Response) {
@@ -183,9 +194,10 @@ export class ApiV1Controller {
 		}
 
 		const { languageModel, ...prompt } = userPrompt;
+		const publicUrl = this.buildPromptPublicUrl(project.organizationId, project.id, prompt.id);
 
 		// return prompt with languageModel
-		res.status(200).json({ ...prompt, languageModel });
+		res.status(200).json({ ...prompt, languageModel, publicUrl });
 	}
 
 	async createPrompt(req: Request, res: Response) {
