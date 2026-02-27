@@ -1,6 +1,5 @@
 import { useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { promptKeys } from "@/query-keys/prompt.keys";
+import usePlaygroundStore from "@/stores/playground.store";
 
 export function usePlaygroundInput({
 	promptId,
@@ -9,29 +8,20 @@ export function usePlaygroundInput({
 	promptId: number | undefined;
 	testcaseId: string | null;
 }) {
-	const queryClient = useQueryClient();
-	const inputDraftKey = promptKeys.inputDraft(promptId, testcaseId);
-
-	const inputDraftQuery = useQuery<string | undefined>({
-		queryKey: inputDraftKey,
-		queryFn: () => undefined,
-		enabled: false,
-		staleTime: Infinity,
-		gcTime: Infinity,
-	});
-
-	const inputContent = inputDraftQuery.data ?? "";
+	const inputContent = usePlaygroundStore((state) =>
+		state.getInputDraft(promptId, testcaseId),
+	);
 
 	const setInputContent = useCallback(
 		(value: string) => {
-			queryClient.setQueryData<string>(inputDraftKey, value);
+			usePlaygroundStore.getState().setInputDraft(promptId, testcaseId, value);
 		},
-		[queryClient, inputDraftKey],
+		[promptId, testcaseId],
 	);
 
 	const clearInputContent = useCallback(() => {
-		queryClient.removeQueries({ queryKey: inputDraftKey, exact: true });
-	}, [queryClient, inputDraftKey]);
+		usePlaygroundStore.getState().clearInputDraft(promptId, testcaseId);
+	}, [promptId, testcaseId]);
 
 	return {
 		inputContent,

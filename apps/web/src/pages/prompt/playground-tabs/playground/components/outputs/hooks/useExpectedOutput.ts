@@ -1,10 +1,14 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { PromptResponse } from "@/hooks/useRunPrompt";
-import { usePlaygroundContent, usePlaygroundActions } from "@/stores/playground.store";
+import { usePlaygroundOutput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundOutput";
 import { compareValues } from "../utils/outputUtils";
 
 interface UseExpectedOutputProps {
-	onSaveAsExpected: (content: { answer: string }) => Promise<void>;
+	onSaveAsExpected: (content: {
+		answer: string;
+		metrics?: Pick<PromptResponse, "tokens" | "cost" | "response_time_ms" | "status">;
+	}) => Promise<void>;
 	testcaseId: string | null;
 	promptId: number | undefined;
 }
@@ -14,14 +18,15 @@ export const useExpectedOutput = ({
 	testcaseId,
 	promptId,
 }: UseExpectedOutputProps) => {
-	const { outputContent: content, expectedOutput: initialExpectedContent } =
-		usePlaygroundContent();
-	const { setExpectedOutput, clearOutput } = usePlaygroundActions();
+	const {
+		outputContent: content,
+		expectedOutput: initialExpectedContent,
+		setExpectedOutput,
+		clearOutput,
+	} = usePlaygroundOutput({ promptId, testcaseId });
 
 	const [modifiedValue, setModifiedValue] = useState(initialExpectedContent?.answer || "");
-	const [expectedMetrics, setExpectedMetrics] = useState<PromptResponse | undefined>(
-		initialExpectedContent ?? undefined,
-	);
+	const expectedMetrics = initialExpectedContent ?? undefined;
 
 	const prevPromptIdRef = useRef<number | undefined>(promptId);
 	const prevTestcaseIdRef = useRef<string | null>(testcaseId);
@@ -35,7 +40,6 @@ export const useExpectedOutput = ({
 			if (!testcaseId) {
 				setExpectedOutput(null);
 				setModifiedValue("");
-				setExpectedMetrics(undefined);
 			}
 		}
 
@@ -46,9 +50,7 @@ export const useExpectedOutput = ({
 	useEffect(() => {
 		if (initialExpectedContent?.answer) {
 			setModifiedValue(initialExpectedContent.answer);
-			setExpectedMetrics(initialExpectedContent ?? undefined);
 		} else {
-			setExpectedMetrics(undefined);
 			if (testcaseId) {
 				setModifiedValue("");
 			}
@@ -60,7 +62,6 @@ export const useExpectedOutput = ({
 		const prevTestcaseId = prevTestcaseIdRef.current;
 		if (prevTestcaseId && !testcaseId) {
 			setModifiedValue("");
-			setExpectedMetrics(undefined);
 			clearOutput();
 		}
 		prevTestcaseIdRef.current = testcaseId;
@@ -68,7 +69,6 @@ export const useExpectedOutput = ({
 
 	const clearExpectedOutput = useCallback(() => {
 		setModifiedValue("");
-		setExpectedMetrics(undefined);
 	}, []);
 
 	const saveModifiedValue = useCallback(
@@ -94,19 +94,27 @@ export const useExpectedOutput = ({
 
 		const newExpectedContent = {
 			answer: lastOutputAnswer,
+			metrics: content
+				? {
+						tokens: content.tokens,
+						cost: content.cost,
+						response_time_ms: content.response_time_ms,
+						status: content.status,
+					}
+				: undefined,
 		};
 
 		setModifiedValue(lastOutputAnswer);
-		setExpectedMetrics(content ?? undefined);
+		setExpectedOutput(content ?? null);
 
 		try {
 			await onSaveAsExpected(newExpectedContent);
 			return { success: true };
 		} catch (error) {
-			setExpectedMetrics(initialExpectedContent ?? undefined);
+			setExpectedOutput(initialExpectedContent ?? null);
 			return { success: false, error };
 		}
-	}, [content, onSaveAsExpected, initialExpectedContent]);
+	}, [content, onSaveAsExpected, initialExpectedContent, setExpectedOutput]);
 
 	return {
 		modifiedValue,

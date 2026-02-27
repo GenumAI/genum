@@ -7,5 +7,6 @@ export const testcaseKeys = {
 	statusCounts: (promptId: ScopeParam) => ["testcase-status-counts", promptId] as const,
 	byId: (testcaseId: ScopeParam) => ["testcase", testcaseId] as const,
 	byIdAlt: (testcaseId: ScopeParam) => ["testcaseById", testcaseId] as const,
+	create: (promptId: ScopeParam) => ["testcase-create", promptId] as const,
 	updateInput: (testcaseId: ScopeParam) => ["testcase-update-input", testcaseId] as const,
 };

@@ -44,12 +44,15 @@ export const useCanvasChat = ({
 	const [isFixing, setIsFixing] = useState(false);
 
 	// Audit hook
-	const { currentAuditData, setCurrentAuditData, runAudit, isAuditLoading, fixRisks } = useAudit({
-		onFixSuccess: (fixedPrompt) => {
-			setDiffModalInfo({ prompt: fixedPrompt });
-			setShowAuditModal(false);
+	const { currentAuditData, setCurrentAuditData, runAudit, isAuditLoading, fixRisks } = useAudit(
+		promptId,
+		{
+			onFixSuccess: (fixedPrompt) => {
+				setDiffModalInfo({ prompt: fixedPrompt });
+				setShowAuditModal(false);
+			},
 		},
-	});
+	);
 
 	// Actions handler
 	const actionsController = useCanvasChatActions({

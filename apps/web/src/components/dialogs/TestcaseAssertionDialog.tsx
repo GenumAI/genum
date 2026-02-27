@@ -15,7 +15,7 @@ import { CircleAlert, CircleCheck, CirclePlus } from "lucide-react";
 import type { TestCase, TestStatus } from "@/types/TestСase";
 import { useEffect, useRef } from "react";
 import type { PromptSettings } from "@/types/Prompt";
-import { usePlaygroundTestcase } from "@/stores/playground.store";
+import usePlaygroundStore from "@/stores/playground.store";
 
 interface TestcaseAssertionModalProps {
 	open: boolean;
@@ -73,8 +73,10 @@ export const TestcaseAssertionModal = ({
 	status,
 	assertionType,
 }: TestcaseAssertionModalProps) => {
-	const { currentAssertionType: storeAssertionType } = usePlaygroundTestcase();
-	const currentAssertionType = storeAssertionType ?? assertionType ?? "AI";
+	const assertionDraft = usePlaygroundStore((state) =>
+		state.getAssertionDraft(testcase.promptId),
+	);
+	const currentAssertionType = assertionDraft?.type ?? assertionType ?? "AI";
 	const hasAssertionThoughts =
 		testcase.assertionThoughts && testcase.assertionThoughts.trim().length > 0;
 	const showAssertionFields =

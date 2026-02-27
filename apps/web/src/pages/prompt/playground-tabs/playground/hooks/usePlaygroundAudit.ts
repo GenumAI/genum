@@ -21,16 +21,19 @@ export function usePlaygroundAuditController({
 	setFixingState: (fixing: boolean) => void;
 	updatePromptContent: (value: string, options?: UpdatePromptContentOptions) => Promise<void>;
 }) {
-	const { currentAuditData, runAudit, isAuditLoading, fixRisks, clearAuditData } = useAudit({
-		onAuditSuccess: () => {
-			setIsPromptChangedAfterAudit(false);
-			openAuditModal();
+	const { currentAuditData, runAudit, isAuditLoading, fixRisks, clearAuditData } = useAudit(
+		promptId,
+		{
+			onAuditSuccess: () => {
+				setIsPromptChangedAfterAudit(false);
+				openAuditModal();
+			},
+			onFixSuccess: (fixedPrompt) => {
+				setDiffModal({ prompt: fixedPrompt });
+				closeAuditModal();
+			},
 		},
-		onFixSuccess: (fixedPrompt) => {
-			setDiffModal({ prompt: fixedPrompt });
-			closeAuditModal();
-		},
-	});
+	);
 
 	const auditPrompt = useCallback(async () => {
 		if (!promptId || !promptValue || isAuditLoading) return;

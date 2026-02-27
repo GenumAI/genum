@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { promptApi } from "@/api/prompt";
@@ -12,16 +12,12 @@ import {
 } from "@/pages/prompt/playground-tabs/memory/hooks/usePromptMemories";
 import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
+import usePlaygroundStore from "@/stores/playground.store";
 
 export const useMemoryKey = (promptId: number) => {
 	const queryClient = useQueryClient();
-	const [memoryValue, setMemoryValue] = useState("");
 	const [createMemoryModalOpen, setCreateMemoryModalOpen] = useState(false);
-	const [isManuallyCleared, setIsManuallyCleared] = useState(false);
 	const [isOpenMemory, setIsOpenMemory] = useState(false);
-	const originalValueRef = useRef("");
-	const isUpdatingRef = useRef(false);
-	const isInitializedRef = useRef(false);
 
 	const [searchParams] = useSearchParams();
 	const testcaseId = searchParams.get("testcaseId");
@@ -29,21 +25,28 @@ export const useMemoryKey = (promptId: number) => {
 	const selectedMemoryId = selection.selectedMemoryId;
 	const selectedMemoryKeyName = selection.selectedMemoryKeyName;
 
-	const [selectedKey, setSelectedKey] = useState(selectedMemoryId || "");
-	const selectedKeyRef = useRef(selectedKey);
-
-	useEffect(() => {
-		selectedKeyRef.current = selectedKey;
-	}, [selectedKey]);
-
 	const { data: memories = [] } = usePromptMemories(promptId);
-
 	const { data: testcaseData } = useQuery({
-		queryKey: testcaseKeys.byId(testcaseId),
+		queryKey: testcaseKeys.byId(testcaseId ?? undefined),
 		queryFn: () => testcasesApi.getTestcase(testcaseId as string),
 		enabled: !!testcaseId,
 	});
-	const testcase = testcaseData ?? null;
+
+	const selectedKey = selectedMemoryId || "";
+	const memoryValue = usePlaygroundStore((state) =>
+		state.getMemoryValueDraft(promptId, testcaseId, selectedKey || null),
+	);
+
+	const setMemoryValue = useCallback(
+		(value: string) => {
+			usePlaygroundStore
+				.getState()
+				.setMemoryValueDraft(promptId, testcaseId, selectedKey || null, value);
+		},
+		[promptId, testcaseId, selectedKey],
+	);
+
+	const testcaseMemoryId = testcaseData?.testcase?.memoryId;
 
 	const updateMemoryMutation = useMutation({
 		mutationFn: ({ memoryId, value }: { memoryId: number; value: string }) =>
@@ -72,346 +75,192 @@ export const useMemoryKey = (promptId: number) => {
 		},
 	});
 
-	const prevPromptIdRef = useRef<number | undefined>(promptId);
-	const prevTestcaseIdRef = useRef<string | null>(testcaseId);
-
-	const syncSelection = useCallback(
-		(memoryId: string, memoryKeyName = "") => {
-			setSelection({
-				selectedMemoryId: memoryId,
-				selectedMemoryKeyName: memoryKeyName,
-			});
-		},
-		[setSelection],
-	);
-
+	// For testcase scope, keep selection synced with testcase memory from server.
 	useEffect(() => {
-		const prevPromptId = prevPromptIdRef.current;
-		const currentPromptId = promptId;
+		if (!testcaseId || testcaseData === undefined) return;
+		const serverMemoryId = testcaseMemoryId ? String(testcaseMemoryId) : "";
+		if (serverMemoryId === selectedMemoryId) return;
 
-		if (prevPromptId !== undefined && prevPromptId !== currentPromptId) {
-			setSelectedKey("");
+		const selectedMemory = memories.find((item) => String(item.id) === serverMemoryId);
+		setSelection({
+			selectedMemoryId: serverMemoryId,
+			selectedMemoryKeyName: selectedMemory?.key || "",
+		});
+	}, [testcaseId, testcaseData, testcaseMemoryId, selectedMemoryId, memories, setSelection]);
+
+	// Sync draft value from selected memory.
+	useEffect(() => {
+		if (!selectedKey) {
 			setMemoryValue("");
-			originalValueRef.current = "";
-			setIsManuallyCleared(false);
-			isInitializedRef.current = false;
-			syncSelection("", "");
-		}
-
-		prevPromptIdRef.current = currentPromptId;
-	}, [promptId, syncSelection]);
-
-	useEffect(() => {
-		const prevTestcaseId = prevTestcaseIdRef.current;
-		const currentTestcaseId = testcaseId;
-
-		if (prevTestcaseId !== currentTestcaseId) {
-			isInitializedRef.current = false;
-			setIsManuallyCleared(false);
-
-			if (prevTestcaseId && !currentTestcaseId) {
-				isUpdatingRef.current = true;
-
-				setSelectedKey("");
-				setMemoryValue("");
-				originalValueRef.current = "";
-				selectedKeyRef.current = "";
-				syncSelection("", "");
-
-				queryClient.removeQueries({ queryKey: testcaseKeys.byId(prevTestcaseId) });
-
-				setTimeout(() => {
-					isUpdatingRef.current = false;
-				}, 0);
-			}
-		}
-
-		prevTestcaseIdRef.current = currentTestcaseId;
-	}, [testcaseId, syncSelection, queryClient]);
-
-	useEffect(() => {
-		if (isUpdatingRef.current) {
 			return;
 		}
+		const selectedMemory = memories.find((item) => String(item.id) === selectedKey);
+		setMemoryValue(selectedMemory?.value || "");
+	}, [selectedKey, memories, setMemoryValue]);
 
-		if (!selectedMemoryId && selectedKey) {
-			setSelectedKey("");
-			setMemoryValue("");
-			originalValueRef.current = "";
-			return;
-		}
-
-		if (selectedMemoryId && selectedMemoryId !== selectedKey && !isManuallyCleared) {
-			setSelectedKey(selectedMemoryId);
-		}
-	}, [selectedMemoryId, selectedKey, isManuallyCleared]);
-
-	useEffect(() => {
-		if (isUpdatingRef.current || memories.length === 0) {
-			return;
-		}
-
-		if (testcaseId && !testcase) {
-			return;
-		}
-
-		const testcaseMemoryId = testcase?.testcase?.memoryId;
-		const memoryIdToLoad = testcaseMemoryId ? String(testcaseMemoryId) : "";
-		const currentSelectedKey = selectedKeyRef.current;
-
-		if (memoryIdToLoad && memoryIdToLoad !== currentSelectedKey && !isManuallyCleared) {
-			const memory = memories.find((item) => String(item.id) === memoryIdToLoad);
-
-			if (memory) {
-				setSelectedKey(String(memory.id));
-				setMemoryValue(memory.value);
-				originalValueRef.current = memory.value;
-				syncSelection(String(memory.id), memory.key);
-			}
-		} else if (
-			!memoryIdToLoad &&
-			currentSelectedKey &&
-			!isManuallyCleared &&
-			!testcaseId &&
-			!selectedMemoryId
-		) {
-			setSelectedKey("");
-			setMemoryValue("");
-			originalValueRef.current = "";
-			syncSelection("", "");
-		}
-
-		if (!isInitializedRef.current) {
-			isInitializedRef.current = true;
-		}
-	}, [memories, testcase, testcaseId, isManuallyCleared, selectedMemoryId, syncSelection]);
-
-	useEffect(() => {
-		if (isUpdatingRef.current || !isInitializedRef.current) {
-			return;
-		}
-
-		if (selectedKey && memories.length > 0) {
+	const updateMemory = useCallback(
+		async (value: string) => {
 			const memory = memories.find((item) => item.id === Number(selectedKey));
-
-			if (memory && memory.value !== originalValueRef.current) {
-				setMemoryValue(memory.value);
-				originalValueRef.current = memory.value;
-			}
-		}
-	}, [selectedKey, memories]);
-
-	useEffect(() => {
-		if (memories.length === 0) {
-			return;
-		}
-
-		if (selectedKey) {
-			const memory = memories.find((item) => String(item.id) === selectedKey);
-			if (!memory) {
-				setSelectedKey("");
-				setMemoryValue("");
-				originalValueRef.current = "";
-				setIsManuallyCleared(true);
-				syncSelection("", "");
-				return;
-			}
-
-			if (selectedMemoryKeyName !== memory.key) {
-				syncSelection(selectedKey, memory.key);
-			}
-		}
-	}, [memories, selectedKey, selectedMemoryKeyName, syncSelection]);
-
-	const displayMemoryName = useMemo(() => {
-		if (!testcaseId && !selectedKey) {
-			return "";
-		}
-
-		if (selectedMemoryKeyName) {
-			return selectedMemoryKeyName;
-		}
-
-		if (selectedKey && memories.length > 0) {
-			const memory = memories.find((item) => item.id === Number(selectedKey));
-			return memory?.key || "";
-		}
-
-		return "";
-	}, [selectedMemoryKeyName, selectedKey, memories, testcaseId]);
-
-	const updateMemory = async (_promptId: number, value: string) => {
-		const memory = memories.find((item) => item.id === Number(selectedKey));
-		if (memory) {
+			if (!memory || memory.value === value) return;
 			try {
 				await updateMemoryMutation.mutateAsync({ memoryId: memory.id, value });
-				originalValueRef.current = value;
 			} catch {
 				toast({
 					title: "Something went wrong",
 					variant: "destructive",
 				});
 			}
-		}
-	};
+		},
+		[memories, selectedKey, updateMemoryMutation],
+	);
 
-	const onValueChange = (value: string) => {
-		setMemoryValue(value);
-	};
-
-	const onBlurHandler = () => {
-		if (promptId && selectedKey && memoryValue !== originalValueRef.current) {
-			updateMemory(promptId, memoryValue);
-		}
-	};
-
-	const onSelectKeyHandler = async (key: string) => {
-		if (selectedKey && memoryValue !== originalValueRef.current) {
-			await updateMemory(promptId, memoryValue);
-		}
-
-		setIsManuallyCleared(false);
-		isUpdatingRef.current = true;
-
-		const memory = key ? memories.find((item) => item.id === Number(key)) : undefined;
-
-		if (key && memories.length > 0) {
-			if (memory) {
-				setMemoryValue(memory.value);
-				originalValueRef.current = memory.value;
-			} else {
-				setMemoryValue("");
-				originalValueRef.current = "";
-			}
-		} else {
-			setMemoryValue("");
-			originalValueRef.current = "";
-		}
-
-		setSelectedKey(key);
-		syncSelection(key, memory?.key || "");
-
-		if (testcaseId) {
-			try {
-				await updateTestcaseMutation.mutateAsync({
-					tcId: testcaseId,
-					data: { memoryId: memory ? memory.id : null },
-				});
-				setTimeout(() => {
-					isUpdatingRef.current = false;
-				}, 100);
-			} catch {
-				isUpdatingRef.current = false;
-				toast({
-					title: "Something went wrong",
-					variant: "destructive",
-				});
-			}
-		} else {
-			isUpdatingRef.current = false;
-		}
-	};
-
-	const clearSelectedMemory = async (e: MouseEvent<HTMLButtonElement>) => {
-		e.stopPropagation();
-
-		if (selectedKey && memoryValue !== originalValueRef.current) {
-			await updateMemory(promptId, memoryValue);
-		}
-
-		setSelectedKey("");
-		setMemoryValue("");
-		originalValueRef.current = "";
-		setIsManuallyCleared(true);
-		isUpdatingRef.current = true;
-		isInitializedRef.current = true;
-
-		syncSelection("", "");
-
-		if (testcaseId) {
-			try {
-				await updateTestcaseMutation.mutateAsync({
-					tcId: testcaseId,
-					data: { memoryId: null },
-				});
-
-				toast({
-					title: "Memory cleared",
-					description: "Memory selection has been reset",
-				});
-
-				setTimeout(() => {
-					isUpdatingRef.current = false;
-				}, 100);
-			} catch {
-				setIsManuallyCleared(false);
-				isUpdatingRef.current = false;
-				toast({
-					title: "Something went wrong",
-					variant: "destructive",
-				});
-			}
-		} else {
-			isUpdatingRef.current = false;
-			toast({
-				title: "Memory cleared",
-				description: "Memory selection has been reset",
-			});
-		}
-	};
-
-	const createMemoryHandler = async (key: string, value: string) => {
-		try {
-			const response = await createMemoryMutation.mutateAsync({ key, value });
-			setCreateMemoryModalOpen(false);
-			setIsManuallyCleared(false);
-			isUpdatingRef.current = true;
-
-			const newMemoryId = response.memory?.id;
-			if (!newMemoryId) {
-				isUpdatingRef.current = false;
-				return;
-			}
-
-			setSelectedKey(String(newMemoryId));
+	const onValueChange = useCallback(
+		(value: string) => {
 			setMemoryValue(value);
-			originalValueRef.current = value;
-			isInitializedRef.current = true;
-			syncSelection(String(newMemoryId), key);
+		},
+		[setMemoryValue],
+	);
+
+	const onBlurHandler = useCallback(() => {
+		if (!selectedKey) return;
+		updateMemory(memoryValue);
+	}, [selectedKey, memoryValue, updateMemory]);
+
+	const onSelectKeyHandler = useCallback(
+		async (key: string) => {
+			await updateMemory(memoryValue);
+
+			const memory = key ? memories.find((item) => item.id === Number(key)) : undefined;
+			const nextValue = memory?.value || "";
+			setSelection({
+				selectedMemoryId: key,
+				selectedMemoryKeyName: memory?.key || "",
+			});
+			usePlaygroundStore
+				.getState()
+				.setMemoryValueDraft(promptId, testcaseId, key || null, nextValue);
 
 			if (testcaseId) {
 				try {
 					await updateTestcaseMutation.mutateAsync({
 						tcId: testcaseId,
-						data: { memoryId: newMemoryId },
+						data: { memoryId: memory ? memory.id : null },
 					});
 				} catch {
 					toast({
-						title: "Failed to update testcase",
+						title: "Something went wrong",
 						variant: "destructive",
 					});
 				}
 			}
+		},
+		[
+			updateMemory,
+			memoryValue,
+			memories,
+			setSelection,
+			promptId,
+			testcaseId,
+			updateTestcaseMutation,
+		],
+	);
 
-			setTimeout(() => {
-				isUpdatingRef.current = false;
-			}, 100);
+	const clearSelectedMemory = useCallback(
+		async (e: MouseEvent<HTMLButtonElement>) => {
+			e.stopPropagation();
+			await updateMemory(memoryValue);
+
+			setSelection({ selectedMemoryId: "", selectedMemoryKeyName: "" });
+			usePlaygroundStore.getState().setMemoryValueDraft(promptId, testcaseId, null, "");
+
+			if (testcaseId) {
+				try {
+					await updateTestcaseMutation.mutateAsync({
+						tcId: testcaseId,
+						data: { memoryId: null },
+					});
+				} catch {
+					toast({
+						title: "Something went wrong",
+						variant: "destructive",
+					});
+					return;
+				}
+			}
 
 			toast({
-				title: "Memory created",
-				description: `Memory "${key}" has been created and selected`,
+				title: "Memory cleared",
+				description: "Memory selection has been reset",
 			});
-		} catch {
-			isUpdatingRef.current = false;
-			toast({
-				title: "Failed to create memory",
-				variant: "destructive",
-			});
-		}
-	};
+		},
+		[
+			updateMemory,
+			memoryValue,
+			setSelection,
+			promptId,
+			testcaseId,
+			updateTestcaseMutation,
+		],
+	);
+
+	const createMemoryHandler = useCallback(
+		async (key: string, value: string) => {
+			try {
+				const response = await createMemoryMutation.mutateAsync({ key, value });
+				setCreateMemoryModalOpen(false);
+
+				const newMemoryId = response.memory?.id;
+				if (!newMemoryId) return;
+
+				setSelection({
+					selectedMemoryId: String(newMemoryId),
+					selectedMemoryKeyName: key,
+				});
+				usePlaygroundStore
+					.getState()
+					.setMemoryValueDraft(promptId, testcaseId, String(newMemoryId), value);
+
+				if (testcaseId) {
+					try {
+						await updateTestcaseMutation.mutateAsync({
+							tcId: testcaseId,
+							data: { memoryId: newMemoryId },
+						});
+					} catch {
+						toast({
+							title: "Failed to update testcase",
+							variant: "destructive",
+						});
+					}
+				}
+
+				toast({
+					title: "Memory created",
+					description: `Memory "${key}" has been created and selected`,
+				});
+			} catch {
+				toast({
+					title: "Failed to create memory",
+					variant: "destructive",
+				});
+			}
+		},
+		[
+			createMemoryMutation,
+			setSelection,
+			promptId,
+			testcaseId,
+			updateTestcaseMutation,
+		],
+	);
 
 	const selectedMemory = memories.find((item: Memory) => String(item.id) === selectedKey);
 	const selectedKeyName = selectedMemory?.key || selectedMemoryKeyName;
+
+	const displayMemoryName = useMemo(() => {
+		if (!selectedKey) return "";
+		return selectedMemoryKeyName || selectedMemory?.key || "";
+	}, [selectedKey, selectedMemoryKeyName, selectedMemory]);
 
 	return {
 		selectedKey,

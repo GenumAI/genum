@@ -1,8 +1,10 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt";
 import { helpersApi } from "@/api/helpers/helpers.api";
-import { usePlaygroundAudit, usePlaygroundActions } from "@/stores/playground.store";
 import type { AuditData } from "@/types/audit";
+import { helperKeys } from "@/query-keys/helpers.keys";
+import { usePlaygroundActions, usePlaygroundUI } from "@/stores/playground.store";
 
 interface UseAuditOptions {
 	onAuditSuccess?: (data: AuditData) => void;
@@ -11,19 +13,43 @@ interface UseAuditOptions {
 	onFixError?: (error: Error) => void;
 }
 
-export function useAudit(options?: UseAuditOptions) {
-	const { currentAuditData, isAuditLoading } = usePlaygroundAudit();
-	const { setCurrentAuditData, setAuditLoading } = usePlaygroundActions();
+export function useAudit(promptId: string | number | undefined, options?: UseAuditOptions) {
+	const queryClient = useQueryClient();
+	const auditDataKey = useMemo(() => helperKeys.auditData(promptId), [promptId]);
+	const { isAuditLoading } = usePlaygroundUI();
+	const { setAuditLoading } = usePlaygroundActions();
+
+	const { data: currentAuditData = null } = useQuery<AuditData | null>({
+		queryKey: auditDataKey,
+		queryFn: () => null,
+		enabled: false,
+		staleTime: Infinity,
+		gcTime: Infinity,
+	});
+
+	const setCurrentAuditData = useCallback(
+		(value: AuditData | null) => {
+			queryClient.setQueryData<AuditData | null>(auditDataKey, value);
+		},
+		[queryClient, auditDataKey],
+	);
 
 	const runAudit = useCallback(
-		async (promptId: string | number) => {
+		async (nextPromptId?: string | number) => {
+			const targetPromptId = nextPromptId ?? promptId;
+			if (!targetPromptId) return null;
+
+			const targetAuditDataKey = helperKeys.auditData(targetPromptId);
 			setAuditLoading(true);
 
 			try {
-				const data = await promptApi.auditPrompt(promptId);
+				const data = await promptApi.auditPrompt(targetPromptId);
 
 				if (data?.audit) {
-					setCurrentAuditData(data.audit);
+					queryClient.setQueryData<AuditData | null>(targetAuditDataKey, data.audit);
+					if (targetPromptId === promptId) {
+						setCurrentAuditData(data.audit);
+					}
 					options?.onAuditSuccess?.(data.audit);
 					return data.audit;
 				}
@@ -38,7 +64,7 @@ export function useAudit(options?: UseAuditOptions) {
 				setAuditLoading(false);
 			}
 		},
-		[options, setCurrentAuditData, setAuditLoading],
+		[options, promptId, queryClient, setCurrentAuditData, setAuditLoading],
 	);
 
 	const fixRisks = useCallback(

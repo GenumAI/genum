@@ -5,4 +5,5 @@ export const helperKeys = {
 	generateInput: (promptId: ScopeParam) => ["generate-input", promptId] as const,
 	contentPrettify: (normalizedContent: string) =>
 		["content-prettify", normalizedContent] as const,
+	auditData: (promptId: ScopeParam) => ["helper-audit-data", promptId] as const,
 };

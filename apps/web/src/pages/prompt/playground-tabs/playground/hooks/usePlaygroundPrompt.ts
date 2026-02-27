@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Options } from "@/hooks/usePrompt";
 import { usePromptById } from "@/hooks/usePrompt";
 import { useToast } from "@/hooks/useToast";
 import { usePromptStatus } from "@/contexts/PromptStatusContext";
 import { useTestcaseStatusCounts } from "@/hooks/useTestcaseStatusCounts";
-import { usePlaygroundActions } from "@/stores/playground.store";
-import { promptKeys } from "@/query-keys/prompt.keys";
+import usePlaygroundStore from "@/stores/playground.store";
 import type { UpdatePromptContentOptions } from "./types";
 
 export function usePlaygroundPrompt({
@@ -20,10 +18,8 @@ export function usePlaygroundPrompt({
 	projectId: string | undefined;
 }) {
 	const navigate = useNavigate();
-	const queryClient = useQueryClient();
 	const { toast } = useToast();
 	const { setIsCommitted, setActivePromptId } = usePromptStatus();
-	const { clearAllState, setCurrentAssertionType } = usePlaygroundActions();
 
 	const {
 		updatePromptName,
@@ -35,28 +31,20 @@ export function usePlaygroundPrompt({
 
 	useTestcaseStatusCounts(promptId);
 
-	const draftKey = promptKeys.draft(promptId);
-	const draftQuery = useQuery<string | undefined>({
-		queryKey: draftKey,
-		queryFn: () => undefined,
-		enabled: false,
-		staleTime: Infinity,
-		gcTime: Infinity,
-	});
-
 	const serverPromptValue = prompt?.prompt?.value || "";
-	const livePromptValue = draftQuery.data ?? serverPromptValue;
+	const liveDraftValue = usePlaygroundStore((state) => state.getPromptDraft(promptId));
+	const livePromptValue = liveDraftValue ?? serverPromptValue;
 
 	const setLivePromptValue = useCallback(
 		(value: string) => {
-			queryClient.setQueryData<string>(draftKey, value);
+			usePlaygroundStore.getState().setPromptDraft(promptId, value);
 		},
-		[queryClient, draftKey],
+		[promptId],
 	);
 
 	const clearLivePromptValue = useCallback(() => {
-		queryClient.removeQueries({ queryKey: draftKey, exact: true });
-	}, [queryClient, draftKey]);
+		usePlaygroundStore.getState().clearPromptDraft(promptId);
+	}, [promptId]);
 
 	// Cleanup + prompt switching behavior
 	const prevPromptIdRef = useRef<number | undefined>(promptId);
@@ -70,12 +58,11 @@ export function usePlaygroundPrompt({
 		const currentPromptId = promptId;
 
 		if (prevPromptId !== undefined && prevPromptId !== currentPromptId) {
-			clearAllState();
 			setActivePromptId(currentPromptId);
 		}
 
 		prevPromptIdRef.current = currentPromptId;
-	}, [promptId, clearAllState, setActivePromptId]);
+	}, [promptId, setActivePromptId]);
 
 	// Redirect if prompt no longer exists
 	useEffect(() => {
@@ -83,13 +70,6 @@ export function usePlaygroundPrompt({
 			navigate(`/${orgId}/${projectId}/prompts`, { replace: true });
 		}
 	}, [updatePromptError, orgId, projectId, navigate]);
-
-	// Sync prompt assertion type into store
-	useEffect(() => {
-		if (prompt?.prompt?.assertionType) {
-			setCurrentAssertionType(prompt.prompt.assertionType);
-		}
-	}, [prompt?.prompt?.assertionType, setCurrentAssertionType]);
 
 	// Keep committed state in PromptStatusContext
 	useEffect(() => {

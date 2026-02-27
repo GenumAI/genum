@@ -20,7 +20,6 @@ export function usePlaygroundRunController({
 	promptSettings,
 	selectedFiles,
 	setRunState,
-	setClearedOutput,
 	setOutputContent,
 	setStatus,
 	openAssertionModal,
@@ -36,7 +35,6 @@ export function usePlaygroundRunController({
 	promptSettings: PromptSettings | undefined;
 	selectedFiles: FileMetadata[];
 	setRunState: (state: { loading: boolean; wasRun?: boolean }) => void;
-	setClearedOutput: (output: PromptResponse | null) => void;
 	setOutputContent: (value: PromptResponse | null) => void;
 	setStatus: (status: string) => void;
 	openAssertionModal: () => void;
@@ -47,7 +45,6 @@ export function usePlaygroundRunController({
 	const handleRun = useCallback(async () => {
 		if (!promptId) return;
 
-		setClearedOutput(null);
 		setRunState({ loading: true });
 
 		try {
@@ -99,7 +96,6 @@ export function usePlaygroundRunController({
 		runPrompt,
 		selectedMemoryId,
 		selectedFiles,
-		setClearedOutput,
 		setRunState,
 		setOutputContent,
 		testcaseId,

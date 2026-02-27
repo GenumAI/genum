@@ -3,8 +3,9 @@ import { Card } from "@/components/ui/card";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/useToast";
 import CompareDiffEditor from "@/components/ui/DiffEditor";
-import { usePlaygroundContent } from "@/stores/playground.store";
+import type { PromptResponse } from "@/hooks/useRunPrompt";
 import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
+import { usePlaygroundOutput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundOutput";
 
 import { useExpectedOutput } from "./hooks/useExpectedOutput";
 import { useAssertions } from "./hooks/useAssertions";
@@ -17,6 +18,7 @@ import { ExpandedOutputDialog } from "./components/ExpandedOutputDialog";
 
 export interface UpdateExpected {
 	answer: string;
+	metrics?: Pick<PromptResponse, "tokens" | "cost" | "response_time_ms" | "status">;
 }
 
 interface OutputBlockProps {
@@ -43,7 +45,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	const testcaseId = searchParams.get("testcaseId");
 
 	// Store/query state
-	const { outputContent: content } = usePlaygroundContent();
+	const { outputContent: content } = usePlaygroundOutput({ promptId, testcaseId });
 	const { inputContent: inputValue } = usePlaygroundInput({ promptId, testcaseId });
 	const { toast } = useToast();
 
