@@ -25,6 +25,7 @@ export function MembersTable({
 	members,
 	isLoading,
 	currentUserEmail,
+	currentUserRole,
 	canManageMembers,
 	updatingRoleId,
 	deletingId,
@@ -56,7 +57,13 @@ export function MembersTable({
 					{members.map((member) => {
 						const isSelf = member.user.email === currentUserEmail;
 						const isOwner = hasOrgAccess(member.role, OrganizationRole.OWNER);
-						const canChangeRole = canManageMembers && !isSelf && !isOwner && onRoleChange;
+						const currentUserIsOwner = currentUserRole != null && hasOrgAccess(currentUserRole, OrganizationRole.OWNER);
+						// Only owners can change another owner's role; admins can change admin/reader only
+						const canChangeRole =
+							canManageMembers &&
+							!isSelf &&
+							onRoleChange &&
+							(!isOwner || currentUserIsOwner);
 						const canDeleteMember = canManageMembers && !isSelf && !isOwner && onDelete;
 
 						return (
@@ -81,6 +88,7 @@ export function MembersTable({
 								<TableCell>
 									{canChangeRole ? (
 										<Select
+											key={`role-${member.id}`}
 											value={member.role}
 											onValueChange={(value) => onRoleChange?.(member.id, value as OrganizationRole)}
 											disabled={updatingRoleId === member.id}
@@ -89,8 +97,20 @@ export function MembersTable({
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value={OrganizationRole.ADMIN}>Admin</SelectItem>
-												<SelectItem value={OrganizationRole.READER}>Reader</SelectItem>
+												{isOwner ? (
+													<>
+														<SelectItem value={OrganizationRole.OWNER} disabled>
+															Owner
+														</SelectItem>
+														<SelectItem value={OrganizationRole.ADMIN}>Admin</SelectItem>
+														<SelectItem value={OrganizationRole.READER}>Reader</SelectItem>
+													</>
+												) : (
+													<>
+														<SelectItem value={OrganizationRole.ADMIN}>Admin</SelectItem>
+														<SelectItem value={OrganizationRole.READER}>Reader</SelectItem>
+													</>
+												)}
 											</SelectContent>
 										</Select>
 									) : (

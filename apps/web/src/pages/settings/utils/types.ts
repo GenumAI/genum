@@ -266,6 +266,7 @@ export interface OrgMembersTableProps {
 	members: Member[];
 	isLoading: boolean;
 	currentUserEmail?: string;
+	currentUserRole?: OrganizationRole;
 	canManageMembers: boolean;
 	updatingRoleId?: number | null;
 	deletingId?: number | null;

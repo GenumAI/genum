@@ -105,6 +105,7 @@ export default function OrgMembers() {
 								members={members}
 								isLoading={loadingMembers}
 								currentUserEmail={currentUserEmail}
+								currentUserRole={currentUserRole}
 								canManageMembers={canManageMembers}
 								updatingRoleId={updatingRoleId}
 								deletingId={deletingId}
