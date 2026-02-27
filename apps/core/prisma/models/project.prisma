@@ -1,5 +1,5 @@
 enum ProjectRole {
-    OWNER
+    ADMIN
     MEMBER
 }
 

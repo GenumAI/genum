@@ -18,7 +18,12 @@ export class ProjectRepository {
 	}
 
 	public async getProjectMembers(projID: number) {
-		return await this.prisma.projectMember.findMany({
+		const project = await this.prisma.project.findUnique({
+			where: { id: projID },
+			select: { organizationId: true },
+		});
+
+		const members = await this.prisma.projectMember.findMany({
 			where: {
 				projectId: projID,
 			},
@@ -29,10 +34,32 @@ export class ProjectRepository {
 						email: true,
 						name: true,
 						picture: true,
+						organizationMemberships: {
+							where: {
+								organizationId: project?.organizationId,
+							},
+							select: {
+								role: true,
+							},
+						},
 					},
 				},
 			},
 		});
+
+		return members.map((m) => ({
+			id: m.id,
+			userId: m.userId,
+			projectId: m.projectId,
+			role: m.role,
+			orgRole: (m.user.organizationMemberships[0]?.role ?? null) as OrganizationRole | null,
+			user: {
+				id: m.user.id,
+				email: m.user.email,
+				name: m.user.name,
+				picture: m.user.picture,
+			},
+		}));
 	}
 
 	public async createSharedProject(orgID: number, data: ProjectCreateType) {
@@ -61,10 +88,10 @@ export class ProjectRepository {
 		const projectMembersData = organizationAdmins.map((member) => ({
 			userId: member.userId,
 			projectId: project.id,
-			role: ProjectRole.OWNER,
+			role: ProjectRole.ADMIN,
 		}));
 
-		// add all organization admins to the project as owners
+		// add all organization admins to the project as admins
 		await this.prisma.projectMember.createMany({
 			data: projectMembersData,
 		});
@@ -114,15 +141,35 @@ export class ProjectRepository {
 	}
 
 	public async deleteMember(projID: number, memberId: number) {
-		return await this.prisma.projectMember.delete({
+		const member = await this.prisma.projectMember.findUnique({
 			where: {
 				id: memberId,
 				projectId: projID,
 			},
-			select: {
-				id: true,
-			},
+			select: { userId: true },
 		});
+		if (!member) {
+			throw new Error("Project member not found");
+		}
+
+		await this.prisma.$transaction([
+			// Remove user's API keys for this project — they no longer have access
+			this.prisma.projectApiKey.deleteMany({
+				where: {
+					projectId: projID,
+					authorId: member.userId,
+				},
+			}),
+			this.prisma.projectMember.delete({
+				where: {
+					id: memberId,
+					projectId: projID,
+				},
+				select: { id: true },
+			}),
+		]);
+
+		return { id: memberId };
 	}
 
 	public async deleteProject(projectId: number, orgId: number) {
@@ -135,14 +182,21 @@ export class ProjectRepository {
 	}
 
 	public async removeFromAllProjects(orgId: number, userId: number) {
-		return await this.prisma.projectMember.deleteMany({
-			where: {
-				project: {
-					organizationId: orgId,
+		await this.prisma.$transaction([
+			// Remove user's API keys in all projects of this organization
+			this.prisma.projectApiKey.deleteMany({
+				where: {
+					authorId: userId,
+					project: { organizationId: orgId },
 				},
-				userId: userId,
-			},
-		});
+			}),
+			this.prisma.projectMember.deleteMany({
+				where: {
+					project: { organizationId: orgId },
+					userId: userId,
+				},
+			}),
+		]);
 	}
 
 	public async getProjectApiKeys(projectId: number) {

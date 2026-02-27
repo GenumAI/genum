@@ -37,9 +37,7 @@ export type OrganizationMemberUpdateType = z.infer<typeof OrganizationMemberUpda
 export const OrganizationMemberInviteSchema = z
 	.object({
 		email: z.email({ message: "Invalid email address" }),
-		// role: z.enum(OrganizationRole).default(OrganizationRole.READER),
-		// feature: teamwork
-		role: z.enum(OrganizationRole).default(OrganizationRole.ADMIN),
+		role: z.enum(OrganizationRole).default(OrganizationRole.READER),
 	})
 	.strict();
 

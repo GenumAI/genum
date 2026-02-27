@@ -6,6 +6,7 @@ import { AddMemberDialog } from "./ProjectMembers/AddMemberDialog";
 import { MembersTable } from "./ProjectMembers/MembersTable";
 import { DeleteConfirmDialog } from "./shared/DeleteConfirmDialog";
 import type { ProjectMember } from "@/api/project";
+import { ProjectRole, hasProjectAccess } from "@/api/project";
 
 export default function ProjectMembers() {
 	const { user: userData } = useCurrentUser();
@@ -16,9 +17,9 @@ export default function ProjectMembers() {
 		isLoading,
 		isAddingMember,
 		deletingId,
-		// updatingRoleId,
+		updatingRoleId,
 		addMember,
-		// updateMemberRole,
+		updateMemberRole,
 		deleteMember,
 		fetchAvailableUsers,
 	} = useProjectMembers();
@@ -27,7 +28,11 @@ export default function ProjectMembers() {
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [memberToDelete, setMemberToDelete] = useState<ProjectMember | null>(null);
 
-	const handleAdd = async (userId: number, role: string) => {
+	const currentMember = members.find((m) => m.user.email === userData?.email);
+	const currentUserRole = currentMember?.role ?? ProjectRole.MEMBER;
+	const canManageMembers = hasProjectAccess(currentUserRole, ProjectRole.ADMIN);
+
+	const handleAdd = async (userId: number, role: ProjectRole) => {
 		return await addMember(userId, role);
 	};
 
@@ -55,16 +60,18 @@ export default function ProjectMembers() {
 				<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
 					Project Members
 				</CardTitle>
-				<div className="flex gap-2">
-					<AddMemberDialog
-						open={dialogOpen}
-						onOpenChange={setDialogOpen}
-						onAdd={handleAdd}
-						availableUsers={availableUsers}
-						hasEndpoint={hasAvailableUsersEndpoint}
-						isAdding={isAddingMember}
-					/>
-				</div>
+				{canManageMembers && (
+					<div className="flex gap-2">
+						<AddMemberDialog
+							open={dialogOpen}
+							onOpenChange={setDialogOpen}
+							onAdd={handleAdd}
+							availableUsers={availableUsers}
+							hasEndpoint={hasAvailableUsersEndpoint}
+							isAdding={isAddingMember}
+						/>
+					</div>
+				)}
 			</CardHeader>
 
 			<CardContent className="p-6 pt-0">
@@ -72,10 +79,10 @@ export default function ProjectMembers() {
 					members={members}
 					isLoading={isLoading}
 					currentUserEmail={userData?.email}
-					// updatingRoleId={updatingRoleId}
+					updatingRoleId={updatingRoleId}
 					deletingId={deletingId}
-					// onRoleChange={updateMemberRole}
-					onDelete={handleDeleteClick}
+					onRoleChange={canManageMembers ? updateMemberRole : undefined}
+					onDelete={canManageMembers ? handleDeleteClick : undefined}
 				/>
 			</CardContent>
 

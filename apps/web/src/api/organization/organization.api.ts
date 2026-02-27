@@ -1,6 +1,16 @@
 import { apiClient, type ApiRequestConfig } from "../client";
 
 // ============================================================================
+// Enums
+// ============================================================================
+
+export enum OrganizationRole {
+	OWNER = "OWNER",
+	ADMIN = "ADMIN",
+	READER = "READER",
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -26,7 +36,7 @@ export interface Member {
 	organizationId?: number;
 	userId?: number;
 	projectId?: number;
-	role: string;
+	role: OrganizationRole;
 	user: {
 		id: number;
 		email: string;
@@ -43,12 +53,17 @@ export interface MembersResponse {
 
 export interface InviteMemberData {
 	email: string;
+	role?: OrganizationRole;
+}
+
+export interface UpdateMemberRoleData {
+	role: OrganizationRole;
 }
 
 export interface Invite {
 	id: number;
 	email: string;
-	role: string;
+	role: OrganizationRole;
 	token: string;
 	createdAt: string;
 }
@@ -241,6 +256,24 @@ export const organizationApi = {
 	 */
 	inviteMember: async (data: InviteMemberData, config?: ApiRequestConfig): Promise<void> => {
 		await apiClient.post("/organization/members/invite", data, config);
+	},
+
+	/**
+	 * Update a member's organization role
+	 */
+	updateMemberRole: async (
+		memberId: number,
+		data: UpdateMemberRoleData,
+		config?: ApiRequestConfig,
+	): Promise<void> => {
+		await apiClient.put(`/organization/members/${memberId}/role`, data, config);
+	},
+
+	/**
+	 * Delete a member from the organization
+	 */
+	deleteMember: async (memberId: number, config?: ApiRequestConfig): Promise<void> => {
+		await apiClient.delete(`/organization/members/${memberId}`, config);
 	},
 
 	/**

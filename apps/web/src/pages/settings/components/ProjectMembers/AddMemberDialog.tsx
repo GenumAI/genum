@@ -17,6 +17,7 @@ import {
 	SelectValue,
 	SelectItem,
 } from "@/components/ui/select";
+import { ProjectRole } from "@/api/project";
 import type { AddMemberDialogProps } from "../../utils/types";
 
 
@@ -29,29 +30,29 @@ export function AddMemberDialog({
 	isAdding,
 }: AddMemberDialogProps) {
 	const [selectedUserId, setSelectedUserId] = useState<string>("");
-	const [selectedRole, setSelectedRole] = useState<string>("MEMBER");
+	const [selectedRole, setSelectedRole] = useState<ProjectRole>(ProjectRole.MEMBER);
 
 	const handleAdd = async () => {
 		if (!selectedUserId || !selectedRole) return;
 
-		const success = await onAdd(parseInt(selectedUserId), selectedRole);
+		const success = await onAdd(parseInt(selectedUserId, 10), selectedRole);
 		if (success) {
 			setSelectedUserId("");
-			setSelectedRole("MEMBER");
+			setSelectedRole(ProjectRole.MEMBER);
 			onOpenChange(false);
 		}
 	};
 
 	const handleCancel = () => {
 		setSelectedUserId("");
-		setSelectedRole("MEMBER");
+		setSelectedRole(ProjectRole.MEMBER);
 		onOpenChange(false);
 	};
 
 	useEffect(() => {
 		if (!open) {
 			setSelectedUserId("");
-			setSelectedRole("MEMBER");
+			setSelectedRole(ProjectRole.MEMBER);
 		}
 	}, [open]);
 
@@ -120,15 +121,18 @@ export function AddMemberDialog({
 						<label htmlFor="role-select" className="text-sm font-medium">
 							Role
 						</label>
-						<Select value={selectedRole} onValueChange={setSelectedRole}>
-							<SelectTrigger>
-								<SelectValue placeholder="Select role..." />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="MEMBER">Member</SelectItem>
-								<SelectItem value="OWNER">Owner</SelectItem>
-							</SelectContent>
-						</Select>
+					<Select
+						value={selectedRole}
+						onValueChange={(value) => setSelectedRole(value as ProjectRole)}
+					>
+						<SelectTrigger>
+							<SelectValue placeholder="Select role..." />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value={ProjectRole.MEMBER}>Member</SelectItem>
+							<SelectItem value={ProjectRole.ADMIN}>Admin</SelectItem>
+						</SelectContent>
+					</Select>
 					</div>
 				</div>
 

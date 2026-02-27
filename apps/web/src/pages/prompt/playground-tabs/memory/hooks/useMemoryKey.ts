@@ -37,9 +37,10 @@ export const useMemoryKey = (promptId: number) => {
 	}, [selectedKey]);
 
 	const { data: memories = [] } = usePromptMemories(promptId);
+	const testcaseScopeId = testcaseId ?? undefined;
 
 	const { data: testcaseData } = useQuery({
-		queryKey: testcaseKeys.byId(testcaseId),
+		queryKey: testcaseKeys.byId(testcaseScopeId),
 		queryFn: () => testcasesApi.getTestcase(testcaseId as string),
 		enabled: !!testcaseId,
 	});

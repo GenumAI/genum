@@ -4,6 +4,7 @@ import { Navigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { setApiContext, clearApiContext } from "@/api/client";
+import { OrganizationRole, hasOrgAccess } from "@/api/organization";
 
 /**
  * This component is the "entry point" for the authenticated part of the app.
@@ -71,7 +72,7 @@ const RedirectedToProjectRoute = ({ Element }: RedirectedToProjectRouteProps) =>
 		}
 
 		let orgWithProjects = userData.organizations.find(
-			(org) => org.role === "OWNER" && org.projects && org.projects.length > 0,
+			(org) => hasOrgAccess(org.role, OrganizationRole.OWNER) && org.projects && org.projects.length > 0,
 		);
 
 		if (!orgWithProjects) {
