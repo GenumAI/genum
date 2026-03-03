@@ -8,6 +8,13 @@ export type MemorySelectionState = {
 	selectedMemoryKeyName: string;
 };
 
+export type PageHeaderUiState = {
+	isEditing: boolean;
+	editableTitle: string;
+	modalOpen: boolean;
+	isUpdating: boolean;
+};
+
 type ScopeParam = string | number | undefined | null;
 
 const toKeyPart = (value: ScopeParam) => (value == null ? "" : String(value));
@@ -31,6 +38,7 @@ interface PlaygroundDraftData {
 	sessionDrafts: Record<string, PlaygroundSessionDraft>;
 	memorySelectionDrafts: Record<string, MemorySelectionState>;
 	memoryValueDrafts: Record<string, string>;
+	pageHeaderUi: PageHeaderUiState;
 }
 
 interface PlaygroundDraftActions {
@@ -88,6 +96,9 @@ interface PlaygroundDraftActions {
 	resetForTestcaseExit: (promptId: ScopeParam, prevTestcaseId: ScopeParam) => void;
 	resetAfterAddTestcase: (promptId: ScopeParam) => void;
 	resetForPromptExit: (promptId: ScopeParam, testcaseId: ScopeParam) => void;
+
+	setPageHeaderUi: (value: Partial<PageHeaderUiState>) => void;
+	resetPageHeaderUi: () => void;
 }
 
 type PlaygroundState = PlaygroundDraftData & PlaygroundDraftActions;
@@ -104,6 +115,13 @@ const DEFAULT_SESSION_DRAFT: PlaygroundSessionDraft = {
 	status: "",
 };
 
+const DEFAULT_PAGE_HEADER_UI: PageHeaderUiState = {
+	isEditing: false,
+	editableTitle: "",
+	modalOpen: false,
+	isUpdating: false,
+};
+
 const initialState: PlaygroundDraftData = {
 	inputDrafts: {},
 	outputDrafts: {},
@@ -112,6 +130,7 @@ const initialState: PlaygroundDraftData = {
 	sessionDrafts: {},
 	memorySelectionDrafts: {},
 	memoryValueDrafts: {},
+	pageHeaderUi: DEFAULT_PAGE_HEADER_UI,
 };
 
 const usePlaygroundStore = create<PlaygroundState>()(
@@ -393,6 +412,27 @@ const usePlaygroundStore = create<PlaygroundState>()(
 					},
 					false,
 					"resetForPromptExit",
+				),
+
+			setPageHeaderUi: (value) =>
+				set(
+					(state) => ({
+						pageHeaderUi: {
+							...state.pageHeaderUi,
+							...value,
+						},
+					}),
+					false,
+					"setPageHeaderUi",
+				),
+
+			resetPageHeaderUi: () =>
+				set(
+					() => ({
+						pageHeaderUi: DEFAULT_PAGE_HEADER_UI,
+					}),
+					false,
+					"resetPageHeaderUi",
 				),
 		}),
 		{ name: "playground-store", enabled: true },

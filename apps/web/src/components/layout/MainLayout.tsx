@@ -66,7 +66,6 @@ function LayoutContent({ user }: { user: UserType }) {
 	const promptId = id ? Number(id) : undefined;
 	const { prompt } = usePromptById(promptId);
 	const { notification: notificationData } = useNotificationById(notificationId);
-	const [promptName, setPromptName] = useState<string | null>(null);
 	const isPlayground = window.location.pathname.endsWith("/playground");
 
 	const { isCommitted, setIsCommitted, activePromptId } = usePromptStatus();
@@ -101,27 +100,6 @@ function LayoutContent({ user }: { user: UserType }) {
 			setTestcase(null);
 		}
 	}, [testcaseId]);
-
-	useEffect(() => {
-		const handlePromptNameChange = (event: CustomEvent) => {
-			if (event.detail.promptId === promptId) {
-				setPromptName(event.detail.newName);
-			}
-		};
-
-		window.addEventListener("promptNameChanged", handlePromptNameChange as EventListener);
-
-		return () => {
-			window.removeEventListener(
-				"promptNameChanged",
-				handlePromptNameChange as EventListener,
-			);
-		};
-	}, [promptId]);
-
-	useEffect(() => {
-		setPromptName(null);
-	}, [promptId]);
 
 	const isVersionsPage = /^\/[^/]+\/[^/]+\/prompt\/\d+\/versions\/\d+\/?$/.test(
 		location.pathname,
@@ -161,9 +139,8 @@ function LayoutContent({ user }: { user: UserType }) {
 		return pathWithoutOrgProject.startsWith(item.url);
 	});
 
-	const displayPromptName = promptName || prompt?.prompt?.name;
-	const pageTitle =
-		promptId && displayPromptName ? displayPromptName : activeMainItem?.title || "Dashboard";
+	const pageTitle = promptId && prompt?.prompt?.name ? prompt.prompt.name : activeMainItem?.title || "Undefined Prompt";
+	const displayPromptName = prompt?.prompt?.name;
 
 	const routeItems = [
 		{ label: "Playground", path: "playground" },

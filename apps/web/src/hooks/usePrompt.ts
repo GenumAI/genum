@@ -32,12 +32,35 @@ export function usePromptById(promptId: number | string | undefined) {
 	const updatePromptMutation = useMutation<
 		PromptResponse,
 		unknown,
-		{ updateData: Partial<PromptSettings>; options?: Options }
+		{ updateData: Partial<PromptSettings>; options?: Options },
+		{ previousPrompt?: PromptResponse }
 	>({
 		mutationKey: promptKeys.update(promptId),
 		mutationFn: async ({ updateData }) => {
 			if (!promptId) throw new Error("Prompt ID is required");
 			return await promptApi.updatePrompt(promptId, updateData);
+		},
+		onMutate: async ({ updateData }) => {
+			await queryClient.cancelQueries({ queryKey });
+			const previousPrompt = queryClient.getQueryData<PromptResponse>(queryKey);
+
+			queryClient.setQueryData<PromptResponse>(queryKey, (oldData) => {
+				if (!oldData) return oldData;
+				return {
+					...oldData,
+					prompt: {
+						...oldData.prompt,
+						...updateData,
+					},
+				};
+			});
+
+			return { previousPrompt };
+		},
+		onError: (_error, _variables, context) => {
+			if (context?.previousPrompt) {
+				queryClient.setQueryData(queryKey, context.previousPrompt);
+			}
 		},
 		onSuccess: (result, variables) => {
 			queryClient.setQueryData<PromptResponse>(queryKey, (oldData) => {
@@ -69,6 +92,7 @@ export function usePromptById(promptId: number | string | undefined) {
 	return {
 		prompt: promptQuery.data ?? null,
 		loading: promptQuery.isLoading || updatePromptMutation.isPending,
+		initialLoading: promptQuery.isLoading,
 		isUpdating: updatePromptMutation.isPending,
 		error,
 		updatePrompt,
