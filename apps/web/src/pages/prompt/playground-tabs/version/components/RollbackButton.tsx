@@ -8,37 +8,24 @@ import {
 import { useToggle } from "@/hooks/useToggle";
 import { Button } from "@/components/ui/button";
 import { useParams } from "react-router-dom";
-import { toast } from "@/hooks/useToast";
 import { useState } from "react";
-import { promptApi } from "@/api/prompt";
 import { ArrowBendUpLeftIcon } from "@phosphor-icons/react";
-import { useQueryClient } from "@tanstack/react-query";
-import { versionKeys } from "@/query-keys/version.keys";
+import { useRollbackVersion } from "../hooks/useRollbackVersion";
 
 export const RollBackButton = () => {
 	const { isOn, onToggle, offToggle } = useToggle();
 	const [showSuccess, setShowSuccess] = useState(false);
-	const [pending, setPending] = useState(false);
 	const params = useParams();
-	const queryClient = useQueryClient();
+	const { rollback, isPending } = useRollbackVersion();
 
 	const handleRollback = async () => {
 		if (!params.id || !params.versionId) return;
-		setPending(true);
-		try {
-			await promptApi.rollbackVersion(params.id, params.versionId);
-			queryClient.invalidateQueries({ queryKey: versionKeys.versions(params.id) });
-			queryClient.invalidateQueries({ queryKey: versionKeys.committed(params.id) });
+		const success = await rollback({
+			promptId: params.id,
+			versionId: params.versionId,
+		});
+		if (success) {
 			setShowSuccess(true);
-		} catch (error: unknown) {
-			const errorMessage = error instanceof Error ? error.message : "Something went wrong";
-			toast({
-				title: "Rollback failed",
-				description: errorMessage,
-				variant: "destructive",
-			});
-		} finally {
-			setPending(false);
 		}
 	};
 
@@ -71,13 +58,13 @@ export const RollBackButton = () => {
 
 					<DialogFooter className="">
 						{!showSuccess && (
-							<Button variant="outline" disabled={pending} onClick={offToggle}>
+							<Button variant="outline" disabled={isPending} onClick={offToggle}>
 								Cancel
 							</Button>
 						)}
 						<Button
 							onClick={showSuccess ? handleClose : handleRollback}
-							disabled={pending}
+							disabled={isPending}
 							variant={showSuccess ? "default" : "destructive"}
 						>
 							{showSuccess ? "Ok" : "Yes, rollback"}
