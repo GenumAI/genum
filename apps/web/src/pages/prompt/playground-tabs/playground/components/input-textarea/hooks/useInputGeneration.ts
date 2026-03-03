@@ -45,15 +45,9 @@ export const useInputGeneration = ({
 			await queryClient.invalidateQueries({
 				queryKey: testcaseKeys.byId(testcaseId),
 			});
-			await queryClient.invalidateQueries({
-				queryKey: testcaseKeys.byIdAlt(testcaseId),
-			});
 			if (promptId) {
 				await queryClient.invalidateQueries({
 					queryKey: testcaseKeys.promptTestcases(promptId),
-				});
-				await queryClient.invalidateQueries({
-					queryKey: testcaseKeys.statusCounts(promptId),
 				});
 			}
 		},

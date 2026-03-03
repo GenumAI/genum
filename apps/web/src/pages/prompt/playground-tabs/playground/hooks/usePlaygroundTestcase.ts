@@ -79,24 +79,40 @@ export function usePlaygroundTestcaseController({
 		mutationKey: testcaseKeys.updateInput(testcaseId ?? undefined),
 		mutationFn: async (value: string) => {
 			if (!testcaseId) return;
-			await testcasesApi.updateTestcase(testcaseId, { input: value });
+			return testcasesApi.updateTestcase(testcaseId, { input: value });
 		},
-		onSuccess: async (_data, value) => {
+		onSuccess: (data, value) => {
 			lastSavedInputRef.current = value;
 			if (!testcaseId) return;
-			await queryClient.invalidateQueries({
-				queryKey: testcaseKeys.byId(testcaseId),
+			const updatedTestcase = data?.testcase;
+
+			queryClient.setQueryData(testcaseKeys.byId(testcaseId), (prev: any) => {
+				if (updatedTestcase) return { testcase: updatedTestcase };
+				if (!prev?.testcase) return prev;
+				return {
+					...prev,
+					testcase: {
+						...prev.testcase,
+						input: value,
+					},
+				};
 			});
-			await queryClient.invalidateQueries({
-				queryKey: testcaseKeys.byIdAlt(testcaseId),
-			});
+
 			if (promptId) {
-				await queryClient.invalidateQueries({
-					queryKey: testcaseKeys.promptTestcases(promptId),
-				});
-				await queryClient.invalidateQueries({
-					queryKey: testcaseKeys.statusCounts(promptId),
-				});
+				queryClient.setQueryData(
+					testcaseKeys.promptTestcases(promptId),
+					(prev: TestCase[] | undefined) => {
+						if (!prev?.length) return prev;
+						return prev.map((tc) => {
+							if (tc.id !== Number(testcaseId)) return tc;
+							if (updatedTestcase) return updatedTestcase;
+							return {
+								...tc,
+								input: value,
+							};
+						});
+					},
+				);
 			}
 		},
 	});
@@ -114,15 +130,9 @@ export function usePlaygroundTestcaseController({
 			await queryClient.invalidateQueries({
 				queryKey: testcaseKeys.byId(testcaseId),
 			});
-			await queryClient.invalidateQueries({
-				queryKey: testcaseKeys.byIdAlt(testcaseId),
-			});
 			if (promptId) {
 				await queryClient.invalidateQueries({
 					queryKey: testcaseKeys.promptTestcases(promptId),
-				});
-				await queryClient.invalidateQueries({
-					queryKey: testcaseKeys.statusCounts(promptId),
 				});
 			}
 		},

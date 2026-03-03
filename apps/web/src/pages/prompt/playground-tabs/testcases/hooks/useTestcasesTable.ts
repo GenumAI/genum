@@ -186,7 +186,6 @@ export const useTestcasesTable = ({
 			setIsRunning(true);
 			const testCaseIds = testcasesForRun.map((item) => item.id);
 			setRunningRows(testCaseIds);
-			const affectedPromptIds = new Set<number>();
 
 			try {
 				for (let i = 0; i < testcasesForRun.length; i++) {
@@ -195,8 +194,6 @@ export const useTestcasesTable = ({
 					try {
 						const response = await testcasesApi.runTestcase(item.id);
 						const updatedTestcase = response.testcase;
-						affectedPromptIds.add(updatedTestcase.promptId);
-
 						if (promptId) {
 							queryClient.setQueryData<TestCase[]>(
 								testcaseKeys.promptTestcases(promptId),
@@ -229,13 +226,6 @@ export const useTestcasesTable = ({
 						);
 					}
 				}
-				await Promise.all(
-					[...affectedPromptIds].map((affectedPromptId) =>
-						queryClient.invalidateQueries({
-							queryKey: testcaseKeys.statusCounts(affectedPromptId),
-						}),
-					),
-				);
 			} catch (error) {
 				console.error("Failed to run test cases:", error);
 				setRunningRows([]);
@@ -268,10 +258,6 @@ export const useTestcasesTable = ({
 						},
 					);
 				}
-
-				await queryClient.invalidateQueries({
-					queryKey: testcaseKeys.statusCounts(selectedTestcase.promptId),
-				});
 
 				setConfirmModalOpen(false);
 				setSelectedTestcase(null);

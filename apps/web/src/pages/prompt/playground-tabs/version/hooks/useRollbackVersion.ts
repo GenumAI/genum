@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt";
 import { toast } from "@/hooks/useToast";
 import { versionKeys } from "@/query-keys/version.keys";
+import { promptKeys } from "@/query-keys/prompt.keys";
 
 interface RollbackParams {
 	promptId: string;
@@ -16,7 +17,7 @@ export const useRollbackVersion = () => {
 			promptApi.rollbackVersion(promptId, versionId),
 		onSuccess: async (_, { promptId }) => {
 			await queryClient.invalidateQueries({ queryKey: versionKeys.versions(promptId) });
-			await queryClient.invalidateQueries({ queryKey: versionKeys.committed(promptId) });
+			await queryClient.invalidateQueries({ queryKey: promptKeys.byId(promptId) });
 		},
 	});
 

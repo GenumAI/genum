@@ -3,8 +3,10 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { promptApi } from "@/api/prompt";
 import type { LogsFilterState } from "@/pages/logs/components/LogsFilter";
-import type { LogsResponse, MemoriesResponse } from "@/types/logs";
+import type { LogsResponse } from "@/types/logs";
 import { logsKeys } from "@/query-keys/logs.keys";
+import { memoryKeys } from "@/query-keys/memory.keys";
+import type { Memory } from "@/api/prompt/prompt.api";
 
 interface UseLogsDataParams {
 	promptId?: number;
@@ -57,12 +59,13 @@ export function useLogsData({
 		},
 	});
 
-	const memoriesQuery = useQuery<MemoriesResponse>({
-		queryKey: logsKeys.promptMemoriesTab(promptId),
+	const memoriesQuery = useQuery<Memory[]>({
+		queryKey: memoryKeys.promptMemories(promptId),
 		enabled: Boolean(promptId && shouldFetchMemories),
 		refetchOnMount: "always",
 		queryFn: async () => {
-			return promptApi.getMemories(promptId as number) as Promise<MemoriesResponse>;
+			const response = await promptApi.getMemories(promptId as number);
+			return response.memories || [];
 		},
 	});
 
@@ -74,7 +77,7 @@ export function useLogsData({
 		logs,
 		total,
 		logsData: logsQuery.data,
-		memoriesData: memoriesQuery.data,
+		memoriesData: memoriesQuery.data ?? [],
 		isFetchingLogs: logsQuery.isFetching,
 		isInitialLoadingLogs,
 		logsError: logsQuery.error,

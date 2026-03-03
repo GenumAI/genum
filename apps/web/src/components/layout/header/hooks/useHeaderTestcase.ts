@@ -36,10 +36,8 @@ export const useHeaderTestcase = (
 		if (!testcaseId) return null;
 		const updated = await testcasesApi.updateTestcase(testcaseId, { name });
 		queryClient.setQueryData(testcaseKeys.byId(testcaseId), updated);
-		await queryClient.invalidateQueries({ queryKey: testcaseKeys.byIdAlt(testcaseId) });
 		if (promptId) {
 			await queryClient.invalidateQueries({ queryKey: testcaseKeys.promptTestcases(promptId) });
-			await queryClient.invalidateQueries({ queryKey: testcaseKeys.statusCounts(promptId) });
 		}
 		return updated;
 	};

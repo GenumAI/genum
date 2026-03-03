@@ -83,10 +83,6 @@ export function usePlaygroundPromptRun({
 					testcaseKeys.byId(testcaseId),
 					(previous) => ({ ...previous, testcase: updatedTestcase }),
 				);
-				queryClient.setQueryData<{ testcase: TestCase } | undefined>(
-					testcaseKeys.byIdAlt(testcaseId),
-					(previous) => ({ ...previous, testcase: updatedTestcase }),
-				);
 			}
 			const result = formatTestcaseOutput(testcaseResponse);
 
@@ -94,13 +90,6 @@ export function usePlaygroundPromptRun({
 				setLastRunResult(result);
 				setOutputContent(result);
 				setRunState({ loading: false, wasRun: true });
-
-				if (promptId) {
-					queryClient.invalidateQueries({
-						queryKey: testcaseKeys.statusCounts(promptId),
-					});
-				}
-				window.dispatchEvent(new CustomEvent("testcaseUpdated"));
 				return;
 			}
 		} catch (err: unknown) {
@@ -118,7 +107,6 @@ export function usePlaygroundPromptRun({
 				queryClient.invalidateQueries({
 					queryKey: testcaseKeys.promptTestcases(promptId),
 				});
-				queryClient.invalidateQueries({ queryKey: testcaseKeys.statusCounts(promptId) });
 			}
 		} finally {
 			setRunState({ loading: false });
@@ -139,7 +127,6 @@ export function usePlaygroundPromptRun({
 		toast,
 	]);
 
-	// After a testcase run: open assertion modal + refresh latest status counts
 	useEffect(() => {
 		if (!storeOutputContent || !testcaseId || !testcase || !wasRun) {
 			return;
@@ -150,34 +137,12 @@ export function usePlaygroundPromptRun({
 		if (assertionType === "AI" || assertionType === "STRICT") {
 			openAssertionModal();
 		}
-
-		const fetchLatestPromptData = async () => {
-			try {
-				if (!promptId) return;
-				const data = await promptApi.getPrompt(promptId);
-				if (data.prompt?.testcaseStatuses) {
-					window.dispatchEvent(
-						new CustomEvent("testcaseStatusUpdated", {
-							detail: {
-								promptId,
-								testcaseStatuses: data.prompt.testcaseStatuses,
-							},
-						}),
-					);
-				}
-			} catch (error) {
-				console.error("Failed to fetch latest prompt data:", error);
-			}
-		};
-
-		setTimeout(fetchLatestPromptData, 500);
 		setRunState({ loading: false, wasRun: false });
 	}, [
 		storeOutputContent,
 		testcaseId,
 		testcase,
 		wasRun,
-		promptId,
 		currentAssertionType,
 		promptSettings?.assertionType,
 		setStatus,

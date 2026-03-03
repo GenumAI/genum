@@ -48,8 +48,6 @@ export const logsKeys = {
 			query,
 			promptId,
 		] as const,
-	projectMemories: (selectedPromptId?: ScopeParam) =>
-		["project-logs-memories", selectedPromptId] as const,
 	promptLogs: ({
 		promptId,
 		page,
@@ -73,6 +71,5 @@ export const logsKeys = {
 			source,
 			query,
 		] as const,
-	promptMemoriesTab: (promptId?: ScopeParam) => ["prompt-memories-tab", promptId] as const,
 };
 

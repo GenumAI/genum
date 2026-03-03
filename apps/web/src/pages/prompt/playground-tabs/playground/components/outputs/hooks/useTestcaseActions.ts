@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { testcasesApi } from "@/api/testcases/testcases.api";
+import { promptApi } from "@/api/prompt/prompt.api";
 import type { TestcasePayload } from "@/hooks/useCreateTestcase";
 import { useToast } from "@/hooks/useToast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,16 +21,21 @@ export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }:
 	const createTestcaseMutation = useMutation({
 		mutationKey: testcaseKeys.create(promptId),
 		mutationFn: async (payload: TestcasePayload) => {
-			await testcasesApi.createTestcase(payload);
+			return testcasesApi.createTestcase(payload);
 		},
 		onSuccess: async () => {
 			if (!promptId) return;
-			await queryClient.invalidateQueries({
-				queryKey: testcaseKeys.promptTestcases(promptId),
-			});
-			await queryClient.invalidateQueries({
-				queryKey: testcaseKeys.statusCounts(promptId),
-			});
+			try {
+				await queryClient.fetchQuery({
+					queryKey: testcaseKeys.promptTestcases(promptId),
+					queryFn: async () => {
+						const response = await promptApi.getPromptTestcases(promptId);
+						return response.testcases || [];
+					},
+				});
+			} catch (error) {
+				console.error("Failed to refresh prompt testcases after create:", error);
+			}
 			onTestcaseAdded?.();
 		},
 	});

@@ -2,6 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt";
 import type { BranchesResponse } from "../utils/types";
 import { versionKeys } from "@/query-keys/version.keys";
+import { promptKeys } from "@/query-keys/prompt.keys";
+
+type PromptByIdQueryData = {
+	prompt?: {
+		commited?: boolean;
+	};
+};
 
 const SYSTEM_AUTHOR = {
 	id: 0,
@@ -32,11 +39,10 @@ export const useVersionsData = (id: string | undefined) => {
 	});
 
 	const promptQuery = useQuery({
-		queryKey: versionKeys.committed(id),
+		queryKey: promptKeys.byId(id),
 		queryFn: async () => {
 			if (!id) throw new Error("No id");
-			const result = await promptApi.getPrompt(id);
-			return result?.prompt?.commited ?? false;
+			return promptApi.getPrompt(id);
 		},
 		enabled: Boolean(id),
 	});
@@ -44,12 +50,24 @@ export const useVersionsData = (id: string | undefined) => {
 	const refresh = () => {
 		if (!id) return;
 		queryClient.invalidateQueries({ queryKey: versionKeys.versions(id) });
-		queryClient.invalidateQueries({ queryKey: versionKeys.committed(id) });
+		queryClient.invalidateQueries({ queryKey: promptKeys.byId(id) });
 	};
 
-	const isCommitted = promptQuery.data ?? false;
+	const isCommitted = promptQuery.data?.prompt?.commited ?? false;
 	const setIsCommitted = (value: boolean) => {
-		queryClient.setQueryData(versionKeys.committed(id), value);
+		queryClient.setQueryData<PromptByIdQueryData | undefined>(
+			promptKeys.byId(id),
+			(previous) => {
+				if (!previous?.prompt) return previous;
+				return {
+					...previous,
+					prompt: {
+						...previous.prompt,
+						commited: value,
+					},
+				};
+			},
+		);
 	};
 
 	return {
