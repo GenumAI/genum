@@ -100,7 +100,6 @@ export default function Playground() {
 							</div>
 
 							<OutputBlock
-								key={testcaseId}
 								onSaveAsExpected={actions.testcase.saveAsExpected}
 								onTestcaseAdded={actions.testcase.onAdded}
 								onRegisterClearFunction={actions.testcase.registerClearFn}

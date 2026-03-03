@@ -145,7 +145,6 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 
 				<div className="output-diff-container relative h-80 min-w-0 overflow-hidden rounded-b-[6px] text-sm">
 					<CompareDiffEditor
-						key={`diff-${!!content?.answer}`}
 						original={content?.answer}
 						modified={modifiedValue}
 						onBlur={saveModifiedValue}
