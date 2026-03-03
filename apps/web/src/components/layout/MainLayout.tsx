@@ -198,7 +198,6 @@ function LayoutContent({ user }: { user: UserType }) {
 						/>
 						{isPromptPage && isPlayground && activePromptId === promptId && (
 							<VersionStatus
-								key={`${promptId}-${isCommitted}-${prompt?.prompt?.updatedAt}`}
 								promptId={promptId}
 								commited={isCommitted}
 								promptCommit={prompt?.prompt?.lastCommit?.commitHash ?? ""}
