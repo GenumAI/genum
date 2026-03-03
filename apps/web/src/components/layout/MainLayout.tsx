@@ -3,22 +3,14 @@ import {
 	Outlet,
 	useLocation,
 	useParams,
-	Link,
 	useSearchParams,
 	ScrollRestoration,
 } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbLink,
-	BreadcrumbList,
-	BreadcrumbPage,
-	BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/sidebar/sidebar";
 import PageHeader from "@/components/layout/header/page-header";
+import { MainLayoutBreadcrumb } from "@/components/layout/header/MainLayoutBreadcrumb";
 
 import { navigation } from "@/hooks/useNavigation";
 import { usePromptById } from "@/hooks/usePrompt";
@@ -160,29 +152,6 @@ function LayoutContent({ user }: { user: UserType }) {
 		};
 	});
 
-	const breadcrumbMap: Record<string, { label: string; path?: string }> = {
-		prompt: { label: "Prompts", path: "prompts" },
-		prompts: { label: "Prompts", path: "prompts" },
-	};
-
-	const getBreadcrumbHref = (segments: string[], index: number): string => {
-		const orgIdSegment = orgId || "";
-		const projectIdSegment = projectId || "";
-
-		const actualSegments = segments.slice(0, index + 1).map((segment, segmentIndex) => {
-			if (segment === "prompts" && segments[segmentIndex + 1]?.match(/^\d+$/)) {
-				return "prompt";
-			} else if (segment === "prompts") {
-				return "prompts";
-			}
-			return breadcrumbMap[segment]?.path || segment;
-		});
-
-		const href = `/${orgIdSegment}/${projectIdSegment}/` + actualSegments.join("/");
-
-		return href;
-	};
-
 	const isPromptPage = promptId && prompt?.prompt;
 
 	const handleCommitStatusChange = (newCommited: boolean) => {
@@ -213,106 +182,20 @@ function LayoutContent({ user }: { user: UserType }) {
 			<SidebarInset>
 				<header className="w-full bg-background dark:bg-sidebar z-[49] top-0 flex h-[54px] border-b border-[#E4E4E7] dark:border-[#27272A] shrink-0 items-center gap-2 transition-[width,height] ease-linear sticky">
 					<div className="flex items-center gap-2 pl-5 pr-6 w-full justify-between">
-						<Breadcrumb>
-							<BreadcrumbList>
-								{pathnames.slice(2).map((segment, index, localArray) => {
-									const mapped = breadcrumbMap[segment];
-									const isLast = index === localArray.length - 1;
-
-									let label;
-									if (segment.toLowerCase() === "api") {
-										label = "API";
-									} else if (segment.toLowerCase() === "org") {
-										label = "Organization";
-									} else if (segment.toLowerCase() === "ai-keys") {
-										label = "LLM API Keys";
-									} else if (segment.toLowerCase() === "api-keys") {
-										label = "API Keys";
-									} else if (segment === id && displayPromptName) {
-										label = displayPromptName;
-									} else if (
-										version?.version &&
-										segment === versionId &&
-										!isRefetching
-									) {
-										label = version.version.commitMsg;
-									} else if (
-										segment === notificationId &&
-										notificationData?.title
-									) {
-										label = notificationData.title;
-									} else {
-										label =
-											mapped?.label ||
-											segment.charAt(0).toUpperCase() + segment.slice(1);
-									}
-
-									const truncateLabel = (text: string) => {
-										return text.length > 50
-											? text.substring(0, 50) + "..."
-											: text;
-									};
-
-									label = truncateLabel(label);
-
-									const href = getBreadcrumbHref(localArray, index);
-
-									let finalHref = href;
-									if (
-										href.includes("/prompts/") &&
-										/^\/(?:[^/]+\/)?(?:[^/]+\/)?prompts\/\d+/.test(href)
-									) {
-										finalHref = href.replace("/prompts/", "/prompt/");
-									}
-
-									const pathWithoutQuery = finalHref.split("?")[0];
-									if (
-										/^\/(?:[^/]+\/)?(?:[^/]+\/)?prompt\/\d+$/.test(
-											pathWithoutQuery,
-										)
-									) {
-										finalHref = `${pathWithoutQuery}/playground`;
-									}
-
-									if (/\/settings\/user$/.test(pathWithoutQuery)) {
-										finalHref = `${finalHref}/profile`;
-									}
-									if (/\/settings\/org$/.test(pathWithoutQuery)) {
-										finalHref = `${finalHref}/details`;
-									}
-									if (/\/settings\/project$/.test(pathWithoutQuery)) {
-										finalHref = `${finalHref}/details`;
-									}
-
-									return (
-										<div key={index} className="flex items-center gap-2">
-											{index !== 0 && <BreadcrumbSeparator />}
-											<BreadcrumbItem>
-												{isLast ? (
-													<BreadcrumbPage>{label}</BreadcrumbPage>
-												) : (
-													<BreadcrumbLink asChild>
-														<Link to={finalHref}>{label}</Link>
-													</BreadcrumbLink>
-												)}
-											</BreadcrumbItem>
-										</div>
-									);
-								})}
-								{testcaseId && testcase?.name && (
-									<div className="flex items-center gap-2">
-										<BreadcrumbSeparator />
-										<BreadcrumbItem>
-											<BreadcrumbPage>
-												{testcase.name.length > 50
-													? testcase.name.substring(0, 50) + "..."
-													: testcase.name}
-											</BreadcrumbPage>
-										</BreadcrumbItem>
-									</div>
-								)}
-							</BreadcrumbList>
-						</Breadcrumb>
+						<MainLayoutBreadcrumb
+							pathnames={pathnames}
+							orgId={orgId}
+							projectId={projectId}
+							promptId={id}
+							promptName={displayPromptName}
+							versionId={versionId}
+							versionCommitMessage={version?.version?.commitMsg}
+							isRefetchingVersion={isRefetching}
+							notificationId={notificationId}
+							notificationTitle={notificationData?.title}
+							testcaseId={testcaseId}
+							testcaseName={testcase?.name}
+						/>
 						{isPromptPage && isPlayground && activePromptId === promptId && (
 							<VersionStatus
 								key={`${promptId}-${isCommitted}-${prompt?.prompt?.updatedAt}`}
