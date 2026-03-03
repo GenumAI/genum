@@ -70,6 +70,24 @@ export function usePlaygroundPromptRun({
 			}
 
 			const testcaseResponse = await testcasesApi.runTestcase(testcaseId, runParams);
+			const updatedTestcase = testcaseResponse?.testcase;
+			if (updatedTestcase) {
+				queryClient.setQueryData<TestCase[] | undefined>(
+					testcaseKeys.promptTestcases(promptId),
+					(previous) =>
+						previous?.map((item) =>
+							item.id === updatedTestcase.id ? updatedTestcase : item,
+						) ?? previous,
+				);
+				queryClient.setQueryData<{ testcase: TestCase } | undefined>(
+					testcaseKeys.byId(testcaseId),
+					(previous) => ({ ...previous, testcase: updatedTestcase }),
+				);
+				queryClient.setQueryData<{ testcase: TestCase } | undefined>(
+					testcaseKeys.byIdAlt(testcaseId),
+					(previous) => ({ ...previous, testcase: updatedTestcase }),
+				);
+			}
 			const result = formatTestcaseOutput(testcaseResponse);
 
 			if (result) {
@@ -78,9 +96,6 @@ export function usePlaygroundPromptRun({
 				setRunState({ loading: false, wasRun: true });
 
 				if (promptId) {
-					queryClient.invalidateQueries({
-						queryKey: testcaseKeys.promptTestcases(promptId),
-					});
 					queryClient.invalidateQueries({
 						queryKey: testcaseKeys.statusCounts(promptId),
 					});

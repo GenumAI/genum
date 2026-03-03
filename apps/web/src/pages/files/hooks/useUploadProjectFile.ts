@@ -6,6 +6,7 @@ export function useUploadProjectFile() {
 	const queryClient = useQueryClient();
 
 	const { mutateAsync: uploadFile, isPending: isUploading } = useMutation({
+		mutationKey: fileKeys.upload(),
 		mutationFn: async (file: File) => filesApi.uploadFile(file),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: fileKeys.all() });

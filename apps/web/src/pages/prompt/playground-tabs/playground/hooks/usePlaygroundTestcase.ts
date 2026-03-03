@@ -100,6 +100,33 @@ export function usePlaygroundTestcaseController({
 			}
 		},
 	});
+	const { mutateAsync: updateExpectedAsync } = useMutation({
+		mutationKey: testcaseKeys.updateExpected(testcaseId ?? undefined),
+		mutationFn: async (updateData: {
+			expectedOutput: string;
+			expectedChainOfThoughts: string;
+		}) => {
+			if (!testcaseId) return;
+			await testcasesApi.updateTestcase(testcaseId, updateData);
+		},
+		onSuccess: async () => {
+			if (!testcaseId) return;
+			await queryClient.invalidateQueries({
+				queryKey: testcaseKeys.byId(testcaseId),
+			});
+			await queryClient.invalidateQueries({
+				queryKey: testcaseKeys.byIdAlt(testcaseId),
+			});
+			if (promptId) {
+				await queryClient.invalidateQueries({
+					queryKey: testcaseKeys.promptTestcases(promptId),
+				});
+				await queryClient.invalidateQueries({
+					queryKey: testcaseKeys.statusCounts(promptId),
+				});
+			}
+		},
+	});
 
 	const testcase = useMemo(() => {
 		if (!testcaseId || !testcases.length) return null;
@@ -228,26 +255,17 @@ export function usePlaygroundTestcaseController({
 					expectedChainOfThoughts: currentExpectedThoughts || "",
 				};
 
-				await testcasesApi.updateTestcase(testcaseId, updateData);
-				if (promptId) {
-					queryClient.invalidateQueries({
-						queryKey: testcaseKeys.promptTestcases(promptId),
-					});
-					queryClient.invalidateQueries({
-						queryKey: testcaseKeys.statusCounts(promptId),
-					});
-				}
+				await updateExpectedAsync(updateData);
 			} catch (error) {
 				console.error("Failed to save as expected:", error);
 			}
 		},
 		[
 			currentExpectedThoughts,
-			promptId,
 			setExpectedOutput,
 			storeOutputContent,
 			testcaseId,
-			queryClient,
+			updateExpectedAsync,
 		],
 	);
 

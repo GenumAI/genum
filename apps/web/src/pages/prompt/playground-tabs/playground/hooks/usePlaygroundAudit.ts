@@ -97,38 +97,48 @@ export function useAudit(promptId: string | number | undefined, options?: UseAud
 		[promptId, runAuditMutation],
 	);
 
+	const { mutateAsync: fixRisksAsync } = useMutation({
+		mutationKey: helperKeys.fixRisks(promptId),
+		mutationFn: async ({
+			promptValue,
+			recommendations,
+		}: {
+			promptValue: string;
+			recommendations: string[];
+		}) => {
+			const context = recommendations.join("\\n\\n---\\n\\n");
+			return await helpersApi.promptTune({
+				context,
+				instruction: promptValue,
+			});
+		},
+		onSuccess: (response) => {
+			if (response?.prompt) {
+				if (playgroundFlow) {
+					setDiffModal({ prompt: response.prompt });
+					closeAuditModal();
+				}
+				onFixSuccess?.(response.prompt);
+			}
+		},
+		onError: (err) => {
+			const error = err instanceof Error ? err : new Error("Error tuning prompt");
+			console.error("Error tuning prompt:", err);
+			onFixError?.(error);
+		},
+	});
 	const fixRisks = useCallback(
-		async (promptValue: string, recommendations: string[]) => {
+		async (nextPromptValue: string, recommendations: string[]) => {
 			if (recommendations.length === 0) {
 				return null;
 			}
-
-			const context = recommendations.join("\\n\\n---\\n\\n");
-
-			try {
-				const response = await helpersApi.promptTune({
-					context,
-					instruction: promptValue,
-				});
-
-				if (response?.prompt) {
-					if (playgroundFlow) {
-						setDiffModal({ prompt: response.prompt });
-						closeAuditModal();
-					}
-					onFixSuccess?.(response.prompt);
-					return response.prompt;
-				}
-
-				return null;
-			} catch (err) {
-				const error = err instanceof Error ? err : new Error("Error tuning prompt");
-				console.error("Error tuning prompt:", err);
-				onFixError?.(error);
-				return null;
-			}
+			const response = await fixRisksAsync({
+				promptValue: nextPromptValue,
+				recommendations,
+			});
+			return response?.prompt ?? null;
 		},
-		[closeAuditModal, onFixError, onFixSuccess, playgroundFlow, setDiffModal],
+		[fixRisksAsync],
 	);
 
 	const clearAuditData = useCallback(() => {
