@@ -7,7 +7,6 @@ const toKeyPart = (value: ScopeParam) => (value == null ? "" : String(value));
 const promptScopeKey = (promptId: ScopeParam) => toKeyPart(promptId);
 
 type AssertionDraft = {
-	type?: string;
 	value?: string;
 };
 

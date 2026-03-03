@@ -11,7 +11,7 @@ interface UseAssertionsProps {
 export const useAssertions = ({ promptId }: UseAssertionsProps) => {
 	const { prompt, updatePrompt } = usePromptById(promptId);
 	const { toast } = useToast();
-	const { currentAssertionType, assertionValue, setAssertionType, setAssertionValue } =
+	const { currentAssertionType, assertionValue, setAssertionValue } =
 		usePlaygroundAssertion({
 			promptId,
 			serverAssertionType: prompt?.prompt?.assertionType,
@@ -48,13 +48,11 @@ export const useAssertions = ({ promptId }: UseAssertionsProps) => {
 
 	const handleAssertionTypeChange = useCallback(
 		(value: string) => {
-			setAssertionType(value);
-
 			if (promptId) {
 				handleUpdatePrompt({ assertionType: value });
 			}
 		},
-		[promptId, setAssertionType, handleUpdatePrompt],
+		[promptId, handleUpdatePrompt],
 	);
 
 	const handleAssertionValueChange = useCallback(

@@ -208,6 +208,9 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 	};
 
 	const handleOpenModal = async () => {
+		if (testcase?.status === "NEED_RUN") {
+			return;
+		}
 		if (testcaseId) {
 			await refreshTestcase();
 		}
@@ -366,6 +369,7 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 								}}
 								testcase={testcase}
 								status={status}
+								assertionType={prompt?.prompt?.assertionType || "AI"}
 							/>
 						)}
 					</div>
