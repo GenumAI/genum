@@ -55,7 +55,9 @@ export const ParameterFields = memo(
 								label={label}
 								options={config.allowed}
 								disabled={disabled}
-								onChange={onFormChange}
+								onChange={(name, value) =>
+									onFormChange({ [name]: value }, { immediate: true })
+								}
 							/>
 						);
 					}
@@ -72,6 +74,9 @@ export const ParameterFields = memo(
 								max={config.max}
 								step={getSliderStep(paramKey)}
 								disabled={disabled}
+								onCommit={(name, value) =>
+									onFormChange({ [name]: value }, { immediate: true })
+								}
 							/>
 						);
 					}

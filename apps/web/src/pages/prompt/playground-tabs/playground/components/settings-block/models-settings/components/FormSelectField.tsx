@@ -43,7 +43,7 @@ export const FormSelectField = memo(
 							value={field.value?.toString() || ""}
 							onValueChange={(value) => {
 								field.onChange(value);
-								onChange?.(value);
+								onChange?.(name, value);
 							}}
 							disabled={disabled}
 						>

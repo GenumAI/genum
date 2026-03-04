@@ -1,4 +1,4 @@
-import type { PromptSettings, TLanguageModel } from "@/types/Prompt";
+import type { PromptSettings } from "@/types/Prompt";
 import type { Model } from "@/types/AIModel";
 import type { UseFormReturn } from "react-hook-form";
 
@@ -25,8 +25,8 @@ export interface RunMetricsProps {
 }
 
 export interface ExecutionMetricsProps {
-	settings?: TLanguageModel;
 	responseTime?: number | null;
+	totalTokens?: number;
 	promptTokens?: number;
 	completionTokens?: number;
 }
@@ -68,6 +68,7 @@ export interface FormSliderProps {
 	step: number;
 	disabled?: boolean;
 	control: UseFormReturn<ModelSettingsFormValues>["control"];
+	onCommit?: (name: keyof ModelSettingsFormValues, value: number) => void;
 }
 
 export interface ToolItem {
@@ -83,7 +84,7 @@ export interface FormSelectFieldProps {
 	options: string[];
 	disabled?: boolean;
 	control: UseFormReturn<ModelSettingsFormValues>["control"];
-	onChange?: (value: string) => void;
+	onChange?: (name: keyof ModelSettingsFormValues, value: string) => void;
 }
 
 export interface ToolsSectionProps {
@@ -109,5 +110,8 @@ export interface ParameterFieldsProps {
 	excludedParams: string[];
 	disabled: boolean;
 	control: UseFormReturn<ModelSettingsFormValues>["control"];
-	onFormChange: () => void;
+	onFormChange: (
+		overrides?: Partial<ModelSettingsFormValues>,
+		options?: { immediate?: boolean },
+	) => void;
 }

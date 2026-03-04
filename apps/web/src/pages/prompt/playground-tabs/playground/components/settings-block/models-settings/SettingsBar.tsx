@@ -80,8 +80,8 @@ export default function SettingsBar({
 							<Separator className="my-1" />
 							<RunMetrics responseTime={responseTime} tokens={tokens} cost={cost} />
 							<ExecutionMetrics
-								settings={prompt?.languageModel}
 								responseTime={responseTime}
+								totalTokens={tokens?.total}
 								promptTokens={tokens?.prompt}
 								completionTokens={tokens?.completion}
 							/>

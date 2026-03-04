@@ -1,13 +1,12 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Form } from "@/components/ui/form";
 import JsonSchemaModal from "./components/ai-interface-editor/json-schema-editor/JsonSchemaModal";
 import { useModelsSettings } from "./hooks/useModelsSettings";
-import { ModelSelector } from "./components/ModelSelector";
-import { ResponseFormatSection } from "./components/ResponseFormatSection";
-import { ToolsSection } from "./components/ToolsSection";
-import { ParameterFields } from "./components/ParameterFields";
-import { FormSelectField } from "./components/FormSelectField";
+import { ModelSelectorBlock } from "./components/ModelSelectorBlock";
+import { ResponseFormatBlock } from "./components/ResponseFormatBlock";
+import { ToolsBlock } from "./components/ToolsBlock";
+import { ParametersBlock } from "./components/ParametersBlock";
 import type { ModelsSettingsProps } from "./utils/types";
 
 const ModelsSettings = ({
@@ -80,10 +79,32 @@ const ModelsSettings = ({
 		activeModelConfig?.parameters &&
 			Object.keys(activeModelConfig.parameters).some((key) => key !== "tools"),
 	);
+	const handleModelChangeRef = useRef(handleModelChange);
+	const handleResponseFormatChangeRef = useRef(handleResponseFormatChange);
 
 	useEffect(() => {
 		onToolsSectionVisibilityChange?.(hasOtherParameters);
 	}, [onToolsSectionVisibilityChange, hasOtherParameters]);
+
+	useEffect(() => {
+		handleModelChangeRef.current = handleModelChange;
+	}, [handleModelChange]);
+
+	useEffect(() => {
+		handleResponseFormatChangeRef.current = handleResponseFormatChange;
+	}, [handleResponseFormatChange]);
+
+	const handleModelChangeStable = useCallback((value: string) => {
+		void handleModelChangeRef.current(value);
+	}, []);
+
+	const handleOpenSchemaDialog = useCallback(() => {
+		setSchemaDialogOpen(true);
+	}, [setSchemaDialogOpen]);
+
+	const handleResponseFormatChangeStable = useCallback((value: string) => {
+		void handleResponseFormatChangeRef.current(value);
+	}, []);
 
 	if (!models || models.length === 0) {
 		return (
@@ -106,65 +127,54 @@ const ModelsSettings = ({
 			<Form {...form}>
 				<form className="flex flex-col gap-2">
 					<div className="flex flex-col gap-2">
-					<ModelSelector
-						models={effectiveModels}
-						groupedModels={groupedModels}
+						<ModelSelectorBlock
+							models={effectiveModels}
+							groupedModels={groupedModels}
 							selectedModelName={selectedModelName}
-							onModelChange={handleModelChange}
+							onModelChange={handleModelChangeStable}
 							disabled={isUpdatingModel || loading}
 							control={control}
 						/>
 
-						{activeModelConfig?.parameters?.response_format && (
-							<ResponseFormatSection
-								control={control}
-								formatOptions={getResponseFormatOptions}
-								onFormatChange={handleResponseFormatChange}
-								disabled={isUpdatingModel || loading}
-								showEditSchema={responseFormat === "json_schema"}
-								onOpenSchemaDialog={() => setSchemaDialogOpen(true)}
-							/>
-						)}
-
-						{showAddFunction && (
-							<ToolsSection
-								tools={tools}
-								editingToolIdx={editingToolIdx}
-								setEditingToolIdx={setEditingToolIdx}
-								editingTool={editingTool}
-								setEditingTool={setEditingTool}
-								toolsModalOpen={toolsModalOpen}
-								setToolsModalOpen={setToolsModalOpen}
-								promptId={promptId}
-								llmConfig={prompt?.languageModelConfig}
-								showAddFunction={showAddFunction}
-								isUpdatingModel={isUpdatingModel}
-								onToolDelete={handleToolDelete}
-								onToolSave={handleToolSave}
-							/>
-						)}
-					</div>
-
-					<div key={`${forceRenderKey}-${selectedModelId}`} className="space-y-5 mt-2">
-						{isCurrentModelReasoning && (
-							<FormSelectField
-								control={control}
-								name="reasoningEffort"
-								label="Reasoning Effort"
-								options={reasoningEffortOptions}
-								disabled={isUpdatingModel || loading}
-								onChange={onFormChange}
-							/>
-						)}
-
-						<ParameterFields
-							parameters={activeModelConfig?.parameters || {}}
-							excludedParams={excludedParams}
-							disabled={isUpdatingModel || loading}
+						<ResponseFormatBlock
+							show={Boolean(activeModelConfig?.parameters?.response_format)}
 							control={control}
-							onFormChange={onFormChange}
+							formatOptions={getResponseFormatOptions}
+							onFormatChange={handleResponseFormatChangeStable}
+							disabled={loading}
+							showEditSchema={responseFormat === "json_schema"}
+							onOpenSchemaDialog={handleOpenSchemaDialog}
+						/>
+
+						<ToolsBlock
+							show={showAddFunction}
+							tools={tools}
+							editingToolIdx={editingToolIdx}
+							setEditingToolIdx={setEditingToolIdx}
+							editingTool={editingTool}
+							setEditingTool={setEditingTool}
+							toolsModalOpen={toolsModalOpen}
+							setToolsModalOpen={setToolsModalOpen}
+							promptId={promptId}
+							llmConfig={prompt?.languageModelConfig}
+							showAddFunction={showAddFunction}
+							isUpdatingModel={isUpdatingModel}
+							onToolDelete={handleToolDelete}
+							onToolSave={handleToolSave}
 						/>
 					</div>
+
+					<ParametersBlock
+						forceRenderKey={forceRenderKey}
+						selectedModelId={selectedModelId}
+						isCurrentModelReasoning={isCurrentModelReasoning}
+						reasoningEffortOptions={reasoningEffortOptions}
+						disabled={isUpdatingModel || loading}
+						onFormChange={onFormChange}
+						parameters={activeModelConfig?.parameters || {}}
+						excludedParams={excludedParams}
+						control={control}
+					/>
 				</form>
 
 				{responseFormat === "json_schema" && !!prompt && (
