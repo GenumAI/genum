@@ -3,6 +3,7 @@ type ScopeParam = string | number | undefined;
 export const versionKeys = {
 	details: (id: ScopeParam, versionId: ScopeParam) =>
 		["version-details", id, versionId] as const,
+	branches: (id: ScopeParam) => ["branches", id] as const,
 	versions: (id: ScopeParam) => ["versions", id] as const,
 	compareBranches: (id: ScopeParam) => ["compare-branches", id] as const,
 	compareVersionA: (id: ScopeParam, commitA: ScopeParam) =>
@@ -10,4 +11,3 @@ export const versionKeys = {
 	compareVersionB: (id: ScopeParam, commitB: ScopeParam) =>
 		["compare-version", id, "B", commitB] as const,
 };
-

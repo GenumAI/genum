@@ -23,7 +23,6 @@ export default function Versions() {
 		data,
 		isLoading,
 		isCommitted,
-		setIsCommitted,
 		refresh,
 	} = useVersionsData(id);
 
@@ -39,7 +38,6 @@ export default function Versions() {
 	} = useCommitDialog({
 		promptId: id || "",
 		onSuccess: () => {
-			setIsCommitted(true);
 			refresh();
 		},
 	});

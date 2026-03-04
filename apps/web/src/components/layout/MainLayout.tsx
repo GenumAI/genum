@@ -6,7 +6,6 @@ import {
 	useSearchParams,
 	ScrollRestoration,
 } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/sidebar/sidebar";
 import PageHeader from "@/components/layout/header/page-header";
@@ -28,7 +27,6 @@ import clsx from "clsx";
 import VersionStatus from "@/pages/prompt/playground-tabs/version/components/VersionStatus";
 import { PromptStatusProvider, usePromptStatus } from "@/contexts/PromptStatusContext";
 import PendingInviteHandler from "@/pages/invite/PendingInviteHandler";
-import { promptKeys } from "@/query-keys/prompt.keys";
 
 const GENUMLAB_LAST_ORG_ID = "genumlab_last_org_id";
 const GENUMLAB_LAST_PROJECT_ID = "genumlab_last_project_id";
@@ -36,7 +34,6 @@ const GENUMLAB_LAST_PROJECT_ID = "genumlab_last_project_id";
 function LayoutContent({ user }: { user: UserType }) {
 	const location = useLocation();
 	const [searchParams] = useSearchParams();
-	const queryClient = useQueryClient();
 	const { orgId, projectId, id, versionId, notificationId } = useParams<{
 		orgId: string;
 		projectId: string;
@@ -156,20 +153,6 @@ function LayoutContent({ user }: { user: UserType }) {
 
 	const handleCommitStatusChange = (newCommited: boolean) => {
 		setIsCommitted(newCommited);
-
-		if (promptId) {
-			queryClient.setQueryData(promptKeys.byId(promptId), (oldData: any) => {
-				if (!oldData) return oldData;
-				return {
-					...oldData,
-					prompt: {
-						...oldData.prompt,
-						commited: newCommited,
-						updatedAt: new Date().toISOString(),
-					},
-				};
-			});
-		}
 	};
 
 	return (

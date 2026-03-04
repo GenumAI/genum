@@ -31,36 +31,16 @@ export function usePromptById(promptId: number | string | undefined) {
 
 	const updatePromptMutation = useMutation<
 		PromptResponse,
-		unknown,
+		Error,
 		{ updateData: Partial<PromptSettings>; options?: Options },
-		{ previousPrompt?: PromptResponse }
+		void
 	>({
 		mutationKey: promptKeys.update(promptId),
+		retry: 3,
+		retryDelay: (attempt) => Math.min(1000 * attempt, 5000),
 		mutationFn: async ({ updateData }) => {
 			if (!promptId) throw new Error("Prompt ID is required");
 			return await promptApi.updatePrompt(promptId, updateData);
-		},
-		onMutate: async ({ updateData }) => {
-			await queryClient.cancelQueries({ queryKey });
-			const previousPrompt = queryClient.getQueryData<PromptResponse>(queryKey);
-
-			queryClient.setQueryData<PromptResponse>(queryKey, (oldData) => {
-				if (!oldData) return oldData;
-				return {
-					...oldData,
-					prompt: {
-						...oldData.prompt,
-						...updateData,
-					},
-				};
-			});
-
-			return { previousPrompt };
-		},
-		onError: (_error, _variables, context) => {
-			if (context?.previousPrompt) {
-				queryClient.setQueryData(queryKey, context.previousPrompt);
-			}
 		},
 		onSuccess: (result, variables) => {
 			queryClient.setQueryData<PromptResponse>(queryKey, (oldData) => {

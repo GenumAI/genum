@@ -45,6 +45,8 @@ export function usePlaygroundPrompt({
 	const clearLivePromptValue = useCallback(() => {
 		usePromptStore.getState().clearPromptDraft(promptId);
 	}, [promptId]);
+	const lastSavedValueRef = useRef(serverPromptValue);
+	const pendingValueRef = useRef<string | null>(null);
 
 	// Cleanup + prompt switching behavior
 	const prevPromptIdRef = useRef<number | undefined>(promptId);
@@ -79,31 +81,52 @@ export function usePlaygroundPrompt({
 		}
 	}, [prompt?.prompt, setIsCommitted]);
 
+	useEffect(() => {
+		lastSavedValueRef.current = serverPromptValue;
+		if (pendingValueRef.current === serverPromptValue) {
+			pendingValueRef.current = null;
+		}
+	}, [serverPromptValue]);
+
 	const updatePromptContent = useCallback(
 		async (value: string, options?: UpdatePromptContentOptions) => {
 			if (options?.isWithoutUpdate) return;
 
 			const updateValue = options?.isEmpty ? "" : value;
-			setLivePromptValue(updateValue);
 
 			if (updateValue === serverPromptValue) {
 				clearLivePromptValue();
+				lastSavedValueRef.current = updateValue;
 				return;
 			}
 
+			if (pendingValueRef.current === updateValue || lastSavedValueRef.current === updateValue) {
+				return;
+			}
+
+			pendingValueRef.current = updateValue;
+
 			try {
-				setIsCommitted(false);
 				await updatePrompt({ value: updateValue }, options as Options);
+				lastSavedValueRef.current = updateValue;
 				clearLivePromptValue();
 			} catch (error) {
 				console.error("Failed to update prompt content:", error);
+				toast({
+					title: "Failed to save prompt",
+					description: "Could not save prompt. Please try again.",
+					variant: "destructive",
+				});
+			} finally {
+				if (pendingValueRef.current === updateValue) {
+					pendingValueRef.current = null;
+				}
 			}
 		},
 		[
 			serverPromptValue,
-			setLivePromptValue,
 			clearLivePromptValue,
-			setIsCommitted,
+			toast,
 			updatePrompt,
 		],
 	);
