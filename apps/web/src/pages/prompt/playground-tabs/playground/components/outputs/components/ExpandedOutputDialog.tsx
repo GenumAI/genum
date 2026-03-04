@@ -16,6 +16,7 @@ interface ExpandedOutputDialogProps {
 	testcaseId: string | null;
 	isTestcaseLoading: boolean;
 	hasValidOutput: boolean;
+	onModifiedValueChange: (value: string) => void;
 	onSaveModifiedValue: (value: string) => void;
 	onSaveAsExpected: () => void;
 	onAddTestcase: () => void;
@@ -31,6 +32,7 @@ export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
 	testcaseId,
 	isTestcaseLoading,
 	hasValidOutput,
+	onModifiedValueChange,
 	onSaveModifiedValue,
 	onSaveAsExpected,
 	onAddTestcase,
@@ -59,6 +61,7 @@ export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
 					<CompareDiffEditor
 						original={content?.answer}
 						modified={modifiedValue}
+						onChange={onModifiedValueChange}
 						onBlur={onSaveModifiedValue}
 						className="output-diff-editor w-full min-w-0"
 					/>

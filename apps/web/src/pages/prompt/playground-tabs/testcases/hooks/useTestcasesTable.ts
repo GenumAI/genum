@@ -31,6 +31,7 @@ type UseTestcasesTableOptions = {
 	hidePromptColumn?: boolean;
 	resetOnWorkspaceChange?: boolean;
 	initialFilterState?: FilterState;
+	isActive?: boolean;
 };
 
 const createDefaultFilterState = (): FilterState => ({ prompts: [], testcasesStatus: [] });
@@ -41,6 +42,7 @@ export const useTestcasesTable = ({
 	hidePromptColumn,
 	resetOnWorkspaceChange = false,
 	initialFilterState,
+	isActive = true,
 }: UseTestcasesTableOptions = {}) => {
 	const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>();
 	const [searchParams] = useSearchParams();
@@ -72,7 +74,7 @@ export const useTestcasesTable = ({
 		data: promptTestcases = [],
 		isLoading: isPromptLoading,
 		refetch: refetchPromptTestcases,
-	} = usePromptTestcases(promptId);
+	} = usePromptTestcases(promptId, isActive);
 	const {
 		data: projectTestcases = [],
 		isLoading: isProjectLoading,
@@ -83,8 +85,7 @@ export const useTestcasesTable = ({
 			const response = await testcasesApi.getTestcases();
 			return response.testcases || [];
 		},
-		enabled: !promptId && !!orgId && !!projectId,
-		refetchOnMount: "always",
+		enabled: isActive && !promptId && !!orgId && !!projectId,
 	});
 
 	const testcases = promptId ? promptTestcases : projectTestcases;

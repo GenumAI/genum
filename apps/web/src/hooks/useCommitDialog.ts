@@ -65,7 +65,7 @@ export const useCommitDialog = ({ promptId, onSuccess }: UseCommitDialogProps) =
 			const promptResult = await promptApi.getPrompt(promptId);
 			const commited = promptResult.prompt?.commited ?? false;
 			await queryClient.invalidateQueries({ queryKey: promptKeys.byId(promptId) });
-			await queryClient.invalidateQueries({ queryKey: versionKeys.branches(promptId) });
+			await queryClient.invalidateQueries({ queryKey: versionKeys.versions(promptId) });
 			toast({
 				title: "Changes committed successfully",
 			});

@@ -2,6 +2,7 @@ import { useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
+import type { TestCase } from "@/types/TestСase";
 
 export const useHeaderTestcase = (
 	testcaseId: string | null,
@@ -36,8 +37,13 @@ export const useHeaderTestcase = (
 		if (!testcaseId) return null;
 		const updated = await testcasesApi.updateTestcase(testcaseId, { name });
 		queryClient.setQueryData(testcaseKeys.byId(testcaseId), updated);
-		if (promptId) {
-			await queryClient.invalidateQueries({ queryKey: testcaseKeys.promptTestcases(promptId) });
+		const updatedTestcase = updated?.testcase;
+		if (promptId && updatedTestcase) {
+			queryClient.setQueryData(
+				testcaseKeys.promptTestcases(promptId),
+				(prev: TestCase[] | undefined) =>
+					prev?.map((tc) => (tc.id === updatedTestcase.id ? updatedTestcase : tc)) ?? prev,
+			);
 		}
 		return updated;
 	};

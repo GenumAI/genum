@@ -13,6 +13,7 @@ import {
 import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import usePlaygroundStore from "@/stores/playground.store";
+import type { TestCase } from "@/types/TestСase";
 
 export const useMemoryKey = (promptId: number) => {
 	const queryClient = useQueryClient();
@@ -67,11 +68,18 @@ export const useMemoryKey = (promptId: number) => {
 	const updateTestcaseMutation = useMutation({
 		mutationFn: ({ tcId, data }: { tcId: string; data: { memoryId: number | null } }) =>
 			testcasesApi.updateTestcase(tcId, data),
-		onSuccess: () => {
+		onSuccess: (data) => {
+			const updatedTestcase = data?.testcase;
+			if (!updatedTestcase) return;
+
 			if (testcaseId) {
-				queryClient.invalidateQueries({ queryKey: testcaseKeys.byId(testcaseId) });
+				queryClient.setQueryData(testcaseKeys.byId(testcaseId), { testcase: updatedTestcase });
 			}
-			queryClient.invalidateQueries({ queryKey: promptMemoriesQueryKey(promptId) });
+			queryClient.setQueryData(
+				testcaseKeys.promptTestcases(promptId),
+				(prev: TestCase[] | undefined) =>
+					prev?.map((tc) => (tc.id === updatedTestcase.id ? updatedTestcase : tc)) ?? prev,
+			);
 		},
 	});
 

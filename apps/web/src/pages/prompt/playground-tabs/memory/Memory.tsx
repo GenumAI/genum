@@ -22,11 +22,12 @@ export default function Memory() {
 	const [selectedMemory, setSelectedMemory] = useState<PromptMemory | null>(null);
 	const [editingMemory, setEditingMemory] = useState<PromptMemory | undefined>(undefined);
 
-	const { id } = useParams<{ id: string }>();
+	const { id, tab } = useParams<{ id: string; tab: string }>();
+	const isActive = tab === "memory";
 	const [currentPromptId, setCurrentPromptId] = useState(id);
 	const promptId = id ? Number(id) : undefined;
 
-	const { data: memories = [], isLoading } = usePromptMemories(promptId);
+	const { data: memories = [], isLoading } = usePromptMemories(promptId, isActive);
 	const { search, setSearch, sorting, setSorting, filteredMemories } = useMemoryFilters({
 		memories,
 		promptId: id,

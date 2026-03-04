@@ -26,10 +26,20 @@ const CompareDiffEditor = ({
 	const blurListenerRef = useRef<any>(null);
 	const layoutListenerRef = useRef<any>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
+	const onChangeRef = useRef(onChange);
+	const onBlurRef = useRef(onBlur);
 	const [editorHeight, setEditorHeight] = useState<number | string>("100%");
 
 	const original = useMemo(() => parseJson(props.original || ""), [props.original]);
 	const modified = useMemo(() => parseJson(props.modified || ""), [props.modified]);
+
+	useEffect(() => {
+		onChangeRef.current = onChange;
+	}, [onChange]);
+
+	useEffect(() => {
+		onBlurRef.current = onBlur;
+	}, [onBlur]);
 
 	useEffect(() => {
 		return () => {
@@ -97,7 +107,7 @@ const CompareDiffEditor = ({
 
 		changeListenerRef.current = modifiedEditor.onDidChangeModelContent(() => {
 			const newValue = modifiedEditor.getValue();
-			onChange?.(newValue);
+			onChangeRef.current?.(newValue);
 			if (maxHeight) {
 				requestAnimationFrame(() => {
 					updateEditorHeight();
@@ -115,10 +125,10 @@ const CompareDiffEditor = ({
 			});
 		}
 
-		if (onBlur) {
+		if (onBlurRef.current) {
 			blurListenerRef.current = modifiedEditor.onDidBlurEditorText(() => {
 				const newValue = modifiedEditor.getValue();
-				onBlur(newValue);
+				onBlurRef.current?.(newValue);
 			});
 		}
 

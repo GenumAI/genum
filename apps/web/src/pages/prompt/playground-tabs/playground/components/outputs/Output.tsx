@@ -58,6 +58,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		modifiedValue,
 		expectedMetrics,
 		clearExpectedOutput,
+		handleModifiedValueChange,
 		saveModifiedValue,
 		handleSaveAsExpected: handleSaveAsExpectedFromHook,
 		hasValidOutput,
@@ -147,6 +148,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 					<CompareDiffEditor
 						original={content?.answer}
 						modified={modifiedValue}
+						onChange={handleModifiedValueChange}
 						onBlur={saveModifiedValue}
 						className="output-diff-editor w-full min-w-0 rounded-b-[6px]"
 					/>
@@ -172,6 +174,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 				testcaseId={testcaseId}
 				isTestcaseLoading={isTestcaseLoading}
 				hasValidOutput={hasValidOutput}
+				onModifiedValueChange={handleModifiedValueChange}
 				onSaveModifiedValue={saveModifiedValue}
 				onSaveAsExpected={handleSaveAsExpected}
 				onAddTestcase={handleAddTestcase}

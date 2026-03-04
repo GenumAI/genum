@@ -5,8 +5,9 @@ import TestcasesToolbar from "./components/TestcasesToolbar";
 import TestcasesTable from "./components/TestcasesTable";
 
 export default function Testcases() {
-	const { id } = useParams<{ id: string; orgId: string; projectId: string }>();
+	const { id, tab } = useParams<{ id: string; orgId: string; projectId: string; tab: string }>();
 	const promptId = id ? Number(id) : undefined;
+	const isActive = tab === "testcases";
 
 	const {
 		search,
@@ -28,7 +29,7 @@ export default function Testcases() {
 		handleFilterChange,
 
 		getRowCount,
-	} = useTestcasesTable({ promptId });
+	} = useTestcasesTable({ promptId, isActive });
 
 	return (
 		<>

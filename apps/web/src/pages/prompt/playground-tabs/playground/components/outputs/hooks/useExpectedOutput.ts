@@ -30,6 +30,7 @@ export const useExpectedOutput = ({
 
 	const prevPromptIdRef = useRef<number | undefined>(promptId);
 	const prevTestcaseIdRef = useRef<string | null>(testcaseId);
+	const persistedExpectedRef = useRef<string | undefined>(initialExpectedContent?.answer);
 
 	// Clear expected output when prompt changes
 	useEffect(() => {
@@ -57,6 +58,12 @@ export const useExpectedOutput = ({
 		}
 	}, [initialExpectedContent, testcaseId]);
 
+	useEffect(() => {
+		if (prevTestcaseIdRef.current !== testcaseId) {
+			persistedExpectedRef.current = initialExpectedContent?.answer;
+		}
+	}, [testcaseId, initialExpectedContent?.answer]);
+
 	// Clear when testcase is deselected
 	useEffect(() => {
 		const prevTestcaseId = prevTestcaseIdRef.current;
@@ -71,22 +78,39 @@ export const useExpectedOutput = ({
 		setModifiedValue("");
 	}, []);
 
+	const handleModifiedValueChange = useCallback(
+		(value: string) => {
+			setModifiedValue(value);
+			setExpectedOutput({
+				...(initialExpectedContent ?? {
+					tokens: { prompt: 0, completion: 0, total: 0 },
+					cost: { prompt: 0, completion: 0, total: 0 },
+					response_time_ms: 0,
+					status: "",
+				}),
+				answer: value,
+			});
+		},
+		[initialExpectedContent, setExpectedOutput],
+	);
+
 	const saveModifiedValue = useCallback(
 		async (value: string) => {
-			setModifiedValue(value);
+			handleModifiedValueChange(value);
 
 			if (!testcaseId) {
 				return;
 			}
-			if (compareValues(value, initialExpectedContent?.answer)) {
+			if (compareValues(value, persistedExpectedRef.current)) {
 				return;
 			}
 
 			await onSaveAsExpected({
 				answer: value,
 			});
+			persistedExpectedRef.current = value;
 		},
-		[testcaseId, initialExpectedContent, onSaveAsExpected],
+		[testcaseId, onSaveAsExpected, handleModifiedValueChange],
 	);
 
 	const handleSaveAsExpected = useCallback(async () => {
@@ -109,6 +133,7 @@ export const useExpectedOutput = ({
 
 		try {
 			await onSaveAsExpected(newExpectedContent);
+			persistedExpectedRef.current = lastOutputAnswer;
 			return { success: true };
 		} catch (error) {
 			setExpectedOutput(initialExpectedContent ?? null);
@@ -120,6 +145,7 @@ export const useExpectedOutput = ({
 		modifiedValue,
 		expectedMetrics,
 		clearExpectedOutput,
+		handleModifiedValueChange,
 		saveModifiedValue,
 		handleSaveAsExpected,
 		hasValidOutput: !!content?.answer,

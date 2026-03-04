@@ -17,7 +17,7 @@ const SYSTEM_AUTHOR = {
 	picture: "",
 };
 
-export const useVersionsData = (id: string | undefined) => {
+export const useVersionsData = (id: string | undefined, isActive = true) => {
 	const queryClient = useQueryClient();
 
 	const branchesQuery = useQuery({
@@ -35,7 +35,9 @@ export const useVersionsData = (id: string | undefined) => {
 				})),
 			} as BranchesResponse;
 		},
-		enabled: Boolean(id),
+		enabled: Boolean(id && isActive),
+		staleTime: Infinity,
+		gcTime: Infinity,
 	});
 
 	const promptQuery = useQuery({
@@ -44,7 +46,7 @@ export const useVersionsData = (id: string | undefined) => {
 			if (!id) throw new Error("No id");
 			return promptApi.getPrompt(id);
 		},
-		enabled: Boolean(id),
+		enabled: Boolean(id && isActive),
 	});
 
 	const refresh = () => {

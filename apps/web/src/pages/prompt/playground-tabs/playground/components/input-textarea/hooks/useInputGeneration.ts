@@ -6,6 +6,7 @@ import { promptApi } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { helperKeys } from "@/query-keys/helpers.keys";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
+import type { TestCase } from "@/types/TestСase";
 
 interface UseInputGenerationProps {
 	promptId?: number;
@@ -38,17 +39,20 @@ export const useInputGeneration = ({
 		mutationKey: testcaseKeys.updateInput(testcaseId ?? undefined),
 		mutationFn: async (input: string) => {
 			if (!testcaseId) return;
-			await testcasesApi.updateTestcase(testcaseId, { input });
+			return testcasesApi.updateTestcase(testcaseId, { input });
 		},
-		onSuccess: async () => {
+		onSuccess: (data) => {
 			if (!testcaseId) return;
-			await queryClient.invalidateQueries({
-				queryKey: testcaseKeys.byId(testcaseId),
-			});
+			const updatedTestcase = data?.testcase;
+			if (!updatedTestcase) return;
+
+			queryClient.setQueryData(testcaseKeys.byId(testcaseId), { testcase: updatedTestcase });
 			if (promptId) {
-				await queryClient.invalidateQueries({
-					queryKey: testcaseKeys.promptTestcases(promptId),
-				});
+				queryClient.setQueryData(
+					testcaseKeys.promptTestcases(promptId),
+					(prev: TestCase[] | undefined) =>
+						prev?.map((tc) => (tc.id === updatedTestcase.id ? updatedTestcase : tc)) ?? prev,
+				);
 			}
 		},
 	});

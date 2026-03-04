@@ -123,17 +123,20 @@ export function usePlaygroundTestcaseController({
 			expectedChainOfThoughts: string;
 		}) => {
 			if (!testcaseId) return;
-			await testcasesApi.updateTestcase(testcaseId, updateData);
+			return testcasesApi.updateTestcase(testcaseId, updateData);
 		},
-		onSuccess: async () => {
+		onSuccess: (data) => {
 			if (!testcaseId) return;
-			await queryClient.invalidateQueries({
-				queryKey: testcaseKeys.byId(testcaseId),
-			});
+			const updatedTestcase = data?.testcase;
+			if (!updatedTestcase) return;
+
+			queryClient.setQueryData(testcaseKeys.byId(testcaseId), { testcase: updatedTestcase });
 			if (promptId) {
-				await queryClient.invalidateQueries({
-					queryKey: testcaseKeys.promptTestcases(promptId),
-				});
+				queryClient.setQueryData(
+					testcaseKeys.promptTestcases(promptId),
+					(prev: TestCase[] | undefined) =>
+						prev?.map((tc) => (tc.id === updatedTestcase.id ? updatedTestcase : tc)) ?? prev,
+				);
 			}
 		},
 	});
@@ -182,12 +185,16 @@ export function usePlaygroundTestcaseController({
 							status: currentExpectedOutput.status,
 						}
 					: formattedExpectedOutput;
-				const isExpectedUnchanged = isSameOutputSnapshot(
-					currentExpectedOutput,
-					mergedExpectedOutput,
-				);
+			const hasLocalExpectedDraft =
+				Boolean(testcaseId) &&
+				currentExpectedOutput !== null &&
+				(currentExpectedOutput?.answer ?? "") !== (formattedExpectedOutput?.answer ?? "");
+			const isExpectedUnchanged = isSameOutputSnapshot(
+				currentExpectedOutput,
+				mergedExpectedOutput,
+			);
 
-			if (!isExpectedUnchanged) {
+			if (!hasLocalExpectedDraft && !isExpectedUnchanged) {
 				setExpectedOutput(mergedExpectedOutput);
 			}
 
@@ -222,6 +229,7 @@ export function usePlaygroundTestcaseController({
 		}
 	}, [
 		testcase,
+		testcaseId,
 		storeOutputContent,
 		currentExpectedOutput,
 		setInputContent,

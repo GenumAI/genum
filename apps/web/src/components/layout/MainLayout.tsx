@@ -13,10 +13,8 @@ import { MainLayoutBreadcrumb } from "@/components/layout/header/MainLayoutBread
 
 import { navigation } from "@/hooks/useNavigation";
 import { usePromptById } from "@/hooks/usePrompt";
-import { testcasesApi } from "@/api/testcases/testcases.api";
 import { useNotificationById } from "@/hooks/useNotificationById";
 import { promptApi } from "@/api/prompt";
-import type { TestCaseResponse } from "@/types/TestСase";
 import type { UserType } from "@/types/User";
 import { CookiesPopover } from "@/components/popovers/CookiesPopover";
 import { useDeviceOrientation } from "@/hooks/useDeviceOrientation";
@@ -27,6 +25,9 @@ import clsx from "clsx";
 import VersionStatus from "@/pages/prompt/playground-tabs/version/components/VersionStatus";
 import { PromptStatusProvider, usePromptStatus } from "@/contexts/PromptStatusContext";
 import PendingInviteHandler from "@/pages/invite/PendingInviteHandler";
+import { useQuery } from "@tanstack/react-query";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
+import { testcasesApi } from "@/api/testcases";
 
 const GENUMLAB_LAST_ORG_ID = "genumlab_last_org_id";
 const GENUMLAB_LAST_PROJECT_ID = "genumlab_last_project_id";
@@ -58,37 +59,16 @@ function LayoutContent({ user }: { user: UserType }) {
 	const isPlayground = window.location.pathname.endsWith("/playground");
 
 	const { isCommitted, setIsCommitted, activePromptId } = usePromptStatus();
-	const [testcase, setTestcase] = useState<TestCaseResponse["testcase"] | null>(null);
-
-	useEffect(() => {
-		if (testcaseId) {
-			const fetchTestcase = () => {
-				testcasesApi
-					.getTestcase(testcaseId)
-					.then((response) => {
-						setTestcase(response.testcase);
-					})
-					.catch((error) => {
-						console.error("Failed to fetch testcase:", error);
-						setTestcase(null);
-					});
-			};
-
-			fetchTestcase();
-
-			const handleTestcaseUpdated = () => {
-				fetchTestcase();
-			};
-
-			window.addEventListener("testcaseUpdated", handleTestcaseUpdated);
-
-			return () => {
-				window.removeEventListener("testcaseUpdated", handleTestcaseUpdated);
-			};
-		} else {
-			setTestcase(null);
-		}
-	}, [testcaseId]);
+	const { data: testcaseData } = useQuery({
+		queryKey: testcaseKeys.byId(testcaseId ?? undefined),
+		queryFn: async () => {
+			if (!testcaseId) throw new Error("Testcase ID is required");
+			return testcasesApi.getTestcase(testcaseId);
+		},
+		enabled: Boolean(testcaseId),
+		retry: false,
+	});
+	const testcase = testcaseData?.testcase ?? null;
 
 	const isVersionsPage = /^\/[^/]+\/[^/]+\/prompt\/\d+\/versions\/\d+\/?$/.test(
 		location.pathname,

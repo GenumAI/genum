@@ -22,8 +22,9 @@ import { useAddTestcaseFromLog } from "./hooks/useAddTestcaseFromLog";
 import type { Log } from "@/types/logs";
 
 export default function LogsTab() {
-	const { id } = useParams<{ id: string }>();
+	const { id, tab } = useParams<{ id: string; tab: string }>();
 	const promptId = id ? Number(id) : undefined;
+	const isActive = tab === "logs";
 
 	const { logsFilter, setLogsFilter, queryInput, handleQueryChange } = useLogsFilters();
 	const { page, setPage, pageSize, getTotalPages, visiblePages, handlePageSizeChange } =
@@ -40,6 +41,7 @@ export default function LogsTab() {
 		pageSize,
 		logsFilter,
 		shouldFetchMemories: isLogDetailsOpen,
+		isActive,
 	});
 
 	const { handleAddTestcaseFromLog, creatingTestcase } = useAddTestcaseFromLog({

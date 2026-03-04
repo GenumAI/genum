@@ -14,6 +14,7 @@ interface UseLogsDataParams {
 	pageSize: number;
 	logsFilter: LogsFilterState;
 	shouldFetchMemories?: boolean;
+	isActive?: boolean;
 }
 
 export function useLogsData({
@@ -22,6 +23,7 @@ export function useLogsData({
 	pageSize,
 	logsFilter,
 	shouldFetchMemories = false,
+	isActive = true,
 }: UseLogsDataParams) {
 	const fromDate = logsFilter.dateRange?.from?.toISOString();
 	const toDate = logsFilter.dateRange?.to?.toISOString();
@@ -42,8 +44,7 @@ export function useLogsData({
 			source,
 			query,
 		}),
-		enabled: Boolean(promptId),
-		refetchOnMount: "always",
+		enabled: Boolean(promptId && isActive),
 		placeholderData: keepPreviousData,
 		queryFn: async () => {
 			return promptApi.getLogs(promptId as number, {
@@ -61,8 +62,7 @@ export function useLogsData({
 
 	const memoriesQuery = useQuery<Memory[]>({
 		queryKey: memoryKeys.promptMemories(promptId),
-		enabled: Boolean(promptId && shouldFetchMemories),
-		refetchOnMount: "always",
+		enabled: Boolean(promptId && shouldFetchMemories && isActive),
 		queryFn: async () => {
 			const response = await promptApi.getMemories(promptId as number);
 			return response.memories || [];

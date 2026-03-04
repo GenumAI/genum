@@ -12,7 +12,8 @@ import { VersionsToolbar } from "./components/VersionsToolbar";
 import type { PromptVersion } from "./utils/types";
 
 export default function Versions() {
-	const { id } = useParams<{ id: string }>();
+	const { id, tab } = useParams<{ id: string; tab: string }>();
+	const isActive = tab === "versions";
 	const orgId = getOrgId();
 	const projectId = getProjectId();
 	const navigate = useNavigate();
@@ -24,7 +25,7 @@ export default function Versions() {
 		isLoading,
 		isCommitted,
 		refresh,
-	} = useVersionsData(id);
+	} = useVersionsData(id, isActive);
 
 	const {
 		isOpen: commitDialogOpen,
