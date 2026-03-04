@@ -6,6 +6,7 @@ import { promptApi } from "@/api/prompt";
 
 interface LastCommitInfoProps {
 	promptId: number;
+	refreshTrigger?: boolean;
 }
 
 type BranchesData = {
@@ -29,10 +30,12 @@ type BranchesData = {
 	}>;
 };
 
-const LastCommitInfo = ({ promptId }: LastCommitInfoProps) => {
+const LastCommitInfo = ({ promptId, refreshTrigger }: LastCommitInfoProps) => {
 	const [data, setData] = useState<BranchesData | null>(null);
 
 	useEffect(() => {
+		void refreshTrigger;
+
 		const fetchBranches = async () => {
 			if (!promptId) return;
 			try {
@@ -58,7 +61,7 @@ const LastCommitInfo = ({ promptId }: LastCommitInfoProps) => {
 		};
 
 		fetchBranches();
-	}, [promptId]);
+	}, [promptId, refreshTrigger]);
 
 	const formatDate = (dateString: string) => {
 		const date = new Date(dateString);

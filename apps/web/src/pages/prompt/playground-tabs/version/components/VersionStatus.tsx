@@ -49,7 +49,7 @@ const VersionStatus = ({
 	return (
 		<>
 			<div className="flex items-center gap-2">
-				<LastCommitInfo promptId={promptId} />
+				<LastCommitInfo promptId={promptId} refreshTrigger={commited} />
 				<TooltipProvider>
 					<Tooltip>
 						<TooltipTrigger asChild>
