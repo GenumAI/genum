@@ -66,6 +66,7 @@ export interface FormSliderProps {
 	min: number;
 	max: number;
 	step: number;
+	defaultValue?: number;
 	disabled?: boolean;
 	control: UseFormReturn<ModelSettingsFormValues>["control"];
 	onCommit?: (name: keyof ModelSettingsFormValues, value: number) => void;
@@ -82,6 +83,7 @@ export interface FormSelectFieldProps {
 	name: keyof ModelSettingsFormValues;
 	label: string;
 	options: string[];
+	defaultValue?: string;
 	disabled?: boolean;
 	control: UseFormReturn<ModelSettingsFormValues>["control"];
 	onChange?: (name: keyof ModelSettingsFormValues, value: string) => void;

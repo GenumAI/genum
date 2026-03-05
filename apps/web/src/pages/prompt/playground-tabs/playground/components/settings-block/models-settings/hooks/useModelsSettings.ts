@@ -10,10 +10,7 @@ import { useRefreshCommitStatus } from "@/hooks/useRefreshCommitStatus";
 import { promptApi } from "@/api/prompt";
 import { promptKeys } from "@/query-keys/prompt.keys";
 import { modelsSettingsKeys } from "@/query-keys/models-settings.keys";
-import {
-	useModelsSettingsActions,
-	useModelsSettingsUI,
-} from "@/stores/modelsSettings.store";
+import { useModelsSettingsActions, useModelsSettingsUI } from "@/stores/modelsSettings.store";
 import type { PromptSettings } from "@/types/Prompt";
 import type { Model, ResponseModelConfig } from "@/types/AIModel";
 import { modelSettingsSchema } from "../utils/schema";
@@ -136,8 +133,13 @@ export function useModelsSettings({
 
 	const updatePromptModelMutation = useMutation({
 		mutationKey: modelsSettingsKeys.updatePromptModel(promptId),
-		mutationFn: async ({ targetPromptId, modelId }: { targetPromptId: number; modelId: number }) =>
-			promptApi.updatePromptModel(targetPromptId, modelId),
+		mutationFn: async ({
+			targetPromptId,
+			modelId,
+		}: {
+			targetPromptId: number;
+			modelId: number;
+		}) => promptApi.updatePromptModel(targetPromptId, modelId),
 		onSuccess: (result) => {
 			if (promptId) {
 				queryClient.setQueryData(promptKeys.byId(promptId), result);
@@ -216,11 +218,11 @@ export function useModelsSettings({
 		defaultValues: {
 			selectedModel: "",
 			selectedModelId: null,
-			maxTokens: 0,
-			temperature: 0,
-			topP: 0,
-			frequencyPenalty: 0,
-			presencePenalty: 0,
+			maxTokens: null,
+			temperature: null,
+			topP: null,
+			frequencyPenalty: null,
+			presencePenalty: null,
 			responseFormat: "",
 			reasoningEffort: null,
 			verbosity: null,
@@ -339,8 +341,7 @@ export function useModelsSettings({
 					draftValues.jsonSchema !== undefined
 						? draftValues.jsonSchema
 						: currentJsonSchema;
-				const draftIsSchemaCleared =
-					draftValues.isSchemaCleared ?? isSchemaCleared;
+				const draftIsSchemaCleared = draftValues.isSchemaCleared ?? isSchemaCleared;
 
 				const payload = buildModelSettingsPayload({
 					parameters: activeModelConfig?.parameters || {},
@@ -395,25 +396,19 @@ export function useModelsSettings({
 		[persistLatestDraft],
 	);
 
-	const onFormChange = useCallback((
-		overrides: Partial<ModelSettingsFormValues> = {},
-		options?: { immediate?: boolean },
-	) => {
-		if (!promptId || !selectedModelId) return;
-		syncDraftFromForm(overrides);
-		if (options?.immediate) {
-			debouncedUpdateSettings.cancel();
-			void persistLatestDraft();
-			return;
-		}
-		debouncedUpdateSettings();
-	}, [
-		promptId,
-		selectedModelId,
-		syncDraftFromForm,
-		debouncedUpdateSettings,
-		persistLatestDraft,
-	]);
+	const onFormChange = useCallback(
+		(overrides: Partial<ModelSettingsFormValues> = {}, options?: { immediate?: boolean }) => {
+			if (!promptId || !selectedModelId) return;
+			syncDraftFromForm(overrides);
+			if (options?.immediate) {
+				debouncedUpdateSettings.cancel();
+				void persistLatestDraft();
+				return;
+			}
+			debouncedUpdateSettings();
+		},
+		[promptId, selectedModelId, syncDraftFromForm, debouncedUpdateSettings, persistLatestDraft],
+	);
 
 	const handleModelChange = useCallback(
 		async (value: string) => {
@@ -729,13 +724,7 @@ export function useModelsSettings({
 			syncDraftFromForm({ tools: updatedTools });
 			await persistLatestDraft();
 		},
-		[
-			tools,
-			promptId,
-			setTools,
-			syncDraftFromForm,
-			persistLatestDraft,
-		],
+		[tools, promptId, setTools, syncDraftFromForm, persistLatestDraft],
 	);
 
 	useEffect(() => {

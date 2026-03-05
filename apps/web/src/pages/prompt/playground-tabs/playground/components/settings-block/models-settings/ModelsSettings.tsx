@@ -66,7 +66,26 @@ const ModelsSettings = ({
 		"high",
 		"xhigh",
 	];
+	const reasoningEffortDefaultValue =
+		typeof activeModelConfig?.parameters?.reasoning_effort?.default === "string"
+			? activeModelConfig.parameters.reasoning_effort.default
+			: undefined;
 	const toolsParam = activeModelConfig?.parameters as Record<string, unknown> | undefined;
+	const activeParameters = activeModelConfig?.parameters as Record<string, unknown> | undefined;
+	const lastKnownParametersRef = useRef<Record<string, unknown>>({});
+
+	useEffect(() => {
+		if (activeParameters && Object.keys(activeParameters).length > 0) {
+			lastKnownParametersRef.current = activeParameters;
+		}
+	}, [activeParameters]);
+
+	const resolvedParameters =
+		activeParameters !== undefined
+			? activeParameters
+			: isUpdatingModel
+				? lastKnownParametersRef.current
+				: {};
 	const toolsEnabled =
 		typeof toolsParam?.tools === "object" &&
 		toolsParam?.tools !== null &&
@@ -76,15 +95,23 @@ const ModelsSettings = ({
 		prompt?.languageModel?.vendor === "CUSTOM_OPENAI_COMPATIBLE";
 	const showAddFunction = !isCustomVendor || toolsEnabled;
 	const hasOtherParameters = Boolean(
-		activeModelConfig?.parameters &&
-			Object.keys(activeModelConfig.parameters).some((key) => key !== "tools"),
+		resolvedParameters && Object.keys(resolvedParameters).some((key) => key !== "tools"),
 	);
+	const shouldUseSettingsGap =
+		isCurrentModelReasoning ||
+		Boolean(
+			resolvedParameters &&
+				Object.keys(resolvedParameters).some(
+					(key) =>
+						key !== "tools" && key !== "response_format" && key !== "reasoning_effort",
+				),
+		);
 	const handleModelChangeRef = useRef(handleModelChange);
 	const handleResponseFormatChangeRef = useRef(handleResponseFormatChange);
 
 	useEffect(() => {
-		onToolsSectionVisibilityChange?.(hasOtherParameters);
-	}, [onToolsSectionVisibilityChange, hasOtherParameters]);
+		onToolsSectionVisibilityChange?.(shouldUseSettingsGap);
+	}, [onToolsSectionVisibilityChange, shouldUseSettingsGap]);
 
 	useEffect(() => {
 		handleModelChangeRef.current = handleModelChange;
@@ -132,7 +159,7 @@ const ModelsSettings = ({
 							groupedModels={groupedModels}
 							selectedModelName={selectedModelName}
 							onModelChange={handleModelChangeStable}
-							disabled={isUpdatingModel || loading}
+							disabled={isUpdatingModel}
 							control={control}
 						/>
 
@@ -141,7 +168,7 @@ const ModelsSettings = ({
 							control={control}
 							formatOptions={getResponseFormatOptions}
 							onFormatChange={handleResponseFormatChangeStable}
-							disabled={loading}
+							disabled={isUpdatingModel}
 							showEditSchema={responseFormat === "json_schema"}
 							onOpenSchemaDialog={handleOpenSchemaDialog}
 						/>
@@ -164,17 +191,20 @@ const ModelsSettings = ({
 						/>
 					</div>
 
-					<ParametersBlock
-						forceRenderKey={forceRenderKey}
-						selectedModelId={selectedModelId}
-						isCurrentModelReasoning={isCurrentModelReasoning}
-						reasoningEffortOptions={reasoningEffortOptions}
-						disabled={isUpdatingModel || loading}
-						onFormChange={onFormChange}
-						parameters={activeModelConfig?.parameters || {}}
-						excludedParams={excludedParams}
-						control={control}
-					/>
+					{hasOtherParameters && (
+						<ParametersBlock
+							forceRenderKey={forceRenderKey}
+							selectedModelId={selectedModelId}
+							isCurrentModelReasoning={isCurrentModelReasoning}
+							reasoningEffortOptions={reasoningEffortOptions}
+							reasoningEffortDefaultValue={reasoningEffortDefaultValue}
+							disabled={isUpdatingModel || loading}
+							onFormChange={onFormChange}
+							parameters={resolvedParameters}
+							excludedParams={excludedParams}
+							control={control}
+						/>
+					)}
 				</form>
 
 				{responseFormat === "json_schema" && !!prompt && (

@@ -64,9 +64,7 @@ export default function SettingsBar({
 				</button>
 
 				{isOpenModels && (
-					<div
-						className={`h-full flex flex-col${isToolsSectionVisible ? " gap-3" : ""}`}
-					>
+					<div className={`h-full flex flex-col${isToolsSectionVisible ? " gap-3" : ""}`}>
 						<ModelsSettings
 							prompt={prompt}
 							models={validModels}

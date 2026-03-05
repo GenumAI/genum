@@ -63,39 +63,37 @@ export const ToolsSection = memo(
 						Add Function
 					</Button>
 				)}
-				<div className="rounded-lg bg-trasparent mt-2 flex flex-col items-center justify-center">
-					{Array.isArray(tools) && tools.length > 0 && (
-						<div className="w-full flex flex-col gap-2">
-							{tools.map((tool) => (
-								<button
-									key={tool.name}
-									type="button"
-									className="flex items-center justify-between px-3 py-2 mt-1 border rounded-lg hover:bg-muted h-9 cursor-pointer transition-colors w-full text-left"
-									onClick={() => handleToolClick(tools.indexOf(tool))}
+				{Array.isArray(tools) && tools.length > 0 && (
+					<div className="mt-2 w-full flex flex-col gap-2">
+						{tools.map((tool) => (
+							<button
+								key={tool.name}
+								type="button"
+								className="flex items-center justify-between px-3 py-2 mt-1 border rounded-lg hover:bg-muted h-9 cursor-pointer transition-colors w-full text-left"
+								onClick={() => handleToolClick(tools.indexOf(tool))}
+							>
+								<span className="text-[14px]" title={tool.name}>
+									{tool.name.length > 20
+										? `${tool.name.slice(0, 20)}…`
+										: tool.name}
+								</span>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="w-7 h-7 text-foreground hover:text-red-600 transition-colors"
+									onClick={(e) => {
+										e.stopPropagation();
+										if (!isUpdatingModel) {
+											onToolDelete(tools.indexOf(tool));
+										}
+									}}
 								>
-									<span className="text-[14px]" title={tool.name}>
-										{tool.name.length > 20
-											? `${tool.name.slice(0, 20)}…`
-											: tool.name}
-									</span>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="w-7 h-7 text-foreground hover:text-red-600 transition-colors"
-										onClick={(e) => {
-											e.stopPropagation();
-											if (!isUpdatingModel) {
-												onToolDelete(tools.indexOf(tool));
-											}
-										}}
-									>
-										<Trash2 className="w-4 h-4" />
-									</Button>
-								</button>
-							))}
-						</div>
-					)}
-				</div>
+									<Trash2 className="w-4 h-4" />
+								</Button>
+							</button>
+						))}
+					</div>
+				)}
 				<ToolsModal
 					open={toolsModalOpen}
 					onOpenChange={handleModalOpenChange}

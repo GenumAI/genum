@@ -9,6 +9,7 @@ interface ParametersBlockProps {
 	selectedModelId: number | null;
 	isCurrentModelReasoning: boolean;
 	reasoningEffortOptions: string[];
+	reasoningEffortDefaultValue?: string;
 	disabled: boolean;
 	onFormChange: (
 		overrides?: Partial<ModelSettingsFormValues>,
@@ -35,10 +36,9 @@ const shallowStringArrayEqual = (a: string[], b: string[]) => {
 
 export const ParametersBlock = memo(
 	({
-		forceRenderKey,
-		selectedModelId,
 		isCurrentModelReasoning,
 		reasoningEffortOptions,
+		reasoningEffortDefaultValue,
 		disabled,
 		onFormChange,
 		parameters,
@@ -46,13 +46,14 @@ export const ParametersBlock = memo(
 		control,
 	}: ParametersBlockProps) => {
 		return (
-			<div key={`${forceRenderKey}-${selectedModelId}`} className="space-y-5 mt-2">
+			<div className="mt-2 space-y-5">
 				{isCurrentModelReasoning && (
 					<FormSelectField
 						control={control}
 						name="reasoningEffort"
 						label="Reasoning Effort"
 						options={reasoningEffortOptions}
+						defaultValue={reasoningEffortDefaultValue}
 						disabled={disabled}
 						onChange={(name, value) =>
 							onFormChange({ [name]: value }, { immediate: true })
@@ -76,6 +77,7 @@ export const ParametersBlock = memo(
 			prev.selectedModelId === next.selectedModelId &&
 			prev.isCurrentModelReasoning === next.isCurrentModelReasoning &&
 			shallowStringArrayEqual(prev.reasoningEffortOptions, next.reasoningEffortOptions) &&
+			prev.reasoningEffortDefaultValue === next.reasoningEffortDefaultValue &&
 			prev.disabled === next.disabled &&
 			prev.onFormChange === next.onFormChange &&
 			shallowRecordEqual(prev.parameters, next.parameters) &&
