@@ -16,6 +16,7 @@ const ModelsSettings = ({
 	onValidationChange,
 	isUpdatingPromptContent,
 	onToolsSectionVisibilityChange,
+	loadingFallback,
 }: ModelsSettingsProps) => {
 	const {
 		form,
@@ -133,20 +134,16 @@ const ModelsSettings = ({
 		void handleResponseFormatChangeRef.current(value);
 	}, []);
 
+	const isModelSelectionReady = Boolean(selectedModelId && selectedModelName);
+	const isModelConfigReady = Boolean(activeModelConfig) || isUpdatingModel;
+	const isSettingsReady = isDataReady && isModelSelectionReady && isModelConfigReady;
+
 	if (!models || models.length === 0) {
-		return (
-			<div className="flex flex-col gap-2">
-				<div className="text-sm text-muted-foreground">Loading models...</div>
-			</div>
-		);
+		return null;
 	}
 
-	if (!isDataReady) {
-		return (
-			<div className="flex flex-col gap-2">
-				<div className="text-sm text-muted-foreground">Loading configuration...</div>
-			</div>
-		);
+	if (!isSettingsReady) {
+		return <>{loadingFallback ?? null}</>;
 	}
 
 	return (

@@ -1,6 +1,7 @@
 import type { PromptSettings } from "@/types/Prompt";
 import type { Model } from "@/types/AIModel";
 import type { UseFormReturn } from "react-hook-form";
+import type { ReactNode } from "react";
 
 export type TimeParam = {
 	prompt: number;
@@ -58,6 +59,7 @@ export interface ModelsSettingsProps {
 	onValidationChange?: (isValid: boolean) => void;
 	isUpdatingPromptContent?: boolean;
 	onToolsSectionVisibilityChange?: (visible: boolean) => void;
+	loadingFallback?: ReactNode;
 }
 
 export interface FormSliderProps {

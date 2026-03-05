@@ -9,6 +9,7 @@ import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDi
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import { InputTextArea } from "@/pages/prompt/playground-tabs/playground/components/input-textarea/InputTextArea";
+import { PlaygroundMainSkeleton } from "./utils/playgroundSkeletons";
 import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlayground";
 import { getOrgId, getProjectId } from "@/api/client";
 import SelectedFilesList from "@/pages/files/components/SelectedFilesList";
@@ -35,94 +36,103 @@ export default function Playground() {
 	});
 
 	const { prompt, testcase, metrics, ui, models, actions } = controller;
+	const isInitialLoading = ui.loading.prompt || testcase.loading;
 
 	return (
 		<div className="h-full w-full min-w-0 max-w-[1470px] overflow-x-hidden px-3 pt-8 text-foreground lg:pr-6">
-			<div className="flex w-full min-w-0 flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start">
-				<div className="flex w-full min-w-0 flex-col gap-8 overflow-hidden rounded-[12px] border border-border bg-card px-4 pb-4 pt-3 text-card-foreground lg:flex-1">
-					{testcaseId && !testcase.data && testcase.loading ? (
-						<div className="flex items-center justify-center h-full">
-							<Loader2 className="animate-spin" />
-							<span className="ml-2">Loading testcase...</span>
-						</div>
-					) : (
-						<>
-							<TextEditor
-								title="System Instructions"
-								main={true}
-								content={prompt.content}
-								onUpdatePrompt={actions.prompt.update}
-								onLivePromptChange={actions.prompt.setLiveValue}
-								metrics={metrics}
-								testcaseInput={testcase.data?.input}
-								expectedContent={testcase.expectedContent}
-								onAuditPrompt={actions.audit.run}
-								onOpenAuditModal={actions.audit.openModal}
-								isAuditLoading={ui.loading.audit}
-								canAudit={!!prompt.content}
-								auditRate={ui.modals.audit.rate}
+			{isInitialLoading ? (
+				<div className="flex w-full min-w-0 flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start">
+					<PlaygroundMainSkeleton />
+					<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">
+						<SettingsBar
+							prompt={prompt.data?.prompt}
+							models={models}
+							tokens={metrics.tokens}
+							cost={metrics.cost}
+							responseTime={metrics.responseTime}
+							updatePromptContent={actions.prompt.update}
+							isUpdatingPromptContent={ui.loading.updatingContent}
+						/>
+					</div>
+				</div>
+			) : (
+				<div className="flex w-full min-w-0 flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start">
+					<div className="flex w-full min-w-0 flex-col gap-8 overflow-hidden rounded-[12px] border border-border bg-card px-4 pb-4 pt-3 text-card-foreground lg:flex-1">
+						<TextEditor
+							title="System Instructions"
+							main={true}
+							content={prompt.content}
+							onUpdatePrompt={actions.prompt.update}
+							onLivePromptChange={actions.prompt.setLiveValue}
+							metrics={metrics}
+							testcaseInput={testcase.data?.input}
+							expectedContent={testcase.expectedContent}
+							onAuditPrompt={actions.audit.run}
+							onOpenAuditModal={actions.audit.openModal}
+							isAuditLoading={ui.loading.audit}
+							canAudit={!!prompt.content}
+							auditRate={ui.modals.audit.rate}
+						/>
+
+						<div>
+							<InputTextArea
+								ref={inputRef}
+								onBlur={actions.testcase.onInputBlur}
+								promptId={promptId}
+								systemPrompt={prompt.content}
+								hasPromptContent={ui.validation.hasPromptContent}
 							/>
 
-							<div>
-								<InputTextArea
-									ref={inputRef}
-									onBlur={actions.testcase.onInputBlur}
-									promptId={promptId}
-									systemPrompt={prompt.content}
-									hasPromptContent={ui.validation.hasPromptContent}
-								/>
-
-								<div className="mt-3 flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
-									<div className="w-full min-w-0 sm:flex-1">
-										<SelectedFilesList
-											selectedFiles={selectedFiles}
-											setSelectedFiles={setSelectedFiles}
-											testcaseId={testcaseId}
-											promptId={promptId}
-											testcaseFiles={testcase.data?.files}
-											maxFiles={3}
-										/>
-									</div>
-									<Button
-										disabled={
-											!ui.validation.hasPromptContent ||
-											!ui.validation.hasInputContent ||
-											ui.loading.run ||
-											isTestcaseLoading
-										}
-										onClick={actions.run}
-										className="h-[32px] w-full flex-shrink-0 text-[14px] sm:w-[138px]"
-									>
-										{ui.loading.run && <Loader2 className="animate-spin" />}
-										{testcaseId ? "Run testcase" : "Run prompt"}
-									</Button>
+							<div className="mt-3 flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
+								<div className="w-full min-w-0 sm:flex-1">
+									<SelectedFilesList
+										selectedFiles={selectedFiles}
+										setSelectedFiles={setSelectedFiles}
+										testcaseId={testcaseId}
+										promptId={promptId}
+										testcaseFiles={testcase.data?.files}
+										maxFiles={3}
+									/>
 								</div>
+								<Button
+									disabled={
+										!ui.validation.hasPromptContent ||
+										!ui.validation.hasInputContent ||
+										ui.loading.run ||
+										isTestcaseLoading
+									}
+									onClick={actions.run}
+									className="h-[32px] w-full flex-shrink-0 text-[14px] sm:w-[138px]"
+								>
+									{ui.loading.run && <Loader2 className="animate-spin" />}
+									{testcaseId ? "Run testcase" : "Run prompt"}
+								</Button>
 							</div>
+						</div>
 
-							<OutputBlock
-								onSaveAsExpected={actions.testcase.saveAsExpected}
-								onTestcaseAdded={actions.testcase.onAdded}
-								onRegisterClearFunction={actions.testcase.registerClearFn}
-								selectedFiles={selectedFiles}
-								onTestcaseLoadingChange={setIsTestcaseLoading}
-								isRunning={ui.loading.run}
-							/>
-						</>
-					)}
+						<OutputBlock
+							onSaveAsExpected={actions.testcase.saveAsExpected}
+							onTestcaseAdded={actions.testcase.onAdded}
+							onRegisterClearFunction={actions.testcase.registerClearFn}
+							selectedFiles={selectedFiles}
+							onTestcaseLoadingChange={setIsTestcaseLoading}
+							isRunning={ui.loading.run}
+						/>
+					</div>
+ 
+					<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">
+						<SettingsBar
+							prompt={prompt.data?.prompt}
+							models={models}
+							tokens={metrics.tokens}
+							cost={metrics.cost}
+							responseTime={metrics.responseTime}
+							updatePromptContent={actions.prompt.update}
+							isUpdatingPromptContent={ui.loading.updatingContent}
+						/>
+					</div>
 				</div>
-
-				<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">
-					<SettingsBar
-						prompt={prompt.data?.prompt}
-						models={models}
-						tokens={metrics.tokens}
-						cost={metrics.cost}
-						responseTime={metrics.responseTime}
-						updatePromptContent={actions.prompt.update}
-						isUpdatingPromptContent={ui.loading.updatingContent}
-					/>
-				</div>
-			</div>
+			)}
 
 			{testcase.data && (
 				<TestcaseAssertionModal

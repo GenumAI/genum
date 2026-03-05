@@ -111,6 +111,7 @@ export function useModelsSettings({
 		editingToolIdx,
 		editingTool,
 	} = ui;
+	const modelConfigTargetId = selectedModelId ?? prompt?.languageModel?.id ?? null;
 
 	const userSelectionInProgress = useRef<boolean>(false);
 	const isInitialized = useRef<boolean>(false);
@@ -120,13 +121,13 @@ export function useModelsSettings({
 	const hasQueuedDraftRef = useRef(false);
 
 	const modelConfigQuery = useQuery({
-		queryKey: modelsSettingsKeys.modelConfig(selectedModelId),
+		queryKey: modelsSettingsKeys.modelConfig(modelConfigTargetId),
 		queryFn: async (): Promise<ResponseModelConfig | null> => {
-			if (!selectedModelId) return null;
-			const data = await promptApi.getModelConfig(selectedModelId);
+			if (!modelConfigTargetId) return null;
+			const data = await promptApi.getModelConfig(modelConfigTargetId);
 			return data.config;
 		},
-		enabled: !!selectedModelId && !isUpdatingModel,
+		enabled: !!modelConfigTargetId && !isUpdatingModel,
 		refetchOnWindowFocus: false,
 		placeholderData: (previousData) => previousData,
 	});
