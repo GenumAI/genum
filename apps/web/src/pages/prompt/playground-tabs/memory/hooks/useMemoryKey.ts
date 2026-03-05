@@ -52,8 +52,21 @@ export const useMemoryKey = (promptId: number) => {
 	const updateMemoryMutation = useMutation({
 		mutationFn: ({ memoryId, value }: { memoryId: number; value: string }) =>
 			promptApi.updateMemory(promptId, memoryId, { value }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: promptMemoriesQueryKey(promptId) });
+		onSuccess: (response) => {
+			const updatedMemory = response?.memory;
+			if (!updatedMemory) return;
+			queryClient.setQueryData(
+				promptMemoriesQueryKey(promptId),
+				(prev: Memory[] | undefined) =>
+					prev?.map((memory) => (memory.id === updatedMemory.id ? updatedMemory : memory)) ??
+					prev,
+			);
+		},
+		onError: () => {
+			toast({
+				title: "Something went wrong",
+				variant: "destructive",
+			});
 		},
 	});
 
@@ -81,6 +94,12 @@ export const useMemoryKey = (promptId: number) => {
 					prev?.map((tc) => (tc.id === updatedTestcase.id ? updatedTestcase : tc)) ?? prev,
 			);
 		},
+		onError: () => {
+			toast({
+				title: "Something went wrong",
+				variant: "destructive",
+			});
+		},
 	});
 
 	// For testcase scope, keep selection synced with testcase memory from server.
@@ -106,20 +125,16 @@ export const useMemoryKey = (promptId: number) => {
 		setMemoryValue(selectedMemory?.value || "");
 	}, [selectedKey, memories, setMemoryValue]);
 
-	const updateMemory = useCallback(
-		async (value: string) => {
-			const memory = memories.find((item) => item.id === Number(selectedKey));
-			if (!memory || memory.value === value) return;
-			try {
-				await updateMemoryMutation.mutateAsync({ memoryId: memory.id, value });
-			} catch {
-				toast({
-					title: "Something went wrong",
-					variant: "destructive",
-				});
-			}
+	const persistMemoryValue = useCallback(
+		async (memoryId: string, value: string) => {
+			const memory = memories.find((item) => item.id === Number(memoryId));
+			if (!memory || memory.value === value) return true;
+			return updateMemoryMutation
+				.mutateAsync({ memoryId: memory.id, value })
+				.then(() => true)
+				.catch(() => false);
 		},
-		[memories, selectedKey, updateMemoryMutation],
+		[memories, updateMemoryMutation],
 	);
 
 	const onValueChange = useCallback(
@@ -131,15 +146,18 @@ export const useMemoryKey = (promptId: number) => {
 
 	const onBlurHandler = useCallback(() => {
 		if (!selectedKey) return;
-		updateMemory(memoryValue);
-	}, [selectedKey, memoryValue, updateMemory]);
+		void persistMemoryValue(selectedKey, memoryValue);
+	}, [selectedKey, memoryValue, persistMemoryValue]);
 
 	const onSelectKeyHandler = useCallback(
 		async (key: string) => {
-			await updateMemory(memoryValue);
+			const previousSelectedKey = selectedKey;
+			const previousMemoryValue = memoryValue;
 
 			const memory = key ? memories.find((item) => item.id === Number(key)) : undefined;
 			const nextValue = memory?.value || "";
+
+			// 1) local draft (zustand)
 			setSelection({
 				selectedMemoryId: key,
 				selectedMemoryKeyName: memory?.key || "",
@@ -148,27 +166,28 @@ export const useMemoryKey = (promptId: number) => {
 				.getState()
 				.setMemoryValueDraft(promptId, testcaseId, key || null, nextValue);
 
+			// 2) react-query -> 3) server
+			if (previousSelectedKey) {
+				await persistMemoryValue(previousSelectedKey, previousMemoryValue);
+			}
+
 			if (testcaseId) {
-				try {
-					await updateTestcaseMutation.mutateAsync({
+				await updateTestcaseMutation
+					.mutateAsync({
 						tcId: testcaseId,
 						data: { memoryId: memory ? memory.id : null },
-					});
-				} catch {
-					toast({
-						title: "Something went wrong",
-						variant: "destructive",
-					});
-				}
+					})
+					.catch(() => {});
 			}
 		},
 		[
-			updateMemory,
+			selectedKey,
 			memoryValue,
 			memories,
 			setSelection,
 			promptId,
 			testcaseId,
+			persistMemoryValue,
 			updateTestcaseMutation,
 		],
 	);
@@ -176,24 +195,27 @@ export const useMemoryKey = (promptId: number) => {
 	const clearSelectedMemory = useCallback(
 		async (e: MouseEvent<HTMLButtonElement>) => {
 			e.stopPropagation();
-			await updateMemory(memoryValue);
+			const previousSelectedKey = selectedKey;
+			const previousMemoryValue = memoryValue;
 
+			// 1) local draft (zustand)
 			setSelection({ selectedMemoryId: "", selectedMemoryKeyName: "" });
 			usePlaygroundStore.getState().setMemoryValueDraft(promptId, testcaseId, null, "");
 
+			// 2) react-query -> 3) server
+			if (previousSelectedKey) {
+				await persistMemoryValue(previousSelectedKey, previousMemoryValue);
+			}
+
 			if (testcaseId) {
-				try {
-					await updateTestcaseMutation.mutateAsync({
+				const hasFailed = await updateTestcaseMutation
+					.mutateAsync({
 						tcId: testcaseId,
 						data: { memoryId: null },
-					});
-				} catch {
-					toast({
-						title: "Something went wrong",
-						variant: "destructive",
-					});
-					return;
-				}
+					})
+					.then(() => false)
+					.catch(() => true);
+				if (hasFailed) return;
 			}
 
 			toast({
@@ -202,11 +224,12 @@ export const useMemoryKey = (promptId: number) => {
 			});
 		},
 		[
-			updateMemory,
+			selectedKey,
 			memoryValue,
 			setSelection,
 			promptId,
 			testcaseId,
+			persistMemoryValue,
 			updateTestcaseMutation,
 		],
 	);
@@ -229,17 +252,12 @@ export const useMemoryKey = (promptId: number) => {
 					.setMemoryValueDraft(promptId, testcaseId, String(newMemoryId), value);
 
 				if (testcaseId) {
-					try {
-						await updateTestcaseMutation.mutateAsync({
+					await updateTestcaseMutation
+						.mutateAsync({
 							tcId: testcaseId,
 							data: { memoryId: newMemoryId },
-						});
-					} catch {
-						toast({
-							title: "Failed to update testcase",
-							variant: "destructive",
-						});
-					}
+						})
+						.catch(() => {});
 				}
 
 				toast({

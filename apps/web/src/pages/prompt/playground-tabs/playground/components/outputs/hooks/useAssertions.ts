@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useCallback } from "react";
-import debounce from "lodash.debounce";
+import { useCallback } from "react";
 import { usePlaygroundAssertion } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAssertion";
 import { useToast } from "@/hooks/useToast";
 import { promptApi } from "@/api/prompt";
@@ -67,18 +66,6 @@ export const useAssertions = ({
 		[promptId, updatePromptAssertionMutation],
 	);
 
-	// Debounced update for assertion value
-	const debouncedUpdateAssertionValue = useMemo(
-		() =>
-			debounce(async (value: string) => {
-				if (promptId && currentAssertionType === "AI") {
-					await handleUpdatePrompt({ assertionValue: value });
-				}
-			}, 500),
-		[promptId, currentAssertionType, handleUpdatePrompt],
-	);
-	useEffect(() => () => debouncedUpdateAssertionValue.cancel(), [debouncedUpdateAssertionValue]);
-
 	const handleAssertionTypeChange = useCallback(
 		(value: string) => {
 			if (promptId) {
@@ -98,9 +85,10 @@ export const useAssertions = ({
 
 	const handleAssertionValueBlur = useCallback(
 		(value: string) => {
-			debouncedUpdateAssertionValue(value);
+			if (!promptId || currentAssertionType !== "AI") return;
+			void handleUpdatePrompt({ assertionValue: value });
 		},
-		[debouncedUpdateAssertionValue],
+		[promptId, currentAssertionType, handleUpdatePrompt],
 	);
 
 	return {
