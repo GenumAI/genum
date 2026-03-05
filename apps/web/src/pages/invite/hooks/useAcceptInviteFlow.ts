@@ -7,6 +7,7 @@ import type { CurrentUser } from "@/api/user";
 import { useAuth } from "@/hooks/useAuth";
 import { useInviteToken } from "@/hooks/useInviteToken";
 import { authKeys } from "@/query-keys/auth.keys";
+import { inviteKeys } from "@/query-keys/invite.keys";
 
 interface UseAcceptInviteFlowParams {
 	urlToken?: string;
@@ -55,7 +56,7 @@ export function useAcceptInviteFlow({ urlToken }: UseAcceptInviteFlowParams) {
 	}, [token, navigate]);
 
 	const inviteQuery = useQuery({
-		queryKey: ["invite", "validation", token],
+		queryKey: inviteKeys.validation(token),
 		enabled: Boolean(isAuthenticated && !isLoading && token),
 		queryFn: async () => {
 			const config = await getInviteRequestConfig();
