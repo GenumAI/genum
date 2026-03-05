@@ -1,14 +1,23 @@
 import { useState } from "react";
+import { useParams } from "react-router-dom";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useOrganization } from "../hooks/useOrganization";
 import { EditOrgDialog } from "./dialogs/EditOrgDialog";
+import { OrganizationRole, hasOrgAccess } from "@/api/organization";
 
 export default function OrgGeneral() {
+	const { orgId } = useParams<{ orgId: string }>();
+	const { user } = useCurrentUser();
 	const { organization, isLoading, updateOrganization } = useOrganization();
 	const [isOpenEdit, setIsOpenEdit] = useState(false);
+
+	const currentOrg = user?.organizations?.find((o) => o.id.toString() === orgId);
+	const orgRole = (currentOrg?.role as OrganizationRole) ?? OrganizationRole.READER;
+	const canEditOrg = hasOrgAccess(orgRole, OrganizationRole.ADMIN);
 
 	if (isLoading) {
 		return (
@@ -34,14 +43,16 @@ export default function OrgGeneral() {
 					<CardTitle className="font-medium text-[18px] dark:text-[#fff] leading-[28px]">
 						Organization Details
 					</CardTitle>
-					<Button
-						variant="outline"
-						size="sm"
-						className="!mt-0"
-						onClick={() => setIsOpenEdit(true)}
-					>
-						Edit
-					</Button>
+					{canEditOrg && (
+						<Button
+							variant="outline"
+							size="sm"
+							className="!mt-0"
+							onClick={() => setIsOpenEdit(true)}
+						>
+							Edit
+						</Button>
+					)}
 				</CardHeader>
 				<CardContent className="space-y-4 max-w-[724px]">
 					<div className="space-y-1.5">

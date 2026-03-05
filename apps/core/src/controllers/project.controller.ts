@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 import { db } from "@/database/db";
+import { OrganizationRole } from "@/prisma";
+import { ProjectService } from "@/services/project.service";
 import {
 	getProjectUsageWithDailyStats,
 	getProjectLogs,
@@ -9,6 +11,7 @@ import {
 import {
 	numberSchema,
 	ProjectMemberCreateSchema,
+	ProjectMemberUpdateSchema,
 	stringSchema,
 	ProjectUsageStatsSchema,
 	ProjectLogsQuerySchema,
@@ -17,6 +20,12 @@ import {
 import type { LogLevel, SourceType } from "@/services/logger";
 
 export class ProjectController {
+	private readonly projectService: ProjectService;
+
+	constructor() {
+		this.projectService = new ProjectService(db);
+	}
+
 	public async getProjectDetails(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 
@@ -45,46 +54,36 @@ export class ProjectController {
 		});
 	}
 
-	// feature: teamwork
-	// public async deleteProjectMember(req: Request, res: Response, next: NextFunction) {
-	// 	try {
-	// 		const metadata = req.genumMeta.ids;
-	// 		const memberId = numberSchema.parse(req.params.memberId);
+	public async deleteProjectMember(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const memberId = numberSchema.parse(req.params.memberId);
 
-	// 		// check if member exists
-	// 		const member = await db.project.getMemberById(metadata.projID, memberId);
-	// 		if (!member) {
-	// 			res.status(404).json({ error: "Member is not found" });
-	// 			return;
-	// 		}
+		const member = await db.project.getMemberById(metadata.projID, memberId);
+		if (!member) {
+			res.status(404).json({ error: "Member not found" });
+			return;
+		}
 
-	// 		// check if member is not deletes himself
-	// 		if (member.userId === metadata.userID) {
-	// 			res.status(400).json({ error: "You cannot delete yourself" });
-	// 			return;
-	// 		}
+		if (member.userId === metadata.userID) {
+			res.status(400).json({ error: "You cannot delete yourself" });
+			return;
+		}
 
-	// 		// check if member is owner of organization
-	// 		const organizationMember = await db.organization.getMemberByUserId(metadata.orgID, member.userId);
-	// 		if (organizationMember?.role === OrganizationRole.OWNER) {
-	// 			res.status(400).json({ error: "You cannot delete the owner of the organization" });
-	// 			return;
-	// 		}
+		const orgMember = await db.organization.getMemberByUserId(metadata.orgID, member.userId);
+		if (
+			orgMember?.role === OrganizationRole.OWNER ||
+			orgMember?.role === OrganizationRole.ADMIN
+		) {
+			res.status(400).json({
+				error: "Cannot remove an organization owner or admin from a project",
+			});
+			return;
+		}
 
-	// 		// delete member
-	// 		const deletedId = await db.project.deleteMember(metadata.projID, memberId);
+		await this.projectService.deleteMember(metadata.projID, memberId);
 
-	// 		if (!deletedId) {
-	// 			res.status(404).json({ error: "Member is not found" });
-	// 			return;
-	// 		}
-
-	// 		res.status(200).json({ message: "Member deleted" });
-	// 	}
-	// 	catch (error) {
-	// 		next(error);
-	// 	}
-	// }
+		res.status(200).json({ message: "Member deleted" });
+	}
 
 	public async addProjectMember(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
@@ -110,42 +109,40 @@ export class ProjectController {
 		res.status(201).json({ member: newMember });
 	}
 
-	// feature: teamwork
-	// public async updateProjectMemberRole(req: Request, res: Response, next: NextFunction) {
-	// 	try {
-	// 		const metadata = req.genumMeta.ids;
-	// 		const memberId = numberSchema.parse(req.params.memberId);
-	// 		const { role: newRole } = ProjectMemberUpdateSchema.parse(req.body);
+	public async updateProjectMemberRole(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const memberId = numberSchema.parse(req.params.memberId);
+		const { role: newRole } = ProjectMemberUpdateSchema.parse(req.body);
 
-	// 		// check if project member exists
-	// 		const projectMember = await db.project.getMemberById(metadata.projID, memberId);
-	// 		if (!projectMember) {
-	// 			res.status(404).json({ error: "Member is not found" });
-	// 			return;
-	// 		}
+		const projectMember = await db.project.getMemberById(metadata.projID, memberId);
+		if (!projectMember) {
+			res.status(404).json({ error: "Member not found" });
+			return;
+		}
 
-	// 		// check if organization member exists
-	// 		const organizationMember = await db.organization.getMemberByUserId(metadata.orgID, projectMember.userId);
-	// 		if (!organizationMember) {
-	// 			res.status(404).json({ error: "Organization member is not found" });
-	// 			return;
-	// 		}
+		const orgMember = await db.organization.getMemberByUserId(
+			metadata.orgID,
+			projectMember.userId,
+		);
+		if (!orgMember) {
+			res.status(404).json({ error: "Organization member not found" });
+			return;
+		}
 
-	// 		// check if user is organization owner
-	// 		if (organizationMember.role === OrganizationRole.OWNER) {
-	// 			res.status(403).json({ error: "User is organization owner. Role change is not allowed" });
-	// 			return;
-	// 		}
+		if (
+			orgMember.role === OrganizationRole.OWNER ||
+			orgMember.role === OrganizationRole.ADMIN
+		) {
+			res.status(403).json({
+				error: "Cannot change project role of an organization owner or admin",
+			});
+			return;
+		}
 
-	// 		// update role
-	// 		const updatedMember = await db.project.updateMemberRole(memberId, newRole);
+		const updatedMember = await db.project.updateMemberRole(memberId, newRole);
 
-	// 		res.status(200).json({ member: updatedMember });
-	// 	}
-	// 	catch (error) {
-	// 		next(error);
-	// 	}
-	// }
+		res.status(200).json({ member: updatedMember });
+	}
 
 	public async getProjectApiKeys(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;

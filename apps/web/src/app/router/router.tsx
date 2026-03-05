@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 
 import RedirectedToProjectRoute from "@/app/router/RedirectedToProjectRoute";
@@ -7,9 +7,13 @@ import Prompts from "@/pages/prompt/Prompts";
 import Testcases from "@/pages/testcases/TestcasesPage";
 import Settings from "@/pages/settings/Settings";
 import ProtectedRoute from "@/app/router/ProtectedRoute";
+import RoleProtectedRoute from "@/app/router/RoleProtectedRoute";
+import Memory from "@/pages/prompt/playground-tabs/memory/Memory";
+import Versions from "@/pages/prompt/playground-tabs/version/Versions";
 import PlaygroundWorkspace from "@/pages/prompt/playground-tabs/PlaygroundWorkspace";
 import Compare from "@/pages/prompt/playground-tabs/version/components/compare/Compare";
 import { LogsPage } from "@/pages/logs/LogsPage";
+import { OrganizationRole } from "@/api/organization";
 
 import Notifications from "../../components/ui/notifications/Notifications";
 import NotificationDetails from "../../components/ui/notifications/NotificationDetails";
@@ -48,23 +52,58 @@ export const router = createBrowserRouter([
 			{ path: "prompts", element: <Prompts /> },
 			{ path: "testcases", element: <Testcases /> },
 			{ path: "files", element: <FilesPage /> },
-			{
-				path: "settings",
-				element: <Settings />,
-				children: [
-					{ index: true, element: <UserProfile /> },
-					{ path: "user/profile", element: <UserProfile /> },
-					{ path: "org/details", element: <OrgGeneral /> },
-					{ path: "org/members", element: <OrgMembers /> },
-					{ path: "org/projects", element: <OrgProjects /> },
-					{ path: "org/models", element: <OrgModels /> },
-					{ path: "org/ai-keys", element: <OrgAIKeys /> },
-					{ path: "org/api-keys", element: <OrgAPIKeys /> },
-					{ path: "project/details", element: <ProjectDetails /> },
-					{ path: "project/members", element: <ProjectMembers /> },
-					{ path: "project/api-keys", element: <ProjectAPIKeys /> },
-				],
-			},
+		{
+			path: "settings",
+			element: <Settings />,
+			children: [
+				{ index: true, element: <UserProfile /> },
+				{ path: "user/profile", element: <UserProfile /> },
+				{ path: "org/details", element: <OrgGeneral /> },
+				{
+					path: "org/members",
+					element: (
+						<RoleProtectedRoute minRole={OrganizationRole.ADMIN}>
+							<OrgMembers />
+						</RoleProtectedRoute>
+					),
+				},
+				{
+					path: "org/projects",
+					element: (
+						<RoleProtectedRoute minRole={OrganizationRole.ADMIN}>
+							<OrgProjects />
+						</RoleProtectedRoute>
+					),
+				},
+				{
+					path: "org/models",
+					element: (
+						<RoleProtectedRoute minRole={OrganizationRole.ADMIN}>
+							<OrgModels />
+						</RoleProtectedRoute>
+					),
+				},
+				{
+					path: "org/ai-keys",
+					element: (
+						<RoleProtectedRoute minRole={OrganizationRole.ADMIN}>
+							<OrgAIKeys />
+						</RoleProtectedRoute>
+					),
+				},
+				{
+					path: "org/api-keys",
+					element: (
+						<RoleProtectedRoute minRole={OrganizationRole.ADMIN}>
+							<OrgAPIKeys />
+						</RoleProtectedRoute>
+					),
+				},
+				{ path: "project/details", element: <ProjectDetails /> },
+				{ path: "project/members", element: <ProjectMembers /> },
+				{ path: "project/api-keys", element: <ProjectAPIKeys /> },
+			],
+		},
 			{
 				path: "prompt/:id/versions/:versionId",
 				element: <VersionDetails />,

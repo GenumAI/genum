@@ -4,6 +4,7 @@ import { OrganizationRole } from "@/prisma";
 import {
 	numberSchema,
 	OrganizationMemberInviteSchema,
+	OrganizationMemberUpdateSchema,
 	stringSchema,
 	ProjectCreateSchema,
 	OrganizationApiKeyCreateSchema,
@@ -22,15 +23,18 @@ import {
 	ProviderDeleteNotAllowedError,
 } from "@/services/organization.service";
 import { PromptService } from "@/services/prompt.service";
+import { ProjectService } from "@/services/project.service";
 import { listOpenAICompatibleModels, testProviderConnection } from "@/ai/providers/openai/models";
 
 export class OrganizationController {
 	private readonly organizationService: OrganizationService;
 	private readonly promptService: PromptService;
+	private readonly projectService: ProjectService;
 
 	constructor() {
 		this.organizationService = new OrganizationService(db);
 		this.promptService = new PromptService(db);
+		this.projectService = new ProjectService(db);
 	}
 
 	public async getOrganizationDetails(req: Request, res: Response) {
@@ -97,57 +101,33 @@ export class OrganizationController {
 		});
 	}
 
-	// feature: teamwork
-	// public async updateMemberRole(req: Request, res: Response, next: NextFunction) {
-	// 	try {
-	// 		const metadata = req.genumMeta.ids;
-	// 		const memberId = numberSchema.parse(req.params.memberId);
-	// 		const { role: newRole } = OrganizationMemberUpdateSchema.parse(req.body);
+	public async updateMemberRole(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const memberId = numberSchema.parse(req.params.memberId);
+		const { role: newRole } = OrganizationMemberUpdateSchema.parse(req.body);
 
-	// 		// check if member exists
-	// 		const member = await db.organization.getMemberById(metadata.orgID, memberId);
-	// 		if (!member) {
-	// 			res.status(404).json({ error: "Member is not found" });
-	// 			return;
-	// 		}
+		const member = await db.organization.getMemberById(metadata.orgID, memberId);
+		if (!member) {
+			res.status(404).json({ error: "Member not found" });
+			return;
+		}
 
-	// 		// Check if trying to change role of the last owner
-	// 		if (member.role === OrganizationRole.OWNER && newRole === OrganizationRole.READER) {
-	// 			const owners = await db.organization.getOrganizationOwners(metadata.orgID);
-	// 			if (owners.length <= 1) {
-	// 				res.status(400).json({ error: "Cannot change role of the last organization owner" });
-	// 				return;
-	// 			}
-	// 		}
+		if (member.role === OrganizationRole.OWNER && newRole !== OrganizationRole.OWNER) {
+			const owners = await db.organization.getOrganizationOwners(metadata.orgID);
+			if (owners.length <= 1) {
+				res.status(400).json({
+					error: "Cannot change role of the last organization owner",
+				});
+				return;
+			}
+		}
 
-	// 		// update role
-	// 		const updatedMember = await db.organization.updateMemberRole(memberId, newRole);
+		const updatedMember = await db.organization.updateMemberRole(memberId, newRole);
 
-	// 		if (newRole === OrganizationRole.OWNER) {
-	// 			// First get all projects in the organization
-	// 			const projects = await db.organization.getOrganizationProjects(metadata.orgID);
+		await this.organizationService.updateMemberRoleSideEffects(metadata.orgID, member, newRole);
 
-	// 			// Add member to all projects they're not in
-	// 			for (const project of projects) {
-	// 				const isMember = await db.project.getMemberByUserId(project.id, member.userId);
-	// 				if (!isMember) {
-	// 					await db.project.addMember(project.id, member.userId, ProjectRole.OWNER);
-	// 				}
-	// 			}
-
-	// 			// Then make them owner of all projects
-	// 			await db.project.makeAsOwnerForAllProjects(metadata.orgID, memberId);
-	// 		}
-	// 		else if (newRole === OrganizationRole.READER) {
-	// 			// remove from all projects
-	// 			await db.project.removeFromAllProjects(metadata.orgID, member.userId);
-	// 		}
-
-	// 		res.status(200).json({ member: updatedMember });
-	// 	} catch (error) {
-	// 		next(error);
-	// 	}
-	// }
+		res.status(200).json({ member: updatedMember });
+	}
 
 	public async deleteProject(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
@@ -168,52 +148,44 @@ export class OrganizationController {
 		res.status(200).json({ message: "Project deleted successfully" });
 	}
 
-	// feature: teamwork
-	// public async deleteMember(req: Request, res: Response, next: NextFunction) {
-	// 	try {
-	// 		const metadata = req.genumMeta.ids;
-	// 		const memberId = numberSchema.parse(req.params.memberId);
+	public async deleteMember(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const memberId = numberSchema.parse(req.params.memberId);
 
-	// 		// check if member exists and is not the last owner
-	// 		const member = await db.organization.getMemberById(metadata.orgID, memberId);
-	// 		if (!member) {
-	// 			res.status(404).json({ error: "Member not found" });
-	// 			return;
-	// 		}
+		const member = await db.organization.getMemberById(metadata.orgID, memberId);
+		if (!member) {
+			res.status(404).json({ error: "Member not found" });
+			return;
+		}
 
-	// 		if (member.role === OrganizationRole.OWNER) {
-	// 			const owners = await db.organization.getOrganizationOwners(metadata.orgID);
-	// 			if (owners.length <= 1) {
-	// 				res.status(400).json({ error: "Cannot delete the last owner" });
-	// 				return;
-	// 			}
-	// 		}
+		if (member.userId === metadata.userID) {
+			res.status(400).json({ error: "You cannot delete yourself" });
+			return;
+		}
 
-	// 		// check if member is not deletes himself
-	// 		if (member.userId === metadata.userID) {
-	// 			res.status(400).json({ error: "You cannot delete yourself" });
-	// 			return;
-	// 		}
+		if (member.role === OrganizationRole.OWNER) {
+			const owners = await db.organization.getOrganizationOwners(metadata.orgID);
+			if (owners.length <= 1) {
+				res.status(400).json({ error: "Cannot delete the last owner" });
+				return;
+			}
+		}
 
-	// 		await db.project.removeFromAllProjects(metadata.orgID, member.userId);
+		await this.projectService.removeUserFromAllProjects(metadata.orgID, member.userId);
+		await db.organization.deleteMember(memberId);
 
-	// 		await db.organization.deleteMember(memberId);
-
-	// 		res.status(200).json({ message: "Member deleted successfully" });
-	// 	} catch (error) {
-	// 		next(error);
-	// 	}
-	// }
+		res.status(200).json({ message: "Member deleted successfully" });
+	}
 
 	public async inviteMember(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
-		const { email } = OrganizationMemberInviteSchema.parse(req.body);
+		const { email, role } = OrganizationMemberInviteSchema.parse(req.body);
 		const org = req.genumMeta.organization;
 
 		const { invitation, inviteUrl } = await this.organizationService.createMemberInvitation(
 			metadata.orgID,
 			email,
-			OrganizationRole.ADMIN,
+			role,
 			org.name,
 		);
 

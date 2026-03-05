@@ -1,18 +1,14 @@
-"use client";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, ResponsiveContainer, CartesianGrid, YAxis } from "recharts";
-import {
-	ChartConfig,
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-} from "@/components/ui/chart";
+import { LineChart, Line, XAxis, CartesianGrid, YAxis } from "recharts";
+import type { ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useMemo } from "react";
+import { TweenNumber } from "./TweenNumber";
 
 interface Props {
 	title: string;
-	value: string;
+	value: number;
+	formatValue?: (value: number) => string;
 	subtitle?: string;
 	data: { date: string; value: number }[];
 	label?: string;
@@ -26,7 +22,14 @@ function getTextWidth(text: string, font = "12px Arial") {
 	return context.measureText(text).width;
 }
 
-export function StatsCardWithLineChart({ title, value, subtitle, data, label }: Props) {
+export function StatsCardWithLineChart({
+	title,
+	value,
+	formatValue,
+	subtitle,
+	data,
+	label,
+}: Props) {
 	const chartConfig: ChartConfig = useMemo(
 		() => ({
 			value: {
@@ -42,6 +45,7 @@ export function StatsCardWithLineChart({ title, value, subtitle, data, label }: 
 		const maxValueFormatted = maxValue.toLocaleString(undefined, { maximumFractionDigits: 5 });
 		return getTextWidth(maxValueFormatted) + 12;
 	}, [data]);
+	const chartAnimationKey = `${title}-${data.length}-${data[data.length - 1]?.value ?? 0}`;
 
 	return (
 		<Card className="p-6 rounded-lg shadow-sm">
@@ -52,9 +56,11 @@ export function StatsCardWithLineChart({ title, value, subtitle, data, label }: 
 			</CardHeader>
 			<CardContent className="p-0">
 				<div className="flex flex-row gap-2 items-end mb-6">
-					<div className="text-[24px] text-[#09090B] dark:text-foreground font-bold leading-[100%]">
-						{value}
-					</div>
+					<TweenNumber
+						value={value}
+						formatValue={formatValue}
+						className="text-[24px] text-[#09090B] dark:text-foreground font-bold leading-[100%]"
+					/>
 					{subtitle && (
 						<div className="text-[12px] text-muted-foreground">{subtitle}</div>
 					)}
@@ -62,6 +68,7 @@ export function StatsCardWithLineChart({ title, value, subtitle, data, label }: 
 				<div>
 					<ChartContainer config={chartConfig}>
 						<LineChart
+							key={chartAnimationKey}
 							accessibilityLayer
 							data={data}
 							margin={{ left: leftMargin, top: 6, right: 12 }}
@@ -90,6 +97,10 @@ export function StatsCardWithLineChart({ title, value, subtitle, data, label }: 
 								stroke="var(--color-value)"
 								strokeWidth={2}
 								dot={false}
+								isAnimationActive
+								animationDuration={950}
+								animationBegin={120}
+								animationEasing="ease-out"
 							/>
 						</LineChart>
 					</ChartContainer>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/useToast";
-import { projectApi } from "@/api/project";
+import { projectApi, ProjectRole } from "@/api/project";
 import { organizationApi } from "@/api/organization/organization.api";
 import type { ProjectMember } from "@/api/project";
 import type { User } from "../utils/types";
@@ -13,7 +13,7 @@ export function useProjectMembers() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [isAddingMember, setIsAddingMember] = useState(false);
 	const [deletingId, setDeletingId] = useState<number | null>(null);
-	// const [updatingRoleId, setUpdatingRoleId] = useState<number | null>(null);
+	const [updatingRoleId, setUpdatingRoleId] = useState<number | null>(null);
 
 	const fetchMembers = useCallback(async () => {
 		try {
@@ -47,17 +47,15 @@ export function useProjectMembers() {
 	}, []);
 
 	const addMember = useCallback(
-		async (userId: number, role: string) => {
+		async (userId: number, role: ProjectRole) => {
 			try {
 				setIsAddingMember(true);
 				await projectApi.addMember({ userId, role });
-
 				toast({
 					title: "Success",
 					description: "Member added successfully",
 					duration: 3000,
 				});
-
 				await fetchMembers();
 				return true;
 			} catch (error) {
@@ -76,59 +74,45 @@ export function useProjectMembers() {
 		[toast, fetchMembers],
 	);
 
-	// const updateMemberRole = useCallback(
-	// 	async (id: number, role: string) => {
-	// 		try {
-	// 			setUpdatingRoleId(id);
-
-	// 			// Optimistic update
-	// 			setMembers((prev) =>
-	// 				prev.map((m) =>
-	// 					m.id === id
-	// 						? {
-	// 								...m,
-	// 								role,
-	// 							}
-	// 						: m,
-	// 				),
-	// 			);
-
-	// 			await projectApi.updateMemberRole(id, { role });
-
-	// 			toast({
-	// 				title: "Success",
-	// 				description: "Role updated successfully",
-	// 				duration: 3000,
-	// 			});
-	// 		} catch (error) {
-	// 			console.error("Error updating role:", error);
-	// 			toast({
-	// 				title: "Error",
-	// 				description: "Failed to update role",
-	// 				variant: "destructive",
-	// 				duration: 3000,
-	// 			});
-	// 			// Revert optimistic update
-	// 			await fetchMembers();
-	// 		} finally {
-	// 			setUpdatingRoleId(null);
-	// 		}
-	// 	},
-	// 	[toast, fetchMembers],
-	// );
+	const updateMemberRole = useCallback(
+		async (id: number, role: ProjectRole) => {
+			try {
+				setUpdatingRoleId(id);
+				setMembers((prev) =>
+					prev.map((m) => (m.id === id ? { ...m, role } : m)),
+				);
+				await projectApi.updateMemberRole(id, { role });
+				toast({
+					title: "Success",
+					description: "Role updated successfully",
+					duration: 3000,
+				});
+			} catch (error) {
+				console.error("Error updating role:", error);
+				toast({
+					title: "Error",
+					description: "Failed to update role",
+					variant: "destructive",
+					duration: 3000,
+				});
+				await fetchMembers();
+			} finally {
+				setUpdatingRoleId(null);
+			}
+		},
+		[toast, fetchMembers],
+	);
 
 	const deleteMember = useCallback(
 		async (member: ProjectMember) => {
 			try {
 				setDeletingId(member.id);
 				await projectApi.deleteMember(member.id);
-
 				toast({
 					title: "Success",
 					description: "Member removed successfully",
 					duration: 3000,
 				});
-
 				await fetchMembers();
 			} catch (error) {
 				console.error("Error deleting member:", error);
@@ -156,9 +140,9 @@ export function useProjectMembers() {
 		isLoading,
 		isAddingMember,
 		deletingId,
-		// updatingRoleId,
+		updatingRoleId,
 		addMember,
-		// updateMemberRole,
+		updateMemberRole,
 		deleteMember,
 		fetchAvailableUsers,
 	};

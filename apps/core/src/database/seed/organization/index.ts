@@ -74,7 +74,7 @@ export async function addSystemUserToOrganization(
 		await new OrganizationService(db).addOrganizationMember(
 			systemOrganizationId,
 			systemUserId,
-			OrganizationRole.ADMIN,
+			OrganizationRole.OWNER,
 		);
 		console.log(`System user added to the organization`);
 	} catch (error) {

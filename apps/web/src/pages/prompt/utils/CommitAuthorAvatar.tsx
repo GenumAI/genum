@@ -54,7 +54,7 @@ export function CommitAuthorAvatar({
 	}, [avatarUrl, hasPicture]);
 
 	return (
-		<Avatar className={`${size} ${rounded}`}>
+		<Avatar className={`${size} ${rounded} cursor-default select-none`}>
 			{hasPicture && !imageLoaded && !imageError && (
 				<div className={`${size} ${rounded} bg-muted/40 animate-pulse`} />
 			)}
@@ -67,7 +67,7 @@ export function CommitAuthorAvatar({
 				/>
 			)}
 			{(!hasPicture || imageError) && (
-				<AvatarFallback className={`${rounded} ${textSize} font-bold ${colorClass}`}>
+				<AvatarFallback className={`${rounded} ${textSize} font-bold ${colorClass} cursor-default select-none`}>
 					{initial}
 				</AvatarFallback>
 			)}

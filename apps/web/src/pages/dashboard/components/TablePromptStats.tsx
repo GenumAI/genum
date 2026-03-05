@@ -1,15 +1,10 @@
-import {
-	useReactTable,
-	getCoreRowModel,
-	getSortedRowModel,
-	flexRender,
-	ColumnDef,
-	SortingState,
-} from "@tanstack/react-table";
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import type { ColumnDef, HeaderContext } from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
+import type { MouseEvent } from "react";
+import { useMemo } from "react";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableHeader,
@@ -19,35 +14,35 @@ import {
 	TableCell,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown } from "lucide-react";
+import SortIcon from "@/components/ui/icons-tsx/SortIcon";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
-import { getOrgId, getProjectId } from "@/api/client";
-
-interface PromptStats {
-	prompt_id: number;
-	total_requests: number;
-	total_tokens_in: number;
-	total_tokens_out: number;
-	average_response_ms: number;
-	total_cost: number;
-	error_rate: number;
-	last_used: string;
-}
+import { useTablePromptStats } from "@/pages/dashboard/hooks/useTablePromptStats";
+import type { PromptStats } from "@/pages/dashboard/hooks/useTestcasesGroupedByPrompt";
+import type { PromptName } from "@/types/logs";
+import {
+	formatPromptCost,
+	formatPromptErrorRate,
+	formatPromptLastUsed,
+} from "@/pages/dashboard/utils/promptStatsTable";
+import { TweenNumber } from "./TweenNumber";
 
 interface Props {
 	prompts: PromptStats[];
-	promptNames: { id: number; name: string }[];
+	promptNames: PromptName[];
+	isLoading?: boolean;
 }
 
-export function TablePromptStats({ prompts, promptNames }: Props) {
-	const [sorting, setSorting] = useState<SortingState>([]);
-	const [showAll, setShowAll] = useState(false);
-
-	const navigate = useNavigate();
-	const orgId = getOrgId();
-	const projectId = getProjectId();
-
-	const getName = (id: number) => promptNames.find((p) => p.id === id)?.name || `Prompt ${id}`;
+export function TablePromptStats({ prompts, promptNames, isLoading = false }: Props) {
+	const {
+		sorting,
+		setSorting,
+		showAll,
+		toggleShowAll,
+		getPromptName,
+		isPromptDeleted,
+		openPromptLogs,
+	} = useTablePromptStats(promptNames);
 
 	const data = useMemo(() => prompts, [prompts]);
 
@@ -58,59 +53,77 @@ export function TablePromptStats({ prompts, promptNames }: Props) {
 				header: sortableHeader("Prompt Name"),
 				cell: ({ row }) => {
 					const promptId = row.original.prompt_id;
-					const promptName = getName(promptId);
-					const isDeleted = !promptNames.find((p) => p.id === promptId);
+					const promptName = getPromptName(promptId);
+					const isDeleted = isPromptDeleted(promptId);
 					if (isDeleted) {
 						return <span className="text-foreground">{promptName}</span>;
 					}
-					const handleClick = (e: React.MouseEvent) => {
-						if (!orgId || !projectId) return;
-						const base = `/${orgId}/${projectId}/prompt/${promptId}/logs`;
-						if (e.metaKey || e.ctrlKey) {
-							window.open(base, "_blank");
-						} else {
-							navigate(base);
-						}
-					};
+					const handleClick = (event: MouseEvent) => openPromptLogs(event, promptId);
 					return (
-						<span
+						<button
+							type="button"
 							className="text-primary cursor-pointer hover:underline focus:underline focus:outline-none"
 							onClick={handleClick}
-							tabIndex={0}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" || e.key === " ") handleClick(e as any);
-							}}
-							role="button"
 							aria-label={`Open Logs for ${promptName}`}
 						>
 							{promptName}
-						</span>
+						</button>
 					);
 				},
 			},
 			{
 				accessorKey: "total_requests",
 				header: sortableHeader("Requests"),
+				cell: ({ getValue }) => (
+					<TweenNumber
+						value={getValue() as number}
+						className="tabular-nums text-foreground"
+						formatValue={(value) => `${Math.round(value)}`}
+					/>
+				),
 			},
 			{
 				accessorKey: "total_tokens_in",
 				header: sortableHeader("Tokens In"),
+				cell: ({ getValue }) => (
+					<TweenNumber
+						value={getValue() as number}
+						className="tabular-nums text-foreground"
+						formatValue={(value) => `${Math.round(value)}`}
+					/>
+				),
 			},
 			{
 				accessorKey: "total_tokens_out",
 				header: sortableHeader("Tokens Out"),
+				cell: ({ getValue }) => (
+					<TweenNumber
+						value={getValue() as number}
+						className="tabular-nums text-foreground"
+						formatValue={(value) => `${Math.round(value)}`}
+					/>
+				),
 			},
 			{
 				accessorKey: "average_response_ms",
 				header: sortableHeader("Avg Response (ms)"),
+				cell: ({ getValue }) => (
+					<TweenNumber
+						value={getValue() as number}
+						className="tabular-nums text-foreground"
+						formatValue={(value) => `${Math.round(value)}`}
+					/>
+				),
 			},
 			{
 				accessorKey: "total_cost",
 				header: sortableHeader("Cost"),
 				cell: ({ getValue }) => (
-					<span className="tabular-nums text-foreground">
-						${(getValue() as number).toFixed(4)}
-					</span>
+					<TweenNumber
+						value={getValue() as number}
+						className="tabular-nums text-foreground"
+						formatValue={(value) => formatPromptCost(value)}
+					/>
 				),
 			},
 			{
@@ -120,11 +133,11 @@ export function TablePromptStats({ prompts, promptNames }: Props) {
 					const val = getValue() as number;
 					return val > 0 ? (
 						<span className="text-destructive dark:text-[#d64646]">
-							{val.toFixed(2)}%
+							<TweenNumber value={val} formatValue={(value) => formatPromptErrorRate(value)} />
 						</span>
 					) : (
 						<span className="text-emerald-600 dark:text-[#2da44a]">
-							{val.toFixed(2)}%
+							<TweenNumber value={val} formatValue={(value) => formatPromptErrorRate(value)} />
 						</span>
 					);
 				},
@@ -134,14 +147,15 @@ export function TablePromptStats({ prompts, promptNames }: Props) {
 				header: sortableHeader("Last Used"),
 				cell: ({ getValue }) => (
 					<span className="text-foreground">
-						{new Date(getValue() as string).toLocaleString()}
+						{formatPromptLastUsed(getValue() as string)}
 					</span>
 				),
 			},
 		],
-		[promptNames, orgId, projectId, navigate],
+		[getPromptName, isPromptDeleted, openPromptLogs],
 	);
 
+	// eslint-disable-next-line react-hooks/incompatible-library
 	const table = useReactTable({
 		data,
 		columns,
@@ -153,6 +167,23 @@ export function TablePromptStats({ prompts, promptNames }: Props) {
 
 	const rowsToShow = showAll ? table.getRowModel().rows : table.getRowModel().rows.slice(0, 5);
 	const hasMoreRows = table.getRowModel().rows.length > 5;
+
+	if (isLoading) {
+		return (
+			<Card className="rounded-lg shadow-sm bg-card text-card-foreground">
+				<CardHeader className="flex flex-row justify-between items-center">
+					<Skeleton className="h-6 w-[240px]" />
+				</CardHeader>
+				<CardContent className="overflow-auto space-y-2">
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+					<Skeleton className="h-8 w-full rounded-md" />
+				</CardContent>
+			</Card>
+		);
+	}
 
 	return (
 		<Card className="rounded-lg shadow-sm bg-card text-card-foreground">
@@ -217,7 +248,7 @@ export function TablePromptStats({ prompts, promptNames }: Props) {
 				{hasMoreRows && (
 					<Button
 						variant="outline"
-						onClick={() => setShowAll(!showAll)}
+						onClick={toggleShowAll}
 						className="mt-4 text-[14px] bg-muted hover:bg-muted/80 border-border text-foreground"
 					>
 						{showAll ? (
@@ -239,36 +270,18 @@ export function TablePromptStats({ prompts, promptNames }: Props) {
 }
 
 function sortableHeader(title: string) {
-	return ({ column }: { column: any }) => {
+	return ({ column }: HeaderContext<PromptStats, unknown>) => {
 		const sorted = column.getIsSorted();
+		const toggleSortingHandler = column.getToggleSortingHandler();
 		return (
-			<div
+			<button
+				type="button"
 				className="flex items-center gap-1 text-[12px] cursor-pointer select-none float-left"
-				onClick={column.getToggleSortingHandler()}
+				onClick={toggleSortingHandler}
 			>
 				<span className="text-muted-foreground">{title}</span>
-				{sorted === "asc" ? (
-					<svg
-						className="h-3 w-3 text-foreground"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-					>
-						<path d="m6 15 6-6 6 6" />
-					</svg>
-				) : sorted === "desc" ? (
-					<svg
-						className="h-3 w-3 text-foreground"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-					>
-						<path d="m18 9-6 6-6-6" />
-					</svg>
-				) : (
-					<ChevronsUpDown className="h-3 w-3 text-muted-foreground opacity-60" />
-				)}
-			</div>
+				<SortIcon isSorted={sorted} />
+			</button>
 		);
 	};
 }

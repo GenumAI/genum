@@ -10,15 +10,21 @@ export function createProjectRouter(): Router {
 	const projectController = new ProjectController();
 
 	// Members
-	// router.put('/members/:memberId/role', w.hasProjectRole(ProjectRole.OWNER), async (req: Request, res: Response, next: NextFunction) => {
-	// 	projectController.updateProjectMemberRole(req, res, next);
-	// });
-	// router.post('/members', w.hasProjectRole(ProjectRole.OWNER), async (req: Request, res: Response, next: NextFunction) => {
-	// 	projectController.addProjectMember(req, res, next);
-	// });
-	// router.delete('/members/:memberId', w.hasProjectRole(ProjectRole.OWNER), async (req: Request, res: Response, next: NextFunction) => {
-	// 	projectController.deleteProjectMember(req, res, next);
-	// });
+	router.put(
+		"/members/:memberId/role",
+		w.hasMinProjectRole(ProjectRole.ADMIN),
+		asyncHandler(projectController.updateProjectMemberRole.bind(projectController)),
+	);
+	router.post(
+		"/members",
+		w.hasMinProjectRole(ProjectRole.ADMIN),
+		asyncHandler(projectController.addProjectMember.bind(projectController)),
+	);
+	router.delete(
+		"/members/:memberId",
+		w.hasMinProjectRole(ProjectRole.ADMIN),
+		asyncHandler(projectController.deleteProjectMember.bind(projectController)),
+	);
 	router.get(
 		"/members",
 		asyncHandler(projectController.getProjectMembers.bind(projectController)),
@@ -42,7 +48,7 @@ export function createProjectRouter(): Router {
 	router.get("/", asyncHandler(projectController.getProjectDetails.bind(projectController)));
 	router.put(
 		"/",
-		w.hasProjectRole(ProjectRole.OWNER),
+		w.hasMinProjectRole(ProjectRole.ADMIN),
 		asyncHandler(projectController.updateProject.bind(projectController)),
 	);
 

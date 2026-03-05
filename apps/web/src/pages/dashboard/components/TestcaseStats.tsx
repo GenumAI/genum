@@ -1,109 +1,93 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
+import { Skeleton } from "@/components/ui/skeleton";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
 import {
-	ChartConfig,
 	ChartContainer,
 	ChartTooltip,
 	ChartTooltipContent,
 } from "@/components/ui/chart";
 import { CheckCircle2, XCircle, AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import useTestcasesGroupedByPrompt from "@/hooks/useTestcasesGroupedByPrompt";
-import { getOrgId, getProjectId } from "@/api/client";
+import type { PromptStats } from "@/pages/dashboard/hooks/useTestcasesGroupedByPrompt";
+import { useTestcaseStats } from "@/pages/dashboard/hooks/useTestcaseStats";
+import {
+	truncateChartLabel,
+	testcaseBarColors,
+	testcaseChartConfig,
+} from "@/pages/dashboard/utils/testcaseStats";
+import { TweenNumber } from "./TweenNumber";
 
-const chartConfig = {
-	passed: { label: "Passed", color: "hsl(var(--chart-2))" },
-	failed: { label: "Failed", color: "hsl(var(--chart-6))" },
-	label: { color: "hsl(var(--foreground))" },
-} satisfies ChartConfig;
+type HoveredBar = { promptId: number; dataKey: "passed" | "failed" } | null;
 
-const BAR_COLORS = {
-	passed: { base: "hsl(var(--chart-2) / 0.75)", hover: "hsl(var(--chart-2))" },
-	failed: { base: "hsl(var(--chart-6) / 0.75)", hover: "hsl(var(--chart-6))" },
-};
+interface TooltipPayloadItem {
+	dataKey?: string;
+}
 
-interface PromptStats {
-	prompt_id: number;
-	total_requests: number;
-	total_tokens_in: number;
-	total_tokens_out: number;
-	average_response_ms: number;
-	total_cost: number;
-	error_rate: number;
-	last_used: string;
+interface FilteredTooltipProps {
+	active?: boolean;
+	payload?: TooltipPayloadItem[];
+	hoveredBar: HoveredBar;
+}
+
+function FilteredChartTooltip({ hoveredBar, ...props }: FilteredTooltipProps) {
+	if (hoveredBar) {
+		const filteredPayload =
+			props.payload?.filter((p) => p.dataKey === hoveredBar.dataKey) ?? [];
+		return <ChartTooltipContent {...props} payload={filteredPayload} />;
+	}
+	if (!props.active || !props.payload?.length) {
+		return null;
+	}
+	return <ChartTooltipContent {...props} />;
 }
 
 interface Props {
 	prompts: PromptStats[];
+	isLoading?: boolean;
 }
 
-export function TestcaseStats({ prompts }: Props) {
-	const [showAll, setShowAll] = useState(false);
-	const [hoveredBar, setHoveredBar] = useState<{ index: number; dataKey: string } | null>(null);
-	const navigate = useNavigate();
-	const orgId = getOrgId();
-	const projectId = getProjectId();
-
-	const { chartData, isLoading, error } = useTestcasesGroupedByPrompt(prompts);
-
-	const dataToShow = showAll ? chartData : chartData.slice(0, 5);
-	const hasMoreData = chartData.length > 5;
-
-	const totalStats = useMemo(() => {
-		if (!chartData.length) return { total: 0, passed: 0, failed: 0, needRun: 0 };
-		return chartData.reduce(
-			(
-				acc: { total: number; passed: number; failed: number; needRun: number },
-				item: any,
-			) => ({
-				total: acc.total + item.passed + item.failed,
-				passed: acc.passed + item.passed,
-				failed: acc.failed + item.failed,
-				needRun: acc.needRun + item.needRun,
-			}),
-			{ total: 0, passed: 0, failed: 0, needRun: 0 },
-		);
-	}, [chartData]);
-
-	const errorRate = useMemo(() => {
-		if (totalStats.total === 0) return 0;
-		return Math.round((totalStats.failed / totalStats.total) * 100);
-	}, [totalStats]);
-
-	const truncateText = (text: unknown, maxLength: number = 20): string => {
-		const str = typeof text === "string" ? text : String(text ?? "");
-		if (str.length <= maxLength) return str;
-		return str.substring(0, maxLength) + "...";
-	};
-
-	const CustomTooltip = (props: any) => {
-		if (hoveredBar) {
-			const filteredPayload =
-				props.payload?.filter((p: any) => p.dataKey === hoveredBar.dataKey) ?? [];
-			return <ChartTooltipContent {...props} payload={filteredPayload} />;
-		}
-		if (!props.active || !props.payload?.length) {
-			return null;
-		}
-		return <ChartTooltipContent {...props} />;
-	};
+export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: Props) {
+	const {
+		isLoading: isDataLoading,
+		chartData,
+		dataToShow,
+		hasMoreData,
+		totalStats,
+		errorRate,
+		showAll,
+		hoveredBar,
+		toggleShowAll,
+		setHovered,
+		clearHovered,
+		isHovered,
+		navigateToPromptTestcases,
+	} = useTestcaseStats(prompts);
+	const isLoading = isForcedLoading || isDataLoading;
 
 	if (isLoading) {
 		return (
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-3 border bg-card text-card-foreground shadow-sm rounded-lg">
-				<div className="p-6 text-center">Loading...</div>
-			</div>
-		);
-	}
-
-	if (error) {
-		return (
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-3 border bg-card text-card-foreground shadow-sm rounded-lg">
-				<div className="p-6 text-center text-destructive">
-					Error loading data: {error.message}
-				</div>
+				<Card className="p-0 shadow-none border-none">
+					<CardHeader className="flex flex-row justify-between items-center pb-2">
+						<Skeleton className="h-6 w-[220px]" />
+					</CardHeader>
+					<CardContent>
+						<Skeleton className="h-[230px] w-full rounded-md" />
+					</CardContent>
+				</Card>
+				<Card className="p-0 shadow-none border-none flex flex-col gap-4 justify-start">
+					<CardHeader className="pb-0">
+						<Skeleton className="h-6 w-[180px]" />
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="grid grid-cols-3 gap-3">
+							<Skeleton className="h-20 w-full rounded-lg" />
+							<Skeleton className="h-20 w-full rounded-lg" />
+							<Skeleton className="h-20 w-full rounded-lg" />
+						</div>
+						<Skeleton className="h-24 w-full rounded-lg" />
+					</CardContent>
+				</Card>
 			</div>
 		);
 	}
@@ -116,8 +100,8 @@ export function TestcaseStats({ prompts }: Props) {
 						Prompt Executions Statistics
 					</CardTitle>
 				</CardHeader>
-				<CardContent>
-					<ChartContainer config={chartConfig}>
+					<CardContent>
+						<ChartContainer config={testcaseChartConfig}>
 						<BarChart layout="vertical" data={dataToShow}>
 							<CartesianGrid
 								horizontal={false}
@@ -146,7 +130,7 @@ export function TestcaseStats({ prompts }: Props) {
 													textAnchor="start"
 												>
 													<tspan x={0}>
-														{truncateText(payload?.value)}
+														{truncateChartLabel(payload?.value)}
 													</tspan>
 												</text>
 											)
@@ -154,7 +138,10 @@ export function TestcaseStats({ prompts }: Props) {
 								}
 							/>
 
-							<ChartTooltip cursor={false} content={<CustomTooltip />} />
+							<ChartTooltip
+								cursor={false}
+								content={<FilteredChartTooltip hoveredBar={hoveredBar} />}
+							/>
 
 							<Bar
 								dataKey="passed"
@@ -162,26 +149,27 @@ export function TestcaseStats({ prompts }: Props) {
 								radius={[4, 4, 4, 4]}
 								barSize={18}
 								name="Passed"
-								onMouseEnter={(_, index: number) =>
-									setHoveredBar({ index, dataKey: "passed" })
+								isAnimationActive
+								animationDuration={900}
+								animationBegin={120}
+								animationEasing="ease-out"
+								onMouseEnter={(data) =>
+									setHovered(data.prompt_id, "passed")
 								}
-								onMouseLeave={() => setHoveredBar(null)}
+								onMouseLeave={clearHovered}
 								style={{ cursor: "pointer" }}
 								fill="hsl(var(--chart-2))"
 								onClick={(data) => {
-									navigate(
-										`/${orgId}/${projectId}/prompt/${data.prompt_id}/testcases?status=passed`,
-									);
+									navigateToPromptTestcases(data.prompt_id, "passed");
 								}}
 							>
-								{dataToShow.map((_, index) => (
+								{dataToShow.map((item) => (
 									<Cell
-										key={`cell-passed-${index}`}
+										key={`cell-passed-${item.prompt_id}`}
 										fill={
-											hoveredBar?.index === index &&
-											hoveredBar?.dataKey === "passed"
-												? BAR_COLORS.passed.hover
-												: BAR_COLORS.passed.base
+											isHovered(item.prompt_id, "passed")
+												? testcaseBarColors.passed.hover
+												: testcaseBarColors.passed.base
 										}
 										style={{ transition: "fill 0.2s ease", cursor: "pointer" }}
 									/>
@@ -194,26 +182,27 @@ export function TestcaseStats({ prompts }: Props) {
 								radius={[4, 4, 4, 4]}
 								barSize={18}
 								name="Failed"
-								onMouseEnter={(_, index: number) =>
-									setHoveredBar({ index, dataKey: "failed" })
+								isAnimationActive
+								animationDuration={900}
+								animationBegin={220}
+								animationEasing="ease-out"
+								onMouseEnter={(data) =>
+									setHovered(data.prompt_id, "failed")
 								}
-								onMouseLeave={() => setHoveredBar(null)}
+								onMouseLeave={clearHovered}
 								style={{ cursor: "pointer" }}
 								fill="hsl(var(--chart-6))"
 								onClick={(data) => {
-									navigate(
-										`/${orgId}/${projectId}/prompt/${data.prompt_id}/testcases?status=failed`,
-									);
+									navigateToPromptTestcases(data.prompt_id, "failed");
 								}}
 							>
-								{dataToShow.map((_, index) => (
+								{dataToShow.map((item) => (
 									<Cell
-										key={`cell-failed-${index}`}
+										key={`cell-failed-${item.prompt_id}`}
 										fill={
-											hoveredBar?.index === index &&
-											hoveredBar?.dataKey === "failed"
-												? BAR_COLORS.failed.hover
-												: BAR_COLORS.failed.base
+											isHovered(item.prompt_id, "failed")
+												? testcaseBarColors.failed.hover
+												: testcaseBarColors.failed.base
 										}
 										style={{ transition: "fill 0.2s ease", cursor: "pointer" }}
 									/>
@@ -225,7 +214,7 @@ export function TestcaseStats({ prompts }: Props) {
 					{hasMoreData && (
 						<Button
 							variant="outline"
-							onClick={() => setShowAll(!showAll)}
+							onClick={toggleShowAll}
 							className="w-[100px] text-[14px] mt-4 bg-muted hover:bg-muted/80 border-border text-foreground"
 						>
 							{showAll ? (
@@ -259,7 +248,10 @@ export function TestcaseStats({ prompts }: Props) {
 								<CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-[#2da44a]" />
 							</div>
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
-								{totalStats.passed}
+								<TweenNumber
+									value={totalStats.passed}
+									formatValue={(value) => `${Math.round(value)}`}
+								/>
 							</div>
 						</div>
 						<div className="px-6 py-2">
@@ -268,7 +260,10 @@ export function TestcaseStats({ prompts }: Props) {
 								<XCircle className="w-4 h-4 text-rose-600 dark:text-[#D64646]" />
 							</div>
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
-								{totalStats.failed}
+								<TweenNumber
+									value={totalStats.failed}
+									formatValue={(value) => `${Math.round(value)}`}
+								/>
 							</div>
 						</div>
 						<div className="px-6 py-2">
@@ -277,7 +272,10 @@ export function TestcaseStats({ prompts }: Props) {
 								<AlertCircle className="w-4 h-4 text-amber-600 dark:text-[#cd9932]" />
 							</div>
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
-								{totalStats.needRun}
+								<TweenNumber
+									value={totalStats.needRun}
+									formatValue={(value) => `${Math.round(value)}`}
+								/>
 							</div>
 						</div>
 					</div>
@@ -289,7 +287,10 @@ export function TestcaseStats({ prompts }: Props) {
 								Total Testcases
 							</div>
 							<div className="text-[30px] font-semibold leading-[22px] text-foreground">
-								{totalStats.total}
+								<TweenNumber
+									value={totalStats.total}
+									formatValue={(value) => `${Math.round(value)}`}
+								/>
 							</div>
 						</div>
 						<div className="flex flex-col px-6 gap-[42px] text-left flex-1">
@@ -297,7 +298,10 @@ export function TestcaseStats({ prompts }: Props) {
 								Error Rate
 							</div>
 							<div className="text-[30px] font-semibold leading-[22px] text-foreground">
-								{errorRate}%
+								<TweenNumber
+									value={errorRate}
+									formatValue={(value) => `${Number(value.toFixed(2))}%`}
+								/>
 							</div>
 						</div>
 					</div>
