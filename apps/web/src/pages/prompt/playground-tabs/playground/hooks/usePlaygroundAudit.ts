@@ -4,6 +4,7 @@ import { promptApi } from "@/api/prompt";
 import { helpersApi } from "@/api/helpers/helpers.api";
 import type { AuditData } from "@/types/audit";
 import { helperKeys } from "@/query-keys/helpers.keys";
+import { promptKeys } from "@/query-keys/prompt.keys";
 import { useAuditActions, useAuditUI } from "@/stores/audit.store";
 
 interface UseAuditOptions {
@@ -46,10 +47,12 @@ export function useAudit(promptId: string | number | undefined, options?: UseAud
 
 	const { data: currentAuditData = null } = useQuery<AuditData | null>({
 		queryKey: auditDataKey,
-		queryFn: async () => {
+		queryFn: () => {
 			if (!promptId) return null;
-			const response = await promptApi.getPrompt(promptId);
-			return (response.prompt?.audit?.data ?? null) as AuditData | null;
+			const cachedPrompt = queryClient.getQueryData<{ prompt?: { audit?: { data?: AuditData } } }>(
+				promptKeys.byId(Number(promptId)),
+			);
+			return (cachedPrompt?.prompt?.audit?.data ?? null) as AuditData | null;
 		},
 		enabled: !!promptId,
 		staleTime: Infinity,
@@ -64,9 +67,10 @@ export function useAudit(promptId: string | number | undefined, options?: UseAud
 			setAuditLoading(true);
 		},
 		onSuccess: async (data, targetPromptId) => {
-			await queryClient.invalidateQueries({
-				queryKey: helperKeys.auditData(targetPromptId),
-			});
+			queryClient.setQueryData<AuditData | null>(
+				helperKeys.auditData(targetPromptId),
+				(data?.audit ?? null) as AuditData | null,
+			);
 
 			if (playgroundFlow && data?.audit) {
 				playgroundFlow.setIsPromptChangedAfterAudit(false);

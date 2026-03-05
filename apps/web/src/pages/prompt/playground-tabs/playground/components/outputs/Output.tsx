@@ -28,6 +28,8 @@ interface OutputBlockProps {
 	selectedFiles?: Array<{ id: string }>;
 	onTestcaseLoadingChange?: (isLoading: boolean) => void;
 	isRunning?: boolean;
+	serverAssertionType?: string;
+	serverAssertionValue?: string;
 }
 
 const OutputBlock: React.FC<OutputBlockProps> = ({
@@ -37,6 +39,8 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	selectedFiles,
 	onTestcaseLoadingChange,
 	isRunning,
+	serverAssertionType,
+	serverAssertionValue,
 }) => {
 	// Route params
 	const { id } = useParams<{ id: string }>();
@@ -74,7 +78,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		handleAssertionTypeChange,
 		handleAssertionValueChange,
 		handleAssertionValueBlur,
-	} = useAssertions({ promptId });
+	} = useAssertions({ promptId, serverAssertionType, serverAssertionValue });
 
 	const { isTestcaseLoading, createTestcase } = useTestcaseActions({
 		promptId,

@@ -8,6 +8,7 @@ const promptScopeKey = (promptId: ScopeParam) => toKeyPart(promptId);
 
 type AssertionDraft = {
 	value?: string;
+	type?: string;
 };
 
 interface AssertionState {

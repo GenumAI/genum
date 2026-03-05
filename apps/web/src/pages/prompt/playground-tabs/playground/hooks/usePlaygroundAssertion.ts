@@ -2,7 +2,8 @@ import { useCallback } from "react";
 import useAssertionStore from "@/stores/assertion.store";
 
 type AssertionDraft = {
-	value: string;
+	value?: string;
+	type?: string;
 };
 
 export function usePlaygroundAssertion({
@@ -15,7 +16,7 @@ export function usePlaygroundAssertion({
 	serverAssertionValue?: string;
 }) {
 	const assertionDraft = useAssertionStore((state) => state.getAssertionDraft(promptId));
-	const currentAssertionType = serverAssertionType ?? "AI";
+	const currentAssertionType = assertionDraft?.type ?? serverAssertionType ?? "AI";
 	const assertionValue = assertionDraft?.value ?? serverAssertionValue ?? "";
 
 	const setAssertionValue = useCallback(
@@ -31,10 +32,20 @@ export function usePlaygroundAssertion({
 		useAssertionStore.getState().clearAssertionDraft(promptId);
 	}, [promptId]);
 
+	const setAssertionType = useCallback(
+		(type: string) => {
+			useAssertionStore.getState().setAssertionDraft(promptId, {
+				type,
+			} satisfies AssertionDraft);
+		},
+		[promptId],
+	);
+
 	return {
 		currentAssertionType,
 		assertionValue,
 		setAssertionValue,
+		setAssertionType,
 		clearAssertionDraft,
 	};
 }

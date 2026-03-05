@@ -117,6 +117,8 @@ export default function Playground() {
 							selectedFiles={selectedFiles}
 							onTestcaseLoadingChange={setIsTestcaseLoading}
 							isRunning={ui.loading.run}
+							serverAssertionType={prompt.data?.prompt?.assertionType}
+							serverAssertionValue={prompt.data?.prompt?.assertionValue}
 						/>
 					</div>
  
