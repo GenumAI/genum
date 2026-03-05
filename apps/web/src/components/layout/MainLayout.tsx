@@ -65,7 +65,7 @@ function LayoutContent({ user }: { user: UserType }) {
 			if (!testcaseId) throw new Error("Testcase ID is required");
 			return testcasesApi.getTestcase(testcaseId);
 		},
-		enabled: Boolean(testcaseId),
+		enabled: false,
 		retry: false,
 	});
 	const testcase = testcaseData?.testcase ?? null;
