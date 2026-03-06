@@ -17,6 +17,7 @@ export interface SettingsBarProps {
 	responseTime?: number | null;
 	updatePromptContent: (value: string) => void;
 	isUpdatingPromptContent?: boolean;
+	onReadyStateChange?: (isReady: boolean) => void;
 }
 
 export interface RunMetricsProps {
@@ -60,6 +61,7 @@ export interface ModelsSettingsProps {
 	isUpdatingPromptContent?: boolean;
 	onToolsSectionVisibilityChange?: (visible: boolean) => void;
 	loadingFallback?: ReactNode;
+	onReadyStateChange?: (isReady: boolean) => void;
 }
 
 export interface FormSliderProps {

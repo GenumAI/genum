@@ -1,4 +1,4 @@
-import { useRef, memo, useMemo } from "react";
+import { useRef, memo, useMemo, useEffect } from "react";
 import EditorCard from "./components/EditorCard";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import MonacoEditor from "@/components/ui/MonacoEditor";
@@ -40,6 +40,7 @@ interface TextEditorProps {
 	isAuditLoading?: boolean;
 	canAudit?: boolean;
 	auditRate?: number;
+	onReadyStateChange?: (isReady: boolean) => void;
 }
 
 const TextEditor = ({
@@ -56,6 +57,7 @@ const TextEditor = ({
 	isAuditLoading = false,
 	canAudit = false,
 	auditRate,
+	onReadyStateChange,
 }: TextEditorProps) => {
 	const editorContainerRef = useRef<HTMLFieldSetElement>(null);
 
@@ -111,6 +113,17 @@ const TextEditor = ({
 		}),
 		[handleStyle, handleUppercase],
 	);
+
+	useEffect(() => {
+		onReadyStateChange?.(false);
+		const frameId = window.requestAnimationFrame(() => {
+			onReadyStateChange?.(true);
+		});
+
+		return () => {
+			window.cancelAnimationFrame(frameId);
+		};
+	}, [content, onReadyStateChange]);
 
 	return (
 		<>
