@@ -140,7 +140,7 @@ export default function Playground() {
 			</div>
 
 			{shouldShowTransitionSkeleton && (
-				<div className="absolute inset-x-0 top-8 z-10 flex min-w-0 flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start">
+				<div className="absolute left-3 right-3 top-8 z-10 flex min-w-0 flex-col gap-6 lg:right-6 lg:flex-row lg:flex-wrap lg:items-start">
 					<PlaygroundMainSkeleton />
 					<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">
 						<PlaygroundSettingsSkeleton />
