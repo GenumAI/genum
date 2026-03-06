@@ -1,11 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
 
 import CommitTimeline from "@/pages/prompt/playground-tabs/version/components/CommitTimeline";
 import CommitDialog from "@/components/dialogs/CommitDialog";
 import { useCommitDialog } from "@/hooks/useCommitDialog";
 import { getOrgId, getProjectId } from "@/api/client";
+import { VersionsBranchesSkeleton } from "../playground/utils/playgroundSkeletons";
 
 import { useVersionsData } from "./hooks/useVersionsData";
 import { VersionsToolbar } from "./components/VersionsToolbar";
@@ -80,9 +80,7 @@ export default function Versions() {
 				/>
 
 				{isLoading ? (
-					<div className="flex items-center justify-center p-8">
-						<Loader2 className="animate-spin" />
-					</div>
+					<VersionsBranchesSkeleton />
 				) : (
 					<CommitTimeline branches={selectedBranchData} />
 				)}

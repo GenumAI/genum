@@ -240,9 +240,70 @@ function TestcasesTableSkeleton() {
 	);
 }
 
+function VersionsBranchesSkeleton() {
+	const groupKeys = ["versions-group-1", "versions-group-2"];
+
+	return (
+		<div className="p-1 py-4">
+			{groupKeys.map((groupKey, groupIndex) => {
+				const isLastGroup = groupIndex === groupKeys.length - 1;
+
+				return (
+					<div key={groupKey} className="relative">
+						<div className="flex justify-between">
+							<div className="flex items-center gap-2">
+								<Skeleton className="h-7 w-7 rounded-md" />
+								<Skeleton className="h-4 w-36" />
+							</div>
+
+							{groupIndex < 1 && (
+								<div className="flex items-center justify-between">
+									<div className="flex items-center gap-2">
+										<span className="w-7" />
+										<span />
+									</div>
+									<div className="flex gap-2 text-sm text-muted-foreground">
+										<Skeleton className="h-5 w-20" />
+									</div>
+								</div>
+							)}
+						</div>
+
+						<div
+							className={`ml-3 border-l-2 border-border pl-4 py-3 ${isLastGroup ? "pb-0" : "pb-4"}`}
+						>
+							<div
+								key={`${groupKey}-commit`}
+								className="relative flex items-start gap-4 border-b border-border py-3 pl-4"
+							>
+								<Skeleton className="h-8 w-8 rounded-md" />
+
+								<div className="flex-1">
+									<div className="flex items-center justify-between">
+										<div className="w-full space-y-2">
+											<Skeleton className="h-4 w-[42%]" />
+											<Skeleton className="h-4 w-[30%]" />
+										</div>
+
+										<div className="flex items-center gap-4">
+											<Skeleton className="h-6 w-24 rounded" />
+											<Skeleton className="h-6 w-20 rounded-sm" />
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				);
+			})}
+		</div>
+	);
+}
+
 export {
 	PlaygroundMainSkeleton,
 	PlaygroundSettingsSkeleton,
 	ModelsSettingsControlsSkeleton,
 	TestcasesTableSkeleton,
+	VersionsBranchesSkeleton,
 };
