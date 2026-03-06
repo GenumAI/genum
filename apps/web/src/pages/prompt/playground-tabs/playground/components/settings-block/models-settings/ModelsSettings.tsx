@@ -18,6 +18,8 @@ const ModelsSettings = ({
 	onToolsSectionVisibilityChange,
 	loadingFallback,
 }: ModelsSettingsProps) => {
+	const hasEnabledModels = (models ?? []).some((model) => model.isDisabled !== true);
+
 	const {
 		form,
 		control,
@@ -138,7 +140,7 @@ const ModelsSettings = ({
 	const isModelConfigReady = Boolean(activeModelConfig) || isUpdatingModel;
 	const isSettingsReady = isDataReady && isModelSelectionReady && isModelConfigReady;
 
-	if (!models || models.length === 0) {
+	if (!models || models.length === 0 || !hasEnabledModels) {
 		return null;
 	}
 

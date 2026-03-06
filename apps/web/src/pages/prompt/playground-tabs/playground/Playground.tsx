@@ -37,6 +37,7 @@ export default function Playground() {
 
 	const { prompt, testcase, metrics, ui, models, actions } = controller;
 	const isInitialLoading = ui.loading.prompt || testcase.loading;
+	const hasEnabledModels = models.some((model) => model.isDisabled !== true);
 
 	return (
 		<div className="h-full w-full min-w-0 max-w-[1470px] overflow-x-hidden px-3 pt-8 text-foreground lg:pr-6">
@@ -96,6 +97,7 @@ export default function Playground() {
 								</div>
 								<Button
 									disabled={
+										!hasEnabledModels ||
 										!ui.validation.hasPromptContent ||
 										!ui.validation.hasInputContent ||
 										ui.loading.run ||
