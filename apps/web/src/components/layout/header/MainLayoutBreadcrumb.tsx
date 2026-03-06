@@ -123,7 +123,7 @@ export function MainLayoutBreadcrumb({
 						finalHref = `${finalHref}/details`;
 					}
 
-					const itemKey = finalHref || `${segment}-${label}`;
+					const itemKey = `${index}-${segment}-${finalHref || label}`;
 
 					return (
 						<div key={itemKey} className="flex items-center gap-2">
