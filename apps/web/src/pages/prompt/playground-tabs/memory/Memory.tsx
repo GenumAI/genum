@@ -11,6 +11,7 @@ import { SearchInput } from "@/components/ui/searchInput";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 import type { Memory as PromptMemory } from "@/api/prompt";
 import { usePromptMemories } from "@/pages/prompt/playground-tabs/memory/hooks/usePromptMemories";
+import { MemoryTableSkeleton } from "../playground/utils/playgroundSkeletons";
 import { useMemoryMutations } from "./hooks/useMemoryMutations";
 import { useMemoryFilters } from "./hooks/useMemoryFilters";
 import MemoryTable from "./components/MemoryTable";
@@ -103,14 +104,18 @@ export default function Memory() {
 					</Button>
 				</div>
 
-				<MemoryTable
-					memories={filteredMemories}
-					columns={columns}
-					sorting={sorting}
-					onSortingChange={setSorting}
-					isLoading={isLoading}
-					onRowClick={handleRowClick}
-				/>
+				{isLoading && filteredMemories.length === 0 ? (
+					<MemoryTableSkeleton />
+				) : (
+					<MemoryTable
+						memories={filteredMemories}
+						columns={columns}
+						sorting={sorting}
+						onSortingChange={setSorting}
+						isLoading={isLoading}
+						onRowClick={handleRowClick}
+					/>
+				)}
 
 				{!isLoading && filteredMemories.length === 0 && (
 					<EmptyState
