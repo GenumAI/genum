@@ -197,23 +197,12 @@ const RotateScreenPlug = () => {
 		const main = document.querySelector("main.mainContent") as HTMLDivElement;
 		if (isMobile && orientation === "portrait") {
 			if (main) main.style.overflow = "hidden";
-			const viewport = document.querySelector("meta[name=viewport]");
-			if (viewport) {
-				viewport.setAttribute(
-					"content",
-					"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
-				);
-			}
 		} else {
 			if (main) main.style.overflow = "auto";
-			const viewport = document.querySelector("meta[name=viewport]");
-			if (viewport) {
-				viewport.setAttribute("content", "width=device-width, initial-scale=1");
-			}
 		}
 		if (orientation === "landscape" && isMobile) {
 			setTimeout(() => setOpen(false), 0);
-			resetZoomEffect();
+			forceRepaint();
 		}
 	}, [orientation, isMobile]);
 
@@ -247,27 +236,6 @@ const RotateScreenPlug = () => {
 
 	return null;
 };
-
-function resetZoomEffect() {
-	resetViewportZoom();
-	forceRepaint();
-	document.body.style.zoom = "reset";
-	setTimeout(() => {
-		document.body.style.zoom = "1";
-	}, 50);
-}
-
-function resetViewportZoom() {
-	const oldViewport = document.querySelector('meta[name="viewport"]');
-	if (oldViewport) {
-		oldViewport.remove();
-	}
-
-	const newViewport = document.createElement("meta");
-	newViewport.name = "viewport";
-	newViewport.content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no";
-	document.head.appendChild(newViewport);
-}
 
 function forceRepaint() {
 	window.scrollTo(0, 1);

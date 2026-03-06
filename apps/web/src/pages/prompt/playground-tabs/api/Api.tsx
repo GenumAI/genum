@@ -119,7 +119,7 @@ export default function ApiEndpoint() {
 	const promptIdValue = promptId?.toString() ?? "";
 
 	return (
-		<div className="w-full max-w-[1232px] px-3 pt-8 lg:pr-6 2xl-plus:w-[70%] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px]">
+		<div className="w-full min-w-0 px-3 pt-8 lg:pr-6">
 			<Card className="w-full min-w-0 overflow-hidden bg-card text-card-foreground shadow-none">
 				<div className="w-full min-w-0">
 					<CardHeader>

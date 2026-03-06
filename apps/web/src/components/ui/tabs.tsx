@@ -26,23 +26,19 @@ const TabsList = forwardRef<
 			const activeTab = listElement.querySelector('[data-state="active"]') as HTMLElement;
 
 			if (activeTab) {
-				const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 				const listRect = listElement.getBoundingClientRect();
 				const activeRect = activeTab.getBoundingClientRect();
 				const center = activeRect.left - listRect.left + activeRect.width / 2 - 4;
-
-				const zoom = window.getComputedStyle(document.documentElement).zoom || "1";
-				const zoomFactor = parseFloat(zoom);
 
 				const width = activeTab.offsetWidth;
 				setListRect(listRect);
 				setActiveTabRect({
 					width,
 					height: activeRect.height,
-					left: isSafari ? center : center / zoomFactor,
+					left: center,
 				});
 			}
-		};
+			};
 
 		updateActiveTabPosition();
 

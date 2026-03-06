@@ -33,7 +33,7 @@ export default function Testcases() {
 
 	return (
 		<>
-			<div className="w-full max-w-[1232px] space-y-6 px-3 pt-8 lg:pr-6 2xl-plus:w-[70%] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px]">
+			<div className="w-full min-w-0 space-y-6 px-3 pt-8 lg:pr-6">
 				<TestcasesToolbar
 					search={search}
 					onSearchChange={setSearch}

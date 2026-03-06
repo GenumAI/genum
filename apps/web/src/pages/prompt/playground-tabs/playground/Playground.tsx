@@ -39,7 +39,7 @@ export default function Playground() {
 	const isInitialLoading = ui.loading.prompt || testcase.loading;
 
 	return (
-		<div className="h-full w-full min-w-0 max-w-[1470px] overflow-x-hidden px-3 pt-8 text-foreground lg:pr-6">
+		<div className="h-full w-full min-w-0 overflow-x-hidden px-3 pt-8 text-foreground lg:pr-6">
 			{isInitialLoading ? (
 				<div className="flex w-full min-w-0 flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start">
 					<PlaygroundMainSkeleton />

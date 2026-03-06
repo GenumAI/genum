@@ -305,10 +305,6 @@ html.firefox .monaco-diff-editor .inputarea {
 	position: absolute !important;
 }
 
-html.firefox .DiffEditor {
-	zoom: normal !important;
-}
-
 @-moz-document url-prefix() {
 	table {
 		border: transparent !important;
@@ -321,12 +317,7 @@ html.firefox .DiffEditor {
 }
 
 @media (min-width: 1200px) and (max-width: 1369px) {
-	.DiffEditor {
-		zoom: 0.7;
-	}
-
 	html.firefox .DiffEditor {
-		zoom: normal;
 		transform: scale(1.1);
 		transform-origin: top left;
 		width: calc(100% / 1.1);
@@ -335,50 +326,12 @@ html.firefox .DiffEditor {
 }
 
 @media (min-width: 1370px) and (max-width: 1550px) {
-	.DiffEditor {
-		zoom: 0.8;
-	}
-
 	html.firefox .DiffEditor {
-		zoom: normal;
 		transform: scale(1.1);
 		transform-origin: top left;
 		width: calc(100% / 1.1);
 		height: calc(100% / 1.1);
 	}
-}
-
-@media (max-width: 1470px) {
-	html:not(.firefox) {
-		zoom: 0.9;
-	}
-
-	html:not(.firefox) [data-radix-popper-content-wrapper] {
-		zoom: calc(1 / 0.9);
-	}
-}
-
-@media (min-width: 1720px) {
-	html:not(.firefox) {
-		zoom: 1.1;
-	}
-
-	html:not(.firefox) [data-radix-popper-content-wrapper] {
-		zoom: calc(1 / 1.1);
-	}
-}
-
-html.safari {
-	zoom: 1 !important;
-}
-
-html.safari [data-radix-popper-content-wrapper] {
-	zoom: 1 !important;
-}
-
-html.firefox .monaco-editor,
-html.firefox .monaco-diff-editor {
-	zoom: normal !important;
 }
 
 @layer components {

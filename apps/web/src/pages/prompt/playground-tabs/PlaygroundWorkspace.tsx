@@ -85,23 +85,25 @@ export default function PlaygroundWorkspace() {
 	}
 
 	return (
-		<div className="w-full min-w-0">
-			{WORKSPACE_TAB_ORDER.map((tabName) => {
-				const TabComponent = WORKSPACE_TAB_COMPONENTS[tabName];
-				const isActive = tabName === activeTab;
+		<div className="w-full flex justify-center">
+			<div className="w-full min-w-0 max-w-[1470px]">
+				{WORKSPACE_TAB_ORDER.map((tabName) => {
+					const TabComponent = WORKSPACE_TAB_COMPONENTS[tabName];
+					const isActive = tabName === activeTab;
 
-				return (
-					<div
-						key={tabName}
-						className="w-full min-w-0 justify-center"
-						data-workspace-tab={tabName}
-						aria-hidden={!isActive}
-						style={{ display: isActive ? "flex" : "none" }}
-					>
-						<TabComponent />
-					</div>
-				);
-			})}
+					return (
+						<div
+							key={tabName}
+							className="w-full min-w-0 justify-center"
+							data-workspace-tab={tabName}
+							aria-hidden={!isActive}
+							style={{ display: isActive ? "flex" : "none" }}
+						>
+							<TabComponent />
+						</div>
+					);
+				})}
+			</div>
 		</div>
 	);
 }

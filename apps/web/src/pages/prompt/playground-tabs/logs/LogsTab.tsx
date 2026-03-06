@@ -75,7 +75,7 @@ export default function LogsTab() {
 	}, []);
 
 	return (
-		<div className="w-full min-w-0 max-w-[1232px] bg-background px-3 py-8 text-foreground lg:pr-6 2xl-plus:w-[70%] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px]">
+		<div className="w-full min-w-0 bg-background px-3 py-8 text-foreground lg:pr-6">
 			<div className="pb-6">
 				<LogsFilter
 					filter={logsFilter}
