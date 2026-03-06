@@ -71,7 +71,7 @@ export function usePromptById(promptId: number | string | undefined) {
 
 	return {
 		prompt: promptQuery.data ?? null,
-		loading: promptQuery.isLoading || updatePromptMutation.isPending,
+		loading: promptQuery.isLoading,
 		initialLoading: promptQuery.isLoading,
 		isUpdating: updatePromptMutation.isPending,
 		error,
