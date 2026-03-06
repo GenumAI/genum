@@ -9,6 +9,7 @@ interface VideoPlayerCardProps {
 	balance: number | null;
 	isLoadingBalance: boolean;
 	errorBalance: string | null;
+	showBalance?: boolean;
 }
 
 interface BalanceInfoProps {
@@ -71,6 +72,7 @@ function VideoPlayerCardComponent({
 	balance,
 	isLoadingBalance,
 	errorBalance,
+	showBalance = true,
 }: VideoPlayerCardProps) {
 	return (
 		<Card className="p-0 px-[76px] shadow-none border-none flex flex-col items-center">
@@ -89,11 +91,13 @@ function VideoPlayerCardComponent({
 				/>
 			</div>
 
-			<BalanceInfo
-				balance={balance}
-				isLoadingBalance={isLoadingBalance}
-				errorBalance={errorBalance}
-			/>
+			{showBalance && (
+				<BalanceInfo
+					balance={balance}
+					isLoadingBalance={isLoadingBalance}
+					errorBalance={errorBalance}
+				/>
+			)}
 		</Card>
 	);
 }
