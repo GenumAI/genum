@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import { TestcasesTableSkeleton } from "../playground/utils/playgroundSkeletons";
 import { useTestcasesTable } from "./hooks/useTestcasesTable";
 import TestcasesToolbar from "./components/TestcasesToolbar";
 import TestcasesTable from "./components/TestcasesTable";
@@ -20,6 +21,7 @@ export default function Testcases() {
 		setConfirmModalOpen,
 		isRunning,
 		isDeleting,
+		isLoading,
 
 		table,
 
@@ -47,7 +49,11 @@ export default function Testcases() {
 					runningRowsCount={runningRows.length}
 				/>
 
-				<TestcasesTable table={table} onRowClick={handleRowClick} />
+				{isLoading ? (
+					<TestcasesTableSkeleton />
+				) : (
+					<TestcasesTable table={table} onRowClick={handleRowClick} />
+				)}
 			</div>
 			<DeleteConfirmDialog
 				open={confirmModalOpen}

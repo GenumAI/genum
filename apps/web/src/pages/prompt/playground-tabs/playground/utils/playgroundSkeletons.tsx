@@ -198,4 +198,51 @@ function PlaygroundSettingsSkeleton() {
 	);
 }
 
-export { PlaygroundMainSkeleton, PlaygroundSettingsSkeleton, ModelsSettingsControlsSkeleton };
+function TestcasesTableSkeleton() {
+	const rowSkeletonKeys = [
+		"testcase-row-1",
+		"testcase-row-2",
+		"testcase-row-3",
+		"testcase-row-4",
+		"testcase-row-5",
+		"testcase-row-6",
+	];
+
+	return (
+		<div className="overflow-hidden rounded-md">
+			<div className="flex h-[54px] items-center bg-[#F4F4F5] px-[14px] dark:bg-[#262626]">
+				<div className="grid w-full grid-cols-[2.8fr_1.6fr_1fr_1fr_0.8fr] gap-4">
+					<Skeleton className="h-4 w-[58px]" />
+					<Skeleton className="h-4 w-[78px]" />
+					<Skeleton className="h-4 w-[42px] justify-self-center" />
+					<Skeleton className="h-4 w-[50px] justify-self-center" />
+					<Skeleton className="h-4 w-[46px] justify-self-end" />
+				</div>
+			</div>
+			<div className="divide-y">
+				{rowSkeletonKeys.map((rowKey) => (
+					<div
+						key={rowKey}
+						className="grid grid-cols-[2.8fr_1.6fr_1fr_1fr_0.8fr] gap-4 px-[14px] py-4"
+					>
+						<div className="space-y-2">
+							<Skeleton className="h-4 w-[70%]" />
+							<Skeleton className="h-3 w-[45%]" />
+						</div>
+						<Skeleton className="h-4 w-[78%] self-center" />
+						<Skeleton className="h-6 w-16 justify-self-center rounded-full" />
+						<Skeleton className="h-4 w-20 justify-self-center self-center" />
+						<Skeleton className="h-8 w-8 justify-self-end rounded-md" />
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+export {
+	PlaygroundMainSkeleton,
+	PlaygroundSettingsSkeleton,
+	ModelsSettingsControlsSkeleton,
+	TestcasesTableSkeleton,
+};
