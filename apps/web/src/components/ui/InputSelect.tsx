@@ -42,6 +42,7 @@ export const InputSelect: React.FC<{
 		isSelected: boolean;
 		onSelect: () => void;
 	}) => React.ReactNode;
+	listClassName?: string;
 	popoverProps?: React.ComponentPropsWithoutRef<typeof PopoverContent>;
 }> = ({
 	options = [],
@@ -53,6 +54,7 @@ export const InputSelect: React.FC<{
 	className,
 	children,
 	renderOption,
+	listClassName,
 	popoverProps,
 	...restProps
 }) => {
@@ -169,7 +171,12 @@ export const InputSelect: React.FC<{
 						className="h-10 text-sm"
 					/>
 				</div>
-				<div className="max-h-[20rem] min-h-[10rem] overflow-y-auto overflow-x-hidden">
+				<div
+					className={cn(
+						"max-h-[20rem] min-h-[10rem] overflow-y-auto overflow-x-hidden",
+						listClassName,
+					)}
+				>
 					{hasResults ? (
 						groups && groups.length > 0 ? (
 							filteredGroups!.map((group, gi) => (

@@ -19,6 +19,8 @@ const ModelsSettings = ({
 	loadingFallback,
 	onReadyStateChange,
 }: ModelsSettingsProps) => {
+	const hasEnabledModels = (models ?? []).some((model) => model.isDisabled !== true);
+
 	const {
 		form,
 		control,

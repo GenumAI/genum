@@ -29,6 +29,15 @@ export const ModelSelector = memo(
 	}: ModelSelectorProps) => {
 		const selectedModel = models?.find((m) => m.name === selectedModelName);
 		const isSelectedDisabled = selectedModel?.isDisabled === true;
+		const triggerOptions =
+			models?.map((model) => ({
+				value: model.name,
+				label: model.displayName || model.name,
+			})) ?? [];
+		const modelCount = Object.values(groupedModels).reduce(
+			(count, vendorModels) => count + vendorModels.length,
+			0,
+		);
 
 		return (
 			<FormField
@@ -65,6 +74,7 @@ export const ModelSelector = memo(
 								sideOffset: 4,
 								align: "start",
 							}}
+							listClassName={modelCount < 5 ? "min-h-0" : undefined}
 							renderOption={({ option, isSelected, onSelect }) => {
 								const model = models?.find((m) => m.name === option.value);
 								const isModelDisabled = model?.isDisabled === true;
@@ -119,14 +129,13 @@ export const ModelSelector = memo(
 							}}
 						>
 							{({
-								options,
 								placeholder,
 								disabled,
 								selectedValue,
 								setIsPopoverOpen,
 							}) => (
 								<InputSelectTrigger
-									options={options}
+									options={triggerOptions}
 									placeholder={placeholder}
 									disabled={disabled}
 									selectedValue={selectedValue}

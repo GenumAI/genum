@@ -39,7 +39,6 @@ export interface CostBreakdownMetricsProps {
 	totalCost?: number;
 }
 
-// ModelsSettings types
 export interface ModelSettingsFormValues {
 	selectedModel: string;
 	selectedModelId: number | null;
