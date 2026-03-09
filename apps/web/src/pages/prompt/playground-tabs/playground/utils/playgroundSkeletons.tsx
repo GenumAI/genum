@@ -338,6 +338,57 @@ function MemoryTableSkeleton() {
 	);
 }
 
+function LogsTableSkeleton() {
+	const headerWidths = [
+		"w-8",
+		"w-24",
+		"w-12",
+		"w-12",
+		"w-20",
+		"w-16",
+		"w-14",
+		"w-16",
+		"w-16",
+	];
+	const rowSkeletonKeys = [
+		"log-row-1",
+		"log-row-2",
+		"log-row-3",
+		"log-row-4",
+		"log-row-5",
+		"log-row-6",
+	];
+
+	return (
+		<div className="overflow-hidden bg-card text-card-foreground">
+			<div className="grid h-[52.5px] grid-cols-[48px_180px_1fr_1fr_180px_120px_110px_110px_110px] items-center gap-3 bg-muted px-3">
+				{headerWidths.map((width, index) => (
+					<Skeleton key={`logs-header-${index}`} className={`h-4 ${width} justify-self-center`} />
+				))}
+			</div>
+
+			<div className="divide-y divide-border">
+				{rowSkeletonKeys.map((rowKey) => (
+					<div
+						key={rowKey}
+						className="grid grid-cols-[48px_180px_1fr_1fr_180px_120px_110px_110px_110px] items-center gap-3 px-3 py-3"
+					>
+						<Skeleton className="h-4 w-4 justify-self-center rounded-full" />
+						<Skeleton className="h-4 w-28 justify-self-center" />
+						<Skeleton className="hidden h-4 w-14 justify-self-center lg:block" />
+						<Skeleton className="hidden h-4 w-16 justify-self-center lg:block" />
+						<Skeleton className="h-4 w-24 justify-self-center" />
+						<Skeleton className="hidden h-4 w-14 justify-self-center xl:block" />
+						<Skeleton className="hidden h-4 w-16 justify-self-center md:block" />
+						<Skeleton className="hidden h-4 w-14 justify-self-center sm:block" />
+						<Skeleton className="hidden h-4 w-16 justify-self-center sm:block" />
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
 export {
 	PlaygroundMainSkeleton,
 	PlaygroundSettingsSkeleton,
@@ -345,4 +396,5 @@ export {
 	TestcasesTableSkeleton,
 	VersionsBranchesSkeleton,
 	MemoryTableSkeleton,
+	LogsTableSkeleton,
 };

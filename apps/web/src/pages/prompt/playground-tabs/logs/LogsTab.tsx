@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { LogsFilter } from "@/pages/logs/components/LogsFilter";
 import { LogDetailsDialog } from "@/pages/prompt/playground-tabs/logs/components/LogDetailsDialog";
+import { LogsTableSkeleton } from "@/pages/prompt/playground-tabs/playground/utils/playgroundSkeletons";
 import { LogsTable } from "./components/LogsTable";
 import { useLogsData } from "./hooks/useLogsData";
 import { useLogsFilters } from "./hooks/useLogsFilters";
@@ -92,12 +93,16 @@ export default function LogsTab() {
 					<div className="p-6 text-center text-destructive">Can't find logs</div>
 				) : null}
 
-				<LogsTable
-					logs={logs}
-					isFetching={isInitialLoadingLogs}
-					onLogClick={handleLogClick}
-					showPromptColumn={false}
-				/>
+				{isInitialLoadingLogs ? (
+					<LogsTableSkeleton />
+				) : (
+					<LogsTable
+						logs={logs}
+						isFetching={isInitialLoadingLogs}
+						onLogClick={handleLogClick}
+						showPromptColumn={false}
+					/>
+				)}
 
 				<div className="mt-4 flex w-full flex-wrap items-center justify-between gap-3 px-0 py-3">
 					<div className="flex items-center gap-3">
