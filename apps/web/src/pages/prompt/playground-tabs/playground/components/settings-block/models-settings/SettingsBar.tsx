@@ -19,9 +19,12 @@ export default function SettingsBar({
 	responseTime,
 	updatePromptContent,
 	isUpdatingPromptContent = false,
+	onReadyStateChange,
 }: SettingsBarProps) {
-	const { promptId, isLoading, isOpenModels, validModels, setIsModelValid, toggleModels } =
-		useSettingsBar(prompt, models);
+	const { promptId, isOpenModels, validModels, setIsModelValid, toggleModels } = useSettingsBar(
+		prompt,
+		models,
+	);
 	const [isToolsSectionVisible, setIsToolsSectionVisible] = useState(true);
 
 	if (isLoading) {

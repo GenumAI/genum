@@ -73,13 +73,19 @@ export interface InviteValidationResponse {
 export interface AcceptInviteResponse {
 	success: boolean;
 	message?: string;
+	member?: {
+		id: number | string;
+		organizationId: number | string;
+		userId: number | string;
+		role: string;
+	};
 	user?: {
 		id: string;
 		email: string;
 		name: string;
 	};
 	organization?: {
-		id: string;
+		id: string | number;
 		name: string;
 	};
 }

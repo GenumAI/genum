@@ -17,6 +17,7 @@ export interface SettingsBarProps {
 	responseTime?: number | null;
 	updatePromptContent: (value: string) => void;
 	isUpdatingPromptContent?: boolean;
+	onReadyStateChange?: (isReady: boolean) => void;
 }
 
 export interface RunMetricsProps {
