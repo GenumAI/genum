@@ -1,4 +1,4 @@
-import { useRef, memo, useMemo } from "react";
+import { useRef, memo, useMemo, useEffect } from "react";
 import EditorCard from "./components/EditorCard";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import MonacoEditor from "@/components/ui/MonacoEditor";
@@ -22,6 +22,7 @@ export interface EditorMetrics {
 interface TextEditorProps {
 	title: string;
 	main?: boolean;
+	content: string;
 	onUpdatePrompt: (
 		content: string,
 		options?: {
@@ -30,6 +31,7 @@ interface TextEditorProps {
 			isFormattingOnly?: boolean;
 		},
 	) => void;
+	onLivePromptChange?: (content: string) => void;
 	testcaseInput?: string;
 	expectedContent?: any;
 	metrics?: EditorMetrics;
@@ -38,12 +40,15 @@ interface TextEditorProps {
 	isAuditLoading?: boolean;
 	canAudit?: boolean;
 	auditRate?: number;
+	onReadyStateChange?: (isReady: boolean) => void;
 }
 
 const TextEditor = ({
 	title,
 	main,
+	content,
 	onUpdatePrompt,
+	onLivePromptChange,
 	testcaseInput,
 	expectedContent,
 	metrics,
@@ -52,6 +57,7 @@ const TextEditor = ({
 	isAuditLoading = false,
 	canAudit = false,
 	auditRate,
+	onReadyStateChange,
 }: TextEditorProps) => {
 	const editorContainerRef = useRef<HTMLFieldSetElement>(null);
 
@@ -65,6 +71,7 @@ const TextEditor = ({
 		handleMarkdownPreviewToggle,
 		editorHeight,
 		setEditorHeight,
+		livePromptValue,
 		promptText,
 		setPromptText,
 		tuneText,
@@ -78,13 +85,14 @@ const TextEditor = ({
 		scrollToHeading,
 		handleClearContent,
 	} = useTextEditor({
+		content,
 		onUpdatePrompt,
+		onLivePromptChange,
 		testcaseInput,
 		expectedContent,
 	});
 
 	const {
-		editorValueRef,
 		handleEditorChange,
 		handleEditorDidMount,
 		handleStyle,
@@ -106,13 +114,24 @@ const TextEditor = ({
 		[handleStyle, handleUppercase],
 	);
 
+	useEffect(() => {
+		onReadyStateChange?.(false);
+		const frameId = window.requestAnimationFrame(() => {
+			onReadyStateChange?.(true);
+		});
+
+		return () => {
+			window.cancelAnimationFrame(frameId);
+		};
+	}, [content, onReadyStateChange]);
+
 	return (
 		<>
 			<fieldset
 				ref={editorContainerRef}
 				tabIndex={-1}
 				aria-label="Editor container"
-				className="relative border-0 p-0 m-0"
+				className="relative m-0 w-full min-w-0 border-0 p-0"
 				onBlur={(e) => {
 					if (!e.currentTarget.contains(e.relatedTarget)) {
 						mainEditor.handleEditorBlur();
@@ -122,8 +141,8 @@ const TextEditor = ({
 				<EditorCard
 					title={title}
 					editor={{
-						value: editorValueRef.current,
-						isEmpty: !editorValueRef.current.trim(),
+						value: livePromptValue,
+						isEmpty: !livePromptValue.trim(),
 						commands: editorCommands,
 					}}
 					isExpanded={isExpanded}
@@ -156,7 +175,7 @@ const TextEditor = ({
 						<MonacoEditor
 							height={`${editorHeight}px`}
 							defaultLanguage="markdown"
-							value={editorValueRef.current}
+							value={livePromptValue}
 							onChange={handleEditorChange}
 							onMount={handleEditorDidMount}
 							width="100%"
@@ -189,7 +208,7 @@ const TextEditor = ({
 			<PromptDiff
 				isOpen={promptDiffDialog.isOpenPromptDiff}
 				onOpenChange={promptDiffDialog.setIsOpenPromptDiff}
-				original={mainEditor.editorValueRef.current}
+				original={livePromptValue}
 				modified={promptTuneMutation.data?.prompt ?? ""}
 				chainOfThoughts={promptTuneMutation.data?.chainOfThoughts ?? ""}
 				isLoading={false}

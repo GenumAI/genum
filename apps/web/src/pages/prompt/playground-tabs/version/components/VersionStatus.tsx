@@ -28,8 +28,8 @@ const VersionStatus = ({
 		handleCommit,
 	} = useCommitDialog({
 		promptId: promptId,
-		onSuccess: async () => {
-			if (onCommitStatusChange) onCommitStatusChange(true);
+		onSuccess: async (commited) => {
+			if (onCommitStatusChange) onCommitStatusChange(commited);
 		},
 	});
 

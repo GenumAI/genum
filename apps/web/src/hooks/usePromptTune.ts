@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { helpersApi, PromptTuneResponse } from "@/api/helpers";
+import { useMutation } from "@tanstack/react-query";
+import type { PromptTuneResponse } from "@/api/helpers";
+import { helpersApi } from "@/api/helpers";
+import { helperKeys } from "@/query-keys/helpers.keys";
 
 export function usePromptTune({
 	editorValue,
@@ -24,13 +27,15 @@ export function usePromptTune({
 }) {
 	const [promptText, setPromptText] = useState("");
 	const [tuneText, setTuneText] = useState("");
-	const [loading, setLoading] = useState(false);
-	const [data, setData] = useState<PromptTuneResponse | null>(null);
 
-	const handleGenerate = async () => {
-		try {
-			setLoading(true);
-			const result = await helpersApi.promptTune({
+	const promptTuneMutation = useMutation<
+		PromptTuneResponse,
+		unknown,
+		{ context: string }
+	>({
+		mutationKey: helperKeys.promptTune(),
+		mutationFn: async ({ context }) => {
+			return await helpersApi.promptTune({
 				instruction: editorValue,
 				input: testcaseInput || "",
 				output: currentInputContent || "",
@@ -38,41 +43,28 @@ export function usePromptTune({
 					typeof expectedContent === "object"
 						? expectedContent?.answer || ""
 						: expectedContent || "",
-				context: promptText.trim(),
+				context,
 			});
-			setData(result);
+		},
+	});
+
+	const runPromptTune = async (context: string, resetInput: () => void) => {
+		try {
+			await promptTuneMutation.mutateAsync({ context });
 			setIsOpenPromptDiff(true);
 			setIsExpanded(false);
-			setPromptText("");
-		} catch (err) {
+			resetInput();
+		} catch {
 			toast({ title: "Something went wrong", variant: "destructive" });
-		} finally {
-			setLoading(false);
 		}
 	};
 
+	const handleGenerate = async () => {
+		await runPromptTune(promptText.trim(), () => setPromptText(""));
+	};
+
 	const handleTune = async () => {
-		try {
-			setLoading(true);
-			const result = await helpersApi.promptTune({
-				instruction: editorValue,
-				input: testcaseInput || "",
-				output: currentInputContent || "",
-				expectedOutput:
-					typeof expectedContent === "object"
-						? expectedContent?.answer || ""
-						: expectedContent || "",
-				context: tuneText.trim(),
-			});
-			setData(result);
-			setIsOpenPromptDiff(true);
-			setIsExpanded(false);
-			setTuneText("");
-		} catch (err) {
-			toast({ title: "Something went wrong", variant: "destructive" });
-		} finally {
-			setLoading(false);
-		}
+		await runPromptTune(tuneText.trim(), () => setTuneText(""));
 	};
 
 	return {
@@ -82,10 +74,7 @@ export function usePromptTune({
 		setTuneText,
 		handleGenerate,
 		handleTune,
-		loading,
-		promptTuneMutation: {
-			data,
-			isPending: loading,
-		},
+		loading: promptTuneMutation.isPending,
+		promptTuneMutation,
 	};
 }

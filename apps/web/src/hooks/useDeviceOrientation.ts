@@ -8,7 +8,7 @@ export const useDeviceOrientation = () => {
 		const checkIsMobile = () => {
 			const userAgent = navigator.userAgent;
 			const mobileRegex = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
-			return mobileRegex.test(userAgent) || window.innerWidth <= 768;
+			return mobileRegex.test(userAgent);
 		};
 
 		const getOrientation = () => {

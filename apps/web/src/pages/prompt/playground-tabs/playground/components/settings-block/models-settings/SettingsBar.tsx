@@ -5,6 +5,7 @@ import ModelsSettings from "./ModelsSettings";
 import CanvasChat from "../canvas-chat/CanvasChat";
 import { useSettingsBar } from "./hooks/useSettingsBar";
 import { RunMetrics, ExecutionMetrics, CostBreakdownMetrics } from "./components/SettingsMetrics";
+import { ModelsSettingsControlsSkeleton } from "../../../utils/playgroundSkeletons";
 import type { SettingsBarProps } from "./utils/types";
 
 export default function SettingsBar({
@@ -15,31 +16,24 @@ export default function SettingsBar({
 	responseTime,
 	updatePromptContent,
 	isUpdatingPromptContent = false,
+	onReadyStateChange,
 }: SettingsBarProps) {
-	const { promptId, isLoading, isOpenModels, validModels, setIsModelValid, toggleModels } =
-		useSettingsBar(prompt, models);
+	const { promptId, isOpenModels, validModels, setIsModelValid, toggleModels } = useSettingsBar(
+		prompt,
+		models,
+	);
 	const [isToolsSectionVisible, setIsToolsSectionVisible] = useState(true);
 
-	if (isLoading) {
-		return (
-			<div className="flex flex-col gap-3 mx-auto">
-				<div className="rounded-xl border bg-white p-6 shadow-sm">
-					<p className="text-[#71717A] text-center">Loading...</p>
-				</div>
-			</div>
-		);
-	}
-
 	return (
-		<div className="flex flex-col gap-3 mx-auto">
-			<div className="rounded-2xl border border-[#83ABFF80] py-4 px-3 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A] w-full md:max-w-sm bg-card transition-all">
+		<div className="flex w-full flex-col gap-3">
+			<div className="w-full rounded-2xl border border-[#83ABFF80] bg-card px-3 py-4 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A]">
 				<CanvasChat
 					systemPrompt={prompt?.value ?? ""}
 					updatePromptContent={updatePromptContent}
 				/>
 			</div>
 
-			<div className="flex flex-col gap-3 rounded-xl border bg-card py-4 px-3 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A]">
+			<div className="flex w-full flex-col gap-3 rounded-xl border bg-card px-3 py-4 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A]">
 				<button
 					type="button"
 					onClick={toggleModels}
@@ -64,9 +58,7 @@ export default function SettingsBar({
 				</button>
 
 				{isOpenModels && (
-					<div
-						className={`h-full flex flex-col${isToolsSectionVisible ? " gap-3" : ""}`}
-					>
+					<div className={`h-full flex flex-col${isToolsSectionVisible ? " gap-3" : ""}`}>
 						<ModelsSettings
 							prompt={prompt}
 							models={validModels}
@@ -74,14 +66,16 @@ export default function SettingsBar({
 							onValidationChange={setIsModelValid}
 							isUpdatingPromptContent={isUpdatingPromptContent}
 							onToolsSectionVisibilityChange={setIsToolsSectionVisible}
+							loadingFallback={<ModelsSettingsControlsSkeleton />}
+							onReadyStateChange={onReadyStateChange}
 						/>
 
 						<div className="flex flex-col gap-3">
 							<Separator className="my-1" />
 							<RunMetrics responseTime={responseTime} tokens={tokens} cost={cost} />
 							<ExecutionMetrics
-								settings={prompt?.languageModel}
 								responseTime={responseTime}
+								totalTokens={tokens?.total}
 								promptTokens={tokens?.prompt}
 								completionTokens={tokens?.completion}
 							/>

@@ -186,14 +186,14 @@ export function LogsFilter({
 	}, [promptNames]);
 
 	return (
-		<div className="flex items-end gap-4">
-			<div className="flex flex-row items-center gap-2 flex-1">
+		<div className="flex w-full min-w-0 items-end gap-4">
+			<div className="flex w-full min-w-0 flex-wrap items-center gap-2">
 				<div ref={dateRangeRef}>
 					<DateRangePopoverField value={filter.dateRange} onApply={handleCustomApply} />
 				</div>
 
-				<Tabs value={tab} onValueChange={handleTabChange} className="w-fit">
-					<TabsList>
+				<Tabs value={tab} onValueChange={handleTabChange} className="max-w-full min-w-0">
+					<TabsList className="max-w-full overflow-x-auto">
 						<TabsTrigger value="day">Past 1 day</TabsTrigger>
 						<TabsTrigger value="week">Past 1 week</TabsTrigger>
 						<TabsTrigger value="month">Past 1 month</TabsTrigger>
@@ -201,109 +201,111 @@ export function LogsFilter({
 					</TabsList>
 				</Tabs>
 
-				<div className="flex-1" />
+				<div className="hidden flex-1 md:block" />
 
-				{showQueryField && (
-					<Input
-						placeholder="Search logs..."
-						value={queryValue}
-						onChange={(e) => handleQueryInputChange(e.target.value)}
-						className="w-[200px]"
-					/>
-				)}
+				<div className="flex basis-full w-full flex-wrap items-center justify-start gap-2 xl:ml-auto xl:basis-auto xl:w-auto xl:justify-end xl:flex-nowrap">
+					{showQueryField && (
+						<Input
+							placeholder="Search logs..."
+							value={queryValue}
+							onChange={(e) => handleQueryInputChange(e.target.value)}
+							className="w-full sm:w-[245px]"
+						/>
+					)}
 
-				{showFiltersButton && (
-					<Popover>
-						<PopoverTrigger asChild>
-							<Button variant="outline" size="icon">
-								<ListFilter className="w-4 h-4" />
-							</Button>
-						</PopoverTrigger>
-
-						<PopoverContent
-							align="start"
-							className="w-[320px] p-4 bg-popover text-popover-foreground border border-border shadow-md rounded-md"
-						>
-							<div className="flex flex-col gap-2">
-								<h3 className="leading-7 text-sm font-semibold tracking-tight mb-1 text-foreground">
-									Filters
-								</h3>
-
-								<div>
-									<p className="block text-sm font-medium mb-1 text-muted-foreground">
-										Log Level
-									</p>
-									<Select
-										value={logLevelValue}
-										onValueChange={handleLogLevelChange}
-									>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Log Level" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="all">All levels</SelectItem>
-											<SelectItem value="SUCCESS">Success</SelectItem>
-											<SelectItem value="ERROR">Error</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-
-								<Separator className="my-2" />
-
-								<div>
-									<p className="block text-sm font-medium mb-1 text-muted-foreground">
-										Source
-									</p>
-									<Select
-										value={sourceValue}
-										onValueChange={handleSourceChange}
-									>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Choose a Source" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="all">All sources</SelectItem>
-											<SelectItem value="api">API</SelectItem>
-											<SelectItem value="ui">UI</SelectItem>
-											<SelectItem value="testcase">Testcase</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-
-								{hasPrompts && (
-									<>
-										<Separator className="my-2" />
-										<div>
-											<p className="block text-sm font-medium mb-1 text-muted-foreground">
-												Prompt
-											</p>
-											<Select
-												value={promptValue}
-												onValueChange={handlePromptChange}
-											>
-												<SelectTrigger className="w-full">
-													<SelectValue placeholder="Choose a prompt" />
-												</SelectTrigger>
-												<SelectContent className="max-h-[200px]">
-													<SelectItem value="all">All prompts</SelectItem>
-													{promptOptions}
-												</SelectContent>
-											</Select>
-										</div>
-									</>
-								)}
-
-								<Button
-									variant="secondary"
-									className="w-full mt-2"
-									onClick={handleReset}
-								>
-									Reset
+					{showFiltersButton && (
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button variant="outline" size="icon">
+									<ListFilter className="w-4 h-4" />
 								</Button>
-							</div>
-						</PopoverContent>
-					</Popover>
-				)}
+							</PopoverTrigger>
+
+							<PopoverContent
+								align="start"
+								className="w-[320px] p-4 bg-popover text-popover-foreground border border-border shadow-md rounded-md"
+							>
+								<div className="flex flex-col gap-2">
+									<h3 className="leading-7 text-sm font-semibold tracking-tight mb-1 text-foreground">
+										Filters
+									</h3>
+
+									<div>
+										<p className="block text-sm font-medium mb-1 text-muted-foreground">
+											Log Level
+										</p>
+										<Select
+											value={logLevelValue}
+											onValueChange={handleLogLevelChange}
+										>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Log Level" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="all">All levels</SelectItem>
+												<SelectItem value="SUCCESS">Success</SelectItem>
+												<SelectItem value="ERROR">Error</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+
+									<Separator className="my-2" />
+
+									<div>
+										<p className="block text-sm font-medium mb-1 text-muted-foreground">
+											Source
+										</p>
+										<Select
+											value={sourceValue}
+											onValueChange={handleSourceChange}
+										>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Choose a Source" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="all">All sources</SelectItem>
+												<SelectItem value="api">API</SelectItem>
+												<SelectItem value="ui">UI</SelectItem>
+												<SelectItem value="testcase">Testcase</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+
+									{hasPrompts && (
+										<>
+											<Separator className="my-2" />
+											<div>
+												<p className="block text-sm font-medium mb-1 text-muted-foreground">
+													Prompt
+												</p>
+												<Select
+													value={promptValue}
+													onValueChange={handlePromptChange}
+												>
+													<SelectTrigger className="w-full">
+														<SelectValue placeholder="Choose a prompt" />
+													</SelectTrigger>
+													<SelectContent className="max-h-[200px]">
+														<SelectItem value="all">All prompts</SelectItem>
+														{promptOptions}
+													</SelectContent>
+												</Select>
+											</div>
+										</>
+									)}
+
+									<Button
+										variant="secondary"
+										className="w-full mt-2"
+										onClick={handleReset}
+									>
+										Reset
+									</Button>
+								</div>
+							</PopoverContent>
+						</Popover>
+					)}
+				</div>
 			</div>
 		</div>
 	);

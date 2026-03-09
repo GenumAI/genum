@@ -1,89 +1,79 @@
-import { useEffect, useMemo, useCallback } from "react";
-import debounce from "lodash.debounce";
-import { usePlaygroundActions, usePlaygroundTestcase } from "@/stores/playground.store";
-import { usePromptById } from "@/hooks/usePrompt";
-import { promptApi } from "@/api/prompt";
+import { useCallback } from "react";
+import { usePlaygroundAssertion } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAssertion";
 import { useToast } from "@/hooks/useToast";
+import { promptApi } from "@/api/prompt";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { promptKeys } from "@/query-keys/prompt.keys";
+import type { PromptSettings } from "@/types/Prompt";
 
 interface UseAssertionsProps {
 	promptId: number | undefined;
+	serverAssertionType?: string;
+	serverAssertionValue?: string;
 }
 
-export const useAssertions = ({ promptId }: UseAssertionsProps) => {
-	const { setCurrentAssertionType, setAssertionValue } = usePlaygroundActions();
-	const { currentAssertionType, assertionValue } = usePlaygroundTestcase();
-	const { prompt } = usePromptById(promptId);
+type PromptQueryData = {
+	prompt?: PromptSettings;
+};
+
+export const useAssertions = ({
+	promptId,
+	serverAssertionType,
+	serverAssertionValue,
+}: UseAssertionsProps) => {
 	const { toast } = useToast();
+	const queryClient = useQueryClient();
+	const { currentAssertionType, assertionValue, setAssertionValue, setAssertionType } =
+		usePlaygroundAssertion({
+			promptId,
+			serverAssertionType,
+			serverAssertionValue,
+		});
 
-	// Initialize from prompt data
-	useEffect(() => {
-		if (prompt?.prompt) {
-			setCurrentAssertionType(prompt.prompt.assertionType || "AI");
-			setAssertionValue(prompt.prompt.assertionValue || "");
-		}
-	}, [prompt?.prompt, setCurrentAssertionType, setAssertionValue]);
-
-	// Listen to custom events for assertion type changes
-	useEffect(() => {
-		const handleAssertionTypeChange = (event: CustomEvent) => {
-			const { assertionType: newAssertionType } = event.detail;
-			if (newAssertionType && newAssertionType !== currentAssertionType) {
-				setCurrentAssertionType(newAssertionType);
-			}
-		};
-
-		window.addEventListener("assertionTypeChanged", handleAssertionTypeChange as EventListener);
-
-		return () => {
-			window.removeEventListener(
-				"assertionTypeChanged",
-				handleAssertionTypeChange as EventListener,
-			);
-		};
-	}, [currentAssertionType, setCurrentAssertionType]);
+	const updatePromptAssertionMutation = useMutation<
+		{ prompt: PromptSettings },
+		Error,
+		{ assertionType?: string; assertionValue?: string }
+	>({
+		mutationKey: promptKeys.update(promptId),
+		mutationFn: async (data) => {
+			if (!promptId) throw new Error("Prompt ID is required");
+			return promptApi.updatePrompt(promptId, data);
+		},
+		onSuccess: (result) => {
+			queryClient.setQueryData<PromptQueryData>(promptKeys.byId(promptId), (previous) => {
+				if (!previous) return result;
+				return {
+					...previous,
+					prompt: result.prompt || previous.prompt,
+				};
+			});
+		},
+		onError: (error) => {
+			console.error("Failed to update prompt:", error);
+			toast({
+				title: "Something went wrong",
+				variant: "destructive",
+			});
+		},
+	});
 
 	const handleUpdatePrompt = useCallback(
-		async (data: Partial<any>) => {
+		async (data: { assertionType?: string; assertionValue?: string }) => {
 			if (!promptId) return;
-			try {
-				await promptApi.updatePrompt(promptId, data);
-			} catch (error) {
-				console.error("Failed to update prompt:", error);
-				toast({
-					title: "Something went wrong",
-					variant: "destructive",
-				});
-			}
+			await updatePromptAssertionMutation.mutateAsync(data);
 		},
-		[promptId, toast],
-	);
-
-	// Debounced update for assertion value
-	const debouncedUpdateAssertionValue = useMemo(
-		() =>
-			debounce(async (value: string) => {
-				if (promptId && currentAssertionType === "AI") {
-					await handleUpdatePrompt({ assertionValue: value });
-				}
-			}, 500),
-		[promptId, currentAssertionType, handleUpdatePrompt],
+		[promptId, updatePromptAssertionMutation],
 	);
 
 	const handleAssertionTypeChange = useCallback(
 		(value: string) => {
-			setCurrentAssertionType(value);
-
-			window.dispatchEvent(
-				new CustomEvent("assertionTypeChanged", {
-					detail: { assertionType: value },
-				}),
-			);
-
 			if (promptId) {
+				setAssertionType(value);
 				handleUpdatePrompt({ assertionType: value });
 			}
 		},
-		[promptId, setCurrentAssertionType, handleUpdatePrompt],
+		[promptId, setAssertionType, handleUpdatePrompt],
 	);
 
 	const handleAssertionValueChange = useCallback(
@@ -95,9 +85,10 @@ export const useAssertions = ({ promptId }: UseAssertionsProps) => {
 
 	const handleAssertionValueBlur = useCallback(
 		(value: string) => {
-			debouncedUpdateAssertionValue(value);
+			if (!promptId || currentAssertionType !== "AI") return;
+			void handleUpdatePrompt({ assertionValue: value });
 		},
-		[debouncedUpdateAssertionValue],
+		[promptId, currentAssertionType, handleUpdatePrompt],
 	);
 
 	return {

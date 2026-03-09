@@ -7,7 +7,17 @@ import { getParameterDescription } from "../utils/helpers";
 import type { FormSliderProps } from "../utils/types";
 
 export const FormSlider = memo(
-	({ name, label, min, max, step, disabled, control }: FormSliderProps) => {
+	({
+		name,
+		label,
+		min,
+		max,
+		step,
+		defaultValue,
+		disabled,
+		control,
+		onCommit,
+	}: FormSliderProps) => {
 		const paramKey = name.replace(/([A-Z])/g, "_$1").toLowerCase();
 		const description = getParameterDescription(paramKey);
 
@@ -17,12 +27,13 @@ export const FormSlider = memo(
 				name={name}
 				render={({ field }) => {
 					const backendValue = field.value;
+					const fallbackValue = defaultValue ?? min;
 					let currentValue: number;
 
 					if (backendValue !== null && backendValue !== undefined) {
 						currentValue = Number(backendValue);
 					} else {
-						currentValue = 0;
+						currentValue = fallbackValue;
 					}
 
 					return (
@@ -57,6 +68,10 @@ export const FormSlider = memo(
 									onValueChange={(values) => {
 										const newValue = values[0];
 										field.onChange(newValue);
+									}}
+									onValueCommit={(values) => {
+										const committedValue = values[0];
+										onCommit?.(name, committedValue);
 									}}
 									disabled={disabled}
 								/>

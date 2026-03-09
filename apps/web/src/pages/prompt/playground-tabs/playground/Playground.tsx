@@ -1,7 +1,6 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import clsx from "clsx";
 import TextEditor from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/TextEditor";
 import OutputBlock from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDi
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import { InputTextArea } from "@/pages/prompt/playground-tabs/playground/components/input-textarea/InputTextArea";
-import { useSidebar } from "@/components/sidebar/sidebar";
+import { PlaygroundMainSkeleton, PlaygroundSettingsSkeleton } from "./utils/playgroundSkeletons";
 import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlayground";
 import { getOrgId, getProjectId } from "@/api/client";
 import SelectedFilesList from "@/pages/files/components/SelectedFilesList";
@@ -28,6 +27,8 @@ export default function Playground() {
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const [selectedFiles, setSelectedFiles] = useState<FileMetadata[]>([]);
 	const [isTestcaseLoading, setIsTestcaseLoading] = useState(false);
+	const [textEditorReadyPromptId, setTextEditorReadyPromptId] = useState<number | undefined>();
+	const [settingsBarReadyPromptId, setSettingsBarReadyPromptId] = useState<number | undefined>();
 	const controller = usePlaygroundController({
 		promptId,
 		orgId,
@@ -37,43 +38,55 @@ export default function Playground() {
 	});
 
 	const { prompt, testcase, metrics, ui, models, actions } = controller;
+	const hasCurrentPromptData = prompt.data?.prompt?.id === promptId;
+	const isTestcaseReady = !testcase.loading;
+	const shouldShowTransitionSkeleton =
+		!hasCurrentPromptData ||
+		textEditorReadyPromptId !== promptId ||
+		settingsBarReadyPromptId !== promptId ||
+		!isTestcaseReady;
 
-	const sidebar = useSidebar();
+	const handleTextEditorReadyStateChange = useCallback((isReady: boolean) => {
+		setTextEditorReadyPromptId(isReady ? promptId : undefined);
+	}, [promptId]);
+
+	const handleSettingsBarReadyStateChange = useCallback((isReady: boolean) => {
+		setSettingsBarReadyPromptId(isReady ? promptId : undefined);
+	}, [promptId]);
 
 	return (
-		<div className="h-full flex flex-grow-0 max-w-[1470px] ml-3 mr-3 lg:mr-6 w-full text-foreground">
-			<div className="flex flex-col lg:flex-row w-full h-full items-start">
-				<div className="flex w-full flex-col bg-card text-card-foreground border border-border rounded-[12px] mt-0 pt-3 pb-4 px-4 gap-8">
-					{testcaseId && !testcase.data && testcase.loading ? (
-						<div className="flex items-center justify-center h-full">
-							<Loader2 className="animate-spin" />
-							<span className="ml-2">Loading testcase...</span>
-						</div>
-					) : (
-						<>
-							<TextEditor
-								title="System Instructions"
-								main={true}
-								onUpdatePrompt={actions.prompt.update}
-								metrics={metrics}
-								testcaseInput={testcase.data?.input}
-								expectedContent={testcase.expectedContent}
-								onAuditPrompt={actions.audit.run}
-								onOpenAuditModal={actions.audit.openModal}
-								isAuditLoading={ui.loading.audit}
-								canAudit={!!prompt.content}
-								auditRate={ui.modals.audit.rate}
+		<div className="relative h-full w-full min-w-0 max-w-[1470px] overflow-x-hidden px-3 pt-8 text-foreground lg:pr-6">
+			<div className={shouldShowTransitionSkeleton ? "invisible" : ""}>
+				<div className="flex w-full min-w-0 flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start">
+					<div className="flex w-full min-w-0 flex-col gap-8 overflow-hidden rounded-[12px] border border-border bg-card px-4 pb-4 pt-3 text-card-foreground lg:flex-1">
+						<TextEditor
+							title="System Instructions"
+							main={true}
+							content={prompt.content}
+							onUpdatePrompt={actions.prompt.update}
+							onLivePromptChange={actions.prompt.setLiveValue}
+							metrics={metrics}
+							testcaseInput={testcase.data?.input}
+							expectedContent={testcase.expectedContent}
+							onAuditPrompt={actions.audit.run}
+							onOpenAuditModal={actions.audit.openModal}
+							isAuditLoading={ui.loading.audit}
+							canAudit={!!prompt.content}
+							auditRate={ui.modals.audit.rate}
+							onReadyStateChange={handleTextEditorReadyStateChange}
+						/>
+
+						<div>
+							<InputTextArea
+								ref={inputRef}
+								onBlur={actions.testcase.onInputBlur}
+								promptId={promptId}
+								systemPrompt={prompt.content}
+								hasPromptContent={ui.validation.hasPromptContent}
 							/>
 
-							<div>
-								<InputTextArea
-									ref={inputRef}
-									onBlur={actions.testcase.onInputBlur}
-									promptId={promptId}
-									systemPrompt={prompt.content}
-								/>
-
-								<div className="flex items-center justify-between gap-2 mt-3">
+							<div className="mt-3 flex w-full min-w-0 flex-wrap items-center justify-between gap-2">
+								<div className="w-full min-w-0 sm:flex-1">
 									<SelectedFilesList
 										selectedFiles={selectedFiles}
 										setSelectedFiles={setSelectedFiles}
@@ -82,52 +95,58 @@ export default function Playground() {
 										testcaseFiles={testcase.data?.files}
 										maxFiles={3}
 									/>
-									<Button
-										disabled={
-											!ui.validation.hasPromptContent ||
-											!ui.validation.hasInputContent ||
-											ui.loading.run ||
-											isTestcaseLoading
-										}
-										onClick={actions.run}
-										className="text-[14px] h-[32px] w-[138px] flex-shrink-0"
-									>
-										{ui.loading.run && <Loader2 className="animate-spin" />}
-										{testcaseId ? "Run testcase" : "Run prompt"}
-									</Button>
 								</div>
+								<Button
+									disabled={
+										!ui.validation.hasPromptContent ||
+										!ui.validation.hasInputContent ||
+										ui.loading.run ||
+										isTestcaseLoading
+									}
+									onClick={actions.run}
+									className="h-[32px] w-full flex-shrink-0 text-[14px] sm:w-[138px]"
+								>
+									{ui.loading.run && <Loader2 className="animate-spin" />}
+									{testcaseId ? "Run testcase" : "Run prompt"}
+								</Button>
 							</div>
+						</div>
 
-							<OutputBlock
-								key={testcaseId}
-								onSaveAsExpected={actions.testcase.saveAsExpected}
-								onTestcaseAdded={actions.testcase.onAdded}
-								onRegisterClearFunction={actions.testcase.registerClearFn}
-								selectedFiles={selectedFiles}
-								onTestcaseLoadingChange={setIsTestcaseLoading}
-								isRunning={ui.loading.run}
-							/>
-						</>
-					)}
-				</div>
+						<OutputBlock
+							onSaveAsExpected={actions.testcase.saveAsExpected}
+							onTestcaseAdded={actions.testcase.onAdded}
+							onRegisterClearFunction={actions.testcase.registerClearFn}
+							selectedFiles={selectedFiles}
+							onTestcaseLoadingChange={setIsTestcaseLoading}
+							isRunning={ui.loading.run}
+							serverAssertionType={prompt.data?.prompt?.assertionType}
+							serverAssertionValue={prompt.data?.prompt?.assertionValue}
+						/>
+					</div>
 
-				<div
-					className={clsx(
-						"w-full transition-all md:w-[322px] md:min-w-[322px] 2xl-plus:w-[400px] 2xl-plus:min-w-[400px] lg:pt-0 lg:pl-6",
-						{ "xl:min-w-[400px]": !sidebar.open },
-					)}
-				>
-					<SettingsBar
-						prompt={prompt.data?.prompt}
-						models={models}
-						tokens={metrics.tokens}
-						cost={metrics.cost}
-						responseTime={metrics.responseTime}
-						updatePromptContent={actions.prompt.update}
-						isUpdatingPromptContent={ui.loading.updatingContent}
-					/>
+					<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">
+						<SettingsBar
+							prompt={prompt.data?.prompt}
+							models={models}
+							tokens={metrics.tokens}
+							cost={metrics.cost}
+							responseTime={metrics.responseTime}
+							updatePromptContent={actions.prompt.update}
+							isUpdatingPromptContent={ui.loading.updatingContent}
+							onReadyStateChange={handleSettingsBarReadyStateChange}
+						/>
+					</div>
 				</div>
 			</div>
+
+			{shouldShowTransitionSkeleton && (
+				<div className="absolute left-3 right-3 top-8 z-10 flex min-w-0 flex-col gap-6 lg:right-6 lg:flex-row lg:flex-wrap lg:items-start">
+					<PlaygroundMainSkeleton />
+					<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">
+						<PlaygroundSettingsSkeleton />
+					</div>
+				</div>
+			)}
 
 			{testcase.data && (
 				<TestcaseAssertionModal
@@ -140,7 +159,7 @@ export default function Playground() {
 			)}
 
 			<AuditResultsModal
-				auditData={ui.modals.audit.data || prompt.data?.prompt?.audit?.data || null}
+				auditData={ui.modals.audit.data || null}
 				isLoading={ui.loading.audit}
 				isFixing={ui.loading.fixing}
 				isOpen={ui.modals.audit.open}
