@@ -4,7 +4,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CompareDiffEditor from "@/components/ui/DiffEditor";
-import type { PromptResponse } from "@/hooks/useRunPrompt";
+import type { PromptResponse } from "@/api/prompt";
 import { MetricsDisplay } from "./MetricsDisplay";
 
 interface ExpandedOutputDialogProps {
@@ -16,6 +16,7 @@ interface ExpandedOutputDialogProps {
 	testcaseId: string | null;
 	isTestcaseLoading: boolean;
 	hasValidOutput: boolean;
+	onModifiedValueChange: (value: string) => void;
 	onSaveModifiedValue: (value: string) => void;
 	onSaveAsExpected: () => void;
 	onAddTestcase: () => void;
@@ -31,6 +32,7 @@ export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
 	testcaseId,
 	isTestcaseLoading,
 	hasValidOutput,
+	onModifiedValueChange,
 	onSaveModifiedValue,
 	onSaveAsExpected,
 	onAddTestcase,
@@ -45,21 +47,23 @@ export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
 					</div>
 				</div>
 
-				<div className="grid grid-cols-2 text-xs border-b">
-					<div>
+				<div className="grid grid-cols-1 border-b text-xs sm:grid-cols-2">
+					<div className="min-w-0">
 						<MetricsDisplay title="Last Output" content={content || undefined} />
 					</div>
 
-					<div>
+					<div className="min-w-0 border-t sm:border-l sm:border-t-0">
 						<MetricsDisplay title="Expected Output" content={expectedMetrics} />
 					</div>
 				</div>
 
-				<div className="flex-1 px-4">
+				<div className="output-diff-container relative flex-1 min-w-0 overflow-hidden px-4">
 					<CompareDiffEditor
 						original={content?.answer}
 						modified={modifiedValue}
+						onChange={onModifiedValueChange}
 						onBlur={onSaveModifiedValue}
+						className="output-diff-editor w-full min-w-0"
 					/>
 				</div>
 

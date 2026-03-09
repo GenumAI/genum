@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMonacoEditor } from "@/hooks/useMonacoEditor";
 import { usePromptTune } from "@/hooks/usePromptTune";
 import { useEditorViewState } from "@/hooks/useEditorViewState";
@@ -6,12 +6,12 @@ import { useMarkdownScrollToHeading } from "@/hooks/useMarkdownScrollToHeading";
 import { usePromptDiffDialog } from "@/hooks/usePromptDiffDialog";
 import { useAutoFocusEditorOnExpand } from "@/hooks/useEditorViewState";
 import { useMarkdownTOC, useScrollToAnchor } from "@/hooks/useTOC";
-import { usePlaygroundContent, usePlaygroundActions } from "@/stores/playground.store";
 import { toast } from "@/hooks/useToast";
 
 export type MonacoEditorReturn = ReturnType<typeof useMonacoEditor>;
 
 interface UseTextEditorParams {
+	content: string;
 	onUpdatePrompt: (
 		content: string,
 		options?: {
@@ -20,29 +20,20 @@ interface UseTextEditorParams {
 			isFormattingOnly?: boolean;
 		},
 	) => void;
+	onLivePromptChange?: (value: string) => void;
 	testcaseInput?: string;
 	expectedContent?: any;
 }
 
 export function useTextEditor({
+	content,
 	onUpdatePrompt,
+	onLivePromptChange,
 	testcaseInput,
 	expectedContent,
 }: UseTextEditorParams) {
-	const { originalPromptContent, livePromptValue } = usePlaygroundContent();
-	const { setOriginalPromptContent, setLivePromptValue } = usePlaygroundActions();
-
-	const lastSavedValueRef = useRef<string>(originalPromptContent ?? "");
 	const [editorHeight, setEditorHeight] = useState<number>(200);
 
-	// Sync ref when content changes from outside
-	useEffect(() => {
-		if (originalPromptContent !== lastSavedValueRef.current) {
-			lastSavedValueRef.current = originalPromptContent ?? "";
-		}
-	}, [originalPromptContent]);
-
-	// Editor view state (expanded, markdown preview)
 	const {
 		isExpanded,
 		setIsExpanded,
@@ -52,70 +43,58 @@ export function useTextEditor({
 		hasSavedOnClose,
 	} = useEditorViewState();
 
-	// Content change handler
 	const handleContentChange = useCallback(
 		(value: string) => {
-			setLivePromptValue(value);
+			onLivePromptChange?.(value);
 		},
-		[setLivePromptValue],
+		[onLivePromptChange],
 	);
 
-	// Blur handler (save)
 	const handleBlur = useCallback(
 		(value: string) => {
-			if (value !== lastSavedValueRef.current) {
-				onUpdatePrompt(value, {
-					isEmpty: !value.trim(),
-					isWithoutUpdate: false,
-				});
-				lastSavedValueRef.current = value;
-				setOriginalPromptContent(value);
-			}
+			onUpdatePrompt(value, {
+				isEmpty: !value.trim(),
+				isWithoutUpdate: false,
+			});
+			onLivePromptChange?.(value);
 		},
-		[onUpdatePrompt, setOriginalPromptContent],
+		[onUpdatePrompt, onLivePromptChange],
 	);
 
-	// Main editor instance
 	const mainEditor = useMonacoEditor({
-		initialValue: originalPromptContent ?? "",
+		initialValue: content,
 		onContentChange: handleContentChange,
 		onBlur: handleBlur,
 		onSaveOnCloseRef: hasSavedOnClose,
 	});
 
-	// Fullscreen editor instance
 	const fullscreenEditor = useMonacoEditor({
-		initialValue: originalPromptContent ?? "",
+		initialValue: content,
 		onContentChange: handleContentChange,
 		onBlur: handleBlur,
 		onSaveOnCloseRef: hasSavedOnClose,
 	});
 
-	// Sync editors with external content changes
 	useEffect(() => {
 		if (isExpanded) return;
-		const initialValue = originalPromptContent ?? "";
-		setLivePromptValue(initialValue);
-		if (mainEditor.editorValueRef.current !== initialValue) {
-			mainEditor.handleEditorChange(initialValue);
+		if (mainEditor.editorValueRef.current !== content) {
+			mainEditor.handleEditorChange(content);
 		}
-		if (fullscreenEditor.editorValueRef.current !== initialValue) {
-			fullscreenEditor.handleEditorChange(initialValue);
+		if (fullscreenEditor.editorValueRef.current !== content) {
+			fullscreenEditor.handleEditorChange(content);
 		}
 	}, [
-		originalPromptContent,
+		content,
 		isExpanded,
-		setLivePromptValue,
 		mainEditor.handleEditorChange,
 		mainEditor.editorValueRef,
 		fullscreenEditor.handleEditorChange,
 		fullscreenEditor.editorValueRef,
 	]);
 
-	// Prompt diff dialog
 	const promptDiffDialog = usePromptDiffDialog(
 		(value, options) => {
-			setOriginalPromptContent(value);
+			onLivePromptChange?.(value);
 			onUpdatePrompt(value, { isWithoutUpdate: false, ...options });
 		},
 		mainEditor.editorValueRef,
@@ -125,7 +104,6 @@ export function useTextEditor({
 		},
 	);
 
-	// Prompt tune functionality
 	const {
 		promptText,
 		setPromptText,
@@ -138,10 +116,10 @@ export function useTextEditor({
 	} = usePromptTune({
 		editorValue: mainEditor.editorValueRef.current,
 		testcaseInput,
-		currentInputContent: originalPromptContent,
+		currentInputContent: content,
 		expectedContent,
 		onContentChange: (value: string) => {
-			setOriginalPromptContent(value);
+			onLivePromptChange?.(value);
 			onUpdatePrompt(value, { isWithoutUpdate: false });
 		},
 		setIsExpanded,
@@ -149,33 +127,24 @@ export function useTextEditor({
 		setIsOpenPromptDiff: promptDiffDialog.setIsOpenPromptDiff,
 	});
 
-	// Table of contents for markdown
-	const tocItems = useMarkdownTOC(livePromptValue);
+	const tocItems = useMarkdownTOC(content);
 	const scrollToHeading = useMarkdownScrollToHeading({
 		editorRef: fullscreenEditor.editorRef,
 	});
 	const scrollToAnchor = useScrollToAnchor({ block: "start" });
 
-	// Auto focus on expand
 	useAutoFocusEditorOnExpand(isExpanded, fullscreenEditor.editorRef);
 
-	// Clear content handler
 	const handleClearContent = useCallback(() => {
 		mainEditor.handleEditorChange("");
-		setOriginalPromptContent("");
+		onLivePromptChange?.("");
 		onUpdatePrompt("", { isEmpty: true, isWithoutUpdate: false });
-	}, [mainEditor, setOriginalPromptContent, onUpdatePrompt]);
+	}, [mainEditor, onLivePromptChange, onUpdatePrompt]);
 
 	return {
-		// Store state
-		originalPromptContent,
-		livePromptValue,
-
-		// Editor instances
+		livePromptValue: content,
 		mainEditor,
 		fullscreenEditor,
-
-		// View state
 		isExpanded,
 		setIsExpanded,
 		handleExpandToggle,
@@ -183,8 +152,6 @@ export function useTextEditor({
 		handleMarkdownPreviewToggle,
 		editorHeight,
 		setEditorHeight,
-
-		// Prompt tune
 		promptText,
 		setPromptText,
 		tuneText,
@@ -193,16 +160,10 @@ export function useTextEditor({
 		handleTune,
 		promptTuneLoading,
 		promptTuneMutation,
-
-		// Prompt diff
 		promptDiffDialog,
-
-		// TOC
 		tocItems,
 		scrollToHeading,
 		scrollToAnchor,
-
-		// Handlers
 		handleClearContent,
 		handleBlur,
 	};

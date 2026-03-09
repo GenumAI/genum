@@ -31,6 +31,7 @@ type UseTestcasesTableOptions = {
 	hidePromptColumn?: boolean;
 	resetOnWorkspaceChange?: boolean;
 	initialFilterState?: FilterState;
+	isActive?: boolean;
 };
 
 const createDefaultFilterState = (): FilterState => ({ prompts: [], testcasesStatus: [] });
@@ -41,6 +42,7 @@ export const useTestcasesTable = ({
 	hidePromptColumn,
 	resetOnWorkspaceChange = false,
 	initialFilterState,
+	isActive = true,
 }: UseTestcasesTableOptions = {}) => {
 	const { orgId, projectId } = useParams<{ orgId: string; projectId: string }>();
 	const [searchParams] = useSearchParams();
@@ -72,7 +74,7 @@ export const useTestcasesTable = ({
 		data: promptTestcases = [],
 		isLoading: isPromptLoading,
 		refetch: refetchPromptTestcases,
-	} = usePromptTestcases(promptId);
+	} = usePromptTestcases(promptId, isActive);
 	const {
 		data: projectTestcases = [],
 		isLoading: isProjectLoading,
@@ -83,8 +85,7 @@ export const useTestcasesTable = ({
 			const response = await testcasesApi.getTestcases();
 			return response.testcases || [];
 		},
-		enabled: !promptId && !!orgId && !!projectId,
-		refetchOnMount: "always",
+		enabled: isActive && !promptId && !!orgId && !!projectId,
 	});
 
 	const testcases = promptId ? promptTestcases : projectTestcases;
@@ -186,7 +187,6 @@ export const useTestcasesTable = ({
 			setIsRunning(true);
 			const testCaseIds = testcasesForRun.map((item) => item.id);
 			setRunningRows(testCaseIds);
-			const affectedPromptIds = new Set<number>();
 
 			try {
 				for (let i = 0; i < testcasesForRun.length; i++) {
@@ -195,8 +195,6 @@ export const useTestcasesTable = ({
 					try {
 						const response = await testcasesApi.runTestcase(item.id);
 						const updatedTestcase = response.testcase;
-						affectedPromptIds.add(updatedTestcase.promptId);
-
 						if (promptId) {
 							queryClient.setQueryData<TestCase[]>(
 								testcaseKeys.promptTestcases(promptId),
@@ -229,13 +227,6 @@ export const useTestcasesTable = ({
 						);
 					}
 				}
-				await Promise.all(
-					[...affectedPromptIds].map((affectedPromptId) =>
-						queryClient.invalidateQueries({
-							queryKey: testcaseKeys.statusCounts(affectedPromptId),
-						}),
-					),
-				);
 			} catch (error) {
 				console.error("Failed to run test cases:", error);
 				setRunningRows([]);
@@ -268,10 +259,6 @@ export const useTestcasesTable = ({
 						},
 					);
 				}
-
-				await queryClient.invalidateQueries({
-					queryKey: testcaseKeys.statusCounts(selectedTestcase.promptId),
-				});
 
 				setConfirmModalOpen(false);
 				setSelectedTestcase(null);

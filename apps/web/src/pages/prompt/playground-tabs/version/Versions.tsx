@@ -12,7 +12,8 @@ import { VersionsToolbar } from "./components/VersionsToolbar";
 import type { PromptVersion } from "./utils/types";
 
 export default function Versions() {
-	const { id } = useParams<{ id: string }>();
+	const { id, tab } = useParams<{ id: string; tab: string }>();
+	const isActive = tab === "versions";
 	const orgId = getOrgId();
 	const projectId = getProjectId();
 	const navigate = useNavigate();
@@ -23,9 +24,8 @@ export default function Versions() {
 		data,
 		isLoading,
 		isCommitted,
-		setIsCommitted,
 		refresh,
-	} = useVersionsData(id);
+	} = useVersionsData(id, isActive);
 
 	const {
 		isOpen: commitDialogOpen,
@@ -39,7 +39,6 @@ export default function Versions() {
 	} = useCommitDialog({
 		promptId: id || "",
 		onSuccess: () => {
-			setIsCommitted(true);
 			refresh();
 		},
 	});
@@ -71,7 +70,7 @@ export default function Versions() {
 
 	return (
 		<>
-			<div className="space-y-4 pt-8 max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] ml-3 mr-6 w-full bg-background text-foreground">
+			<div className="w-full max-w-[1232px] space-y-4 bg-background px-3 pt-8 text-foreground lg:pr-6 2xl-plus:w-[70%] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px]">
 				<VersionsToolbar
 					onCommitClick={() => setCommitDialogOpen(true)}
 					onCompareClick={handleCompare}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, type Dispatch, type SetStateAction } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { FileMetadata } from "@/api/files";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import type { TestCaseFile } from "@/types/TestСase";
@@ -21,6 +21,20 @@ export function usePlaygroundTestcaseFiles({
 	setSelectedFiles,
 }: UsePlaygroundTestcaseFilesParams) {
 	const queryClient = useQueryClient();
+	const { mutateAsync: addFileAsync } = useMutation({
+		mutationKey: testcaseKeys.addFile(testcaseId ?? undefined),
+		mutationFn: async (fileId: string) => {
+			if (!testcaseId) return;
+			await testcasesApi.addFileToTestcase(testcaseId, fileId);
+		},
+	});
+	const { mutateAsync: removeFileAsync } = useMutation({
+		mutationKey: testcaseKeys.removeFile(testcaseId ?? undefined),
+		mutationFn: async (fileId: string) => {
+			if (!testcaseId) return;
+			await testcasesApi.removeFileFromTestcase(testcaseId, fileId);
+		},
+	});
 
 	useEffect(() => {
 		if (testcaseFiles && testcaseFiles.length > 0) {
@@ -73,11 +87,11 @@ export function usePlaygroundTestcaseFiles({
 				const filesToRemove = currentFileIds.filter((id) => !newFileIds.includes(id));
 
 				for (const fileId of filesToAdd) {
-					await testcasesApi.addFileToTestcase(testcaseId, fileId);
+					await addFileAsync(fileId);
 				}
 
 				for (const fileId of filesToRemove) {
-					await testcasesApi.removeFileFromTestcase(testcaseId, fileId);
+					await removeFileAsync(fileId);
 				}
 
 				await invalidateTestcaseQueries();
@@ -85,7 +99,14 @@ export function usePlaygroundTestcaseFiles({
 				console.error("Failed to update testcase files:", error);
 			}
 		},
-		[invalidateTestcaseQueries, setSelectedFiles, testcaseFiles, testcaseId],
+		[
+			addFileAsync,
+			invalidateTestcaseQueries,
+			removeFileAsync,
+			setSelectedFiles,
+			testcaseFiles,
+			testcaseId,
+		],
 	);
 
 	const handleFileRemove = useCallback(
@@ -98,13 +119,19 @@ export function usePlaygroundTestcaseFiles({
 			}
 
 			try {
-				await testcasesApi.removeFileFromTestcase(testcaseId, fileId);
+				await removeFileAsync(fileId);
 				await invalidateTestcaseQueries();
 			} catch (error) {
 				console.error("Failed to remove file from testcase:", error);
 			}
 		},
-		[invalidateTestcaseQueries, selectedFiles, setSelectedFiles, testcaseId],
+		[
+			invalidateTestcaseQueries,
+			removeFileAsync,
+			selectedFiles,
+			setSelectedFiles,
+			testcaseId,
+		],
 	);
 
 	return {

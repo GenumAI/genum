@@ -5,8 +5,9 @@ import TestcasesToolbar from "./components/TestcasesToolbar";
 import TestcasesTable from "./components/TestcasesTable";
 
 export default function Testcases() {
-	const { id } = useParams<{ id: string; orgId: string; projectId: string }>();
+	const { id, tab } = useParams<{ id: string; orgId: string; projectId: string; tab: string }>();
 	const promptId = id ? Number(id) : undefined;
+	const isActive = tab === "testcases";
 
 	const {
 		search,
@@ -28,11 +29,11 @@ export default function Testcases() {
 		handleFilterChange,
 
 		getRowCount,
-	} = useTestcasesTable({ promptId });
+	} = useTestcasesTable({ promptId, isActive });
 
 	return (
 		<>
-			<div className="space-y-6 max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] ml-3 mr-6 w-full pt-8">
+			<div className="w-full max-w-[1232px] space-y-6 px-3 pt-8 lg:pr-6 2xl-plus:w-[70%] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px]">
 				<TestcasesToolbar
 					search={search}
 					onSearchChange={setSearch}

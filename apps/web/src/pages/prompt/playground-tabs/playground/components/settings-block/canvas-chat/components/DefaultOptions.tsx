@@ -8,9 +8,10 @@ interface DefaultOptionsProps {
 export const DefaultOptions = React.memo<DefaultOptionsProps>(({ onOptionClick }) => {
 	return (
 		<div className="flex flex-col gap-2.5 mt-3">
-			{DEFAULT_CHAT_OPTIONS.map((option, index) => (
+			{DEFAULT_CHAT_OPTIONS.map((option) => (
 				<button
-					key={index}
+					type="button"
+					key={option.text}
 					className="rounded-xl p-3 bg-muted border border-border text-left hover:bg-muted/80 transition-colors"
 					onClick={() => onOptionClick(option.text)}
 				>

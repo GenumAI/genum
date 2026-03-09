@@ -1,4 +1,5 @@
 import type { Message } from "@/types/Canvas";
+import type { AuditData } from "@/types/audit";
 
 export interface CanvasChatProps {
 	systemPrompt: string;
@@ -48,7 +49,7 @@ export interface CanvasChatController {
 	};
 	audit: {
 		showModal: boolean;
-		currentData: any;
+		currentData: AuditData | null;
 		isLoading: boolean;
 		isFixing: boolean;
 		onClose: () => void;
@@ -64,15 +65,7 @@ export interface CanvasChatController {
 	messagesRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export interface UseCanvasChatAPIProps {
-	promptId?: number;
-}
-
-export interface UseCanvasChatMessagesProps {
-	promptId?: number;
-}
-
 export interface UseCanvasChatActionsProps {
 	onEditPrompt: (value: string) => void;
-	onAuditPrompt: (value: any) => void;
+	onAuditPrompt: (value: unknown) => void;
 }

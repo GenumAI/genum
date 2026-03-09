@@ -2,7 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { promptApi } from "@/api/prompt/prompt.api";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 
-export const usePromptTestcases = (promptIdProp: string | number | undefined) => {
+export const usePromptTestcases = (
+	promptIdProp: string | number | undefined,
+	isActive = true,
+) => {
 	const promptId = promptIdProp ? Number(promptIdProp) : undefined;
 	return useQuery({
 		queryKey: testcaseKeys.promptTestcases(promptId),
@@ -11,6 +14,6 @@ export const usePromptTestcases = (promptIdProp: string | number | undefined) =>
 			const response = await promptApi.getPromptTestcases(promptId);
 			return response.testcases || [];
 		},
-		enabled: !!promptId,
+		enabled: !!promptId && isActive,
 	});
 };

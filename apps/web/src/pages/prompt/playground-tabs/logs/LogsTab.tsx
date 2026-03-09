@@ -22,8 +22,9 @@ import { useAddTestcaseFromLog } from "./hooks/useAddTestcaseFromLog";
 import type { Log } from "@/types/logs";
 
 export default function LogsTab() {
-	const { id } = useParams<{ id: string }>();
+	const { id, tab } = useParams<{ id: string; tab: string }>();
 	const promptId = id ? Number(id) : undefined;
+	const isActive = tab === "logs";
 
 	const { logsFilter, setLogsFilter, queryInput, handleQueryChange } = useLogsFilters();
 	const { page, setPage, pageSize, getTotalPages, visiblePages, handlePageSizeChange } =
@@ -40,6 +41,7 @@ export default function LogsTab() {
 		pageSize,
 		logsFilter,
 		shouldFetchMemories: isLogDetailsOpen,
+		isActive,
 	});
 
 	const { handleAddTestcaseFromLog, creatingTestcase } = useAddTestcaseFromLog({
@@ -73,7 +75,7 @@ export default function LogsTab() {
 	}, []);
 
 	return (
-		<div className="max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] ml-3 mr-6 w-full bg-background text-foreground py-8">
+		<div className="w-full min-w-0 max-w-[1232px] bg-background px-3 py-8 text-foreground lg:pr-6 2xl-plus:w-[70%] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px]">
 			<div className="pb-6">
 				<LogsFilter
 					filter={logsFilter}
@@ -85,7 +87,7 @@ export default function LogsTab() {
 				/>
 			</div>
 
-			<div className="w-full overflow-auto">
+			<div className="w-full min-w-0 overflow-x-auto">
 				{isLogsError ? (
 					<div className="p-6 text-center text-destructive">Can't find logs</div>
 				) : null}
@@ -97,13 +99,13 @@ export default function LogsTab() {
 					showPromptColumn={false}
 				/>
 
-				<div className="w-full flex items-center justify-between px-0 py-3 mt-4">
+				<div className="mt-4 flex w-full flex-wrap items-center justify-between gap-3 px-0 py-3">
 					<div className="flex items-center gap-3">
 						<span className="text-sm text-muted-foreground">
 							Page {page} / {totalPages}
 						</span>
 					</div>
-					<div className="flex items-center gap-4">
+					<div className="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto sm:gap-4">
 						<span className="text-[14px] text-muted-foreground">Rows:</span>
 						<Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
 							<SelectTrigger className="w-16 h-8 text-xs px-2">
@@ -116,7 +118,7 @@ export default function LogsTab() {
 								<SelectItem value="100">100</SelectItem>
 							</SelectContent>
 						</Select>
-						<div className="flex items-center gap-2">
+						<div className="flex flex-wrap items-center justify-end gap-2">
 							<Button
 								variant="outline"
 								size="sm"

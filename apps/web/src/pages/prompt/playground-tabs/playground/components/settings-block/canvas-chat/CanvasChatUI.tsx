@@ -42,7 +42,7 @@ const CanvasChatUI: React.FC<CanvasChatUIProps> = ({
 	const hasMessages = messages.length > 0;
 
 	return (
-		<div className="flex flex-col h-full relative overflow-x-visible">
+		<div className="relative flex h-full min-w-0 flex-col overflow-x-hidden">
 			{isOpen && !hasMessages ? (
 				<div
 					ref={messagesRef}

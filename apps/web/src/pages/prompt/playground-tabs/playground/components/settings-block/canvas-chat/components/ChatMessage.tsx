@@ -1,5 +1,5 @@
 import React from "react";
-import { Message } from "@/types/Canvas";
+import type { Message } from "@/types/Canvas";
 import { MessageContent } from "./MessageContent";
 import { ActionMessageCard } from "./ActionMessageCard";
 import { ACTION_MESSAGES } from "../utils/constants";

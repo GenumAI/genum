@@ -244,6 +244,23 @@ h1 {
 	border-left: 1px solid hsl(var(--border)) !important;
 }
 
+.output-diff-editor .monaco-diff-editor.side-by-side .editor.modified {
+	border-left: none !important;
+}
+
+.output-diff-container::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 50%;
+	width: 1px;
+	transform: translateX(-0.5px);
+	background-color: hsl(var(--border));
+	pointer-events: none;
+	z-index: 2;
+}
+
 html.firefox .monaco-editor,
 html.firefox .monaco-diff-editor {
 	transform: none !important;

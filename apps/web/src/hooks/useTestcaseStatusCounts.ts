@@ -6,13 +6,14 @@ import { testcaseKeys } from "@/query-keys/testcases.keys";
 export const useTestcaseStatusCounts = (promptIdProp?: number | string) => {
 	const promptId = promptIdProp ? Number(promptIdProp) : undefined;
 	const { data, isLoading, refetch } = useQuery({
-		queryKey: testcaseKeys.statusCounts(promptId),
+		queryKey: testcaseKeys.promptTestcases(promptId),
 		queryFn: async () => {
-			if (!promptId) return { ok: 0, nok: 0, needRun: 0 };
+			if (!promptId) return [];
 			const response = await promptApi.getPromptTestcases(promptId);
-			return calculateTestcaseStatusCounts(response.testcases);
+			return response.testcases || [];
 		},
 		enabled: !!promptId,
+		select: (testcases) => calculateTestcaseStatusCounts(testcases),
 	});
 
 	return {

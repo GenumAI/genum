@@ -1,41 +1,164 @@
 import { useCallback } from "react";
-import { useAudit } from "@/hooks/useAudit";
-import type { UpdatePromptContentOptions } from "./types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { promptApi } from "@/api/prompt";
+import { helpersApi } from "@/api/helpers/helpers.api";
+import type { AuditData } from "@/types/audit";
+import { helperKeys } from "@/query-keys/helpers.keys";
+import { promptKeys } from "@/query-keys/prompt.keys";
+import { useAuditActions, useAuditUI } from "@/stores/audit.store";
 
-export function usePlaygroundAuditController({
-	promptId,
-	promptValue,
-	setIsPromptChangedAfterAudit,
-	openAuditModal,
-	closeAuditModal,
-	setDiffModal,
-	setFixingState,
-	updatePromptContent,
-}: {
-	promptId: number | undefined;
-	promptValue: string | undefined;
-	setIsPromptChangedAfterAudit: (changed: boolean) => void;
-	openAuditModal: () => void;
-	closeAuditModal: () => void;
-	setDiffModal: (info: { prompt: string } | null) => void;
-	setFixingState: (fixing: boolean) => void;
-	updatePromptContent: (value: string, options?: UpdatePromptContentOptions) => Promise<void>;
-}) {
-	const { currentAuditData, runAudit, isAuditLoading, fixRisks, clearAuditData } = useAudit({
-		onAuditSuccess: () => {
-			setIsPromptChangedAfterAudit(false);
-			openAuditModal();
+interface UseAuditOptions {
+	onAuditSuccess?: (data: AuditData) => void;
+	onAuditError?: (error: Error) => void;
+	onFixSuccess?: (fixedPrompt: string) => void;
+	onFixError?: (error: Error) => void;
+	playgroundFlow?: {
+		promptValue?: string;
+		setIsPromptChangedAfterAudit: (changed: boolean) => void;
+		updatePromptContent: (
+			value: string,
+			options?: { isWithoutUpdate: boolean; isFormattingOnly: boolean },
+		) => Promise<void>;
+	};
+}
+
+export function useAudit(promptId: string | number | undefined, options?: UseAuditOptions) {
+	const queryClient = useQueryClient();
+	const auditDataKey = helperKeys.auditData(promptId);
+	const {
+		isAuditLoading,
+		isFixing,
+		showAuditModal,
+		diffModalInfo,
+	} = useAuditUI();
+	const {
+		openAuditModal,
+		closeAuditModal,
+		setDiffModal,
+		setFixingState,
+		setAuditLoading,
+	} = useAuditActions();
+	const playgroundFlow = options?.playgroundFlow;
+	const promptValue = playgroundFlow?.promptValue;
+	const onAuditSuccess = options?.onAuditSuccess;
+	const onAuditError = options?.onAuditError;
+	const onFixSuccess = options?.onFixSuccess;
+	const onFixError = options?.onFixError;
+
+	const { data: currentAuditData = null } = useQuery<AuditData | null>({
+		queryKey: auditDataKey,
+		queryFn: () => {
+			if (!promptId) return null;
+			const cachedPrompt = queryClient.getQueryData<{ prompt?: { audit?: { data?: AuditData } } }>(
+				promptKeys.byId(Number(promptId)),
+			);
+			return (cachedPrompt?.prompt?.audit?.data ?? null) as AuditData | null;
 		},
-		onFixSuccess: (fixedPrompt) => {
-			setDiffModal({ prompt: fixedPrompt });
-			closeAuditModal();
+		enabled: !!promptId,
+		staleTime: Infinity,
+		gcTime: Infinity,
+	});
+
+	const runAuditMutation = useMutation({
+		mutationFn: async (targetPromptId: string | number) => {
+			return promptApi.auditPrompt(targetPromptId);
+		},
+		onMutate: () => {
+			setAuditLoading(true);
+		},
+		onSuccess: async (data, targetPromptId) => {
+			queryClient.setQueryData<AuditData | null>(
+				helperKeys.auditData(targetPromptId),
+				(data?.audit ?? null) as AuditData | null,
+			);
+
+			if (playgroundFlow && data?.audit) {
+				playgroundFlow.setIsPromptChangedAfterAudit(false);
+				openAuditModal();
+			}
+
+			if (data?.audit) {
+				onAuditSuccess?.(data.audit as AuditData);
+			}
+		},
+		onError: (err) => {
+			const error = err instanceof Error ? err : new Error("Audit failed");
+			console.error("Audit failed:", err);
+			onAuditError?.(error);
+		},
+		onSettled: () => {
+			setAuditLoading(false);
 		},
 	});
 
-	const auditPrompt = useCallback(async () => {
-		if (!promptId || !promptValue || isAuditLoading) return;
-		await runAudit(promptId);
-	}, [promptId, promptValue, isAuditLoading, runAudit]);
+	const runAudit = useCallback(
+		async (nextPromptId?: string | number) => {
+			const targetPromptId = nextPromptId ?? promptId;
+			if (!targetPromptId) return null;
+			const data = await runAuditMutation.mutateAsync(targetPromptId);
+			return (data?.audit ?? null) as AuditData | null;
+		},
+		[promptId, runAuditMutation],
+	);
+
+	const { mutateAsync: fixRisksAsync } = useMutation({
+		mutationKey: helperKeys.fixRisks(promptId),
+		mutationFn: async ({
+			promptValue,
+			recommendations,
+		}: {
+			promptValue: string;
+			recommendations: string[];
+		}) => {
+			const context = recommendations.join("\\n\\n---\\n\\n");
+			return await helpersApi.promptTune({
+				context,
+				instruction: promptValue,
+			});
+		},
+		onSuccess: (response) => {
+			if (response?.prompt) {
+				if (playgroundFlow) {
+					setDiffModal({ prompt: response.prompt });
+					closeAuditModal();
+				}
+				onFixSuccess?.(response.prompt);
+			}
+		},
+		onError: (err) => {
+			const error = err instanceof Error ? err : new Error("Error tuning prompt");
+			console.error("Error tuning prompt:", err);
+			onFixError?.(error);
+		},
+	});
+	const fixRisks = useCallback(
+		async (nextPromptValue: string, recommendations: string[]) => {
+			if (recommendations.length === 0) {
+				return null;
+			}
+			const response = await fixRisksAsync({
+				promptValue: nextPromptValue,
+				recommendations,
+			});
+			return response?.prompt ?? null;
+		},
+		[fixRisksAsync],
+	);
+
+	const clearAuditData = useCallback(() => {
+		if (!promptId) return;
+		queryClient.removeQueries({
+			queryKey: auditDataKey,
+			exact: true,
+		});
+	}, [auditDataKey, promptId, queryClient]);
+
+	const hydrateAuditData = useCallback(
+		(value: AuditData | null) => {
+			queryClient.setQueryData<AuditData | null>(auditDataKey, value);
+		},
+		[auditDataKey, queryClient],
+	);
 
 	const handleOpenAuditModal = useCallback(() => {
 		openAuditModal();
@@ -44,12 +167,6 @@ export function usePlaygroundAuditController({
 	const handleCloseAuditModal = useCallback(() => {
 		closeAuditModal();
 	}, [closeAuditModal]);
-
-	const handleRunAudit = useCallback(async () => {
-		if (promptId) {
-			await runAudit(promptId);
-		}
-	}, [promptId, runAudit]);
 
 	const handleFixRisks = useCallback(
 		async (recommendations: string[]) => {
@@ -66,27 +183,37 @@ export function usePlaygroundAuditController({
 
 	const handleDiffSave = useCallback(
 		(value: string) => {
-			if (value) {
-				updatePromptContent(value, {
+			if (value && playgroundFlow) {
+				playgroundFlow.updatePromptContent(value, {
 					isWithoutUpdate: false,
 					isFormattingOnly: false,
 				});
 				clearAuditData();
-				setIsPromptChangedAfterAudit(true);
+				playgroundFlow.setIsPromptChangedAfterAudit(true);
 			}
 			setDiffModal(null);
 		},
-		[clearAuditData, setDiffModal, setIsPromptChangedAfterAudit, updatePromptContent],
+		[clearAuditData, playgroundFlow, setDiffModal],
 	);
 
 	return {
+		// State
 		currentAuditData,
 		isAuditLoading,
-		auditPrompt,
+		isFixing,
+		showAuditModal,
+		diffModalInfo,
+
+		// Actions
+		runAudit,
+		fixRisks,
+		clearAuditData,
+		hydrateAuditData,
+		setDiffModal,
 		handleOpenAuditModal,
 		handleCloseAuditModal,
-		handleRunAudit,
 		handleFixRisks,
 		handleDiffSave,
+		canRunAudit: !!promptId && !!promptValue && !isAuditLoading,
 	};
 }

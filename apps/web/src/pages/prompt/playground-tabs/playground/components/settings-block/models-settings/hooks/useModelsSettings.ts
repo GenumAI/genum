@@ -1,13 +1,16 @@
-import { useEffect, useCallback, useMemo, useState, useRef } from "react";
+import { useEffect, useCallback, useMemo, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useParams } from "react-router-dom";
 import debounce from "lodash.debounce";
-import { usePromptsModels } from "@/hooks/usePromptsModels";
 import { useToast } from "@/hooks/useToast";
 import { usePromptStatus } from "@/contexts/PromptStatusContext";
 import { useRefreshCommitStatus } from "@/hooks/useRefreshCommitStatus";
 import { promptApi } from "@/api/prompt";
+import { promptKeys } from "@/query-keys/prompt.keys";
+import { modelsSettingsKeys } from "@/query-keys/models-settings.keys";
+import { useModelsSettingsActions, useModelsSettingsUI } from "@/stores/modelsSettings.store";
 import type { PromptSettings } from "@/types/Prompt";
 import type { Model, ResponseModelConfig } from "@/types/AIModel";
 import { modelSettingsSchema } from "../utils/schema";
@@ -23,6 +26,10 @@ interface UseModelsSettingsProps {
 	isUpdatingPromptContent?: boolean;
 }
 
+type PromptResponse = {
+	prompt: PromptSettings;
+};
+
 export function useModelsSettings({
 	prompt,
 	models,
@@ -30,46 +37,172 @@ export function useModelsSettings({
 	onValidationChange,
 	isUpdatingPromptContent,
 }: UseModelsSettingsProps) {
-	// Dialog states
-	const [schemaDialogOpen, setSchemaDialogOpen] = useState(false);
-	const [toolsModalOpen, setToolsModalOpen] = useState(false);
+	const { toast } = useToast();
+	const { id } = useParams<{ id: string }>();
+	const { setIsCommitted } = usePromptStatus();
+	const queryClient = useQueryClient();
 
-	// Model states
-	const [isUpdatingModel, setIsUpdatingModel] = useState(false);
-	const [isChangingModel, setIsChangingModel] = useState(false);
-	const [forceRenderKey, setForceRenderKey] = useState(0);
-	const [currentModelConfig, setCurrentModelConfig] = useState<ResponseModelConfig | null>(null);
-	const [currentJsonSchema, setCurrentJsonSchema] = useState<string | null>(null);
-	const [currentResponseFormat, setCurrentResponseFormat] = useState<string>("");
-	const [isSchemaCleared, setIsSchemaCleared] = useState(false);
-	const [selectedModelName, setSelectedModelName] = useState<string>("");
-	const [selectedModelId, setSelectedModelId] = useState<number | null>(null);
+	const promptId = prompt?.id || (id ? Number(id) : propPromptId);
 
-	// Tools states
-	const [tools, setTools] = useState<ToolItem[]>(prompt?.languageModelConfig?.tools || []);
-	const [editingToolIdx, setEditingToolIdx] = useState<number | null>(null);
-	const [editingTool, setEditingTool] = useState<ToolItem | null>(null);
+	const ui = useModelsSettingsUI(promptId);
+	const { setUiState, setDraft, getDraft, bumpForceRenderKey } = useModelsSettingsActions();
 
-	// Refs for tracking state
+	const setSchemaDialogOpen = useCallback(
+		(open: boolean) => setUiState(promptId, { schemaDialogOpen: open }),
+		[promptId, setUiState],
+	);
+	const setToolsModalOpen = useCallback(
+		(open: boolean) => setUiState(promptId, { toolsModalOpen: open }),
+		[promptId, setUiState],
+	);
+	const setIsUpdatingModel = useCallback(
+		(value: boolean) => setUiState(promptId, { isUpdatingModel: value }),
+		[promptId, setUiState],
+	);
+	const setIsChangingModel = useCallback(
+		(value: boolean) => setUiState(promptId, { isChangingModel: value }),
+		[promptId, setUiState],
+	);
+	const setCurrentJsonSchema = useCallback(
+		(value: string | null) => setUiState(promptId, { currentJsonSchema: value }),
+		[promptId, setUiState],
+	);
+	const setCurrentResponseFormat = useCallback(
+		(value: string) => setUiState(promptId, { currentResponseFormat: value }),
+		[promptId, setUiState],
+	);
+	const setIsSchemaCleared = useCallback(
+		(value: boolean) => setUiState(promptId, { isSchemaCleared: value }),
+		[promptId, setUiState],
+	);
+	const setSelectedModelName = useCallback(
+		(value: string) => setUiState(promptId, { selectedModelName: value }),
+		[promptId, setUiState],
+	);
+	const setSelectedModelId = useCallback(
+		(value: number | null) => setUiState(promptId, { selectedModelId: value }),
+		[promptId, setUiState],
+	);
+	const setTools = useCallback(
+		(value: ToolItem[]) => setUiState(promptId, { tools: value }),
+		[promptId, setUiState],
+	);
+	const setEditingToolIdx = useCallback(
+		(value: number | null) => setUiState(promptId, { editingToolIdx: value }),
+		[promptId, setUiState],
+	);
+	const setEditingTool = useCallback(
+		(value: ToolItem | null) => setUiState(promptId, { editingTool: value }),
+		[promptId, setUiState],
+	);
+
+	const {
+		schemaDialogOpen,
+		toolsModalOpen,
+		isUpdatingModel,
+		isChangingModel,
+		forceRenderKey,
+		currentJsonSchema,
+		currentResponseFormat,
+		isSchemaCleared,
+		selectedModelName,
+		selectedModelId,
+		tools,
+		editingToolIdx,
+		editingTool,
+	} = ui;
+	const modelConfigTargetId = selectedModelId ?? prompt?.languageModel?.id ?? null;
+
 	const userSelectionInProgress = useRef<boolean>(false);
 	const isInitialized = useRef<boolean>(false);
 	const justChangedModel = useRef<boolean>(false);
 	const isSyncingFromBackend = useRef(false);
+	const isPersistingDraftRef = useRef(false);
+	const hasQueuedDraftRef = useRef(false);
 
-	// Hooks
-	const { getModelConfig, modelConfig, updateModelSettings, updatePromptModel, loading } =
-		usePromptsModels();
-	const { toast } = useToast();
-	const { id } = useParams<{ id: string }>();
-	const { setIsCommitted } = usePromptStatus();
+	const modelConfigQuery = useQuery({
+		queryKey: modelsSettingsKeys.modelConfig(modelConfigTargetId),
+		queryFn: async (): Promise<ResponseModelConfig | null> => {
+			if (!modelConfigTargetId) return null;
+			const data = await promptApi.getModelConfig(modelConfigTargetId);
+			return data.config;
+		},
+		enabled: !!modelConfigTargetId && !isUpdatingModel,
+		refetchOnWindowFocus: false,
+		placeholderData: (previousData) => previousData,
+	});
 
-	const promptId = prompt?.id || (id ? Number(id) : propPromptId);
+	const updatePromptModelMutation = useMutation({
+		mutationKey: modelsSettingsKeys.updatePromptModel(promptId),
+		mutationFn: async ({
+			targetPromptId,
+			modelId,
+		}: {
+			targetPromptId: number;
+			modelId: number;
+		}) => promptApi.updatePromptModel(targetPromptId, modelId),
+		onSuccess: (result) => {
+			if (promptId) {
+				queryClient.setQueryData(promptKeys.byId(promptId), result);
+			}
+		},
+	});
 
-	// Commit status helper
+	const updateModelSettingsMutation = useMutation({
+		mutationKey: modelsSettingsKeys.updatePromptConfig(promptId),
+		mutationFn: async ({
+			targetPromptId,
+			payload,
+		}: {
+			targetPromptId: number;
+			payload: Record<string, unknown>;
+		}) => promptApi.updateModelConfig(targetPromptId, payload),
+		onSuccess: (result) => {
+			if (promptId) {
+				queryClient.setQueryData(promptKeys.byId(promptId), result);
+			}
+		},
+	});
+
+	const getModelConfig = useCallback(
+		async (modelId: number): Promise<ResponseModelConfig | null> => {
+			if (!modelId) return null;
+			return queryClient.fetchQuery({
+				queryKey: modelsSettingsKeys.modelConfig(modelId),
+				queryFn: async () => {
+					const response = await promptApi.getModelConfig(modelId);
+					return response.config;
+				},
+			});
+		},
+		[queryClient],
+	);
+
+	const updatePromptModel = useCallback(
+		async (targetPromptId: number, modelId: number): Promise<boolean> => {
+			if (!targetPromptId || !modelId) return false;
+			await updatePromptModelMutation.mutateAsync({ targetPromptId, modelId });
+			return true;
+		},
+		[updatePromptModelMutation],
+	);
+
+	const updateModelSettings = useCallback(
+		async (targetPromptId: number, payload: Record<string, unknown>): Promise<boolean> => {
+			if (!targetPromptId) return false;
+			await updateModelSettingsMutation.mutateAsync({ targetPromptId, payload });
+			return true;
+		},
+		[updateModelSettingsMutation],
+	);
+
 	const getCommitStatus = useCallback(async () => {
 		if (!promptId) return null;
 		try {
-			const result = await promptApi.getPrompt(promptId as number);
+			const result = await queryClient.fetchQuery<PromptResponse>({
+				queryKey: promptKeys.byId(promptId),
+				queryFn: () => promptApi.getPrompt(promptId),
+			});
 			if (result.prompt) {
 				const commited = result.prompt.commited || false;
 				setIsCommitted(commited);
@@ -79,19 +212,18 @@ export function useModelsSettings({
 			console.error("❌ Failed to get commit status:", error);
 		}
 		return null;
-	}, [promptId, setIsCommitted]);
+	}, [promptId, queryClient, setIsCommitted]);
 
-	// Form setup
 	const form = useForm<ModelSettingsFormValues>({
 		resolver: zodResolver(modelSettingsSchema),
 		defaultValues: {
 			selectedModel: "",
 			selectedModelId: null,
-			maxTokens: 0,
-			temperature: 0,
-			topP: 0,
-			frequencyPenalty: 0,
-			presencePenalty: 0,
+			maxTokens: null,
+			temperature: null,
+			topP: null,
+			frequencyPenalty: null,
+			presencePenalty: null,
 			responseFormat: "",
 			reasoningEffort: null,
 			verbosity: null,
@@ -102,8 +234,6 @@ export function useModelsSettings({
 	const { control, watch, setValue, getValues, reset } = form;
 	const responseFormat = watch("responseFormat");
 
-	// If the prompt's current model was disabled after being assigned, it won't appear in the
-	// available models list. Inject it back so the selector can still display it (with a warning).
 	const effectiveModels = useMemo((): Model[] => {
 		const base = (models as Model[]) ?? [];
 		if (!prompt?.languageModel) return base;
@@ -112,9 +242,8 @@ export function useModelsSettings({
 		return [...base, { ...prompt.languageModel, isDisabled: true }];
 	}, [models, prompt?.languageModel]);
 
-	// Computed values
 	const currentModel = effectiveModels.find((model) => model.name === selectedModelName);
-	const activeModelConfig = currentModelConfig || modelConfig;
+	const activeModelConfig = modelConfigQuery.data;
 
 	const isCurrentModelReasoning = Boolean(activeModelConfig?.parameters?.reasoning_effort);
 
@@ -154,69 +283,134 @@ export function useModelsSettings({
 
 	const refreshCommitStatus = useRefreshCommitStatus(promptId, setIsCommitted);
 
-	// Debounced settings update
-	const debouncedUpdateSettings = useMemo(
-		() =>
-			debounce(async () => {
-				if (isUpdatingModel || !selectedModelId || justChangedModel.current) {
-					return;
-				}
+	const loading = updatePromptModelMutation.isPending || updateModelSettingsMutation.isPending;
 
-				const formValues = getValues();
-				const payload = buildModelSettingsPayload({
-					parameters: activeModelConfig?.parameters || {},
-					formValues: formValues as unknown as Record<string, unknown>,
-					tools,
-					responseFormat: formValues.responseFormat,
-					jsonSchema: currentJsonSchema,
-					selectedModelId,
-					currentResponseFormat,
-					prompt,
-					allowPromptJsonSchemaFallback: !isSchemaCleared,
-				});
-
-				try {
-					await updateModelSettings(promptId as number, payload);
-					await new Promise((resolve) => setTimeout(resolve, 200));
-					await getCommitStatus();
-					if (selectedModelId) {
-						await getModelConfig(selectedModelId);
-					}
-				} catch (error) {
-					console.error("❌ Error updating model settings:", error);
-					toast({
-						title: "Error",
-						description: "Failed to update model settings",
-						variant: "destructive",
-					});
-				}
-			}, 500),
+	const syncDraftFromForm = useCallback(
+		(overrides: Record<string, unknown> = {}) => {
+			if (!promptId) return;
+			setDraft(promptId, {
+				...(getValues() as Partial<ModelSettingsFormValues>),
+				selectedModelId,
+				tools,
+				jsonSchema: currentJsonSchema,
+				currentResponseFormat,
+				isSchemaCleared,
+				...overrides,
+			});
+		},
 		[
-			updateModelSettings,
-			isUpdatingModel,
-			selectedModelId,
-			getCommitStatus,
-			toast,
-			getValues,
 			promptId,
+			setDraft,
+			getValues,
+			selectedModelId,
+			tools,
 			currentJsonSchema,
 			currentResponseFormat,
-			tools,
-			activeModelConfig,
-			prompt,
-			getModelConfig,
 			isSchemaCleared,
 		],
 	);
 
-	const onFormChange = useCallback(() => {
-		if (isSyncingFromBackend.current) return;
-		if (promptId && selectedModelId && !isUpdatingModel && !justChangedModel.current) {
-			debouncedUpdateSettings();
-		}
-	}, [promptId, selectedModelId, debouncedUpdateSettings, isUpdatingModel]);
+	const persistLatestDraft = useCallback(
+		async function persistLatestDraftImpl() {
+			if (!promptId) {
+				return;
+			}
 
-	// Model change handler
+			if (isPersistingDraftRef.current) {
+				hasQueuedDraftRef.current = true;
+				return;
+			}
+
+			isPersistingDraftRef.current = true;
+
+			try {
+				const draftValues = getDraft(promptId);
+				if (Object.keys(draftValues).length === 0) {
+					return;
+				}
+				const draftSelectedModelId = draftValues.selectedModelId ?? selectedModelId;
+				if (!draftSelectedModelId) {
+					return;
+				}
+				const draftTools = draftValues.tools ?? tools;
+				const draftCurrentResponseFormat =
+					draftValues.currentResponseFormat ?? currentResponseFormat;
+				const draftResponseFormat = String(
+					draftValues.responseFormat ?? draftCurrentResponseFormat,
+				);
+				const draftJsonSchema =
+					draftValues.jsonSchema !== undefined
+						? draftValues.jsonSchema
+						: currentJsonSchema;
+				const draftIsSchemaCleared = draftValues.isSchemaCleared ?? isSchemaCleared;
+
+				const payload = buildModelSettingsPayload({
+					parameters: activeModelConfig?.parameters || {},
+					formValues: draftValues as unknown as Record<string, unknown>,
+					tools: draftTools,
+					responseFormat: draftResponseFormat,
+					jsonSchema: draftJsonSchema,
+					selectedModelId: draftSelectedModelId,
+					currentResponseFormat: draftCurrentResponseFormat,
+					prompt,
+					allowPromptJsonSchemaFallback: !draftIsSchemaCleared,
+				});
+
+				await updateModelSettings(promptId, payload);
+				await new Promise((resolve) => setTimeout(resolve, 200));
+				await getCommitStatus();
+				await getModelConfig(draftSelectedModelId);
+			} catch (error) {
+				console.error("❌ Error updating model settings:", error);
+				toast({
+					title: "Error",
+					description: "Failed to update model settings",
+					variant: "destructive",
+				});
+			} finally {
+				isPersistingDraftRef.current = false;
+				if (hasQueuedDraftRef.current) {
+					hasQueuedDraftRef.current = false;
+					void persistLatestDraftImpl();
+				}
+			}
+		},
+		[
+			selectedModelId,
+			promptId,
+			getDraft,
+			activeModelConfig,
+			tools,
+			currentJsonSchema,
+			currentResponseFormat,
+			prompt,
+			isSchemaCleared,
+			updateModelSettings,
+			getCommitStatus,
+			getModelConfig,
+			toast,
+		],
+	);
+
+	const debouncedUpdateSettings = useMemo(
+		() => debounce(() => void persistLatestDraft(), 500),
+		[persistLatestDraft],
+	);
+
+	const onFormChange = useCallback(
+		(overrides: Partial<ModelSettingsFormValues> = {}, options?: { immediate?: boolean }) => {
+			if (!promptId || !selectedModelId) return;
+			syncDraftFromForm(overrides);
+			if (options?.immediate) {
+				debouncedUpdateSettings.cancel();
+				void persistLatestDraft();
+				return;
+			}
+			debouncedUpdateSettings();
+		},
+		[promptId, selectedModelId, syncDraftFromForm, debouncedUpdateSettings, persistLatestDraft],
+	);
+
 	const handleModelChange = useCallback(
 		async (value: string) => {
 			const model = effectiveModels.find((m) => m.name === value);
@@ -244,11 +438,15 @@ export function useModelsSettings({
 
 			try {
 				await updatePromptModel(promptId, model.id);
-				const configResponse = await getModelConfig(model.id);
-				setCurrentModelConfig(configResponse);
+				const cachedTargetConfig =
+					queryClient.getQueryData<ResponseModelConfig | null>(
+						modelsSettingsKeys.modelConfig(model.id),
+					) ?? null;
 				const updatedPrompt = await getCommitStatus();
+				await new Promise((resolve) => setTimeout(resolve, 300));
 
-				setTimeout(() => {
+				isSyncingFromBackend.current = true;
+				try {
 					if (
 						updatedPrompt?.languageModelConfig &&
 						updatedPrompt?.languageModel?.id === model.id
@@ -256,7 +454,7 @@ export function useModelsSettings({
 						const backendConfig = updatedPrompt.languageModelConfig;
 						const backendResponseFormat = String(
 							backendConfig.response_format ||
-								configResponse?.parameters?.response_format?.default ||
+								cachedTargetConfig?.parameters?.response_format?.default ||
 								"text",
 						);
 
@@ -275,7 +473,6 @@ export function useModelsSettings({
 							setCurrentJsonSchema(null);
 						}
 
-						// Sync all form values
 						setValue("maxTokens", backendConfig.max_tokens ?? null, {
 							shouldValidate: false,
 						});
@@ -297,24 +494,42 @@ export function useModelsSettings({
 						setValue("verbosity", backendConfig.verbosity ?? null, {
 							shouldValidate: false,
 						});
+						syncDraftFromForm({
+							selectedModelId: model.id,
+							responseFormat: backendResponseFormat,
+							currentResponseFormat: backendResponseFormat,
+							jsonSchema: backendConfig.json_schema
+								? typeof backendConfig.json_schema === "string"
+									? backendConfig.json_schema
+									: JSON.stringify(backendConfig.json_schema)
+								: null,
+						});
 					} else {
 						const defaultResponseFormat = String(
-							configResponse?.parameters?.response_format?.default || "text",
+							cachedTargetConfig?.parameters?.response_format?.default || "text",
 						);
 						setValue("responseFormat", defaultResponseFormat, {
 							shouldValidate: false,
 						});
 						setCurrentResponseFormat(defaultResponseFormat);
 						setCurrentJsonSchema(null);
+						syncDraftFromForm({
+							selectedModelId: model.id,
+							responseFormat: defaultResponseFormat,
+							currentResponseFormat: defaultResponseFormat,
+							jsonSchema: null,
+						});
 					}
+				} finally {
+					isSyncingFromBackend.current = false;
+				}
 
-					setForceRenderKey((prev) => prev + 1);
-					setIsChangingModel(false);
+				bumpForceRenderKey(promptId);
+				setIsChangingModel(false);
 
-					setTimeout(() => {
-						justChangedModel.current = false;
-					}, 1000);
-				}, 300);
+				setTimeout(() => {
+					justChangedModel.current = false;
+				}, 1000);
 
 				toast({
 					title: "Success",
@@ -341,46 +556,39 @@ export function useModelsSettings({
 			isUpdatingModel,
 			debouncedUpdateSettings,
 			updatePromptModel,
-			getModelConfig,
+			queryClient,
 			setValue,
 			getCommitStatus,
 			toast,
+			setIsUpdatingModel,
+			setIsChangingModel,
+			setSelectedModelName,
+			setSelectedModelId,
+			setCurrentResponseFormat,
+			setCurrentJsonSchema,
+			syncDraftFromForm,
+			bumpForceRenderKey,
 		],
 	);
 
-	// Response format change handler
 	const handleResponseFormatChange = useCallback(
 		async (value: string) => {
-			if (!selectedModelId || isUpdatingModel) {
+			if (!selectedModelId || !promptId) {
 				return;
 			}
 			try {
-				if (value !== "json_schema") {
-					setCurrentJsonSchema(null);
-				}
-				const formValues = getValues();
-				const payload = buildModelSettingsPayload({
-					parameters: activeModelConfig?.parameters || {},
-					formValues: formValues as unknown as Record<string, unknown>,
-					tools,
-					responseFormat: value,
-					jsonSchema: value === "json_schema" ? currentJsonSchema : null,
-					selectedModelId,
-					currentResponseFormat,
-					prompt,
-					allowPromptJsonSchemaFallback: !isSchemaCleared,
-				});
 				setCurrentResponseFormat(String(value));
 				if (value !== "json_schema") {
 					setCurrentJsonSchema(null);
 					setIsSchemaCleared(true);
 				}
-				await updateModelSettings(promptId as number, payload);
-				await new Promise((resolve) => setTimeout(resolve, 200));
-				await getCommitStatus();
-				if (selectedModelId) {
-					await getModelConfig(selectedModelId);
-				}
+				syncDraftFromForm({
+					responseFormat: value,
+					currentResponseFormat: value,
+					jsonSchema: value === "json_schema" ? currentJsonSchema : null,
+					isSchemaCleared: value !== "json_schema",
+				});
+				await persistLatestDraft();
 			} catch (error) {
 				console.error("❌ Error updating response format:", error);
 				toast({
@@ -392,87 +600,62 @@ export function useModelsSettings({
 		},
 		[
 			selectedModelId,
-			isUpdatingModel,
 			promptId,
 			currentJsonSchema,
-			updateModelSettings,
-			getCommitStatus,
 			toast,
-			tools,
-			getValues,
-			currentResponseFormat,
-			activeModelConfig,
-			prompt,
-			getModelConfig,
-			isSchemaCleared,
+			syncDraftFromForm,
+			persistLatestDraft,
+			setCurrentJsonSchema,
+			setCurrentResponseFormat,
+			setIsSchemaCleared,
 		],
 	);
 
-	// Schema save handler
 	const onSaveSchema = useCallback(
 		async (data: { json_schema: string }) => {
-			if (promptId) {
-				try {
-					const jsonSchemaString = data.json_schema;
-					setCurrentJsonSchema(jsonSchemaString);
-					setCurrentResponseFormat("json_schema");
-					const formValues = getValues();
-					const payload = buildModelSettingsPayload({
-						parameters: activeModelConfig?.parameters || {},
-						formValues: formValues as unknown as Record<string, unknown>,
-						tools,
-						responseFormat: "json_schema",
-						jsonSchema: jsonSchemaString,
-						selectedModelId,
-						currentResponseFormat: "json_schema",
-						prompt,
-						allowPromptJsonSchemaFallback: !isSchemaCleared,
-					});
+			if (!promptId) {
+				return;
+			}
+			try {
+				const jsonSchemaString = data.json_schema;
+				setCurrentJsonSchema(jsonSchemaString);
+				setCurrentResponseFormat("json_schema");
+				setIsSchemaCleared(false);
+				syncDraftFromForm({
+					responseFormat: "json_schema",
+					currentResponseFormat: "json_schema",
+					jsonSchema: jsonSchemaString,
+					isSchemaCleared: false,
+				});
+				await persistLatestDraft();
+			} catch (error) {
+				console.error("Failed to update schema:", error);
+				if (prompt?.languageModelConfig) {
+					const config = prompt.languageModelConfig;
+					const jsonSchema = config.json_schema;
+					setCurrentJsonSchema(
+						typeof jsonSchema === "string"
+							? jsonSchema
+							: jsonSchema
+								? JSON.stringify(jsonSchema)
+								: null,
+					);
+					setCurrentResponseFormat(String(config.response_format || ""));
 					setIsSchemaCleared(false);
-					await updateModelSettings(promptId, payload);
-					await new Promise((resolve) => {
-						setTimeout(async () => {
-							await getCommitStatus();
-							if (selectedModelId) {
-								await getModelConfig(selectedModelId);
-							}
-							resolve(void 0);
-						}, 200);
-					});
-				} catch (error) {
-					console.error("Failed to update schema:", error);
-					if (prompt?.languageModelConfig) {
-						const config = prompt.languageModelConfig;
-						const jsonSchema = config.json_schema;
-						setCurrentJsonSchema(
-							typeof jsonSchema === "string"
-								? jsonSchema
-								: jsonSchema
-									? JSON.stringify(jsonSchema)
-									: null,
-						);
-						setCurrentResponseFormat(String(config.response_format || ""));
-						setIsSchemaCleared(false);
-					}
 				}
 			}
 		},
 		[
 			promptId,
-			selectedModelId,
-			updateModelSettings,
-			getCommitStatus,
-			prompt?.languageModelConfig,
-			tools,
-			getValues,
-			activeModelConfig,
 			prompt,
-			getModelConfig,
-			isSchemaCleared,
+			syncDraftFromForm,
+			persistLatestDraft,
+			setCurrentJsonSchema,
+			setCurrentResponseFormat,
+			setIsSchemaCleared,
 		],
 	);
 
-	// Build payload helper for internal use (avoids circular dependency in useCallback)
 	const getPayload = useCallback(
 		(overrides: Partial<Parameters<typeof buildModelSettingsPayload>[0]>) =>
 			buildModelSettingsPayload({
@@ -503,17 +686,13 @@ export function useModelsSettings({
 		async (idx: number) => {
 			debouncedUpdateSettings.cancel();
 			justChangedModel.current = true;
-			if (isUpdatingModel) return;
+			if (isUpdatingModel || !promptId) return;
 
 			try {
 				const updatedTools = tools.filter((_, i) => i !== idx);
 				setTools(updatedTools);
-				const payload = getPayload({ tools: updatedTools });
-				await updateModelSettings(promptId as number, payload);
-				await getCommitStatus();
-				if (selectedModelId) {
-					await getModelConfig(selectedModelId);
-				}
+				syncDraftFromForm({ tools: updatedTools });
+				await persistLatestDraft();
 			} catch {
 				// Error handled in hook/api
 			} finally {
@@ -526,17 +705,16 @@ export function useModelsSettings({
 			debouncedUpdateSettings,
 			isUpdatingModel,
 			tools,
-			getPayload,
-			updateModelSettings,
 			promptId,
-			getCommitStatus,
-			selectedModelId,
-			getModelConfig,
+			setTools,
+			syncDraftFromForm,
+			persistLatestDraft,
 		],
 	);
 
 	const handleToolSave = useCallback(
 		async (newTools: ToolItem[], editingIdx: number | null) => {
+			if (!promptId) return;
 			let updatedTools: ToolItem[];
 			if (editingIdx !== null && editingIdx >= 0) {
 				updatedTools = tools.map((t, i) => (i === editingIdx ? newTools[0] : t));
@@ -544,27 +722,12 @@ export function useModelsSettings({
 				updatedTools = [...tools, ...newTools];
 			}
 			setTools(updatedTools);
-
-			const payload = getPayload({ tools: updatedTools });
-			await updateModelSettings(promptId as number, payload);
-
-			await getCommitStatus();
-			if (selectedModelId) {
-				await getModelConfig(selectedModelId);
-			}
+			syncDraftFromForm({ tools: updatedTools });
+			await persistLatestDraft();
 		},
-		[
-			tools,
-			getPayload,
-			updateModelSettings,
-			promptId,
-			getCommitStatus,
-			selectedModelId,
-			getModelConfig,
-		],
+		[tools, promptId, setTools, syncDraftFromForm, persistLatestDraft],
 	);
 
-	// Effects for syncing state
 	useEffect(() => {
 		if (
 			prompt &&
@@ -595,7 +758,20 @@ export function useModelsSettings({
 			setSelectedModelId(promptModelId);
 			const formValues = getFormValuesFromPrompt(prompt);
 			reset(formValues);
-			setForceRenderKey((prev) => prev + 1);
+			setDraft(promptId, {
+				...formValues,
+				selectedModelId: promptModelId,
+				tools: prompt?.languageModelConfig?.tools || [],
+				jsonSchema:
+					typeof prompt?.languageModelConfig?.json_schema === "string"
+						? prompt.languageModelConfig.json_schema
+						: prompt?.languageModelConfig?.json_schema
+							? JSON.stringify(prompt.languageModelConfig.json_schema)
+							: null,
+				currentResponseFormat: String(formValues.responseFormat || ""),
+				isSchemaCleared: false,
+			});
+			bumpForceRenderKey(promptId);
 			isInitialized.current = true;
 		}
 
@@ -604,7 +780,6 @@ export function useModelsSettings({
 			!isUpdatingPromptContent &&
 			!isUpdatingModel &&
 			!userSelectionInProgress.current &&
-			!justChangedModel.current &&
 			!isSyncingFromBackend.current
 		) {
 			const promptModelName = prompt.languageModel.name;
@@ -615,7 +790,20 @@ export function useModelsSettings({
 				setSelectedModelId(promptModelId);
 				const formValues = getFormValuesFromPrompt(prompt);
 				reset(formValues);
-				setForceRenderKey((prev) => prev + 1);
+				setDraft(promptId, {
+					...formValues,
+					selectedModelId: promptModelId,
+					tools: prompt?.languageModelConfig?.tools || [],
+					jsonSchema:
+						typeof prompt?.languageModelConfig?.json_schema === "string"
+							? prompt.languageModelConfig.json_schema
+							: prompt?.languageModelConfig?.json_schema
+								? JSON.stringify(prompt.languageModelConfig.json_schema)
+								: null,
+					currentResponseFormat: String(formValues.responseFormat || ""),
+					isSchemaCleared: false,
+				});
+				bumpForceRenderKey(promptId);
 			}
 		}
 	}, [
@@ -626,42 +814,36 @@ export function useModelsSettings({
 		isUpdatingPromptContent,
 		reset,
 		prompt,
+		setSelectedModelName,
+		setSelectedModelId,
+		setDraft,
+		bumpForceRenderKey,
+		promptId,
 	]);
 
-	// Load model config when model changes
-	useEffect(() => {
-		const loadModelConfig = async () => {
-			if (selectedModelId && !isUpdatingModel && !justChangedModel.current) {
-				try {
-					const config = await getModelConfig(selectedModelId);
-					setCurrentModelConfig(config as ResponseModelConfig);
-				} catch (error) {
-					console.error("Failed to load model config:", error);
-					setCurrentModelConfig(null);
-				}
-			}
-		};
-
-		loadModelConfig();
-	}, [selectedModelId, getModelConfig, isUpdatingModel]);
-
-	// Notify parent of validation changes
 	useEffect(() => {
 		onValidationChange?.(isFormValid);
 	}, [isFormValid, onValidationChange]);
 
-	// Watch form changes
 	useEffect(() => {
 		const subscription = watch((_, { name }) => {
-			if (isUpdatingModel || justChangedModel.current || isSyncingFromBackend.current) {
+			if (isSyncingFromBackend.current) {
 				return;
 			}
+
+			const isSliderField =
+				name === "maxTokens" ||
+				name === "temperature" ||
+				name === "topP" ||
+				name === "frequencyPenalty" ||
+				name === "presencePenalty";
 
 			if (
 				name &&
 				name !== "selectedModel" &&
 				name !== "selectedModelId" &&
-				name !== "responseFormat"
+				name !== "responseFormat" &&
+				!isSliderField
 			) {
 				onFormChange();
 			}
@@ -671,14 +853,16 @@ export function useModelsSettings({
 			subscription.unsubscribe();
 			debouncedUpdateSettings.cancel();
 		};
-	}, [watch, onFormChange, debouncedUpdateSettings, isUpdatingModel]);
+	}, [watch, onFormChange, debouncedUpdateSettings]);
 
-	// Sync tools from prompt
 	useEffect(() => {
-		setTools(prompt?.languageModelConfig?.tools || []);
-	}, [prompt?.languageModelConfig?.tools]);
+		const nextTools = prompt?.languageModelConfig?.tools || [];
+		setTools(nextTools);
+		if (promptId) {
+			setDraft(promptId, { tools: nextTools });
+		}
+	}, [promptId, prompt?.languageModelConfig?.tools, setTools, setDraft]);
 
-	// Sync json schema from prompt
 	useEffect(() => {
 		if (prompt?.languageModelConfig?.json_schema) {
 			const jsonSchema =
@@ -686,23 +870,27 @@ export function useModelsSettings({
 					? prompt.languageModelConfig.json_schema
 					: JSON.stringify(prompt.languageModelConfig.json_schema);
 			setCurrentJsonSchema(jsonSchema);
+			if (promptId) {
+				setDraft(promptId, { jsonSchema });
+			}
 		} else {
 			setCurrentJsonSchema(null);
+			if (promptId) {
+				setDraft(promptId, { jsonSchema: null });
+			}
 		}
-	}, [prompt?.languageModelConfig?.json_schema]);
+	}, [promptId, prompt?.languageModelConfig?.json_schema, setCurrentJsonSchema, setDraft]);
 
 	useEffect(() => {
 		if (!promptId) return;
 		setIsSchemaCleared(false);
-	}, [promptId]);
+	}, [promptId, setIsSchemaCleared]);
 
 	return {
-		// Form
 		form,
 		control,
 		responseFormat,
 
-		// State
 		isUpdatingModel,
 		isChangingModel,
 		isDataReady,
@@ -710,7 +898,6 @@ export function useModelsSettings({
 		loading,
 		forceRenderKey,
 
-		// Model data
 		effectiveModels,
 		selectedModelName,
 		selectedModelId,
@@ -722,7 +909,6 @@ export function useModelsSettings({
 		excludedParams,
 		promptId,
 
-		// Tools
 		tools,
 		setTools,
 		editingToolIdx,
@@ -730,19 +916,16 @@ export function useModelsSettings({
 		editingTool,
 		setEditingTool,
 
-		// Schema
 		currentJsonSchema,
 		setCurrentJsonSchema,
 		currentResponseFormat,
 		setCurrentResponseFormat,
 
-		// Dialogs
 		schemaDialogOpen,
 		setSchemaDialogOpen,
 		toolsModalOpen,
 		setToolsModalOpen,
 
-		// Handlers
 		handleModelChange,
 		handleResponseFormatChange,
 		onSaveSchema,
@@ -755,11 +938,9 @@ export function useModelsSettings({
 		getModelConfig,
 		updateModelSettings,
 
-		// Refs (for tool delete handler in component)
 		isSyncingFromBackend,
 		justChangedModel,
 
-		// Helpers
 		getFormValuesFromPrompt: () => getFormValuesFromPrompt(prompt),
 		buildPayload: getPayload,
 	};
