@@ -12,22 +12,6 @@ const queryClient = new QueryClient();
 const isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
 if (isFirefox) {
 	document.documentElement.classList.add("firefox");
-
-	// Disable zoom for Firefox to prevent Monaco Editor issues
-	const disableZoom = () => {
-		const viewport = document.querySelector("meta[name=viewport]");
-		if (viewport) {
-			viewport.setAttribute(
-				"content",
-				"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
-			);
-		}
-	};
-
-	disableZoom();
-
-	// Re-disable zoom on resize
-	window.addEventListener("resize", disableZoom);
 }
 
 // const handleRedirectCallback = (appState: any) => {

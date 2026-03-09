@@ -61,7 +61,6 @@ export interface ModelsSettingsProps {
 	isUpdatingPromptContent?: boolean;
 	onToolsSectionVisibilityChange?: (visible: boolean) => void;
 	loadingFallback?: ReactNode;
-	onReadyStateChange?: (isReady: boolean) => void;
 }
 
 export interface FormSliderProps {

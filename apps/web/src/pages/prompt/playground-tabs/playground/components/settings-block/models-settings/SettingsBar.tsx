@@ -5,7 +5,10 @@ import ModelsSettings from "./ModelsSettings";
 import CanvasChat from "../canvas-chat/CanvasChat";
 import { useSettingsBar } from "./hooks/useSettingsBar";
 import { RunMetrics, ExecutionMetrics, CostBreakdownMetrics } from "./components/SettingsMetrics";
-import { ModelsSettingsControlsSkeleton } from "../../../utils/playgroundSkeletons";
+import {
+	PlaygroundSettingsSkeleton,
+	ModelsSettingsControlsSkeleton,
+} from "../../../utils/playgroundSkeletons";
 import type { SettingsBarProps } from "./utils/types";
 
 export default function SettingsBar({
@@ -23,6 +26,10 @@ export default function SettingsBar({
 		models,
 	);
 	const [isToolsSectionVisible, setIsToolsSectionVisible] = useState(true);
+
+	if (isLoading) {
+		return <PlaygroundSettingsSkeleton />;
+	}
 
 	return (
 		<div className="flex w-full flex-col gap-3">
@@ -67,7 +74,6 @@ export default function SettingsBar({
 							isUpdatingPromptContent={isUpdatingPromptContent}
 							onToolsSectionVisibilityChange={setIsToolsSectionVisible}
 							loadingFallback={<ModelsSettingsControlsSkeleton />}
-							onReadyStateChange={onReadyStateChange}
 						/>
 
 						<div className="flex flex-col gap-3">

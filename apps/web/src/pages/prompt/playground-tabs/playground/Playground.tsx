@@ -9,7 +9,7 @@ import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDi
 import AuditResultsModal from "@/components/dialogs/AuditResultsDialog";
 import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import { InputTextArea } from "@/pages/prompt/playground-tabs/playground/components/input-textarea/InputTextArea";
-import { PlaygroundMainSkeleton, PlaygroundSettingsSkeleton } from "./utils/playgroundSkeletons";
+import { PlaygroundMainSkeleton } from "./utils/playgroundSkeletons";
 import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlayground";
 import { getOrgId, getProjectId } from "@/api/client";
 import SelectedFilesList from "@/pages/files/components/SelectedFilesList";
@@ -38,25 +38,26 @@ export default function Playground() {
 	});
 
 	const { prompt, testcase, metrics, ui, models, actions } = controller;
-	const hasCurrentPromptData = prompt.data?.prompt?.id === promptId;
-	const isTestcaseReady = !testcase.loading;
-	const shouldShowTransitionSkeleton =
-		!hasCurrentPromptData ||
-		textEditorReadyPromptId !== promptId ||
-		settingsBarReadyPromptId !== promptId ||
-		!isTestcaseReady;
-
-	const handleTextEditorReadyStateChange = useCallback((isReady: boolean) => {
-		setTextEditorReadyPromptId(isReady ? promptId : undefined);
-	}, [promptId]);
-
-	const handleSettingsBarReadyStateChange = useCallback((isReady: boolean) => {
-		setSettingsBarReadyPromptId(isReady ? promptId : undefined);
-	}, [promptId]);
+	const isInitialLoading = ui.loading.prompt || testcase.loading;
 
 	return (
-		<div className="relative h-full w-full min-w-0 max-w-[1470px] overflow-x-hidden px-3 pt-8 text-foreground lg:pr-6">
-			<div className={shouldShowTransitionSkeleton ? "invisible" : ""}>
+		<div className="h-full w-full min-w-0 overflow-x-hidden px-3 pt-8 text-foreground lg:pr-6">
+			{isInitialLoading ? (
+				<div className="flex w-full min-w-0 flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start">
+					<PlaygroundMainSkeleton />
+					<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">
+						<SettingsBar
+							prompt={prompt.data?.prompt}
+							models={models}
+							tokens={metrics.tokens}
+							cost={metrics.cost}
+							responseTime={metrics.responseTime}
+							updatePromptContent={actions.prompt.update}
+							isUpdatingPromptContent={ui.loading.updatingContent}
+						/>
+					</div>
+				</div>
+			) : (
 				<div className="flex w-full min-w-0 flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start">
 					<div className="flex w-full min-w-0 flex-col gap-8 overflow-hidden rounded-[12px] border border-border bg-card px-4 pb-4 pt-3 text-card-foreground lg:flex-1">
 						<TextEditor
@@ -73,7 +74,6 @@ export default function Playground() {
 							isAuditLoading={ui.loading.audit}
 							canAudit={!!prompt.content}
 							auditRate={ui.modals.audit.rate}
-							onReadyStateChange={handleTextEditorReadyStateChange}
 						/>
 
 						<div>
@@ -123,7 +123,7 @@ export default function Playground() {
 							serverAssertionValue={prompt.data?.prompt?.assertionValue}
 						/>
 					</div>
-
+ 
 					<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">
 						<SettingsBar
 							prompt={prompt.data?.prompt}
@@ -133,11 +133,10 @@ export default function Playground() {
 							responseTime={metrics.responseTime}
 							updatePromptContent={actions.prompt.update}
 							isUpdatingPromptContent={ui.loading.updatingContent}
-							onReadyStateChange={handleSettingsBarReadyStateChange}
 						/>
 					</div>
 				</div>
-			</div>
+			)}
 
 			{shouldShowTransitionSkeleton && (
 				<div className="absolute left-3 right-3 top-8 z-10 flex min-w-0 flex-col gap-6 lg:right-6 lg:flex-row lg:flex-wrap lg:items-start">
