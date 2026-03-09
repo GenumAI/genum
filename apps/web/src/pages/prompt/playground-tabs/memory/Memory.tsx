@@ -87,7 +87,7 @@ export default function Memory() {
 
 	return (
 		<>
-			<div className="w-full max-w-[1232px] space-y-6 bg-background px-3 pt-8 text-foreground lg:pr-6 2xl-plus:w-[70%] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px]">
+			<div className="w-full min-w-0 space-y-6 bg-background px-3 pt-8 text-foreground lg:pr-6">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="w-full sm:w-auto">
 						<SearchInput

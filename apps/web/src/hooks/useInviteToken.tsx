@@ -3,7 +3,6 @@ import { useCallback } from "react";
 const INVITE_TOKEN_KEY = "pending_invite_token";
 const INVITE_EXPIRY_KEY = "pending_invite_expiry";
 
-// token is valid for 24 hours
 const TOKEN_EXPIRY_HOURS = 24;
 
 export const useInviteToken = () => {
@@ -19,6 +18,15 @@ export const useInviteToken = () => {
 		}
 	}, []);
 
+	const clearInviteToken = useCallback(() => {
+		try {
+			localStorage.removeItem(INVITE_TOKEN_KEY);
+			localStorage.removeItem(INVITE_EXPIRY_KEY);
+		} catch (error) {
+			console.error("Failed to clear invite token:", error);
+		}
+	}, []);
+
 	const getInviteToken = useCallback((): string | null => {
 		try {
 			const token = localStorage.getItem(INVITE_TOKEN_KEY);
@@ -28,8 +36,7 @@ export const useInviteToken = () => {
 				return null;
 			}
 
-			// check if the token has expired
-			if (Date.now() > parseInt(expiry)) {
+			if (Date.now() > parseInt(expiry, 10)) {
 				clearInviteToken();
 				return null;
 			}
@@ -39,16 +46,7 @@ export const useInviteToken = () => {
 			console.error("Failed to get invite token:", error);
 			return null;
 		}
-	}, []);
-
-	const clearInviteToken = useCallback(() => {
-		try {
-			localStorage.removeItem(INVITE_TOKEN_KEY);
-			localStorage.removeItem(INVITE_EXPIRY_KEY);
-		} catch (error) {
-			console.error("Failed to clear invite token:", error);
-		}
-	}, []);
+	}, [clearInviteToken]);
 
 	const hasInviteToken = useCallback((): boolean => {
 		return getInviteToken() !== null;

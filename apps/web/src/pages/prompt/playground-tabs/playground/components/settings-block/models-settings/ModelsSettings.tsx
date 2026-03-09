@@ -17,6 +17,7 @@ const ModelsSettings = ({
 	isUpdatingPromptContent,
 	onToolsSectionVisibilityChange,
 	loadingFallback,
+	onReadyStateChange,
 }: ModelsSettingsProps) => {
 	const hasEnabledModels = (models ?? []).some((model) => model.isDisabled !== true);
 
@@ -109,12 +110,19 @@ const ModelsSettings = ({
 						key !== "tools" && key !== "response_format" && key !== "reasoning_effort",
 				),
 		);
+	const isModelSelectionReady = Boolean(selectedModelId && selectedModelName);
+	const isModelConfigReady = Boolean(activeModelConfig) || isUpdatingModel;
+	const isSettingsReady = isDataReady && isModelSelectionReady && isModelConfigReady;
 	const handleModelChangeRef = useRef(handleModelChange);
 	const handleResponseFormatChangeRef = useRef(handleResponseFormatChange);
 
 	useEffect(() => {
 		onToolsSectionVisibilityChange?.(shouldUseSettingsGap);
 	}, [onToolsSectionVisibilityChange, shouldUseSettingsGap]);
+
+	useEffect(() => {
+		onReadyStateChange?.(isSettingsReady);
+	}, [isSettingsReady, onReadyStateChange]);
 
 	useEffect(() => {
 		handleModelChangeRef.current = handleModelChange;
@@ -135,14 +143,6 @@ const ModelsSettings = ({
 	const handleResponseFormatChangeStable = useCallback((value: string) => {
 		void handleResponseFormatChangeRef.current(value);
 	}, []);
-
-	const isModelSelectionReady = Boolean(selectedModelId && selectedModelName);
-	const isModelConfigReady = Boolean(activeModelConfig) || isUpdatingModel;
-	const isSettingsReady = isDataReady && isModelSelectionReady && isModelConfigReady;
-
-	if (!models || models.length === 0 || !hasEnabledModels) {
-		return null;
-	}
 
 	if (!isSettingsReady) {
 		return <>{loadingFallback ?? null}</>;
