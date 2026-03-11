@@ -350,6 +350,17 @@ function LogsTableSkeleton() {
 		"w-16",
 		"w-16",
 	];
+	const headerSkeletonKeys = [
+		"logs-header-select",
+		"logs-header-time",
+		"logs-header-input",
+		"logs-header-output",
+		"logs-header-model",
+		"logs-header-status",
+		"logs-header-cost",
+		"logs-header-prompt-tokens",
+		"logs-header-total-tokens",
+	];
 	const rowSkeletonKeys = [
 		"log-row-1",
 		"log-row-2",
@@ -363,7 +374,10 @@ function LogsTableSkeleton() {
 		<div className="overflow-hidden bg-card text-card-foreground">
 			<div className="grid h-[52.5px] grid-cols-[48px_180px_1fr_1fr_180px_120px_110px_110px_110px] items-center gap-3 bg-muted px-3">
 				{headerWidths.map((width, index) => (
-					<Skeleton key={`logs-header-${index}`} className={`h-4 ${width} justify-self-center`} />
+					<Skeleton
+						key={headerSkeletonKeys[index]}
+						className={`h-4 ${width} justify-self-center`}
+					/>
 				))}
 			</div>
 

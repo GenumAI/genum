@@ -31,7 +31,7 @@ export function useAcceptInviteFlow({ urlToken }: UseAcceptInviteFlowParams) {
 	const { loginWithRedirect, isAuthenticated, isLoading, user, getAccessTokenSilently } =
 		useAuth();
 
-	const token = urlToken || getInviteToken();
+	const token = urlToken ?? getInviteToken() ?? undefined;
 
 	const getInviteRequestConfig = useCallback(async (): Promise<ApiRequestConfig | undefined> => {
 		try {
