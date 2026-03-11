@@ -8,16 +8,18 @@ interface ModelSelectorBlockProps {
 	models?: Model[];
 	groupedModels: Record<string, Model[]>;
 	selectedModelName: string;
+	showStatusState?: boolean;
 	onModelChange: (value: string) => void;
 	disabled: boolean;
 	control: UseFormReturn<ModelSettingsFormValues>["control"];
 }
 
-export const ModelSelectorBlock = memo(
+export const ModelSelectorBlock = memo<ModelSelectorBlockProps>(
 	({
 		models,
 		groupedModels,
 		selectedModelName,
+		showStatusState,
 		onModelChange,
 		disabled,
 		control,
@@ -27,6 +29,7 @@ export const ModelSelectorBlock = memo(
 				models={models}
 				groupedModels={groupedModels}
 				selectedModelName={selectedModelName}
+				showStatusState={showStatusState}
 				onModelChange={onModelChange}
 				disabled={disabled}
 				control={control}

@@ -14,6 +14,7 @@ import { usePlaygroundController } from "@/pages/prompt/playground-tabs/playgrou
 import { getOrgId, getProjectId } from "@/api/client";
 import SelectedFilesList from "@/pages/files/components/SelectedFilesList";
 import type { FileMetadata } from "@/api/files";
+import { useSkeletonVisibility } from "@/hooks/useSkeletonVisibility";
 
 export default function Playground() {
 	const orgId = getOrgId();
@@ -40,11 +41,15 @@ export default function Playground() {
 	const { prompt, testcase, metrics, ui, models, actions } = controller;
 	const hasCurrentPromptData = prompt.data?.prompt?.id === promptId;
 	const isTestcaseReady = !testcase.loading;
-	const shouldShowTransitionSkeleton =
+	const shouldShowTransitionSkeletonBase =
 		!hasCurrentPromptData ||
 		textEditorReadyPromptId !== promptId ||
 		settingsBarReadyPromptId !== promptId ||
 		!isTestcaseReady;
+	const shouldShowTransitionSkeleton = useSkeletonVisibility(shouldShowTransitionSkeletonBase, {
+		delayMs: 0,
+		minVisibleMs: 350,
+	});
 
 	const handleTextEditorReadyStateChange = useCallback((isReady: boolean) => {
 		setTextEditorReadyPromptId(isReady ? promptId : undefined);

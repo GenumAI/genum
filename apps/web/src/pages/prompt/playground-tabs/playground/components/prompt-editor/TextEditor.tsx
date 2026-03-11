@@ -123,7 +123,7 @@ const TextEditor = ({
 		return () => {
 			window.cancelAnimationFrame(frameId);
 		};
-	}, [content, onReadyStateChange]);
+	}, [onReadyStateChange]);
 
 	return (
 		<>

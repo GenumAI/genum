@@ -19,8 +19,6 @@ const ModelsSettings = ({
 	loadingFallback,
 	onReadyStateChange,
 }: ModelsSettingsProps) => {
-	const hasEnabledModels = (models ?? []).some((model) => model.isDisabled !== true);
-
 	const {
 		form,
 		control,
@@ -33,6 +31,7 @@ const ModelsSettings = ({
 		selectedModelName,
 		selectedModelId,
 		activeModelConfig,
+		shouldShowModelStatusState,
 		isCurrentModelReasoning,
 		groupedModels,
 		getResponseFormatOptions,
@@ -157,6 +156,7 @@ const ModelsSettings = ({
 							models={effectiveModels}
 							groupedModels={groupedModels}
 							selectedModelName={selectedModelName}
+							showStatusState={shouldShowModelStatusState}
 							onModelChange={handleModelChangeStable}
 							disabled={isUpdatingModel}
 							control={control}

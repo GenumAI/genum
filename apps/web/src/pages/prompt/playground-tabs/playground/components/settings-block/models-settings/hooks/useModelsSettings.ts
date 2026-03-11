@@ -244,6 +244,31 @@ export function useModelsSettings({
 
 	const currentModel = effectiveModels.find((model) => model.name === selectedModelName);
 	const activeModelConfig = modelConfigQuery.data;
+	const shouldShowModelStatusState = useMemo(() => {
+		if (!prompt?.languageModel) {
+			return true;
+		}
+
+		if (!selectedModelName || !selectedModelId) {
+			return false;
+		}
+
+		const areOrgModelsLoaded = (models?.length ?? 0) > 0;
+		const isPromptFallbackModel =
+			selectedModelName === prompt.languageModel.name && currentModel?.isDisabled === true;
+
+		if (!areOrgModelsLoaded && isPromptFallbackModel) {
+			return false;
+		}
+
+		return true;
+	}, [
+		currentModel?.isDisabled,
+		models?.length,
+		prompt?.languageModel,
+		selectedModelId,
+		selectedModelName,
+	]);
 
 	const isCurrentModelReasoning = Boolean(activeModelConfig?.parameters?.reasoning_effort);
 
@@ -903,6 +928,7 @@ export function useModelsSettings({
 		selectedModelId,
 		currentModel,
 		activeModelConfig,
+		shouldShowModelStatusState,
 		isCurrentModelReasoning,
 		groupedModels,
 		getResponseFormatOptions,
