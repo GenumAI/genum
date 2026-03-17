@@ -1,14 +1,17 @@
 import { useCallback, useEffect } from "react";
-import { useRunPrompt } from "@/hooks/useRunPrompt";
 import { promptApi } from "@/api/prompt";
-import type { PromptResponse } from "@/hooks/useRunPrompt";
+import { testcasesApi } from "@/api/testcases/testcases.api";
+import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
+import { useToast } from "@/hooks/useToast";
+import type { PromptResponse } from "@/api/prompt";
 import type { PromptSettings } from "@/types/Prompt";
 import type { TestCase } from "@/types/TestСase";
 import type { FileMetadata } from "@/api/files";
 import { useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
+import { usePromptActions } from "@/stores/prompt.store";
 
-export function usePlaygroundRunController({
+export function usePlaygroundPromptRun({
 	promptId,
 	testcaseId,
 	testcase,
@@ -20,7 +23,6 @@ export function usePlaygroundRunController({
 	promptSettings,
 	selectedFiles,
 	setRunState,
-	setClearedOutput,
 	setOutputContent,
 	setStatus,
 	openAssertionModal,
@@ -36,19 +38,20 @@ export function usePlaygroundRunController({
 	promptSettings: PromptSettings | undefined;
 	selectedFiles: FileMetadata[];
 	setRunState: (state: { loading: boolean; wasRun?: boolean }) => void;
-	setClearedOutput: (output: PromptResponse | null) => void;
 	setOutputContent: (value: PromptResponse | null) => void;
 	setStatus: (status: string) => void;
 	openAssertionModal: () => void;
 }) {
-	const { runPrompt } = useRunPrompt();
+	const { toast } = useToast();
+	const { setRunLoading, setRunError, setLastRunResult } = usePromptActions();
 	const queryClient = useQueryClient();
 
 	const handleRun = useCallback(async () => {
 		if (!promptId) return;
 
-		setClearedOutput(null);
 		setRunState({ loading: true });
+		setRunLoading(true);
+		setRunError(null);
 
 		try {
 			const runParams = {
@@ -58,55 +61,72 @@ export function usePlaygroundRunController({
 			};
 
 			if (!testcaseId) {
-				const result = await runPrompt(promptId, runParams);
+				const result = await promptApi.runPrompt(promptId, runParams);
 				if (result) {
+					setLastRunResult(result);
 					setOutputContent(result);
 				}
 				return;
 			}
 
-			const result = await runPrompt(promptId, runParams, testcaseId);
+			const testcaseResponse = await testcasesApi.runTestcase(testcaseId, runParams);
+			const updatedTestcase = testcaseResponse?.testcase;
+			if (updatedTestcase) {
+				queryClient.setQueryData<TestCase[] | undefined>(
+					testcaseKeys.promptTestcases(promptId),
+					(previous) =>
+						previous?.map((item) =>
+							item.id === updatedTestcase.id ? updatedTestcase : item,
+						) ?? previous,
+				);
+				queryClient.setQueryData<{ testcase: TestCase } | undefined>(
+					testcaseKeys.byId(testcaseId),
+					(previous) => ({ ...previous, testcase: updatedTestcase }),
+				);
+			}
+			const result = formatTestcaseOutput(testcaseResponse);
 
 			if (result) {
+				setLastRunResult(result);
 				setOutputContent(result);
 				setRunState({ loading: false, wasRun: true });
-
-				if (promptId) {
-					queryClient.invalidateQueries({
-						queryKey: testcaseKeys.promptTestcases(promptId),
-					});
-					queryClient.invalidateQueries({
-						queryKey: testcaseKeys.statusCounts(promptId),
-					});
-				}
-				window.dispatchEvent(new CustomEvent("testcaseUpdated"));
 				return;
 			}
-		} catch (error) {
-			console.error("Failed to run prompt/testcase:", error);
+		} catch (err: unknown) {
+			const error =
+				err instanceof Error ? err : new Error("Failed to run prompt/testcase");
+			console.error("Failed to run prompt/testcase:", err);
+			setRunError(error.message);
+			toast({
+				title: "Error",
+				description: error.message,
+				variant: "destructive",
+				duration: 6000,
+			});
 			if (testcaseId && promptId) {
 				queryClient.invalidateQueries({
 					queryKey: testcaseKeys.promptTestcases(promptId),
 				});
-				queryClient.invalidateQueries({ queryKey: testcaseKeys.statusCounts(promptId) });
 			}
 		} finally {
 			setRunState({ loading: false });
+			setRunLoading(false);
 		}
 	}, [
 		inputContent,
 		promptId,
-		runPrompt,
 		selectedMemoryId,
 		selectedFiles,
-		setClearedOutput,
 		setRunState,
 		setOutputContent,
 		testcaseId,
 		queryClient,
+		setRunLoading,
+		setRunError,
+		setLastRunResult,
+		toast,
 	]);
 
-	// After a testcase run: open assertion modal + refresh latest status counts
 	useEffect(() => {
 		if (!storeOutputContent || !testcaseId || !testcase || !wasRun) {
 			return;
@@ -117,34 +137,12 @@ export function usePlaygroundRunController({
 		if (assertionType === "AI" || assertionType === "STRICT") {
 			openAssertionModal();
 		}
-
-		const fetchLatestPromptData = async () => {
-			try {
-				if (!promptId) return;
-				const data = await promptApi.getPrompt(promptId);
-				if (data.prompt?.testcaseStatuses) {
-					window.dispatchEvent(
-						new CustomEvent("testcaseStatusUpdated", {
-							detail: {
-								promptId,
-								testcaseStatuses: data.prompt.testcaseStatuses,
-							},
-						}),
-					);
-				}
-			} catch (error) {
-				console.error("Failed to fetch latest prompt data:", error);
-			}
-		};
-
-		setTimeout(fetchLatestPromptData, 500);
 		setRunState({ loading: false, wasRun: false });
 	}, [
 		storeOutputContent,
 		testcaseId,
 		testcase,
 		wasRun,
-		promptId,
 		currentAssertionType,
 		promptSettings?.assertionType,
 		setStatus,

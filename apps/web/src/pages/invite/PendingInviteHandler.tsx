@@ -1,24 +1,24 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useInviteToken } from "@/hooks/useInviteToken";
 
 const PendingInviteHandler = () => {
 	const { user, isAuthenticated } = useAuth();
 	const navigate = useNavigate();
+	const { getInviteToken, clearInviteToken } = useInviteToken();
 
 	useEffect(() => {
 		if (isAuthenticated && user) {
-			const pendingInviteToken = localStorage.getItem("pending_invite_token");
+			const pendingInviteToken = getInviteToken();
 			if (pendingInviteToken) {
-				// clear the token from localStorage
-				localStorage.removeItem("pending_invite_token");
-				// redirect to the invite page
+				clearInviteToken();
 				navigate(`/invite/${pendingInviteToken}`);
 			}
 		}
-	}, [isAuthenticated, user, navigate]);
+	}, [isAuthenticated, user, navigate, getInviteToken, clearInviteToken]);
 
-	return null; // this component does not render anything
+	return null;
 };
 
 export default PendingInviteHandler;

@@ -13,7 +13,7 @@ import { getParameterDescription } from "../utils/helpers";
 import type { FormSelectFieldProps } from "../utils/types";
 
 export const FormSelectField = memo(
-	({ name, label, options, disabled, control, onChange }: FormSelectFieldProps) => {
+	({ name, label, options, defaultValue, disabled, control, onChange }: FormSelectFieldProps) => {
 		const paramKey = name.replace(/([A-Z])/g, "_$1").toLowerCase();
 		const description = getParameterDescription(paramKey);
 
@@ -21,50 +21,54 @@ export const FormSelectField = memo(
 			<FormField
 				control={control}
 				name={name}
-				render={({ field }) => (
-					<FormItem className="space-y-2">
-						<div className="flex items-center gap-1">
-							<FormLabel className="text-[14px] capitalize">{label}</FormLabel>
-							{description && (
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Info
-											size={14}
-											className="text-muted-foreground hover:text-foreground cursor-help"
-										/>
-									</TooltipTrigger>
-									<TooltipContent className="max-w-xs">
-										<p className="text-sm">{description}</p>
-									</TooltipContent>
-								</Tooltip>
-							)}
-						</div>
-						<Select
-							value={field.value?.toString() || ""}
-							onValueChange={(value) => {
-								field.onChange(value);
-								onChange?.(value);
-							}}
-							disabled={disabled}
-						>
-							<FormControl>
-								<SelectTrigger>
-									<SelectValue placeholder={`Select ${label}`} />
-								</SelectTrigger>
-							</FormControl>
-							<SelectContent>
-								{options.map((option) => (
-									<SelectItem key={option} value={option}>
-										{option
-											.replace(/_/g, " ")
-											.replace(/\b\w/g, (char) => char.toUpperCase())}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-						<FormMessage />
-					</FormItem>
-				)}
+				render={({ field }) => {
+					const resolvedValue = field.value?.toString() || defaultValue || "";
+
+					return (
+						<FormItem className="space-y-2">
+							<div className="flex items-center gap-1">
+								<FormLabel className="text-[14px] capitalize">{label}</FormLabel>
+								{description && (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Info
+												size={14}
+												className="text-muted-foreground hover:text-foreground cursor-help"
+											/>
+										</TooltipTrigger>
+										<TooltipContent className="max-w-xs">
+											<p className="text-sm">{description}</p>
+										</TooltipContent>
+									</Tooltip>
+								)}
+							</div>
+							<Select
+								value={resolvedValue}
+								onValueChange={(value) => {
+									field.onChange(value);
+									onChange?.(name, value);
+								}}
+								disabled={disabled}
+							>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder={`Select ${label}`} />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									{options.map((option) => (
+										<SelectItem key={option} value={option}>
+											{option
+												.replace(/_/g, " ")
+												.replace(/\b\w/g, (char) => char.toUpperCase())}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<FormMessage />
+						</FormItem>
+					);
+				}}
 			/>
 		);
 	},

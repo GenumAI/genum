@@ -1,12 +1,14 @@
 import { useParams } from "react-router-dom";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
+import { TestcasesTableSkeleton } from "../playground/utils/playgroundSkeletons";
 import { useTestcasesTable } from "./hooks/useTestcasesTable";
 import TestcasesToolbar from "./components/TestcasesToolbar";
 import TestcasesTable from "./components/TestcasesTable";
 
 export default function Testcases() {
-	const { id } = useParams<{ id: string; orgId: string; projectId: string }>();
+	const { id, tab } = useParams<{ id: string; orgId: string; projectId: string; tab: string }>();
 	const promptId = id ? Number(id) : undefined;
+	const isActive = tab === "testcases";
 
 	const {
 		search,
@@ -19,6 +21,7 @@ export default function Testcases() {
 		setConfirmModalOpen,
 		isRunning,
 		isDeleting,
+		isLoading,
 
 		table,
 
@@ -28,11 +31,11 @@ export default function Testcases() {
 		handleFilterChange,
 
 		getRowCount,
-	} = useTestcasesTable({ promptId });
+	} = useTestcasesTable({ promptId, isActive });
 
 	return (
 		<>
-			<div className="space-y-6 max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] ml-3 mr-6 w-full pt-8">
+			<div className="w-full min-w-0 space-y-6 px-3 pt-8 lg:pr-6">
 				<TestcasesToolbar
 					search={search}
 					onSearchChange={setSearch}
@@ -46,7 +49,11 @@ export default function Testcases() {
 					runningRowsCount={runningRows.length}
 				/>
 
-				<TestcasesTable table={table} onRowClick={handleRowClick} />
+				{isLoading ? (
+					<TestcasesTableSkeleton />
+				) : (
+					<TestcasesTable table={table} onRowClick={handleRowClick} />
+				)}
 			</div>
 			<DeleteConfirmDialog
 				open={confirmModalOpen}

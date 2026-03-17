@@ -13,6 +13,7 @@ interface ModelSelectorProps {
 	models?: Model[];
 	groupedModels: Record<string, Model[]>;
 	selectedModelName: string;
+	showStatusState?: boolean;
 	onModelChange: (value: string) => void;
 	disabled?: boolean;
 	control: UseFormReturn<ModelSettingsFormValues>["control"];
@@ -23,12 +24,22 @@ export const ModelSelector = memo(
 		models,
 		groupedModels,
 		selectedModelName,
+		showStatusState = true,
 		onModelChange,
 		disabled,
 		control,
 	}: ModelSelectorProps) => {
 		const selectedModel = models?.find((m) => m.name === selectedModelName);
 		const isSelectedDisabled = selectedModel?.isDisabled === true;
+		const triggerOptions =
+			models?.map((model) => ({
+				value: model.name,
+				label: model.displayName || model.name,
+			})) ?? [];
+		const modelCount = Object.values(groupedModels).reduce(
+			(count, vendorModels) => count + vendorModels.length,
+			0,
+		);
 
 		return (
 			<FormField
@@ -58,13 +69,16 @@ export const ModelSelector = memo(
 								};
 							})}
 							placeholder="Select a model to continue"
-							className={`mt-1 text-[14px] ${!selectedModelName ? "border-red-500" : ""}`}
+							className={`mt-1 text-[14px] ${
+								showStatusState && !selectedModelName ? "border-red-500" : ""
+							}`}
 							popoverProps={{
 								side: "bottom",
 								avoidCollisions: false,
 								sideOffset: 4,
 								align: "start",
 							}}
+							listClassName={modelCount < 5 ? "min-h-0" : undefined}
 							renderOption={({ option, isSelected, onSelect }) => {
 								const model = models?.find((m) => m.name === option.value);
 								const isModelDisabled = model?.isDisabled === true;
@@ -119,20 +133,19 @@ export const ModelSelector = memo(
 							}}
 						>
 							{({
-								options,
 								placeholder,
 								disabled,
 								selectedValue,
 								setIsPopoverOpen,
 							}) => (
 								<InputSelectTrigger
-									options={options}
+									options={triggerOptions}
 									placeholder={placeholder}
 									disabled={disabled}
 									selectedValue={selectedValue}
 									setIsPopoverOpen={setIsPopoverOpen}
 									className={`mt-1 text-[14px] dark:border-[#3C3D3F] h-9 ${
-										!selectedModelName || isSelectedDisabled
+										showStatusState && (!selectedModelName || isSelectedDisabled)
 											? "border-amber-500"
 											: ""
 									}`}
@@ -140,12 +153,12 @@ export const ModelSelector = memo(
 							)}
 						</InputSelect>
 						<FormMessage />
-						{!selectedModelName && (
+						{showStatusState && !selectedModelName && (
 							<p className="text-[12px] text-red-500">
 								Please select a model before running the prompt
 							</p>
 						)}
-						{isSelectedDisabled && (
+						{showStatusState && isSelectedDisabled && (
 							<p className="text-[12px] text-amber-500">
 								This model is disabled for your organization. Please select a
 								different model.

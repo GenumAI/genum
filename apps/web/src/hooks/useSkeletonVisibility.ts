@@ -9,7 +9,7 @@ export function useSkeletonVisibility(
 	isLoading: boolean,
 	{ delayMs = 200, minVisibleMs = 400 }: Options = {},
 ) {
-	const [isVisible, setIsVisible] = useState(false);
+	const [isVisible, setIsVisible] = useState(() => isLoading && delayMs === 0);
 	const showTimerRef = useRef<number | null>(null);
 	const hideTimerRef = useRef<number | null>(null);
 	const shownAtRef = useRef<number | null>(null);

@@ -1,17 +1,17 @@
-import { useEffect } from "react";
-import usePlaygroundStore, {
-	defaultPromptResponse,
-	usePlaygroundActions,
-	usePlaygroundAudit,
-	usePlaygroundContent,
-	usePlaygroundTestcase,
-	usePlaygroundUI,
-} from "@/stores/playground.store";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { defaultPromptResponse } from "@/lib/defaultPromptResponse";
+import { usePlaygroundActions } from "@/stores/playground.store";
+import { useAssertionActions, useAssertionUI } from "@/stores/assertion.store";
+import { usePromptActions } from "@/stores/prompt.store";
+import { useAudit } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAudit";
 import { usePlaygroundModels } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundModels";
 import { usePlaygroundPrompt } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundPrompt";
 import { usePlaygroundTestcaseController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundTestcase";
-import { usePlaygroundRunController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundRun";
-import { usePlaygroundAuditController } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAudit";
+import { usePlaygroundPromptRun } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundPromptRun";
+import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
+import { usePlaygroundOutput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundOutput";
+import { usePlaygroundAssertion } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAssertion";
+import { usePlaygroundSession } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundSession";
 import type { PlaygroundControllerReturn } from "@/pages/prompt/playground-tabs/playground/hooks/types";
 import { usePromptTestcases } from "@/hooks/usePromptTestcases";
 import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
@@ -31,68 +31,102 @@ export function usePlaygroundController({
 	testcaseId: string | null;
 	selectedFiles?: FileMetadata[];
 }) {
+	const { resetForPromptExit } = usePlaygroundActions();
 	const {
+		isAssertionModalOpen,
+	} = useAssertionUI();
+	const {
+		openAssertionModal,
+		closeAssertionModal,
+		resetForPromptExit: resetAssertionStateForPromptExit,
+	} = useAssertionActions();
+	const { resetForPromptExit: resetPromptStateForPromptExit } = usePromptActions();
+	const { inputContent, setInputContent, clearInputContent, hasInputContent } =
+		usePlaygroundInput({
+			promptId,
+			testcaseId,
+		});
+	const {
+		outputContent: storeOutputContent,
+		expectedOutput: currentExpectedOutput,
+		currentExpectedThoughts,
 		setOutputContent,
 		setExpectedOutput,
 		setCurrentExpectedThoughts,
-		resetForNewTestcase,
-		clearAllState,
-		setInputContent,
-		setTestcaseLoadState,
-		setRunState,
-		setClearedOutput,
-		setStatus,
-		openAssertionModal,
-		closeAssertionModal,
-		setIsPromptChangedAfterAudit,
-		openAuditModal,
-		closeAuditModal,
-		setDiffModal,
-		setFixingState,
-	} = usePlaygroundActions();
+		resetOutputState,
+	} = usePlaygroundOutput({
+		promptId,
+		testcaseId,
+	});
+	const { selection } = useMemorySelection(promptId, testcaseId);
+	const selectedMemoryId = selection.selectedMemoryId;
+	const [isPromptChangedAfterAudit, setIsPromptChangedAfterAudit] = useState(false);
 	const {
-		inputContent,
-		outputContent: storeOutputContent,
-		clearedOutput,
-		currentExpectedThoughts,
+		status,
+		wasRun,
+		runLoading,
+		isTestcaseLoaded,
+		setRunState,
+		setStatus,
+		setTestcaseLoadState,
+	} = usePlaygroundSession({
+		promptId,
+		testcaseId,
+	});
+
+	const { data: testcases = [], isLoading: isTestcasesLoading } = usePromptTestcases(promptId);
+
+	const { models } = usePlaygroundModels();
+	const {
+		prompt,
+		promptLoading,
+		updatePromptError,
+		updatePromptContent,
+		handlePromptUpdate,
 		originalPromptContent,
 		livePromptValue,
 		hasPromptContent,
-		hasInputContent,
-	} = usePlaygroundContent();
-	const { currentAssertionType } = usePlaygroundTestcase();
-	const { selection } = useMemorySelection(promptId, testcaseId);
-	const selectedMemoryId = selection.selectedMemoryId;
-	const {
-		modalOpen,
-		status,
-		wasRun,
-		isStatusCountsLoading,
-		runLoading,
-		isFixing,
 		isUpdatingPromptContent,
-		showAuditModal,
-		diffModalInfo,
-		isTestcaseLoaded,
-	} = usePlaygroundUI();
-	const { isPromptChangedAfterAudit } = usePlaygroundAudit();
-
-	const { data: testcases = [] } = usePromptTestcases(promptId);
-
-	const { models } = usePlaygroundModels();
-	const { prompt, promptLoading, updatePromptError, updatePromptContent, handlePromptUpdate } =
-		usePlaygroundPrompt({ promptId, orgId, projectId });
-
-	// Local refs for cross-event consistency
-	const get = usePlaygroundStore.getState;
+		setLivePromptValue,
+	} = usePlaygroundPrompt({ promptId, orgId, projectId });
+	const { currentAssertionType } = usePlaygroundAssertion({
+		promptId,
+		serverAssertionType: prompt?.prompt?.assertionType,
+		serverAssertionValue: prompt?.prompt?.assertionValue,
+	});
+	const cleanupRef = useRef({
+		cleanupScope: () => {},
+	});
+	const resetPlaygroundState = useCallback(() => {
+		clearInputContent();
+		resetOutputState();
+		setRunState({ loading: false, wasRun: false });
+		setTestcaseLoadState({ loaded: false });
+		setStatus("");
+	}, [clearInputContent, resetOutputState, setRunState, setTestcaseLoadState, setStatus]);
 
 	// Cleanup on unmount
 	useEffect(() => {
-		return () => {
-			clearAllState();
-			setClearedOutput(null);
+		cleanupRef.current = {
+			cleanupScope: () => {
+				resetForPromptExit(promptId, testcaseId);
+				resetAssertionStateForPromptExit(promptId);
+				resetPromptStateForPromptExit(promptId);
+			},
 		};
-	}, [clearAllState, setClearedOutput]);
+	}, [
+		promptId,
+		testcaseId,
+		resetForPromptExit,
+		resetAssertionStateForPromptExit,
+		resetPromptStateForPromptExit,
+	]);
+
+	useEffect(() => {
+		return () => {
+			cleanupRef.current.cleanupScope();
+		};
+	}, []);
 
 	const {
 		testcase,
@@ -106,18 +140,18 @@ export function usePlaygroundController({
 		testcaseId,
 		testcases,
 		storeOutputContent,
+		currentExpectedOutput,
 		currentExpectedThoughts,
 		inputContent,
-		getStoreSnapshot: get,
 		setInputContent,
 		setExpectedOutput,
 		setOutputContent,
 		setCurrentExpectedThoughts,
 		setTestcaseLoadState,
-		resetForNewTestcase,
+		resetPlaygroundState,
 	});
 
-	const { handleRun } = usePlaygroundRunController({
+	const { handleRun } = usePlaygroundPromptRun({
 		promptId,
 		testcaseId,
 		testcase,
@@ -129,7 +163,6 @@ export function usePlaygroundController({
 		promptSettings: prompt?.prompt,
 		selectedFiles,
 		setRunState,
-		setClearedOutput,
 		setOutputContent,
 		setStatus,
 		openAssertionModal,
@@ -138,34 +171,42 @@ export function usePlaygroundController({
 	const {
 		currentAuditData,
 		isAuditLoading,
-		auditPrompt,
+		isFixing,
+		showAuditModal,
+		diffModalInfo,
+		setDiffModal,
+		runAudit,
+		canRunAudit,
 		handleOpenAuditModal,
 		handleCloseAuditModal,
-		handleRunAudit,
 		handleFixRisks,
 		handleDiffSave,
-	} = usePlaygroundAuditController({
-		promptId,
-		promptValue: prompt?.prompt?.value,
-		setIsPromptChangedAfterAudit,
-		openAuditModal,
-		closeAuditModal,
-		setDiffModal,
-		setFixingState,
-		updatePromptContent,
+	} = useAudit(promptId, {
+		playgroundFlow: {
+			promptValue: prompt?.prompt?.value,
+			setIsPromptChangedAfterAudit,
+			updatePromptContent,
+		},
 	});
+	const handleRunAudit = useCallback(async () => {
+		if (!promptId) return;
+		await runAudit(promptId);
+	}, [promptId, runAudit]);
 
-	const currentOutput = clearedOutput || storeOutputContent;
+	const auditPrompt = useCallback(async () => {
+		if (!canRunAudit || !promptId) return;
+		await runAudit(promptId);
+	}, [canRunAudit, promptId, runAudit]);
+
+	const currentOutput = storeOutputContent;
 
 	const currentTokens = currentOutput?.tokens || defaultPromptResponse.tokens;
 	const currentCost = currentOutput?.cost || defaultPromptResponse.cost;
 	const currentResponseTime = currentOutput?.response_time_ms || null;
 
-	const currentAuditRate = isPromptChangedAfterAudit
-		? undefined
-		: (currentAuditData?.rate ?? prompt?.prompt?.audit?.data?.rate);
+	const currentAuditRate = isPromptChangedAfterAudit ? undefined : currentAuditData?.rate;
 
-	const systemPrompt = livePromptValue || originalPromptContent || prompt?.prompt?.value || "";
+	const systemPrompt = livePromptValue;
 
 	return {
 		prompt: {
@@ -179,7 +220,7 @@ export function usePlaygroundController({
 			data: testcase,
 			id: testcaseId,
 			expectedContent,
-			loading: !!testcaseId && !isTestcaseLoaded && isStatusCountsLoading,
+			loading: !!testcaseId && !isTestcaseLoaded && isTestcasesLoading,
 		},
 		metrics: {
 			tokens: currentTokens,
@@ -188,7 +229,7 @@ export function usePlaygroundController({
 		},
 		ui: {
 			modals: {
-				assertion: { open: modalOpen, status },
+				assertion: { open: isAssertionModalOpen, status },
 				audit: {
 					open: showAuditModal,
 					data: currentAuditData,
@@ -201,7 +242,7 @@ export function usePlaygroundController({
 				run: runLoading,
 				audit: isAuditLoading,
 				fixing: isFixing,
-				statusCounts: isStatusCountsLoading,
+				statusCounts: isTestcasesLoading,
 				updatingContent: isUpdatingPromptContent,
 			},
 			validation: {
@@ -214,6 +255,7 @@ export function usePlaygroundController({
 			prompt: {
 				update: updatePromptContent,
 				handleUpdate: handlePromptUpdate,
+				setLiveValue: setLivePromptValue,
 			},
 			testcase: {
 				saveAsExpected: handleSaveAsExpected,

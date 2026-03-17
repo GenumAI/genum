@@ -1,8 +1,9 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { testcasesApi } from "@/api/testcases/testcases.api";
+import { promptApi } from "@/api/prompt/prompt.api";
 import type { TestcasePayload } from "@/hooks/useCreateTestcase";
 import { useToast } from "@/hooks/useToast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 
@@ -13,11 +14,31 @@ interface UseTestcaseActionsProps {
 }
 
 export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }: UseTestcaseActionsProps) => {
-	const [isTestcaseLoading, setIsTestcaseLoading] = useState(false);
 	const { toast } = useToast();
 	const { selection } = useMemorySelection(promptId, null);
 	const selectedMemoryId = selection.selectedMemoryId;
 	const queryClient = useQueryClient();
+	const createTestcaseMutation = useMutation({
+		mutationKey: testcaseKeys.create(promptId),
+		mutationFn: async (payload: TestcasePayload) => {
+			return testcasesApi.createTestcase(payload);
+		},
+		onSuccess: async () => {
+			if (!promptId) return;
+			try {
+				await queryClient.fetchQuery({
+					queryKey: testcaseKeys.promptTestcases(promptId),
+					queryFn: async () => {
+						const response = await promptApi.getPromptTestcases(promptId);
+						return response.testcases || [];
+					},
+				});
+			} catch (error) {
+				console.error("Failed to refresh prompt testcases after create:", error);
+			}
+			onTestcaseAdded?.();
+		},
+	});
 
 	const createTestcase = useCallback(
 		async (input: string, expectedOutput: string, lastOutput: string) => {
@@ -39,23 +60,12 @@ export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }:
 				files: selectedFiles && selectedFiles.length > 0 ? selectedFiles.map((f) => f.id) : undefined,
 			};
 
-			setIsTestcaseLoading(true);
 			let success = false;
 
 			try {
-				await testcasesApi.createTestcase(createPayload);
+				await createTestcaseMutation.mutateAsync(createPayload);
 				success = true;
-
-				if (promptId) {
-					queryClient.invalidateQueries({
-						queryKey: testcaseKeys.promptTestcases(promptId),
-					});
-					queryClient.invalidateQueries({
-						queryKey: testcaseKeys.statusCounts(promptId),
-					});
-				}
-				onTestcaseAdded?.();
-			} catch (err: any) {
+			} catch (err) {
 				console.error("Create testcase error:", err);
 				success = false;
 			} finally {
@@ -66,16 +76,15 @@ export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }:
 						: "Unknown error, try again.",
 					variant: success ? "default" : "destructive",
 				});
-				setIsTestcaseLoading(false);
 			}
 
 			return { success };
 		},
-		[promptId, selectedMemoryId, selectedFiles, onTestcaseAdded, toast, queryClient],
+		[promptId, selectedMemoryId, selectedFiles, toast, createTestcaseMutation],
 	);
 
 	return {
-		isTestcaseLoading,
+		isTestcaseLoading: createTestcaseMutation.isPending,
 		createTestcase,
 	};
 };

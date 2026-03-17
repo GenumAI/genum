@@ -3,7 +3,9 @@ import { Card } from "@/components/ui/card";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/useToast";
 import CompareDiffEditor from "@/components/ui/DiffEditor";
-import { usePlaygroundContent } from "@/stores/playground.store";
+import type { PromptResponse } from "@/api/prompt";
+import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
+import { usePlaygroundOutput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundOutput";
 
 import { useExpectedOutput } from "./hooks/useExpectedOutput";
 import { useAssertions } from "./hooks/useAssertions";
@@ -16,6 +18,7 @@ import { ExpandedOutputDialog } from "./components/ExpandedOutputDialog";
 
 export interface UpdateExpected {
 	answer: string;
+	metrics?: Pick<PromptResponse, "tokens" | "cost" | "response_time_ms" | "status">;
 }
 
 interface OutputBlockProps {
@@ -25,6 +28,8 @@ interface OutputBlockProps {
 	selectedFiles?: Array<{ id: string }>;
 	onTestcaseLoadingChange?: (isLoading: boolean) => void;
 	isRunning?: boolean;
+	serverAssertionType?: string;
+	serverAssertionValue?: string;
 }
 
 const OutputBlock: React.FC<OutputBlockProps> = ({
@@ -34,6 +39,8 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	selectedFiles,
 	onTestcaseLoadingChange,
 	isRunning,
+	serverAssertionType,
+	serverAssertionValue,
 }) => {
 	// Route params
 	const { id } = useParams<{ id: string }>();
@@ -41,8 +48,9 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	const [searchParams] = useSearchParams();
 	const testcaseId = searchParams.get("testcaseId");
 
-	// Store
-	const { inputContent: inputValue, outputContent: content } = usePlaygroundContent();
+	// Store/query state
+	const { outputContent: content } = usePlaygroundOutput({ promptId, testcaseId });
+	const { inputContent: inputValue } = usePlaygroundInput({ promptId, testcaseId });
 	const { toast } = useToast();
 
 	// Local UI state
@@ -54,6 +62,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		modifiedValue,
 		expectedMetrics,
 		clearExpectedOutput,
+		handleModifiedValueChange,
 		saveModifiedValue,
 		handleSaveAsExpected: handleSaveAsExpectedFromHook,
 		hasValidOutput,
@@ -69,7 +78,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		handleAssertionTypeChange,
 		handleAssertionValueChange,
 		handleAssertionValueBlur,
-	} = useAssertions({ promptId });
+	} = useAssertions({ promptId, serverAssertionType, serverAssertionValue });
 
 	const { isTestcaseLoading, createTestcase } = useTestcaseActions({
 		promptId,
@@ -113,7 +122,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	};
 
 	return (
-		<div>
+		<div className="w-full min-w-0">
 			<OutputHeader
 				promptId={promptId}
 				currentAssertionType={currentAssertionType}
@@ -128,24 +137,24 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 				onExpand={handleOpenPlayground}
 			/>
 
-			<Card className="w-full shadow-sm border rounded-lg">
-				<div className="grid grid-cols-2 text-xs border-b dark:bg-[#27272A] rounded-t-lg">
-					<div>
+			<Card className="w-full min-w-0 rounded-lg border shadow-sm">
+				<div className="grid grid-cols-1 rounded-t-lg border-b text-xs dark:bg-[#27272A] sm:grid-cols-2">
+					<div className="min-w-0">
 						<MetricsDisplay title="Last Output" content={content || undefined} />
 					</div>
 
-					<div>
+					<div className="min-w-0 border-t sm:border-l sm:border-t-0">
 						<MetricsDisplay title="Expected Output" content={expectedMetrics} />
 					</div>
 				</div>
 
-				<div className="text-sm h-80 pr-px rounded-b-[6px] overflow-hidden">
+				<div className="output-diff-container relative h-80 min-w-0 overflow-hidden rounded-b-[6px] text-sm">
 					<CompareDiffEditor
-						key={`diff-${!!content?.answer}`}
 						original={content?.answer}
 						modified={modifiedValue}
+						onChange={handleModifiedValueChange}
 						onBlur={saveModifiedValue}
-						className="rounded-b-[6px]"
+						className="output-diff-editor w-full min-w-0 rounded-b-[6px]"
 					/>
 				</div>
 			</Card>
@@ -169,6 +178,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 				testcaseId={testcaseId}
 				isTestcaseLoading={isTestcaseLoading}
 				hasValidOutput={hasValidOutput}
+				onModifiedValueChange={handleModifiedValueChange}
 				onSaveModifiedValue={saveModifiedValue}
 				onSaveAsExpected={handleSaveAsExpected}
 				onAddTestcase={handleAddTestcase}

@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { isLocalAuth } from "@/lib/auth";
 
 import type { QuotaCardProps } from "../../utils/types";
 
@@ -11,6 +12,8 @@ function formatBalance(balance: number | null): string {
  * Displays organization quota balance
  */
 export function QuotaCard({ quota, isLoading }: QuotaCardProps) {
+	if (isLocalAuth()) return null;
+
 	return (
 		<Card className="w-auto rounded-md shadow-[0px_1px_2px_0px_#0000000D] mx-6 mt-6 p-6">
 			<CardContent className="p-0">

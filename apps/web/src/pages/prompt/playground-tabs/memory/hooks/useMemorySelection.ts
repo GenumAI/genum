@@ -1,40 +1,24 @@
 import { useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { memoryKeys } from "@/query-keys/memory.keys";
-
-export type MemorySelectionState = {
-	selectedMemoryId: string;
-	selectedMemoryKeyName: string;
-};
+import usePlaygroundStore from "@/stores/playground.store";
+import type { MemorySelectionState } from "@/stores/playground.store";
 
 const DEFAULT_SELECTION: MemorySelectionState = {
 	selectedMemoryId: "",
 	selectedMemoryKeyName: "",
 };
 
-export const memorySelectionQueryKey = (
-	promptId: number | undefined,
-	testcaseId: string | null,
-) => memoryKeys.selection(promptId, testcaseId);
-
 export const useMemorySelection = (promptId: number | undefined, testcaseId: string | null) => {
-	const queryClient = useQueryClient();
-	const queryKey = memorySelectionQueryKey(promptId, testcaseId);
-
-	const { data: selection = DEFAULT_SELECTION } = useQuery({
-		queryKey,
-		queryFn: async () => DEFAULT_SELECTION,
-		initialData: DEFAULT_SELECTION,
-	});
+	const selection =
+		usePlaygroundStore((state) => state.getMemorySelectionDraft(promptId, testcaseId)) ??
+		DEFAULT_SELECTION;
 
 	const setSelection = useCallback(
 		(nextSelection: Partial<MemorySelectionState>) => {
-			queryClient.setQueryData<MemorySelectionState>(queryKey, (previous) => ({
-				...(previous ?? DEFAULT_SELECTION),
-				...nextSelection,
-			}));
+			usePlaygroundStore
+				.getState()
+				.setMemorySelectionDraft(promptId, testcaseId, nextSelection);
 		},
-		[queryClient, queryKey],
+		[promptId, testcaseId],
 	);
 
 	return { selection, setSelection };

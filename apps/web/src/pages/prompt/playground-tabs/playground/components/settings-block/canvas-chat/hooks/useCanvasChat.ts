@@ -1,11 +1,13 @@
-import { useState, useCallback, type KeyboardEvent } from "react";
+import { useState, useEffect, useCallback, useRef, type KeyboardEvent, useLayoutEffect } from "react";
 import { useToast } from "@/hooks/useToast";
-import { useAudit } from "@/hooks/useAudit";
-import type { CanvasChatController, DiffModalInfo } from "../types";
-import { useCanvasChatAPI } from "./useCanvasChatAPI";
-import { useCanvasChatMessages } from "./useCanvasChatMessages";
+import { promptApi } from "@/api/prompt";
+import { useAudit } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAudit";
+import type { AuditData } from "@/types/audit";
+import type { Message, SendMessageAgentResponse } from "@/types/Canvas";
+import type { CanvasChatController } from "../types";
 import { useCanvasChatActions } from "./useCanvasChatActions";
-import { useCanvasChatUI } from "./useCanvasChatUI";
+import { useAuditActions } from "@/stores/audit.store";
+import { useCanvasChatState, useCanvasChatStoreActions } from "@/stores/canvasChat.store";
 import {
 	createUserMessage,
 	processAgentResponse,
@@ -24,41 +26,95 @@ export const useCanvasChat = ({
 	updatePromptContent,
 }: UseCanvasChatProps): CanvasChatController => {
 	const { toast } = useToast();
+	const { setFixingState } = useAuditActions();
 
-	// UI state
-	const { ui, actions: uiActions } = useCanvasChatUI();
+	const ui = useCanvasChatState();
+	const uiActions = useCanvasChatStoreActions();
 
-	// Messages state
-	const messagesController = useCanvasChatMessages({ promptId });
-	const { messages, isLoading, messagesRef, addMessage, addMessages, clearMessages, setLoadingState } =
-		messagesController;
+	const [messages, setMessages] = useState<Message[]>([]);
+	const [isLoading, setIsLoading] = useState(false);
+	const messagesRef = useRef<HTMLDivElement>(null);
 
-	// API
-	const api = useCanvasChatAPI({ promptId });
+	const fetchMessages = useCallback(async () => {
+		if (!promptId) return null;
+		try {
+			const response = await promptApi.getAgentChat(promptId);
+			return response?.messages || [];
+		} catch (error) {
+			console.error("Error fetching agent chat:", error);
+			return null;
+		}
+	}, [promptId]);
 
-	// Diff modal state
-	const [diffModalInfo, setDiffModalInfo] = useState<DiffModalInfo | null>(null);
+	const sendMessageToApi = useCallback(
+		async (messageText: string, mode: string): Promise<SendMessageAgentResponse> => {
+			if (!promptId) throw new Error("Prompt ID is required");
+			try {
+				const result = await promptApi.sendAgentMessage(promptId, {
+					mode,
+					query: messageText,
+				});
+				return result as SendMessageAgentResponse;
+			} catch (error) {
+				console.error("Error sending message:", error);
+				throw error;
+			}
+		},
+		[promptId],
+	);
 
-	// Audit modal state
-	const [showAuditModal, setShowAuditModal] = useState(false);
-	const [isFixing, setIsFixing] = useState(false);
+	const createNewChatApi = useCallback(async () => {
+		if (!promptId) return false;
+		try {
+			await promptApi.createNewAgentChat(promptId);
+			return true;
+		} catch (error) {
+			console.error("Error starting new chat:", error);
+			return false;
+		}
+	}, [promptId]);
+
+	useEffect(() => {
+		const loadMessages = async () => {
+			const fetchedMessages = await fetchMessages();
+			if (fetchedMessages) {
+				setMessages(fetchedMessages);
+			}
+		};
+		void loadMessages();
+	}, [fetchMessages]);
+
+	useLayoutEffect(() => {
+		if (messages.length === 0) return;
+	  
+		const el = messagesRef.current;
+		if (!el) return;
+	  
+		el.scrollTo({
+		  top: el.scrollHeight,
+		  behavior: "smooth",
+		});
+	  }, [messages]);
 
 	// Audit hook
-	const { currentAuditData, setCurrentAuditData, runAudit, isAuditLoading, fixRisks } = useAudit({
-		onFixSuccess: (fixedPrompt) => {
-			setDiffModalInfo({ prompt: fixedPrompt });
-			setShowAuditModal(false);
+	const { currentAuditData, runAudit, isAuditLoading, isFixing, fixRisks, hydrateAuditData } = useAudit(
+		promptId,
+		{
+			onFixSuccess: (fixedPrompt: string) => {
+				uiActions.setDiffModalInfo({ prompt: fixedPrompt });
+				uiActions.setShowAuditModal(false);
+			},
 		},
-	});
+	);
 
 	// Actions handler
 	const actionsController = useCanvasChatActions({
 		onEditPrompt: (value: string) => {
-			setDiffModalInfo({ prompt: value });
+			uiActions.setDiffModalInfo({ prompt: value });
 		},
-		onAuditPrompt: (value: any) => {
-			setCurrentAuditData(value);
-			setShowAuditModal(true);
+		onAuditPrompt: (value: unknown) => {
+			hydrateAuditData((value as AuditData) ?? null);
+			uiActions.setShowAuditModal(true);
 		},
 	});
 
@@ -74,19 +130,22 @@ export const useCanvasChat = ({
 
 			// Add user message
 			const userMessage = createUserMessage(messageText);
-			addMessage(userMessage);
-			setLoadingState(true);
+			setMessages((prev) => [...prev, userMessage]);
+			setIsLoading(true);
 
 			try {
-				const data = await api.sendMessage(messageText, ui.mode);
-				const agentMessages = processAgentResponse(data.response, actionsController.processAction);
-				addMessages(agentMessages);
+				const data = await sendMessageToApi(messageText, ui.mode);
+				const agentMessages = processAgentResponse(
+					data.response,
+					actionsController.processAction,
+				);
+				setMessages((prev) => [...prev, ...agentMessages]);
 			} catch (error) {
 				console.error("Error sending message:", error);
 				const errorMessage = createErrorMessage();
-				addMessage(errorMessage);
+				setMessages((prev) => [...prev, errorMessage]);
 			} finally {
-				setLoadingState(false);
+				setIsLoading(false);
 			}
 		},
 		[
@@ -94,10 +153,7 @@ export const useCanvasChat = ({
 			ui.isOpen,
 			ui.mode,
 			uiActions,
-			addMessage,
-			addMessages,
-			setLoadingState,
-			api,
+			sendMessageToApi,
 			actionsController,
 		],
 	);
@@ -120,9 +176,9 @@ export const useCanvasChat = ({
 
 	// Create new chat
 	const createNewChat = useCallback(async () => {
-		const success = await api.createNewChat();
+		const success = await createNewChatApi();
 		if (success) {
-			clearMessages();
+			setMessages([]);
 		} else {
 			toast({
 				title: "Error",
@@ -131,7 +187,7 @@ export const useCanvasChat = ({
 				duration: 3000,
 			});
 		}
-	}, [api, clearMessages, toast]);
+	}, [createNewChatApi, toast]);
 
 	// Handle key press
 	const handleKeyPress = useCallback(
@@ -146,25 +202,27 @@ export const useCanvasChat = ({
 
 	// Diff modal handlers
 	const onChangeDiff = useCallback((value: string) => {
-		setDiffModalInfo((prevState) => (prevState ? { ...prevState, prompt: value } : null));
-	}, []);
+		uiActions.setDiffModalInfo(
+			ui.diffModalInfo ? { ...ui.diffModalInfo, prompt: value } : null,
+		);
+	}, [ui.diffModalInfo, uiActions]);
 
 	const onSaveDiff = useCallback(
 		(value: string) => {
-			setDiffModalInfo(null);
+			uiActions.setDiffModalInfo(null);
 			updatePromptContent(value);
 		},
-		[updatePromptContent],
+		[uiActions, updatePromptContent],
 	);
 
 	const onCloseDiff = useCallback(() => {
-		setDiffModalInfo(null);
-	}, []);
+		uiActions.setDiffModalInfo(null);
+	}, [uiActions]);
 
 	// Audit modal handlers
 	const onCloseAudit = useCallback(() => {
-		setShowAuditModal(false);
-	}, []);
+		uiActions.setShowAuditModal(false);
+	}, [uiActions]);
 
 	const onRunAudit = useCallback(async () => {
 		if (promptId) {
@@ -175,11 +233,14 @@ export const useCanvasChat = ({
 	const onFixRisks = useCallback(
 		async (recommendations: string[]) => {
 			if (!systemPrompt) return;
-			setIsFixing(true);
-			await fixRisks(systemPrompt, recommendations);
-			setIsFixing(false);
+			setFixingState(true);
+			try {
+				await fixRisks(systemPrompt, recommendations);
+			} finally {
+				setFixingState(false);
+			}
 		},
-		[systemPrompt, fixRisks],
+		[fixRisks, setFixingState, systemPrompt],
 	);
 
 	return {
@@ -196,7 +257,7 @@ export const useCanvasChat = ({
 			...uiActions,
 		},
 		audit: {
-			showModal: showAuditModal,
+			showModal: ui.showAuditModal,
 			currentData: currentAuditData,
 			isLoading: isAuditLoading,
 			isFixing,
@@ -205,7 +266,7 @@ export const useCanvasChat = ({
 			onFix: onFixRisks,
 		},
 		diff: {
-			modalInfo: diffModalInfo,
+			modalInfo: ui.diffModalInfo,
 			onChange: onChangeDiff,
 			onSave: onSaveDiff,
 			onClose: onCloseDiff,

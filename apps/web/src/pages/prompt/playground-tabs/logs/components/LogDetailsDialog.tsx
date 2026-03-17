@@ -88,8 +88,8 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 				</div>
 				{selectedLog && (
 					<div>
-						<div className="border rounded-[6px]">
-							<table className="w-full border-collapse border rounded-lg overflow-hidden text-sm">
+						<div className="overflow-x-auto border rounded-[6px]">
+							<table className="w-full min-w-[720px] border-collapse border rounded-lg overflow-hidden text-sm">
 								<tbody>
 									<tr>
 										<td className="bg-muted p-4 border font-medium text-foreground w-1/4">

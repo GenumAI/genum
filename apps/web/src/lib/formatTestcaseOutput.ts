@@ -1,5 +1,5 @@
-import type { PromptResponse } from "@/hooks/useRunPrompt";
-import { defaultPromptResponse } from "@/stores/playground.store";
+import type { PromptResponse } from "@/api/prompt";
+import { defaultPromptResponse } from "@/lib/defaultPromptResponse";
 
 export function formatTestcaseOutput(output: any): PromptResponse {
 	if (!output) {
@@ -36,5 +36,4 @@ export function formatTestcaseOutput(output: any): PromptResponse {
 
 	return defaultPromptResponse;
 }
-
 

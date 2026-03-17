@@ -1,64 +1,42 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Clock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { promptApi } from "@/api/prompt";
+import { versionKeys } from "@/query-keys/version.keys";
+import type { BranchesResponse, PromptVersion } from "@/pages/prompt/playground-tabs/version/utils/types";
 
 interface LastCommitInfoProps {
 	promptId: number;
 }
 
-type BranchesData = {
-	branches: Array<{
-		id: number;
-		promptId: number;
-		name: string;
-		createdAt: string;
-		promptVersions: Array<{
-			id: number;
-			commitMsg: string;
-			commitHash: string;
-			createdAt: string;
-			author: {
-				id: number;
-				name: string;
-				email: string;
-				picture: string;
-			};
-		}>;
-	}>;
+const FALLBACK_AUTHOR = {
+	id: 0,
+	name: "Unknown",
+	email: "",
+	picture: "",
 };
 
 const LastCommitInfo = ({ promptId }: LastCommitInfoProps) => {
-	const [data, setData] = useState<BranchesData | null>(null);
-
-	useEffect(() => {
-		const fetchBranches = async () => {
-			if (!promptId) return;
-			try {
-				const result = await promptApi.getBranches(promptId);
-				const branchesData: BranchesData = {
-					branches: result.branches.map((branch) => ({
-						...branch,
-						promptVersions: branch.promptVersions.map((version) => ({
-							...version,
-							author: version.author || {
-								id: 0,
-								name: "Unknown",
-								email: "",
-								picture: "",
-							},
-						})),
+	const { data } = useQuery<BranchesResponse>({
+		queryKey: versionKeys.versions(promptId),
+		queryFn: async () => {
+			const result = await promptApi.getBranches(promptId);
+			return {
+				branches: result.branches.map((branch) => ({
+					...branch,
+					promptVersions: branch.promptVersions.map((version) => ({
+						...version,
+						author: version.author || FALLBACK_AUTHOR,
 					})),
-				};
-				setData(branchesData);
-			} catch (error) {
-				console.error("❌ Failed to fetch branches:", error);
-			}
-		};
-
-		fetchBranches();
-	}, [promptId]);
+				})),
+			};
+		},
+		enabled: Boolean(promptId),
+		staleTime: Infinity,
+		gcTime: Infinity,
+	});
 
 	const formatDate = (dateString: string) => {
 		const date = new Date(dateString);
@@ -94,29 +72,19 @@ const LastCommitInfo = ({ promptId }: LastCommitInfoProps) => {
 		return `${day}.${month}.${year}, ${hours}:${minutes}:${seconds}`;
 	};
 
-	const getLatestCommit = (): BranchesData["branches"][0]["promptVersions"][0] | null => {
+	const latestCommit = useMemo(() => {
 		if (!data?.branches) return null;
 
-		let latestCommit: BranchesData["branches"][0]["promptVersions"][0] | null = null;
-
-		data.branches.forEach((branch) => {
-			branch.promptVersions.forEach((version) => {
-				if (!latestCommit) {
-					latestCommit = version;
-				} else {
-					const versionDate = new Date(version.createdAt);
-					const latestDate = new Date(latestCommit.createdAt);
-					if (versionDate > latestDate) {
-						latestCommit = version;
-					}
+		let latest: PromptVersion | null = null;
+		for (const branch of data.branches) {
+			for (const version of branch.promptVersions) {
+				if (!latest || new Date(version.createdAt) > new Date(latest.createdAt)) {
+					latest = version;
 				}
-			});
-		});
-
-		return latestCommit;
-	};
-
-	const latestCommit = getLatestCommit();
+			}
+		}
+		return latest;
+	}, [data]);
 
 	if (!latestCommit) {
 		return null;

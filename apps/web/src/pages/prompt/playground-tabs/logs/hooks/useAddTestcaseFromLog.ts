@@ -3,13 +3,15 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useToast } from "@/hooks/useToast";
 import { useCreateTestcase } from "@/hooks/useCreateTestcase";
-import type { Log, MemoriesResponse } from "@/types/logs";
+import { promptApi } from "@/api/prompt/prompt.api";
+import type { Log } from "@/types/logs";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
+import type { Memory } from "@/api/prompt/prompt.api";
 
 interface UseAddTestcaseFromLogParams {
 	promptId?: number;
 	selectedLog: Log | null;
-	memoriesData?: MemoriesResponse;
+	memoriesData?: Memory[];
 }
 
 export function useAddTestcaseFromLog({
@@ -29,8 +31,8 @@ export function useAddTestcaseFromLog({
 
 		try {
 			let memoryId: number | null = null;
-			if (selectedLog.memory_key && memoriesData?.memories) {
-				const memory = memoriesData.memories.find((item) => item.key === selectedLog.memory_key);
+			if (selectedLog.memory_key && memoriesData?.length) {
+				const memory = memoriesData.find((item) => item.key === selectedLog.memory_key);
 				if (memory) memoryId = memory.id;
 			}
 
@@ -49,12 +51,17 @@ export function useAddTestcaseFromLog({
 					variant: "default",
 				});
 
-				queryClient.invalidateQueries({
-					queryKey: testcaseKeys.promptTestcases(targetPromptId),
-				});
-				queryClient.invalidateQueries({
-					queryKey: testcaseKeys.statusCounts(targetPromptId),
-				});
+				try {
+					await queryClient.fetchQuery({
+						queryKey: testcaseKeys.promptTestcases(targetPromptId),
+						queryFn: async () => {
+							const response = await promptApi.getPromptTestcases(targetPromptId);
+							return response.testcases || [];
+						},
+					});
+				} catch (error) {
+					console.error("Failed to refresh prompt testcases after create from log:", error);
+				}
 				return;
 			}
 

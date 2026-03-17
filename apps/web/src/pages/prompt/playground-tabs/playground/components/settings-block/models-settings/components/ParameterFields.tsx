@@ -47,6 +47,8 @@ export const ParameterFields = memo(
 
 					// Select field for allowed values
 					if (config?.allowed && Array.isArray(config.allowed)) {
+						const defaultValue =
+							typeof config.default === "string" ? config.default : undefined;
 						return (
 							<FormSelectField
 								key={paramKey}
@@ -54,8 +56,11 @@ export const ParameterFields = memo(
 								name={camelName}
 								label={label}
 								options={config.allowed}
+								defaultValue={defaultValue}
 								disabled={disabled}
-								onChange={onFormChange}
+								onChange={(name, value) =>
+									onFormChange({ [name]: value }, { immediate: true })
+								}
 							/>
 						);
 					}
@@ -71,7 +76,13 @@ export const ParameterFields = memo(
 								min={config.min}
 								max={config.max}
 								step={getSliderStep(paramKey)}
+								defaultValue={
+									typeof config.default === "number" ? config.default : undefined
+								}
 								disabled={disabled}
+								onCommit={(name, value) =>
+									onFormChange({ [name]: value }, { immediate: true })
+								}
 							/>
 						);
 					}

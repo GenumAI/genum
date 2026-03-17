@@ -7,9 +7,11 @@ import {
 import { SlidesAccordion } from "./components/SlidesAccordion";
 import { VideoPlayerCard } from "./components/VideoPlayerCard";
 import { useGettingStartedQuota } from "./hooks/useGettingStartedQuota";
+import { isLocalAuth } from "@/lib/auth";
 
 export default function GettingStartedPage() {
 	const [activeId, setActiveId] = useState<string>(DEFAULT_SLIDE_ID);
+	const isLocalInstance = isLocalAuth();
 
 	const activeSlide = useMemo(
 		() => ALL_GETTING_STARTED_SLIDES.find((slide) => slide.id === activeId),
@@ -47,6 +49,7 @@ export default function GettingStartedPage() {
 						balance={balance}
 						isLoadingBalance={isLoadingBalance}
 						errorBalance={errorBalance}
+						showBalance={!isLocalInstance}
 					/>
 				</section>
 			</div>

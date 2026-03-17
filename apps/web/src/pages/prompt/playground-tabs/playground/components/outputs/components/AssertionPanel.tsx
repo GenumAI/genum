@@ -38,7 +38,10 @@ export const AssertionPanel: React.FC<AssertionPanelProps> = ({
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<PopoverTrigger asChild>
-							<button type="button" className="w-[120px] h-[32px] px-3 rounded-md transition-colors flex items-center justify-start gap-2 hover:bg-muted/50 ml-[15px]">
+							<button
+								type="button"
+								className="h-[32px] min-w-[120px] px-3 rounded-md transition-colors flex items-center justify-start gap-2 hover:bg-muted/50"
+							>
 								<h2 className="text-[#18181B] dark:text-[#FFFFFF] text-[12px] font-bold flex-shrink-0">
 									Assertion:
 								</h2>

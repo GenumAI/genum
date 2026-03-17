@@ -11,6 +11,7 @@ import { SearchInput } from "@/components/ui/searchInput";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 import type { Memory as PromptMemory } from "@/api/prompt";
 import { usePromptMemories } from "@/pages/prompt/playground-tabs/memory/hooks/usePromptMemories";
+import { MemoryTableSkeleton } from "../playground/utils/playgroundSkeletons";
 import { useMemoryMutations } from "./hooks/useMemoryMutations";
 import { useMemoryFilters } from "./hooks/useMemoryFilters";
 import MemoryTable from "./components/MemoryTable";
@@ -22,11 +23,12 @@ export default function Memory() {
 	const [selectedMemory, setSelectedMemory] = useState<PromptMemory | null>(null);
 	const [editingMemory, setEditingMemory] = useState<PromptMemory | undefined>(undefined);
 
-	const { id } = useParams<{ id: string }>();
+	const { id, tab } = useParams<{ id: string; tab: string }>();
+	const isActive = tab === "memory";
 	const [currentPromptId, setCurrentPromptId] = useState(id);
 	const promptId = id ? Number(id) : undefined;
 
-	const { data: memories = [], isLoading } = usePromptMemories(promptId);
+	const { data: memories = [], isLoading } = usePromptMemories(promptId, isActive);
 	const { search, setSearch, sorting, setSorting, filteredMemories } = useMemoryFilters({
 		memories,
 		promptId: id,
@@ -86,30 +88,34 @@ export default function Memory() {
 
 	return (
 		<>
-			<div className="space-y-6 max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] ml-3 mr-6 w-full pt-8 bg-background text-foreground">
-				<div className="flex justify-between">
-					<div className="flex items-center gap-3">
+			<div className="w-full min-w-0 space-y-6 bg-background px-3 pt-8 text-foreground lg:pr-6">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<div className="w-full sm:w-auto">
 						<SearchInput
 							placeholder="Search..."
-							className="min-w-[241px]"
+							className="w-full sm:w-[241px]"
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
 						/>
 					</div>
-					<Button className="px-7" onClick={() => setCreateMemoryModal(true)}>
+					<Button className="w-full px-7 sm:w-auto" onClick={() => setCreateMemoryModal(true)}>
 						<CirclePlus className="mr-2 h-4 w-4" />
 						Create Memory
 					</Button>
 				</div>
 
-				<MemoryTable
-					memories={filteredMemories}
-					columns={columns}
-					sorting={sorting}
-					onSortingChange={setSorting}
-					isLoading={isLoading}
-					onRowClick={handleRowClick}
-				/>
+				{isLoading && filteredMemories.length === 0 ? (
+					<MemoryTableSkeleton />
+				) : (
+					<MemoryTable
+						memories={filteredMemories}
+						columns={columns}
+						sorting={sorting}
+						onSortingChange={setSorting}
+						isLoading={isLoading}
+						onRowClick={handleRowClick}
+					/>
+				)}
 
 				{!isLoading && filteredMemories.length === 0 && (
 					<EmptyState

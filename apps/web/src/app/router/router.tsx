@@ -5,19 +5,16 @@ import RedirectedToProjectRoute from "@/app/router/RedirectedToProjectRoute";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import Prompts from "@/pages/prompt/Prompts";
 import Testcases from "@/pages/testcases/TestcasesPage";
-import PromptTestcases from "@/pages/prompt/playground-tabs/testcases/Testcases";
 import Settings from "@/pages/settings/Settings";
-import Playground from "@/pages/prompt/playground-tabs/playground/Playground";
 import ProtectedRoute from "@/app/router/ProtectedRoute";
 import RoleProtectedRoute from "@/app/router/RoleProtectedRoute";
 import Memory from "@/pages/prompt/playground-tabs/memory/Memory";
 import Versions from "@/pages/prompt/playground-tabs/version/Versions";
+import PlaygroundWorkspace from "@/pages/prompt/playground-tabs/PlaygroundWorkspace";
 import Compare from "@/pages/prompt/playground-tabs/version/components/compare/Compare";
 import { LogsPage } from "@/pages/logs/LogsPage";
 import { OrganizationRole } from "@/api/organization";
 
-import Api from "@/pages/prompt/playground-tabs/api/Api";
-import Logs from "@/pages/prompt/playground-tabs/logs/LogsTab";
 import Notifications from "../../components/ui/notifications/Notifications";
 import NotificationDetails from "../../components/ui/notifications/NotificationDetails";
 import VersionDetails from "@/pages/prompt/playground-tabs/version/components/VersionDetails";
@@ -107,10 +104,6 @@ export const router = createBrowserRouter([
 				{ path: "project/api-keys", element: <ProjectAPIKeys /> },
 			],
 		},
-			{ path: "prompt/:id/playground", element: <Playground /> },
-			{ path: "prompt/:id", element: <Navigate to="playground" replace /> },
-			{ path: "prompt/:id/testcases", element: <PromptTestcases /> },
-			{ path: "prompt/:id/versions", element: <Versions /> },
 			{
 				path: "prompt/:id/versions/:versionId",
 				element: <VersionDetails />,
@@ -119,9 +112,7 @@ export const router = createBrowserRouter([
 				path: "prompt/:id/compare",
 				element: <Compare />,
 			},
-			{ path: "prompt/:id/memory", element: <Memory /> },
-			{ path: "prompt/:id/logs", element: <Logs /> },
-			{ path: "prompt/:id/api", element: <Api /> },
+			{ path: "prompt/:id/:tab", element: <PlaygroundWorkspace /> },
 			{ path: "getting-started", element: <GettingStarted /> },
 			{ path: "logs", element: <LogsPage /> },
 			{ path: "notifications", element: <Notifications /> },

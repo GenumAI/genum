@@ -3,6 +3,7 @@ import { useToast } from "@/hooks/useToast";
 import { organizationApi } from "@/api/organization";
 import type { AIKey, Vendor } from "../utils/types";
 import { organizationKeys } from "@/query-keys/organization.keys";
+import { isLocalAuth } from "@/lib/auth";
 
 interface UseAIKeysReturn {
 	// State
@@ -21,6 +22,7 @@ interface UseAIKeysReturn {
 export function useAIKeys(): UseAIKeysReturn {
 	const { toast } = useToast();
 	const queryClient = useQueryClient();
+	const isLocalInstance = isLocalAuth();
 
 	const keysQuery = useQuery({
 		queryKey: organizationKeys.aiKeys(),
@@ -32,6 +34,7 @@ export function useAIKeys(): UseAIKeysReturn {
 		queryKey: organizationKeys.quota(),
 		queryFn: () => organizationApi.getQuota(),
 		refetchOnMount: "always",
+		enabled: !isLocalInstance,
 	});
 
 	const createKeyMutation = useMutation({
@@ -39,7 +42,9 @@ export function useAIKeys(): UseAIKeysReturn {
 			organizationApi.createAIKey({ key, vendor }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: organizationKeys.aiKeys() });
-			queryClient.invalidateQueries({ queryKey: organizationKeys.quota() });
+			if (!isLocalInstance) {
+				queryClient.invalidateQueries({ queryKey: organizationKeys.quota() });
+			}
 		},
 	});
 
@@ -47,7 +52,9 @@ export function useAIKeys(): UseAIKeysReturn {
 		mutationFn: (keyId: number) => organizationApi.deleteAIKey(keyId),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: organizationKeys.aiKeys() });
-			queryClient.invalidateQueries({ queryKey: organizationKeys.quota() });
+			if (!isLocalInstance) {
+				queryClient.invalidateQueries({ queryKey: organizationKeys.quota() });
+			}
 		},
 	});
 
@@ -92,7 +99,7 @@ export function useAIKeys(): UseAIKeysReturn {
 		quota,
 		isLoadingQuota: quotaQuery.isLoading,
 		fetchKeys: keysQuery.refetch,
-		fetchQuota: quotaQuery.refetch,
+		fetchQuota: isLocalInstance ? async () => ({ data: undefined }) : quotaQuery.refetch,
 		createKey,
 		deleteKey,
 	};

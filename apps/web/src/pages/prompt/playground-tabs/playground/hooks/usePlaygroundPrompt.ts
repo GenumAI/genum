@@ -5,7 +5,7 @@ import { usePromptById } from "@/hooks/usePrompt";
 import { useToast } from "@/hooks/useToast";
 import { usePromptStatus } from "@/contexts/PromptStatusContext";
 import { useTestcaseStatusCounts } from "@/hooks/useTestcaseStatusCounts";
-import { usePlaygroundActions } from "@/stores/playground.store";
+import usePromptStore from "@/stores/prompt.store";
 import type { UpdatePromptContentOptions } from "./types";
 
 export function usePlaygroundPrompt({
@@ -20,21 +20,33 @@ export function usePlaygroundPrompt({
 	const navigate = useNavigate();
 	const { toast } = useToast();
 	const { setIsCommitted, setActivePromptId } = usePromptStatus();
-	const {
-		clearAllState,
-		setCurrentAssertionType,
-		setOriginalPromptContent,
-		setUpdatingPromptContent,
-	} = usePlaygroundActions();
 
 	const {
-		updatePromptName,
+		updatePrompt,
 		prompt,
 		loading: promptLoading,
+		isUpdating: isUpdatingPromptContent,
 		error: updatePromptError,
 	} = usePromptById(promptId);
 
 	useTestcaseStatusCounts(promptId);
+
+	const serverPromptValue = prompt?.prompt?.value || "";
+	const liveDraftValue = usePromptStore((state) => state.getPromptDraft(promptId));
+	const livePromptValue = liveDraftValue ?? serverPromptValue;
+
+	const setLivePromptValue = useCallback(
+		(value: string) => {
+			usePromptStore.getState().setPromptDraft(promptId, value);
+		},
+		[promptId],
+	);
+
+	const clearLivePromptValue = useCallback(() => {
+		usePromptStore.getState().clearPromptDraft(promptId);
+	}, [promptId]);
+	const lastSavedValueRef = useRef(serverPromptValue);
+	const pendingValueRef = useRef<string | null>(null);
 
 	// Cleanup + prompt switching behavior
 	const prevPromptIdRef = useRef<number | undefined>(promptId);
@@ -48,12 +60,11 @@ export function usePlaygroundPrompt({
 		const currentPromptId = promptId;
 
 		if (prevPromptId !== undefined && prevPromptId !== currentPromptId) {
-			clearAllState();
 			setActivePromptId(currentPromptId);
 		}
 
 		prevPromptIdRef.current = currentPromptId;
-	}, [promptId, clearAllState, setActivePromptId]);
+	}, [promptId, setActivePromptId]);
 
 	// Redirect if prompt no longer exists
 	useEffect(() => {
@@ -61,13 +72,6 @@ export function usePlaygroundPrompt({
 			navigate(`/${orgId}/${projectId}/prompts`, { replace: true });
 		}
 	}, [updatePromptError, orgId, projectId, navigate]);
-
-	// Sync prompt assertion type into store
-	useEffect(() => {
-		if (prompt?.prompt?.assertionType) {
-			setCurrentAssertionType(prompt.prompt.assertionType);
-		}
-	}, [prompt?.prompt?.assertionType, setCurrentAssertionType]);
 
 	// Keep committed state in PromptStatusContext
 	useEffect(() => {
@@ -77,44 +81,54 @@ export function usePlaygroundPrompt({
 		}
 	}, [prompt?.prompt, setIsCommitted]);
 
-	const isUpdatingPromptContentRef = useRef(false);
-
-	// Keep store original prompt content in sync (but don't fight in-flight updates)
 	useEffect(() => {
-		const currentContent = prompt?.prompt?.value || "";
-		if (!isUpdatingPromptContentRef.current) {
-			setOriginalPromptContent(currentContent);
+		lastSavedValueRef.current = serverPromptValue;
+		if (pendingValueRef.current === serverPromptValue) {
+			pendingValueRef.current = null;
 		}
-	}, [prompt?.prompt?.value, setOriginalPromptContent]);
+	}, [serverPromptValue]);
 
 	const updatePromptContent = useCallback(
 		async (value: string, options?: UpdatePromptContentOptions) => {
-			if (isUpdatingPromptContentRef.current) return;
+			if (options?.isWithoutUpdate) return;
 
-			if (options?.isWithoutUpdate) {
-				// Note: isUncommitted functionality might need to be handled elsewhere
+			const updateValue = options?.isEmpty ? "" : value;
+
+			if (updateValue === serverPromptValue) {
+				clearLivePromptValue();
+				lastSavedValueRef.current = updateValue;
 				return;
 			}
 
-			isUpdatingPromptContentRef.current = true;
-			setUpdatingPromptContent(true);
+			if (pendingValueRef.current === updateValue || lastSavedValueRef.current === updateValue) {
+				return;
+			}
+
+			pendingValueRef.current = updateValue;
 
 			try {
-				const currentPromptValue = prompt?.prompt?.value || "";
-				const updateValue = options?.isEmpty ? "" : value;
-
-				if (updateValue !== currentPromptValue) {
-					setIsCommitted(false);
-					await updatePromptName({ value: updateValue }, options as Options);
-				}
+				await updatePrompt({ value: updateValue }, options as Options);
+				lastSavedValueRef.current = updateValue;
+				clearLivePromptValue();
 			} catch (error) {
 				console.error("Failed to update prompt content:", error);
+				toast({
+					title: "Failed to save prompt",
+					description: "Could not save prompt. Please try again.",
+					variant: "destructive",
+				});
 			} finally {
-				isUpdatingPromptContentRef.current = false;
-				setUpdatingPromptContent(false);
+				if (pendingValueRef.current === updateValue) {
+					pendingValueRef.current = null;
+				}
 			}
 		},
-		[prompt?.prompt?.value, setUpdatingPromptContent, setIsCommitted, updatePromptName],
+		[
+			serverPromptValue,
+			clearLivePromptValue,
+			toast,
+			updatePrompt,
+		],
 	);
 
 	const handlePromptUpdate = useCallback(
@@ -143,5 +157,10 @@ export function usePlaygroundPrompt({
 		updatePromptError,
 		updatePromptContent,
 		handlePromptUpdate,
+		originalPromptContent: serverPromptValue,
+		livePromptValue,
+		hasPromptContent: !!livePromptValue.trim(),
+		isUpdatingPromptContent,
+		setLivePromptValue,
 	};
 }
