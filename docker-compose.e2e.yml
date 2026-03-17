@@ -1,7 +1,8 @@
-version: "3.9"
-
 services:
   core:
+    build:
+      context: .
+      dockerfile: ./apps/core/Dockerfile
     image: genum/core:latest
     container_name: genum-core-e2e
     ports:
@@ -28,6 +29,9 @@ services:
       - genum-e2e-network
 
   web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
     image: genum/web:latest
     container_name: genum-web-e2e
     ports:
