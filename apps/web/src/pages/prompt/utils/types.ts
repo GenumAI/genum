@@ -20,6 +20,7 @@ export interface Prompt {
 			name: string;
 			email: string;
 			picture?: string | null;
+			avatar?: string | null;
 		};
 	} | null;
 	_count: {

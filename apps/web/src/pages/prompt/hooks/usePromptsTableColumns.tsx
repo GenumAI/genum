@@ -1,4 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import TableSortButton from "@/components/ui/TableSortButton";
@@ -9,6 +10,8 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Trash2 } from "lucide-react";
+import { isCloudAuth } from "@/lib/auth";
+import { getAvatarColor, getAvatarInitial } from "@/lib/avatarUtils";
 import TestCaseStatus from "@/pages/prompt/playground-tabs/testcases/TestCaseStatus";
 import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
 import { formatCommitTime, formatUpdatedDate } from "../utils/date";
@@ -67,7 +70,11 @@ export const usePromptsTableColumns = ({
 		},
 		{
 			accessorKey: "assertionType",
-			header: ({ column }) => <TableSortButton column={column} headerText="Assertion Type" />,
+			header: ({ column }) => (
+				<div className="flex justify-center">
+					<TableSortButton column={column} headerText="Assertion Type" />
+				</div>
+			),
 			cell: ({ row }) => {
 				const value = row.getValue("assertionType") as string;
 				const color =
@@ -77,13 +84,15 @@ export const usePromptsTableColumns = ({
 							? "bg-[#6C98F2] dark:bg-[#5674B3]"
 							: "bg-[#B66AD6] dark:bg-[#8954A0]";
 				return (
-					<Badge
-						className={`${color} shadow-none rounded-[50px] text-[color:#FAFAFA] font-sans text-[12px] h-[20px] not-italic font-semibold leading-[16px]`}
-					>
-						{value.toLowerCase() === "ai"
-							? "AI"
-							: value.charAt(0) + value.slice(1).toLowerCase()}
-					</Badge>
+					<div className="flex justify-center">
+						<Badge
+							className={`${color} shadow-none rounded-[50px] text-[color:#FAFAFA] font-sans text-[12px] h-[20px] not-italic font-semibold leading-[16px]`}
+						>
+							{value.toLowerCase() === "ai"
+								? "AI"
+								: value.charAt(0) + value.slice(1).toLowerCase()}
+						</Badge>
+					</div>
 				);
 			},
 		},
@@ -95,12 +104,32 @@ export const usePromptsTableColumns = ({
 
 				if (!lastCommit) return null;
 
+				const isCloud = isCloudAuth();
+				const commitAuthor = lastCommit.author;
+				const cloudAvatarUrl = commitAuthor.avatar || commitAuthor.picture;
+				const authorInitial = getAvatarInitial(commitAuthor.name);
+				const authorColor = getAvatarColor(commitAuthor.name);
+
 				return (
 					<TooltipProvider>
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<div className="flex items-center justify-center cursor-pointer gap-2">
-									<CommitAuthorAvatar author={lastCommit.author} />
+									{isCloud ? (
+										<Avatar className="h-5 w-5 rounded-full">
+											<AvatarImage
+												src={cloudAvatarUrl ?? undefined}
+												alt={commitAuthor.name}
+											/>
+											<AvatarFallback
+												className={`text-[10px] font-bold ${authorColor}`}
+											>
+												{authorInitial}
+											</AvatarFallback>
+										</Avatar>
+									) : (
+										<CommitAuthorAvatar author={commitAuthor} />
+									)}
 									<span className="text-xs text-muted-foreground">
 										{formatCommitTime(lastCommit.createdAt)}
 									</span>
@@ -129,7 +158,11 @@ export const usePromptsTableColumns = ({
 		},
 		{
 			accessorKey: "updatedAt",
-			header: ({ column }) => <TableSortButton column={column} headerText="Updated" />,
+			header: ({ column }) => (
+				<div className="flex justify-center">
+					<TableSortButton column={column} headerText="Updated" />
+				</div>
+			),
 			cell: ({ row }) => (
 				<div className="flex items-center justify-center">
 					{formatUpdatedDate(String(row.getValue("updatedAt")))}

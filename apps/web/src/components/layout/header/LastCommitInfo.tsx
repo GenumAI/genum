@@ -3,6 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Clock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { isCloudAuth } from "@/lib/auth";
+import { getAvatarColor, getAvatarInitial } from "@/lib/avatarUtils";
+import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
 import { promptApi } from "@/api/prompt";
 import { versionKeys } from "@/query-keys/version.keys";
 import type { BranchesResponse, PromptVersion } from "@/pages/prompt/playground-tabs/version/utils/types";
@@ -19,6 +22,7 @@ const FALLBACK_AUTHOR = {
 };
 
 const LastCommitInfo = ({ promptId }: LastCommitInfoProps) => {
+	const isCloud = isCloudAuth();
 	const { data } = useQuery<BranchesResponse>({
 		queryKey: versionKeys.versions(promptId),
 		queryFn: async () => {
@@ -90,6 +94,11 @@ const LastCommitInfo = ({ promptId }: LastCommitInfoProps) => {
 		return null;
 	}
 
+	const author = latestCommit.author;
+	const cloudAuthorAvatarUrl = author.avatar || author.picture;
+	const authorInitial = getAvatarInitial(author.name);
+	const authorColor = getAvatarColor(author.name);
+
 	return (
 		<TooltipProvider>
 			<Tooltip>
@@ -106,28 +115,37 @@ const LastCommitInfo = ({ promptId }: LastCommitInfoProps) => {
 						</div>
 					</div>
 				</TooltipTrigger>
-				<TooltipContent className="max-w-sm">
-					<div className="space-y-2">
-						<p className="font-medium text-[#FFFFFF]">
+				<TooltipContent
+					showArrow={false}
+					className="max-w-sm dark:border dark:border-sidebar-border dark:bg-sidebar dark:text-white"
+				>
+					<div className="space-y-2 text-white">
+						<p className="font-medium">
 							{formatTooltipDate(latestCommit.createdAt)}
 						</p>
 						<div className="space-y-1">
-							<p className="text-xs text-[#FFFFFF] whitespace-pre-wrap">
+							<p className="text-xs whitespace-pre-wrap">
 								{latestCommit.commitMsg}
 							</p>
 						</div>
 						<div className="flex items-center gap-2 pt-1">
-							<Avatar className="h-5 w-5">
-								<AvatarImage
-									src={latestCommit.author.picture}
-									alt={latestCommit.author.name}
-								/>
-								<AvatarFallback className="text-[10px]">
-									{latestCommit.author.name[0]?.toUpperCase() || "U"}
-								</AvatarFallback>
-							</Avatar>
-							<span className="text-xs text-[#FFFFFF]">
-								{latestCommit.author.name}
+							{isCloud ? (
+								<Avatar className="h-5 w-5">
+									<AvatarImage
+										src={cloudAuthorAvatarUrl}
+										alt={author.name}
+									/>
+									<AvatarFallback
+										className={`text-[10px] font-semibold ${authorColor}`}
+									>
+										{authorInitial}
+									</AvatarFallback>
+								</Avatar>
+							) : (
+								<CommitAuthorAvatar author={author} />
+							)}
+							<span className="text-xs">
+								{author.name}
 							</span>
 						</div>
 					</div>

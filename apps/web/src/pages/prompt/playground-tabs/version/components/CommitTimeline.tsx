@@ -3,8 +3,9 @@ import { Link, useLocation } from "react-router-dom";
 import { GitCommitHorizontal } from "lucide-react";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 import { formatUserLocalDateTime } from "@/lib/formatUserLocalDateTime";
-import { getAvatarColorByFirstLetter, getAvatarInitial } from "@/lib/avatarUtils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { isCloudAuth } from "@/lib/auth";
+import { getAvatarColor, getAvatarInitial } from "@/lib/avatarUtils";
 import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
 import type { Branch, PromptVersion } from "../utils/types";
 
@@ -47,6 +48,7 @@ function groupCommitsByDate(branches: Branch[]): GroupedCommits[] {
 
 export default function CommitTimeline({ branches }: CommitTimelineProps) {
 	const location = useLocation();
+	const isCloud = isCloudAuth();
 
 	const productiveCommitId =
 		branches && branches.length > 0 && "productiveCommitId" in branches[0]
@@ -125,31 +127,35 @@ export default function CommitTimeline({ branches }: CommitTimelineProps) {
 							)}
 						>
 							{group.commits.map((version) => {
-								const isCloud = isCloudAuth();
-								const authorBg = getAvatarColorByFirstLetter(version.author.name);
-								const authorInitial = getAvatarInitial(version.author.name);
+								const authorName = version.author.name;
+								const cloudAvatarUrl =
+									version.author.avatar || version.author.picture;
+								const authorInitial = getAvatarInitial(authorName);
+								const authorColor = getAvatarColor(authorName);
 								return (
 									<div
 										key={version.id}
 										className="flex items-start gap-4 relative py-3 pl-4 border-b border-border hover:bg-muted/60 transition-colors"
 									>
 										{isCloud ? (
-											<CommitAuthorAvatar 
-												author={version.author} 
-												size="h-8 w-8" 
-												textSize="text-xs"
+											<Avatar className="h-8 w-8 rounded-md">
+												<AvatarImage
+													src={cloudAvatarUrl}
+													alt={authorName}
+												/>
+												<AvatarFallback
+													className={`rounded-md font-bold text-[18px] ${authorColor}`}
+												>
+													{authorInitial}
+												</AvatarFallback>
+											</Avatar>
+										) : (
+											<CommitAuthorAvatar
+												author={version.author}
+												size="h-8 w-8"
+												textSize="text-[18px]"
 												rounded="rounded-md"
 											/>
-										) : (
-											<div
-												className={clsx(
-													"w-8 h-8 rounded-md flex items-center justify-center font-semibold",
-													"text-slate-800 dark:text-slate-900",
-													authorBg,
-												)}
-											>
-												{authorInitial}
-											</div>
 										)}
 
 										<div className="flex-1">

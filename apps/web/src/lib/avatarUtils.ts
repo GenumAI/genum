@@ -33,6 +33,36 @@ const LETTER_COLOR_MAP: Record<string, string> = {
 	Z: "bg-[#BBCAFF]",
 };
 
+/** Light + dark fallback styles for commit/member avatars (pastel on light, muted saturated on dark). */
+const COMMIT_AUTHOR_FALLBACK_CLASS: Record<string, string> = {
+	A: "bg-[#D6CFFF] dark:bg-[#4D4872] text-[#18181B] dark:text-white",
+	B: "bg-[#BBCAFF] dark:bg-[#3F4A78] text-[#18181B] dark:text-white",
+	C: "bg-[#BFDEFF] dark:bg-[#355A72] text-[#18181B] dark:text-white",
+	D: "bg-[#D5F0FF] dark:bg-[#355868] text-[#18181B] dark:text-white",
+	E: "bg-[#D7EFEB] dark:bg-[#355856] text-[#18181B] dark:text-white",
+	F: "bg-[#D6F6E6] dark:bg-[#355648] text-[#18181B] dark:text-white",
+	G: "bg-[#DEEADE] dark:bg-[#455848] text-[#18181B] dark:text-white",
+	H: "bg-[#E7F5C8] dark:bg-[#556238] text-[#18181B] dark:text-white",
+	I: "bg-[#FFE4F2] dark:bg-[#624858] text-[#18181B] dark:text-white",
+	J: "bg-[#FFD7D8] dark:bg-[#624848] text-[#18181B] dark:text-white",
+	K: "bg-[#FFE6B1] dark:bg-[#685838] text-[#18181B] dark:text-white",
+	L: "bg-[#F9ECDB] dark:bg-[#585040] text-[#18181B] dark:text-white",
+	M: "bg-[#D6CFFF] dark:bg-[#4D4872] text-[#18181B] dark:text-white",
+	N: "bg-[#BBCAFF] dark:bg-[#3F4A78] text-[#18181B] dark:text-white",
+	O: "bg-[#BFDEFF] dark:bg-[#355A72] text-[#18181B] dark:text-white",
+	P: "bg-[#D5F0FF] dark:bg-[#355868] text-[#18181B] dark:text-white",
+	Q: "bg-[#D7EFEB] dark:bg-[#355856] text-[#18181B] dark:text-white",
+	R: "bg-[#D6F6E6] dark:bg-[#355648] text-[#18181B] dark:text-white",
+	S: "bg-[#DEEADE] dark:bg-[#455848] text-[#18181B] dark:text-white",
+	T: "bg-[#E7F5C8] dark:bg-[#556238] text-[#18181B] dark:text-white",
+	U: "bg-[#FFE4F2] dark:bg-[#624858] text-[#18181B] dark:text-white",
+	V: "bg-[#FFD7D8] dark:bg-[#624848] text-[#18181B] dark:text-white",
+	W: "bg-[#FFE6B1] dark:bg-[#685838] text-[#18181B] dark:text-white",
+	X: "bg-[#F9ECDB] dark:bg-[#585040] text-[#18181B] dark:text-white",
+	Y: "bg-[#D6CFFF] dark:bg-[#4D4872] text-[#18181B] dark:text-white",
+	Z: "bg-[#BBCAFF] dark:bg-[#3F4A78] text-[#18181B] dark:text-white",
+};
+
 /**
  * Checks if a character is a letter (A-Z, a-z)
  */
@@ -60,6 +90,23 @@ export function getAvatarColor(name: string): string {
 }
 
 /**
+ * Tailwind classes for CommitAuthorAvatar fallback: pastel backgrounds in light mode,
+ * deeper hues with light text in dark mode.
+ */
+export function getCommitAuthorAvatarFallbackClasses(name: string): string {
+	const firstChar = name[0] ?? "";
+	const isNonLetter = !firstChar || !isLetter(firstChar);
+	if (isNonLetter) {
+		return "bg-[#27272A] text-white dark:bg-[#52525B] dark:text-white";
+	}
+	const letter = firstChar.toUpperCase();
+	return (
+		COMMIT_AUTHOR_FALLBACK_CLASS[letter] ??
+		"bg-[#D6CFFF] dark:bg-[#4D4872] text-[#18181B] dark:text-white"
+	);
+}
+
+/**
  * Gets the initial character for an avatar fallback
  * @param name - The name to get initial from
  * @returns Single uppercase letter. Returns "G" for non-letter first characters
@@ -82,12 +129,12 @@ export function getAvatarUrl(
 ): string | undefined {
 	if (!user) return undefined;
 	const isCloud = isCloudAuth();
-	
+
 	// On cloud: use avatar from backend (both fields come from backend, prioritize avatar)
 	if (isCloud) {
 		return user.avatar || user.picture || undefined;
 	}
-	
+
 	// On local: prefer picture (local avatar), then avatar from backend
 	return user.picture || user.avatar || undefined;
 }

@@ -8,8 +8,15 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 import type { Prompt } from "../utils/types";
+
+const narrowColumnClass = "w-[1%] whitespace-nowrap";
+
+function isNarrowPromptColumn(columnId: string) {
+	return columnId === "assertionType" || columnId === "updatedAt";
+}
 
 type PromptsTableProps = {
 	table: ReactTable<Prompt>;
@@ -34,7 +41,13 @@ export function PromptsTable({
 							className="[&_th:first-child]:text-left [&_th:last-child]:text-right group py-[14px] h-[48px] leading-[16px]"
 						>
 							{headerGroup.headers.map((header) => (
-								<TableHead key={header.id} className="h-auto py-[16px] px-[14px]">
+								<TableHead
+									key={header.id}
+									className={cn(
+										"h-auto py-[16px] px-[14px]",
+										isNarrowPromptColumn(header.column.id) && narrowColumnClass,
+									)}
+								>
 									{flexRender(
 										header.column.columnDef.header,
 										header.getContext(),
@@ -60,7 +73,10 @@ export function PromptsTable({
 								{row.getVisibleCells().map((cell) => (
 									<TableCell
 										key={cell.id}
-										className="text-center"
+										className={cn(
+											"text-center",
+											isNarrowPromptColumn(cell.column.id) && narrowColumnClass,
+										)}
 										onClick={
 											cell.column.id !== "actions" && cell.column.id !== "select"
 												? () => onRowClick(row.original)
