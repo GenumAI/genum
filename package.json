@@ -3,11 +3,13 @@
   "version": "1.5.1",
   "private": true,
   "packageManager": "pnpm@10.28.2",
-  "author": "support@genum.ai",
-  "scripts": {
+  "author": "support@genum.ai",  "scripts": {
     "dev:infra:up": "docker-compose -f docker-compose.dev.yml up -d",
     "dev:infra:down": "docker-compose -f docker-compose.dev.yml down",
     "dev:infra:prune": "docker-compose -f docker-compose.dev.yml down -v",
+    "e2e:infra:up": "docker-compose -f docker-compose.e2e.yml up -d",
+    "e2e:infra:down": "docker-compose -f docker-compose.e2e.yml down",
+    "e2e:infra:prune": "docker-compose -f docker-compose.e2e.yml down -v",
     "dev:web": "pnpm --filter web dev",
     "dev:core": "pnpm --filter core dev",
     "dev": "turbo run dev",
@@ -18,13 +20,17 @@
     "format:check": "biome check .",
     "test": "turbo run test",
     "test:run": "turbo run test:run",
+    "test:e2e": "playwright test",
+    "test:e2e:docker": "E2E=true playwright test",
     "lint:staged": "lint-staged",
     "prepare": "node scripts/prepare.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.58.2",
     "@release-it/bumper": "^7.0.5",
+    "@types/node": "^24.10.9",
     "@typescript-eslint/eslint-plugin": "^8.49.0",
     "@typescript-eslint/parser": "^8.49.0",
     "dotenv-cli": "^11.0.0",

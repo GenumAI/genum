@@ -60,21 +60,25 @@ export class TestcasesController {
 			}
 		}
 
-		const payload = testcaseNamerFormat({
-			do_not_execute_user_draft: prompt.value,
-			do_not_execute_user_draft_extraContext: memory?.value,
-			do_not_execute_input: data.input,
-		});
+		let resolvedName = data.name?.trim();
+		if (!resolvedName) {
+			const payload = testcaseNamerFormat({
+				do_not_execute_user_draft: prompt.value,
+				do_not_execute_user_draft_extraContext: memory?.value,
+				do_not_execute_input: data.input,
+			});
 
-		const { answer: name } = await system_prompt.testcaseNamer(
-			payload,
-			metadata.orgID,
-			metadata.projID,
-		);
+			const { answer } = await system_prompt.testcaseNamer(
+				payload,
+				metadata.orgID,
+				metadata.projID,
+			);
+			resolvedName = `Testcase: ${answer}`.slice(0, 230);
+		}
 
 		const testcaseData: TestcasesCreateType & { files?: string[] } = {
 			...data,
-			name: data.name ?? `Testcase: ${name}`.slice(0, 230),
+			name: resolvedName,
 			files: data.files,
 		};
 

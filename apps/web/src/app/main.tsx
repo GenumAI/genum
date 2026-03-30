@@ -14,13 +14,7 @@ if (isFirefox) {
 	document.documentElement.classList.add("firefox");
 }
 
-// const handleRedirectCallback = (appState: any) => {
-//   if (appState.inviteToken) {
-//     window.location.href = `/invite/${appState.inviteToken}`;
-//   }
-//   // Убираем принудительный редирект на главную страницу
-//   // Auth0 автоматически обработает редирект после аутентификации
-// }
+// commit for testing testing testing
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
 	<QueryClientProvider client={queryClient}>
