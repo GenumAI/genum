@@ -28,9 +28,12 @@ services:
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          "wget --spider -q http://localhost:3010/; code=$$?; [ $$code -eq 0 ] || [ $$code -eq 8 ]",
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3010', () => process.exit(0)).on('error', () => process.exit(1))",
         ]
+      start_period: 180s
       interval: 5s
       timeout: 5s
       retries: 24
