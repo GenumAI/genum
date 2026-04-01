@@ -29,7 +29,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget --spider -q http://localhost:3010/; code=$?; [ $code -eq 0 ] || [ $code -eq 8 ]",
+          "wget --spider -q http://localhost:3010/; code=$$?; [ $$code -eq 0 ] || [ $$code -eq 8 ]",
         ]
       interval: 5s
       timeout: 5s
