@@ -33,10 +33,10 @@ jobs:
         run: pnpm exec playwright install --with-deps
 
       - name: Build E2E application images
-        run: docker-compose -f docker-compose.e2e.yml build core web
+        run: docker compose -f docker-compose.e2e.yml build core web
 
       - name: Start E2E infrastructure
-        run: pnpm e2e:infra:up
+        run: docker compose -f docker-compose.e2e.yml up -d
 
       - name: Show running containers
         run: docker ps
@@ -104,4 +104,4 @@ jobs:
 
       - name: Stop E2E infrastructure
         if: always()
-        run: docker-compose -f docker-compose.e2e.yml down
+        run: docker compose -f docker-compose.e2e.yml down
