@@ -44,15 +44,22 @@ jobs:
       - name: Wait for API
         run: |
           for i in {1..60}; do
-            if curl -fsS http://localhost:4010 > /dev/null; then
+            api_status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' genum-core-e2e 2>/dev/null || echo missing)"
+            if [ "$api_status" = "healthy" ]; then
               echo "API is ready"
               exit 0
             fi
-            echo "Waiting for API..."
+            if [ "$api_status" = "exited" ] || [ "$api_status" = "dead" ]; then
+              echo "API container stopped unexpectedly"
+              docker ps -a
+              docker logs genum-core-e2e || true
+              exit 1
+            fi
+            echo "Waiting for API... status=$api_status"
             sleep 5
           done
           echo "API did not become ready in time"
-          docker ps
+          docker ps -a
           docker logs genum-core-e2e || true
           exit 1
 

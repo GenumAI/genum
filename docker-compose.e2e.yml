@@ -25,6 +25,15 @@ services:
         condition: service_healthy
       clickhouse:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --spider -q http://localhost:3010/; code=$?; [ $code -eq 0 ] || [ $code -eq 8 ]",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 24
     networks:
       - genum-e2e-network
 
@@ -40,7 +49,8 @@ services:
       API_URL: http://localhost:4010
       AUTH_MODE: local
     depends_on:
-      - core
+      core:
+        condition: service_healthy
     networks:
       - genum-e2e-network
 
