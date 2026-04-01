@@ -14,7 +14,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
       FRONTEND_URL: http://localhost:4080
       CLICKHOUSE_URL: http://clickhouse:8123
-      CLICKHOUSE_DB: default
+      CLICKHOUSE_DB: genum_e2e
       CLICKHOUSE_USER: clickhouse
       CLICKHOUSE_PASSWORD: clickhouse
       OPENAI_KEY: ${OPENAI_KEY:-}
@@ -78,7 +78,7 @@ services:
     image: clickhouse/clickhouse-server:25.10
     container_name: genum-clickhouse-e2e
     environment:
-      CLICKHOUSE_DB: default
+      CLICKHOUSE_DB: genum_e2e
       CLICKHOUSE_USER: clickhouse
       CLICKHOUSE_PASSWORD: clickhouse
     ports:
