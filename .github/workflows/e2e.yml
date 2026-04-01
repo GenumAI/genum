@@ -36,7 +36,15 @@ jobs:
         run: docker compose -f docker-compose.e2e.yml build core web
 
       - name: Start E2E infrastructure
-        run: docker compose -f docker-compose.e2e.yml up -d
+        run: |
+          if ! docker compose -f docker-compose.e2e.yml up -d; then
+            echo "E2E infrastructure failed to start"
+            docker ps -a
+            docker logs genum-core-e2e || true
+            docker logs genum-postgres-e2e || true
+            docker logs genum-clickhouse-e2e || true
+            exit 1
+          fi
 
       - name: Show running containers
         run: docker ps
