@@ -78,7 +78,6 @@ services:
     image: clickhouse/clickhouse-server:25.10
     container_name: genum-clickhouse-e2e
     environment:
-      CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: clickhouse
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     ports:
