@@ -10,3 +10,7 @@ export const apiBaseUrl =
 
 export const authStatePath = "e2e/.auth/state.json";
 export const authCredentialsPath = "e2e/.auth/credentials.json";
+
+export const hasAiProviderCredentials = Boolean(
+  process.env.OPENAI_KEY || process.env.ANTHROPIC_KEY || process.env.GEMINI_KEY,
+);

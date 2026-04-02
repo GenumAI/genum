@@ -1,4 +1,7 @@
 import { test } from "../../fixtures/test";
+import { hasAiProviderCredentials } from "../../config/env";
+
+test.skip(!hasAiProviderCredentials, "AI provider keys are unavailable in this E2E environment.");
 
 test("user creates prompt, generates output and adds testcase", async ({
   layoutPage,

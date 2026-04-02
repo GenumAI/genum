@@ -1,4 +1,7 @@
 import { expect, test } from "../../../fixtures/test";
+import { hasAiProviderCredentials } from "../../../config/env";
+
+test.skip(!hasAiProviderCredentials, "AI provider keys are unavailable in this E2E environment.");
 
 test("create, rename, run and delete prompt", async ({
   layoutPage,

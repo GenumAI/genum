@@ -1,4 +1,5 @@
 import { expect, test } from "../../../fixtures/test";
+import { hasAiProviderCredentials } from "../../../config/env";
 import {
   createPrompt,
   getPromptLogsCount,
@@ -7,6 +8,8 @@ import {
 } from "../../../support/api-client";
 
 test("prompt run appears in logs table", async ({ layoutPage, logsPage, page }) => {
+  test.skip(!hasAiProviderCredentials, "AI provider keys are unavailable in this E2E environment.");
+
   await layoutPage.openHome();
   const workspace = await getWorkspaceFromPage(page);
 

@@ -1,5 +1,8 @@
 import { expect, test } from "../../../fixtures/test";
+import { hasAiProviderCredentials } from "../../../config/env";
 import { getWorkspaceFromPage } from "../../../support/api-client";
+
+test.skip(!hasAiProviderCredentials, "AI provider keys are unavailable in this E2E environment.");
 
 function getPromptIdFromUrl(url: string): number {
   const match = url.match(/\/prompt\/(\d+)/);

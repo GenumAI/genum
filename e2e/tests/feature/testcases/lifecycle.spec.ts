@@ -1,4 +1,5 @@
 import { expect, test } from "../../../fixtures/test";
+import { hasAiProviderCredentials } from "../../../config/env";
 import {
   createPrompt,
   createTestcase,
@@ -16,6 +17,8 @@ test("add testcase from output", async ({
   playgroundPage,
   testcasesPage,
 }) => {
+  test.skip(!hasAiProviderCredentials, "AI provider keys are unavailable in this E2E environment.");
+
   await layoutPage.openHome();
   await layoutPage.goToPrompts();
   await promptsPage.createPrompt();
@@ -29,6 +32,8 @@ test("add testcase from output", async ({
 });
 
 test("run testcase and verify status transitions", async ({ layoutPage, page }) => {
+  test.skip(!hasAiProviderCredentials, "AI provider keys are unavailable in this E2E environment.");
+
   await layoutPage.openHome();
   const workspace = await getWorkspaceFromPage(page);
 
