@@ -56,7 +56,7 @@ export const InputActions = ({
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-6 w-6 text-[#09090B] dark:text-[#FAFAFA] [&_svg]:size-3"
+							className="h-6 w-6 text-foreground [&_svg]:size-3"
 							onClick={onPreviewToggle}
 							disabled={isPreviewDisabled}
 						>
@@ -79,7 +79,7 @@ export const InputActions = ({
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-6 w-6 text-[#09090B] dark:text-[#FAFAFA] [&_svg]:size-3"
+							className="h-6 w-6 text-foreground [&_svg]:size-3"
 							onClick={onExpandToggle}
 						>
 							<CornersOutIcon style={{ width: "20px", height: "20px" }} />

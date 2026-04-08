@@ -94,7 +94,7 @@ export function NavUser() {
 											alt={userName}
 										/>
 										<AvatarFallback
-											className={`rounded-lg bg-[#83ABFF80] ${authorColor}`}
+											className={`rounded-lg bg-brand/50 ${authorColor}`}
 										>
 											{authorInitial}
 										</AvatarFallback>

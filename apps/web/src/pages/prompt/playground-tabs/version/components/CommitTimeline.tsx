@@ -177,14 +177,14 @@ export default function CommitTimeline({ branches }: CommitTimelineProps) {
 													<span className="w-28">
 														{productiveCommitId &&
 															version.id === productiveCommitId && (
-																<span className="border border-green-600/40 text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 text-[12px] font-semibold px-3 py-[2px] rounded">
+																<span className="rounded border border-success/40 bg-success-soft text-[12px] font-semibold text-success px-3 py-[2px]">
 																	productive
 																</span>
 															)}
 													</span>
 
 													<div className="w-28 flex items-center justify-center">
-														<div className="flex items-center w-fit text-[12px] dark:bg-[#27272a] dark:border-[#3a3a3a] dark:text-[#fff] rounded-sm border border-border px-2 py-0 font-semibold text-foreground">
+														<div className="flex w-fit items-center rounded-sm border border-border bg-card px-2 py-0 text-[12px] font-semibold text-foreground">
 															<span>
 																{version.commitHash.substring(0, 8)}
 															</span>

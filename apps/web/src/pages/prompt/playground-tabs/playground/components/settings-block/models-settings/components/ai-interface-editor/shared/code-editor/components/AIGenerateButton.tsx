@@ -104,7 +104,7 @@ export default function AIGenerateButton(props: AIGenerateButtonProps) {
 						<button
 							type="button"
 							aria-label={tooltipText}
-							className={buttonClassName || "p-1.5 rounded-md transition-all hover:bg-[#437BEF]/10 text-[#437BEF] disabled:opacity-50 disabled:cursor-not-allowed"}
+							className={buttonClassName || "rounded-md p-1.5 transition-all hover:bg-brand/10 text-brand disabled:cursor-not-allowed disabled:opacity-50"}
 							disabled={isDisabled}
 							onClick={handleAction}
 						>
@@ -134,7 +134,7 @@ export default function AIGenerateButton(props: AIGenerateButtonProps) {
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-6 w-6 text-[#437BEF] hover:bg-accent hover:text-accent-foreground dark:hover:text-white [&_svg]:size-5 disabled:opacity-50 disabled:cursor-not-allowed"
+										className="h-6 w-6 text-brand hover:bg-accent hover:text-accent-foreground [&_svg]:size-5 disabled:cursor-not-allowed disabled:opacity-50"
 										disabled={!isActive}
 									>
 										<TuneIcon />
@@ -144,7 +144,7 @@ export default function AIGenerateButton(props: AIGenerateButtonProps) {
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-6 w-6 text-[#437BEF] hover:bg-accent hover:text-accent-foreground dark:hover:text-white [&_svg]:size-5"
+									className="h-6 w-6 text-brand hover:bg-accent hover:text-accent-foreground [&_svg]:size-5"
 									onClick={() => setIsOpen(!isOpen)}
 								>
 									<TuneIcon stroke="currentColor" />

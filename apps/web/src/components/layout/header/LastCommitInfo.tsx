@@ -8,7 +8,10 @@ import { getAvatarColor, getAvatarInitial } from "@/lib/avatarUtils";
 import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
 import { promptApi } from "@/api/prompt";
 import { versionKeys } from "@/query-keys/version.keys";
-import type { BranchesResponse, PromptVersion } from "@/pages/prompt/playground-tabs/version/utils/types";
+import type {
+	BranchesResponse,
+	PromptVersion,
+} from "@/pages/prompt/playground-tabs/version/utils/types";
 
 interface LastCommitInfoProps {
 	promptId: number;
@@ -115,26 +118,16 @@ const LastCommitInfo = ({ promptId }: LastCommitInfoProps) => {
 						</div>
 					</div>
 				</TooltipTrigger>
-				<TooltipContent
-					showArrow={false}
-					className="max-w-sm dark:border dark:border-sidebar-border dark:bg-sidebar dark:text-white"
-				>
-					<div className="space-y-2 text-white">
-						<p className="font-medium">
-							{formatTooltipDate(latestCommit.createdAt)}
-						</p>
+				<TooltipContent showArrow={false} className="max-w-sm border border-border">
+					<div className="space-y-2">
+						<p className="font-medium">{formatTooltipDate(latestCommit.createdAt)}</p>
 						<div className="space-y-1">
-							<p className="text-xs whitespace-pre-wrap">
-								{latestCommit.commitMsg}
-							</p>
+							<p className="text-xs whitespace-pre-wrap">{latestCommit.commitMsg}</p>
 						</div>
 						<div className="flex items-center gap-2 pt-1">
 							{isCloud ? (
 								<Avatar className="h-5 w-5">
-									<AvatarImage
-										src={cloudAuthorAvatarUrl}
-										alt={author.name}
-									/>
+									<AvatarImage src={cloudAuthorAvatarUrl} alt={author.name} />
 									<AvatarFallback
 										className={`text-[10px] font-semibold ${authorColor}`}
 									>
@@ -144,9 +137,7 @@ const LastCommitInfo = ({ promptId }: LastCommitInfoProps) => {
 							) : (
 								<CommitAuthorAvatar author={author} />
 							)}
-							<span className="text-xs">
-								{author.name}
-							</span>
+							<span className="text-xs">{author.name}</span>
 						</div>
 					</div>
 				</TooltipContent>

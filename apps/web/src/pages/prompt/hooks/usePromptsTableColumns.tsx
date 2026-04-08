@@ -3,12 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import TableSortButton from "@/components/ui/TableSortButton";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Trash2 } from "lucide-react";
 import { isCloudAuth } from "@/lib/auth";
 import { getAvatarColor, getAvatarInitial } from "@/lib/avatarUtils";
@@ -37,8 +32,8 @@ export const usePromptsTableColumns = ({
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<div
-										className={`w-2 h-2 rounded-xl ${
-											isCommitted ? "bg-[#2da44a]" : "bg-[#fbbf24]"
+										className={`h-2 w-2 rounded-xl ${
+											isCommitted ? "bg-success" : "bg-warning"
 										}`}
 									></div>
 								</TooltipTrigger>
@@ -79,14 +74,14 @@ export const usePromptsTableColumns = ({
 				const value = row.getValue("assertionType") as string;
 				const color =
 					value === "STRICT"
-						? "bg-[#2A9D90] dark:bg-[#27786F]"
+						? "bg-chart-2"
 						: value === "MANUAL"
-							? "bg-[#6C98F2] dark:bg-[#5674B3]"
-							: "bg-[#B66AD6] dark:bg-[#8954A0]";
+							? "bg-chart-7"
+							: "bg-chart-4";
 				return (
 					<div className="flex justify-center">
 						<Badge
-							className={`${color} shadow-none rounded-[50px] text-[color:#FAFAFA] font-sans text-[12px] h-[20px] not-italic font-semibold leading-[16px]`}
+							className={`${color} shadow-none rounded-[50px] text-primary-foreground font-sans text-[12px] h-[20px] not-italic font-semibold leading-[16px]`}
 						>
 							{value.toLowerCase() === "ai"
 								? "AI"
@@ -137,16 +132,16 @@ export const usePromptsTableColumns = ({
 							</TooltipTrigger>
 							<TooltipContent side="bottom" className="py-[6px] px-3 max-w-xs">
 								<div className="space-y-1">
-									<div className="text-[12px] font-medium text-white">
+									<div className="text-[12px] font-medium">
 										{lastCommit.author.name}
 									</div>
-									<div className="text-[11px] text-white/80">
+									<div className="text-[11px] opacity-80">
 										{lastCommit.author.email}
 									</div>
-									<div className="text-[11px] text-white/80">
+									<div className="text-[11px] opacity-80">
 										Hash: {lastCommit.commitHash.substring(0, 8)}
 									</div>
-									<div className="text-[11px] text-white/80">
+									<div className="text-[11px] opacity-80">
 										{new Date(lastCommit.createdAt).toLocaleString()}
 									</div>
 								</div>

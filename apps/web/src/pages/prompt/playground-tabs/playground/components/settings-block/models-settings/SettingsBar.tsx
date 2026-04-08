@@ -26,14 +26,14 @@ export default function SettingsBar({
 
 	return (
 		<div className="flex w-full flex-col gap-3">
-			<div className="w-full rounded-2xl border border-[#83ABFF80] bg-card px-3 py-4 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A]">
+			<div className="w-full rounded-2xl border border-brand/50 bg-card px-3 py-4 shadow-sm">
 				<CanvasChat
 					systemPrompt={prompt?.value ?? ""}
 					updatePromptContent={updatePromptContent}
 				/>
 			</div>
 
-			<div className="flex w-full flex-col gap-3 rounded-xl border bg-card px-3 py-4 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A]">
+			<div className="flex w-full flex-col gap-3 rounded-xl border bg-card px-3 py-4 shadow-sm">
 				<button
 					type="button"
 					onClick={toggleModels}
@@ -47,7 +47,7 @@ export default function SettingsBar({
 					</div>
 
 					<div className="flex items-center gap-3">
-						<div className="text-[#18181B] dark:text-white">
+						<div className="text-foreground">
 							{isOpenModels ? (
 								<ChevronUp className="w-4 h-4" />
 							) : (

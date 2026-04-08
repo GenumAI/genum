@@ -60,9 +60,9 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
 			end
 			className={({ isActive }) =>
 				cn(
-					"block rounded-md px-2 py-[9px] h-[32px] text-sm dark:text-[#F4F4F5] hover:dark:text-[#a3a3a3] font-normal transition-colors leading-[1]",
+					"block h-[32px] rounded-md px-2 py-[9px] text-sm font-normal leading-[1] transition-colors text-foreground",
 					isActive
-						? "bg-muted dark:text-[#F4F4F5] font-medium"
+						? "bg-muted font-medium"
 						: "hover:bg-muted text-muted-foreground",
 				)
 			}
@@ -109,7 +109,7 @@ export default function Settings() {
 						if (visibleItems.length === 0) return null;
 						return (
 							<div key={section.title} className="mb-1">
-								<h3 className="leading-[36px] mb-1 text-sm font-medium text-[#18181B] dark:text-[#FAFAFA]">
+								<h3 className="mb-1 text-sm font-medium leading-[36px] text-foreground">
 									{section.title}
 								</h3>
 								{visibleItems.map((item) => (

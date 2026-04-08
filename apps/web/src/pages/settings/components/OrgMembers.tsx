@@ -72,7 +72,7 @@ export default function OrgMembers() {
 
 						<TabsContent value="members" className="px-6 py-6 pt-0 mt-0">
 							<CardHeader className="flex items-center justify-between flex-row py-6 px-0 space-y-0">
-								<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
+								<CardTitle className="text-[18px] font-medium text-foreground">
 									Organization Members
 								</CardTitle>
 								{canManageMembers && (
@@ -88,18 +88,18 @@ export default function OrgMembers() {
 							</CardHeader>
 
 							<div className="pb-4">
-                            <p className="text-sm text-muted-foreground">
-                                Invite team members to collaborate on prompts and projects.{" "}
-                                <a
-                                    href="https://docs.genum.ai/teamwork"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 underline"
-                                >
-                                    Learn more
-                                </a>
-                            </p>
-                        </div>
+								<p className="text-sm text-muted-foreground">
+									Invite team members to collaborate on prompts and projects.{" "}
+									<a
+										href="https://docs.genum.ai/teamwork"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="text-brand underline hover:text-brand/80"
+									>
+										Learn more
+									</a>
+								</p>
+							</div>
 
 							<MembersTable
 								members={members}
@@ -116,7 +116,7 @@ export default function OrgMembers() {
 
 						<TabsContent value="invites" className="p-6 pt-0 mt-0">
 							<CardHeader className="flex items-start justify-between px-0">
-								<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
+								<CardTitle className="text-[18px] font-medium text-foreground">
 									Pending Invites
 								</CardTitle>
 							</CardHeader>

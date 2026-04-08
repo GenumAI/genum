@@ -48,10 +48,10 @@ const MemoryKey = ({ promptId }: MemoryKeyProps) => {
 									type="button"
 									className="w-[130px] h-[32px] px-3 rounded-md transition-colors flex items-center gap-2 hover:bg-muted/20"
 								>
-									<h2 className="text-[#18181B] dark:text-[#FFFFFF] text-[12px] not-italic font-bold flex-shrink-0">
+									<h2 className="flex-shrink-0 text-[12px] font-bold not-italic text-foreground">
 										Memory:
 									</h2>
-									<span className="flex-1 min-w-0 text-[#71717A] dark:text-[#FFFFFFBF] text-[12px] font-normal truncate">
+									<span className="min-w-0 flex-1 truncate text-[12px] font-normal text-muted-foreground">
 										{displayMemoryName || "Select"}
 									</span>
 								</button>
@@ -64,7 +64,7 @@ const MemoryKey = ({ promptId }: MemoryKeyProps) => {
 				</TooltipProvider>
 				<PopoverContent className="w-[400px] rounded-xl p-4" align="start">
 					<div className="space-y-4">
-						<h3 className="text-[#09090B] dark:text-[#FFFFFF] text-[14px] font-bold">
+						<h3 className="text-[14px] font-bold text-foreground">
 							Memory
 						</h3>
 						<div className="flex flex-col gap-2 mb-1">

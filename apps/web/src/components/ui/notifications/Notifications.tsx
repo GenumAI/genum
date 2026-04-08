@@ -132,15 +132,13 @@ export default function Notifications() {
 
 			{isLoading ? (
 				<div className="flex items-center justify-center py-12">
-					<div className="text-sm text-gray-500">Loading notifications...</div>
+					<div className="text-sm text-muted-foreground">Loading notifications...</div>
 				</div>
 			) : notifications.length === 0 ? (
 				<div className="flex flex-col items-center justify-center py-12 text-center">
-					<Bell className="h-12 w-12 text-gray-400 mb-4" />
-					<h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-						No notifications
-					</h3>
-					<p className="text-sm text-gray-500">
+					<Bell className="mb-4 h-12 w-12 text-muted-foreground/60" />
+					<h3 className="mb-2 text-lg font-medium text-foreground">No notifications</h3>
+					<p className="text-sm text-muted-foreground">
 						You're all caught up! Check back later for updates.
 					</p>
 				</div>
@@ -156,11 +154,11 @@ export default function Notifications() {
 								<NotificationIcon size="lg" />
 								<div className="flex-1 min-w-0">
 									<div className="flex items-center gap-3 mb-2">
-										<h3 className="text-base font-medium text-gray-900 dark:text-gray-100">
+										<h3 className="text-base font-medium text-foreground">
 											{notification.title}
 										</h3>
 										{notification.read === false && (
-											<div className="h-2 w-2 bg-red-500 rounded-full flex-shrink-0" />
+											<div className="h-2 w-2 rounded-full bg-destructive flex-shrink-0" />
 										)}
 										{notification.type && (
 											<Badge variant="outline" className="text-xs">
@@ -168,11 +166,11 @@ export default function Notifications() {
 											</Badge>
 										)}
 									</div>
-									<p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+									<p className="mb-3 text-sm text-muted-foreground">
 										{formatNotificationPreview(notification.content, 120)}
 									</p>
 									<div className="flex items-center justify-between">
-										<span className="text-xs text-gray-500">
+										<span className="text-xs text-muted-foreground">
 											{formatDate(notification.createdAt)}
 										</span>
 									</div>
@@ -186,7 +184,7 @@ export default function Notifications() {
 			{/* Pagination */}
 			{!isLoading && notifications.length > 0 && totalPages > 1 && (
 				<div className="flex items-center justify-between mt-6">
-					<div className="text-sm text-gray-500">
+					<div className="text-sm text-muted-foreground">
 						Showing {(currentPage - 1) * limit + 1} to{" "}
 						{Math.min(currentPage * limit, totalCount)} of {totalCount} notifications
 					</div>

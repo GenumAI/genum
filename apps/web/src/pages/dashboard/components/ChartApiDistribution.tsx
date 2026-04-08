@@ -13,18 +13,18 @@ interface Props {
 }
 
 const COLORS = [
-	"#EED0FF",
-	"#D7EFEB",
-	"#FFE4F2",
-	"#B66AD6",
-	"#C4EECF",
-	"#FFD7D8",
-	"#6C98F2",
-	"#DEEADE",
-	"#FFE6B1",
-	"#C1DFF9",
-	"#E7F5C8",
-	"#F9ECDB",
+	"hsl(var(--chart-1))",
+	"hsl(var(--chart-2))",
+	"hsl(var(--chart-3))",
+	"hsl(var(--chart-4))",
+	"hsl(var(--chart-5))",
+	"hsl(var(--chart-6))",
+	"hsl(var(--chart-7))",
+	"hsl(var(--chart-8))",
+	"hsl(var(--chart-9))",
+	"hsl(var(--chart-10))",
+	"hsl(var(--chart-11))",
+	"hsl(var(--chart-12))",
 ];
 
 export function ChartApiDistribution({ models }: Props) {
@@ -81,10 +81,10 @@ export function ChartApiDistribution({ models }: Props) {
 									backgroundColor: colorByModelName.get(entry.name) ?? COLORS[0],
 								}}
 							/>
-							<span className="text-[12px] text-[#18181B]">{entry.name}</span>
+							<span className="text-[12px] text-foreground">{entry.name}</span>
 							<TweenNumber
 								value={entry.value}
-								className="ml-auto font-semibold text-[#18181B] bg-[#F4F4F5] px-[3px] min-w-[23px] text-center rounded-md text-[10px]"
+								className="ml-auto min-w-[23px] rounded-md bg-table-header px-[3px] text-center text-[10px] font-semibold text-foreground"
 								formatValue={(value) => `${Math.round(value)}`}
 							/>
 						</div>

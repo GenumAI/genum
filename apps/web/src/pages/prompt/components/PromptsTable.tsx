@@ -34,7 +34,7 @@ export function PromptsTable({
 	return (
 		<div className="rounded-md overflow-auto">
 			<Table>
-				<TableHeader className="bg-[#F4F4F5] text-[#71717A] dark:bg-[#27272A] dark:text-[#fff] text-sm font-medium leading-5 h-[54px]">
+				<TableHeader className="h-[54px] bg-table-header text-sm font-medium leading-5 text-muted-foreground">
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow
 							key={headerGroup.id}
@@ -95,7 +95,7 @@ export function PromptsTable({
 						<TableRow className="transition-none">
 							<TableCell
 								colSpan={columnsCount}
-								className="px-0 hover:bg-[#fff] dark:hover:bg-[#212121]"
+								className="px-0 hover:bg-transparent"
 							>
 								<EmptyState title="No results found" description="" />
 							</TableCell>

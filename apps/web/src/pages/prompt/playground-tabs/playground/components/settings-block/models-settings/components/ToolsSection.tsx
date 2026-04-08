@@ -80,7 +80,7 @@ export const ToolsSection = memo(
 								<Button
 									variant="ghost"
 									size="icon"
-									className="w-7 h-7 text-foreground hover:text-red-600 transition-colors"
+									className="w-7 h-7 text-foreground hover:text-destructive transition-colors"
 									onClick={(e) => {
 										e.stopPropagation();
 										if (!isUpdatingModel) {

@@ -67,7 +67,7 @@ export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
 					/>
 				</div>
 
-				<div className="grid grid-cols-2 justify-items-end border-t border-border bg-[#FAFAFA] dark:bg-[#1A1A1A] rounded-b-[6px]">
+				<div className="grid grid-cols-2 justify-items-end rounded-b-[6px] border-t border-border bg-table-header">
 					<div className="py-3 px-4 border-r">
 						<Button
 							variant="outline"
@@ -90,7 +90,9 @@ export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
 												size="sm"
 												onClick={onAddTestcase}
 												disabled={
-													isTestcaseLoading || !modifiedValue.trim() || isRunning
+													isTestcaseLoading ||
+													!modifiedValue.trim() ||
+													isRunning
 												}
 												className="text-[14px] h-[36px]"
 											>

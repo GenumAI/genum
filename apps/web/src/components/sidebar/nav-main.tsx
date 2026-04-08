@@ -23,7 +23,7 @@ export function NavMain({
 	const location = useLocation();
 	const pathname = location.pathname;
 	const orgId = getOrgId();
-	const projectId = getProjectId();		
+	const projectId = getProjectId();
 
 	// If orgId or projectId is not available, don't try to navigate
 	if (!orgId || !projectId) {
@@ -40,13 +40,13 @@ export function NavMain({
 						return (
 							<SidebarMenuItem key={item.title}>
 								<SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
-									<Link to={fullUrl} className="dark:text-sidebar-foreground">
+									<Link to={fullUrl}>
 										{item.icon && <item.icon />}
 										<span className="group-data-[collapsible=icon]:hidden">
 											{item.title}
 										</span>
 										{item.beta && (
-											<span className="ml-1 bg-blue-100 text-blue-700 text-xs font-medium px-1.5 py-0.5 rounded group-data-[collapsible=icon]:hidden">
+											<span className="ml-1 rounded bg-info-soft px-1.5 py-0.5 text-xs font-medium text-info group-data-[collapsible=icon]:hidden">
 												Beta
 											</span>
 										)}

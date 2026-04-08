@@ -53,8 +53,8 @@ const RedirectedToProjectRoute = ({ Element }: RedirectedToProjectRouteProps) =>
 		return (
 			<div className="flex h-screen w-full items-center justify-center">
 				<div className="flex flex-col items-center space-y-4">
-					<div className="h-8 w-8 animate-spin text-gray-500 dark:text-gray-400" />
-					<p className="text-gray-500 dark:text-gray-400">Loading...</p>
+					<div className="h-8 w-8 animate-spin text-muted-foreground" />
+					<p className="text-muted-foreground">Loading...</p>
 				</div>
 			</div>
 		);
@@ -72,7 +72,10 @@ const RedirectedToProjectRoute = ({ Element }: RedirectedToProjectRouteProps) =>
 		}
 
 		let orgWithProjects = userData.organizations.find(
-			(org) => hasOrgAccess(org.role, OrganizationRole.OWNER) && org.projects && org.projects.length > 0,
+			(org) =>
+				hasOrgAccess(org.role, OrganizationRole.OWNER) &&
+				org.projects &&
+				org.projects.length > 0,
 		);
 
 		if (!orgWithProjects) {
@@ -116,7 +119,7 @@ const RedirectedToProjectRoute = ({ Element }: RedirectedToProjectRouteProps) =>
 		return (
 			<div className="flex h-screen w-full items-center justify-center">
 				<div className="flex flex-col items-center space-y-4">
-					<p className="text-red-500">No organizations or projects found</p>
+					<p className="text-destructive">No organizations or projects found</p>
 				</div>
 			</div>
 		);

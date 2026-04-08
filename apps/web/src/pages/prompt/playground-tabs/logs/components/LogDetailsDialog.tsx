@@ -12,7 +12,12 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { useToast } from "@/hooks/useToast";
 import type { Log, PromptName } from "@/types/logs";
 import { getPromptName, isPromptDeleted } from "../utils/promptNames";
-import { getLogTypeDescription, getSourceLabel, normalizeVendorName, formatResponseTime } from "../utils/logDetailsHelpers";
+import {
+	getLogTypeDescription,
+	getSourceLabel,
+	normalizeVendorName,
+	formatResponseTime,
+} from "../utils/logDetailsHelpers";
 import {
 	EXPAND_ICON_STYLE,
 	EYE_ICON_STYLE,
@@ -34,7 +39,6 @@ interface LogDetailsDialogProps {
 	promptNames: PromptName[];
 	isSinglePromptPage?: boolean;
 }
-
 
 const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 	open,
@@ -106,11 +110,11 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 										</td>
 										<td className="p-4 border w-1/4">
 											{selectedLog.log_lvl === "SUCCESS" ? (
-												<span className="flex items-center gap-2 text-green-600">
+												<span className="flex items-center gap-2 text-success">
 													<CheckCircle2 className="h-4 w-4" /> Pass
 												</span>
 											) : (
-												<span className="flex items-center gap-2 text-red-600">
+												<span className="flex items-center gap-2 text-destructive">
 													<XCircle className="h-4 w-4" /> Error
 												</span>
 											)}
@@ -149,9 +153,12 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 											<td className="bg-muted p-4 border font-medium text-foreground">
 												Prompt Name
 											</td>
-											<td className="p-4 border font-semibold" colSpan={selectedLog.memory_key ? 1 : 3}>
+											<td
+												className="p-4 border font-semibold"
+												colSpan={selectedLog.memory_key ? 1 : 3}
+											>
 												{isPromptDeletedForCurrentLog ? (
-													<span className="text-red-600">
+													<span className="text-destructive">
 														Prompt was deleted
 													</span>
 												) : (
@@ -192,19 +199,25 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 													</div>
 													<div className="grid grid-cols-3 gap-2">
 														<div>
-															<div className="text-xs text-muted-foreground">In</div>
+															<div className="text-xs text-muted-foreground">
+																In
+															</div>
 															<div className="font-medium">
 																{selectedLog.tokens_in || 0}
 															</div>
 														</div>
 														<div>
-															<div className="text-xs text-muted-foreground">Out</div>
+															<div className="text-xs text-muted-foreground">
+																Out
+															</div>
 															<div className="font-medium">
 																{selectedLog.tokens_out || 0}
 															</div>
 														</div>
 														<div>
-															<div className="text-xs text-muted-foreground">Total</div>
+															<div className="text-xs text-muted-foreground">
+																Total
+															</div>
 															<div className="font-medium">
 																{selectedLog.tokens_sum || 0}
 															</div>
@@ -212,22 +225,32 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 													</div>
 												</div>
 												<div className="px-3 py-2 flex flex-col">
-													<div className="text-xs uppercase text-muted-foreground text-center">Time</div>
+													<div className="text-xs uppercase text-muted-foreground text-center">
+														Time
+													</div>
 													<div className="flex-1 flex items-center justify-center">
 														<TooltipProvider>
 															<Tooltip>
 																<TooltipTrigger asChild>
-																	<div className="font-medium text-center">{formatResponseTime(selectedLog.response_ms)}</div>
+																	<div className="font-medium text-center">
+																		{formatResponseTime(
+																			selectedLog.response_ms,
+																		)}
+																	</div>
 																</TooltipTrigger>
 																<TooltipContent>
-																	<p>{selectedLog.response_ms} ms</p>
+																	<p>
+																		{selectedLog.response_ms} ms
+																	</p>
 																</TooltipContent>
 															</Tooltip>
 														</TooltipProvider>
 													</div>
 												</div>
 												<div className="px-3 py-2 flex flex-col">
-													<div className="text-xs uppercase text-muted-foreground text-center">Cost</div>
+													<div className="text-xs uppercase text-muted-foreground text-center">
+														Cost
+													</div>
 													<div className="flex-1 flex items-center justify-center">
 														<div className="font-medium text-center">
 															${selectedLog.cost?.toFixed?.(6) ?? 0}
@@ -244,7 +267,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 											</td>
 											<td className="p-4 border" colSpan={3}>
 												{selectedLog.description ? (
-													<span className="text-red-600">
+													<span className="text-destructive">
 														{selectedLog.description}
 													</span>
 												) : (
@@ -260,7 +283,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 							{selectedLog.in && (
 								<div>
 									<div className="mb-1 flex items-center justify-between">
-										<p className="font-medium text-xs leading-none tracking-normal text-[#71717A]">
+										<p className="font-medium text-xs leading-none tracking-normal text-muted-foreground">
 											Input
 										</p>
 										<div className="flex items-center gap-2">
@@ -270,8 +293,12 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 														<Button
 															variant="ghost"
 															size="icon"
-															className="h-6 w-6 text-[#09090B] dark:text-[#FAFAFA] [&_svg]:size-3"
-															onClick={() => setIsInputPreviewMode((prev) => !prev)}
+															className="h-6 w-6 text-foreground [&_svg]:size-3"
+															onClick={() =>
+																setIsInputPreviewMode(
+																	(prev) => !prev,
+																)
+															}
 														>
 															{isInputPreviewMode ? (
 																<EyeClosed style={EYE_ICON_STYLE} />
@@ -289,7 +316,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 														<Button
 															variant="ghost"
 															size="icon"
-															className="h-6 w-6 text-[#09090B] dark:text-[#FAFAFA] [&_svg]:size-3"
+															className="h-6 w-6 text-foreground [&_svg]:size-3"
 															onClick={() => setIsInputExpanded(true)}
 														>
 															<CornersOut style={EXPAND_ICON_STYLE} />
@@ -302,9 +329,9 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 											</TooltipProvider>
 										</div>
 									</div>
-									<div className="bg-white dark:bg-[#1e1e1e] border rounded font-medium text-xs tracking-normal text-[#71717A] w-full">
-										{!isInputExpanded && (
-											isInputPreviewMode ? (
+									<div className="w-full rounded border bg-card font-medium text-xs tracking-normal text-muted-foreground">
+										{!isInputExpanded &&
+											(isInputPreviewMode ? (
 												<div className="h-[200px] overflow-y-auto overflow-x-hidden w-full">
 													<div className="p-4 w-full max-w-full overflow-x-hidden">
 														<AIPreview
@@ -321,15 +348,14 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 													value={parsedInput}
 													options={READONLY_EDITOR_OPTIONS}
 												/>
-											)
-										)}
+											))}
 									</div>
 								</div>
 							)}
 							{selectedLog.out && (
 								<div>
 									<div className="mb-1 flex items-center justify-between">
-										<p className="font-medium text-xs leading-none tracking-normal text-[#71717A]">
+										<p className="font-medium text-xs leading-none tracking-normal text-muted-foreground">
 											Output
 										</p>
 										<div className="flex items-center gap-2">
@@ -339,7 +365,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 														<Button
 															variant="ghost"
 															size="icon"
-															className="h-6 w-6 text-[#09090B] dark:text-[#FAFAFA] [&_svg]:size-3"
+															className="h-6 w-6 text-foreground [&_svg]:size-3"
 															onClick={() =>
 																setIsOutputExpanded(true)
 															}
@@ -354,14 +380,14 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 											</TooltipProvider>
 										</div>
 									</div>
-									<div className="bg-white dark:bg-[#1e1e1e] border rounded font-medium text-xs tracking-normal text-[#71717A] w-full">
-									<MonacoEditor
-										height="200px"
-										width="100%"
-										defaultLanguage="json"
-										value={parsedOutput}
-										options={READONLY_EDITOR_OPTIONS}
-									/>
+									<div className="w-full rounded border bg-card font-medium text-xs tracking-normal text-muted-foreground">
+										<MonacoEditor
+											height="200px"
+											width="100%"
+											defaultLanguage="json"
+											value={parsedOutput}
+											options={READONLY_EDITOR_OPTIONS}
+										/>
 									</div>
 								</div>
 							)}
@@ -391,7 +417,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 										<Button
 											variant="ghost"
 											size="icon"
-											className="h-6 w-6 text-[#09090B] dark:text-[#FAFAFA] [&_svg]:size-3"
+											className="h-6 w-6 text-foreground [&_svg]:size-3"
 											onClick={() => setIsInputPreviewMode((prev) => !prev)}
 										>
 											{isInputPreviewMode ? (
@@ -409,14 +435,14 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 						</div>
 						<div className="flex-grow overflow-auto">
 							{isInputPreviewMode ? (
-								<div className="h-full overflow-y-auto rounded-md border bg-transparent p-4 text-sm dark:border-border">
+								<div className="h-full overflow-y-auto rounded-md border bg-transparent p-4 text-sm">
 									<AIPreview
 										content={selectedLog?.in || ""}
 										onError={handlePreviewError}
 									/>
 								</div>
 							) : (
-								<div className="h-full bg-white dark:bg-[#1e1e1e] border rounded ring-1 ring-border">
+								<div className="h-full rounded border border-border bg-card ring-1 ring-border">
 									<MonacoEditor
 										height="100%"
 										width="100%"
@@ -439,7 +465,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 							<DialogTitle className="text-sm font-medium">Output</DialogTitle>
 						</div>
 						<div className="flex-grow overflow-auto">
-							<div className="h-full bg-white dark:bg-[#1e1e1e] border rounded ring-1 ring-border">
+							<div className="h-full rounded border border-border bg-card ring-1 ring-border">
 								<MonacoEditor
 									height="100%"
 									width="100%"

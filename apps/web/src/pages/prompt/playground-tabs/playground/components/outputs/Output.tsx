@@ -138,7 +138,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 			/>
 
 			<Card className="w-full min-w-0 rounded-lg border shadow-sm">
-				<div className="grid grid-cols-1 rounded-t-lg border-b text-xs dark:bg-[#27272A] sm:grid-cols-2">
+				<div className="grid grid-cols-1 rounded-t-lg border-b bg-table-header text-xs sm:grid-cols-2">
 					<div className="min-w-0">
 						<MetricsDisplay title="Last Output" content={content || undefined} />
 					</div>

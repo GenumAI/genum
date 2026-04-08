@@ -77,7 +77,7 @@ const TestCasesFilter = ({ prompts, filterState, setFilterState }: TestCasesFilt
 					</h3>
 
 					<div className="flex flex-col gap-2">
-						<span className="text-[#71717A] dark:text-[#a3a3a3] text-xs font-medium leading-none">
+						<span className="text-xs font-medium leading-none text-muted-foreground">
 							Testcases Status
 						</span>
 						<div className="grid gap-2">
@@ -98,7 +98,7 @@ const TestCasesFilter = ({ prompts, filterState, setFilterState }: TestCasesFilt
 
 					{!!prompts && (
 						<div className="flex flex-col gap-2">
-							<span className="text-[#71717A] dark:text-[#a3a3a3] text-xs font-medium leading-none">
+							<span className="text-xs font-medium leading-none text-muted-foreground">
 								Prompts
 							</span>
 							<div className="grid gap-2">

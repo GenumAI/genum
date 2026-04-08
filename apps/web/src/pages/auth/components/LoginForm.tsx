@@ -35,14 +35,13 @@ export default function LoginForm({
 						rules={loginFormValidationRules.email}
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel className="text-gray-900 dark:text-zinc-200">Email</FormLabel>
+								<FormLabel className="text-foreground">Email</FormLabel>
 								<FormControl>
 									<Input
 										type="email"
 										placeholder="your.email@example.com"
 										{...field}
 										disabled={isLoading}
-										className="dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100 dark:placeholder:text-zinc-500"
 									/>
 								</FormControl>
 								<FormMessage />
@@ -56,16 +55,13 @@ export default function LoginForm({
 						rules={loginFormValidationRules.password}
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel className="text-gray-900 dark:text-zinc-200">
-									Password
-								</FormLabel>
+								<FormLabel className="text-foreground">Password</FormLabel>
 								<FormControl>
 									<Input
 										type="password"
 										placeholder="Enter your password"
 										{...field}
 										disabled={isLoading}
-										className="dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100 dark:placeholder:text-zinc-500"
 									/>
 								</FormControl>
 								<FormMessage />
@@ -75,7 +71,7 @@ export default function LoginForm({
 
 					<Button
 						type="submit"
-						className="w-full min-h-[40px] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+						className="min-h-[40px] w-full"
 						disabled={isLoading}
 					>
 						{isLoading ? (
@@ -91,12 +87,12 @@ export default function LoginForm({
 			</Form>
 
 			<div className="text-center">
-				<p className="text-sm text-gray-600 dark:text-[#A1A1AA]">
+				<p className="text-sm text-muted-foreground">
 					Don&apos;t have an account?{" "}
 					<button
 						type="button"
 						onClick={onSignupClick}
-						className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+						className="font-medium text-brand hover:underline"
 					>
 						Sign up
 					</button>

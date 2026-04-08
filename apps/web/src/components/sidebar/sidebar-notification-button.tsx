@@ -13,14 +13,13 @@ import { Bell } from "lucide-react";
 import { SidebarMenuButton } from "@/components/sidebar/sidebar";
 import { NotificationIcon } from "@/components/ui/icons-tsx/NotificationIcon";
 import { formatNotificationPreview } from "@/lib/notificationPreview";
-import { getOrgId, getProjectId} from "@/api/client"
+import { getOrgId, getProjectId } from "@/api/client";
 
 export function SidebarNotificationButton() {
 	const { toast } = useToast();
 	const navigate = useNavigate();
 	const orgId = getOrgId();
-	const projectId = getProjectId();	
-
+	const projectId = getProjectId();
 
 	const [open, setOpen] = useState(false);
 	const [notifications, setNotifications] = useState<UserNotification[]>([]);
@@ -142,7 +141,7 @@ export function SidebarNotificationButton() {
 					<span className="group-data-[collapsible=icon]:hidden">What's New</span>
 					<div className="relative">
 						{hasUnreadNotifications && (
-							<div className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full" />
+							<div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
 						)}{" "}
 					</div>
 				</SidebarMenuButton>
@@ -181,19 +180,23 @@ export function SidebarNotificationButton() {
 				<div className="flex-1 overflow-y-auto">
 					{isLoading ? (
 						<div className="flex items-center justify-center py-8">
-							<div className="text-sm text-gray-500">Loading notifications...</div>
+							<div className="text-sm text-muted-foreground">
+								Loading notifications...
+							</div>
 						</div>
 					) : notifications.length === 0 ? (
 						<div className="flex flex-col items-center justify-center py-8 text-center">
-							<Bell className="h-8 w-8 text-gray-400 mb-2" />
-							<div className="text-sm text-gray-500">No new notifications</div>
+							<Bell className="mb-2 h-8 w-8 text-muted-foreground/60" />
+							<div className="text-sm text-muted-foreground">
+								No new notifications
+							</div>
 						</div>
 					) : (
 						<div className="space-y-1 p-1">
 							{notifications.map((notification) => (
 								<div
 									key={notification.id}
-									className="p-1 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+									className="cursor-pointer rounded-lg p-1 transition-colors hover:bg-table-row"
 									onClick={() => handleViewNotification(notification.id)}
 								>
 									<div className="w-full p-3 rounded-lg">
@@ -201,21 +204,21 @@ export function SidebarNotificationButton() {
 											<NotificationIcon size="sm" />
 											<div className="flex-1 min-w-0">
 												<div className="flex items-center gap-2 mb-1">
-													<h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+													<h4 className="truncate text-sm font-medium text-foreground">
 														{notification.title}{" "}
 													</h4>
 													{notification.read === false && (
-														<div className="h-2 w-2 bg-red-500 rounded-full flex-shrink-0" />
+														<div className="h-2 w-2 rounded-full bg-destructive flex-shrink-0" />
 													)}{" "}
 												</div>
-												<p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">
+												<p className="mb-2 line-clamp-2 text-xs text-muted-foreground">
 													{formatNotificationPreview(
 														notification.content,
 														120,
 													)}{" "}
 												</p>
 												<div className="flex items-center justify-between">
-													<span className="text-xs text-gray-500">
+													<span className="text-xs text-muted-foreground">
 														{formatDate(notification.createdAt)}{" "}
 													</span>
 													<div className="flex items-center gap-2">

@@ -51,15 +51,15 @@ export function DeletePromptDialog({
 				<DialogDescription>DialogDescription</DialogDescription>
 			</VisuallyHidden>
 			<DialogContent>
-				<DialogHeader className="font-sans text-lg font-semibold leading-normal text-[color:#18181B] dark:text-[#f4f4f4]">
+				<DialogHeader className="font-sans text-lg font-semibold leading-normal text-foreground">
 					To delete prompt "{state.prompt?.name}" type prompt title.
 				</DialogHeader>
-				<p className="text-sm text-muted-foreground dark:text-[#f4f4f4]">
+				<p className="text-sm text-muted-foreground">
 					This prompt includes
 					<span className="font-bold"> {getPromptTestcasesCount(state.prompt)} testcases</span>,
 					<span className="font-bold"> {state.prompt?._count?.memories || 0} memories</span>.
 					 This action cannot be undone.
-					<span className="text-destructive dark:text-[#D64646]"> All data will be lost.</span>
+					<span className="text-destructive"> All data will be lost.</span>
 				</p>
 				<Input
 					placeholder="Prompt title"

@@ -57,9 +57,7 @@ export default function ProjectMembers() {
 	return (
 		<Card className="rounded-md shadow-none">
 			<CardHeader className="flex items-center justify-between flex-row space-y-0">
-				<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
-					Project Members
-				</CardTitle>
+				<CardTitle className="text-[18px] font-medium text-foreground">Project Members</CardTitle>
 				{canManageMembers && (
 					<div className="flex gap-2">
 						<AddMemberDialog

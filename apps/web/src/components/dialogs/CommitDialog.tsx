@@ -69,7 +69,7 @@ const CommitDialog: React.FC<CommitDialogProps> = ({
 						disabled={isCommitting || isGenerating}
 						simpleButton={true}
 						tooltipText="Generate commit message automatically"
-						buttonClassName="p-1.5 rounded-md transition-all hover:bg-[#437BEF]/10 text-[#437BEF] disabled:opacity-50 disabled:cursor-not-allowed group relative"
+						buttonClassName="group relative rounded-md p-1.5 transition-all hover:bg-brand/10 text-brand disabled:cursor-not-allowed disabled:opacity-50"
 					/>
 				</div>
 					<Textarea

@@ -159,10 +159,7 @@ export const PropertyItem = ({
 								<MessageCircle className="w-4 h-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent
-							className="max-w-xs whitespace-normal bg-black text-white"
-							sideOffset={5}
-						>
+						<TooltipContent className="max-w-xs whitespace-normal" sideOffset={5}>
 							{property.description || "Add description"}
 						</TooltipContent>
 					</Tooltip>
@@ -199,7 +196,7 @@ export const PropertyItem = ({
 					<Button
 						variant="link"
 						onClick={handleAddEnumValue}
-						className="text-blue-600 h-auto p-0 flex items-center justify-start gap-1 mt-2 -ml-1"
+						className="text-brand h-auto p-0 flex items-center justify-start gap-1 mt-2 -ml-1"
 					>
 						<CirclePlus className="w-4 h-4" /> Add value
 					</Button>
@@ -230,7 +227,7 @@ export const PropertyItem = ({
 						<Button
 							variant="link"
 							onClick={handleAddNestedItem}
-							className="text-blue-600 h-auto p-0 flex items-center justify-start gap-1 mt-2 -ml-1"
+							className="text-brand h-auto p-0 flex items-center justify-start gap-1 mt-2 -ml-1"
 						>
 							<CirclePlus className="w-4 h-4" /> Add nested property
 						</Button>

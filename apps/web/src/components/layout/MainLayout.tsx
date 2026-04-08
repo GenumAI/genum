@@ -108,7 +108,10 @@ function LayoutContent({ user }: { user: UserType }) {
 		return pathWithoutOrgProject.startsWith(item.url);
 	});
 
-	const pageTitle = promptId && prompt?.prompt?.name ? prompt.prompt.name : activeMainItem?.title || "Undefined Prompt";
+	const pageTitle =
+		promptId && prompt?.prompt?.name
+			? prompt.prompt.name
+			: activeMainItem?.title || "Undefined Prompt";
 	const displayPromptName = prompt?.prompt?.name;
 
 	const routeItems = [
@@ -143,7 +146,7 @@ function LayoutContent({ user }: { user: UserType }) {
 			<CookiesPopover />
 			<AppSidebar />
 			<SidebarInset>
-				<header className="w-full bg-background dark:bg-sidebar z-[49] top-0 flex h-[54px] border-b border-[#E4E4E7] dark:border-[#27272A] shrink-0 items-center gap-2 transition-[width,height] ease-linear sticky">
+				<header className="sticky top-0 z-[49] flex h-[54px] w-full shrink-0 items-center gap-2 border-b border-border bg-[hsl(var(--header-background))] transition-[width,height] ease-linear">
 					<div className="flex items-center gap-2 pl-5 pr-6 w-full justify-between">
 						<MainLayoutBreadcrumb
 							pathnames={pathnames}
@@ -171,7 +174,7 @@ function LayoutContent({ user }: { user: UserType }) {
 					</div>
 				</header>
 				<PageHeader title={pageTitle} navItems={routeItems} />
-				<main className="bg-white dark:bg-background h-full mainContent w-full flex justify-center pb-8 [&>*]:w-full [&>*]:min-w-0">
+				<main className="mainContent flex h-full w-full justify-center bg-background pb-8 [&>*]:min-w-0 [&>*]:w-full">
 					<Outlet />
 				</main>
 			</SidebarInset>
@@ -216,7 +219,7 @@ const RotateScreenPlug = () => {
 						"before:content-[''] before:absolute before:inset-0 before:backdrop-blur-[45px]",
 					)}
 				/>
-				<div className="absolute inset-0 bg-[#f2f2f2] opacity-50" />
+				<div className="absolute inset-0 bg-overlay" />
 				<div className="absolute top-0 z-10 mt-6">
 					<Logo />
 				</div>

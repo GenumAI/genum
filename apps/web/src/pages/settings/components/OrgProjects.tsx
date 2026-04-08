@@ -45,9 +45,7 @@ export default function OrgProjects() {
 	return (
 		<Card className="rounded-md shadow-none">
 			<CardHeader className="flex items-center justify-between flex-row">
-				<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
-					Projects
-				</CardTitle>
+				<CardTitle className="text-[18px] font-medium text-foreground">Projects</CardTitle>
 				<div className="flex gap-2">
 					<CreateProjectDialog
 						open={openCreateDialog}

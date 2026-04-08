@@ -60,7 +60,7 @@ export function CommitAuthorAvatar({
 	return (
 		<Avatar className={`${size} ${rounded} cursor-default select-none`}>
 			{hasPicture && !imageLoaded && !imageError && (
-				<div className={`${size} ${rounded} bg-muted/40 dark:bg-muted/25 animate-pulse`} />
+				<div className={`${size} ${rounded} bg-muted/30 animate-pulse`} />
 			)}
 			{hasPicture && imageLoaded && !imageError && avatarUrl && (
 				<AvatarImage

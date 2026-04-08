@@ -1,9 +1,4 @@
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { File, Image as ImageIcon, Plus } from "lucide-react";
@@ -97,12 +92,12 @@ const FileSelectDialog: React.FC<FileSelectDialogProps> = ({
 
 	const getFileIcon = (file: FileMetadata) => {
 		if (file.contentType.startsWith("image/")) {
-			return <ImageIcon className="h-5 w-5 text-blue-500" />;
+			return <ImageIcon className="h-5 w-5 text-info" />;
 		}
 		if (file.contentType === "application/pdf") {
-			return <File className="h-5 w-5 text-red-500" />;
+			return <File className="h-5 w-5 text-destructive" />;
 		}
-		return <File className="h-5 w-5 text-gray-500" />;
+		return <File className="h-5 w-5 text-muted-foreground" />;
 	};
 
 	const formatFileSize = (bytes: number): string => {
@@ -122,7 +117,8 @@ const FileSelectDialog: React.FC<FileSelectDialogProps> = ({
 					<div className="flex flex-col gap-4 flex-1 min-h-0">
 						<div className="flex items-center justify-between">
 							<div className="text-sm text-muted-foreground">
-								Select up to {maxFiles} files ({localSelected.length}/{maxFiles} selected)
+								Select up to {maxFiles} files ({localSelected.length}/{maxFiles}{" "}
+								selected)
 							</div>
 							<Button
 								variant="outline"
@@ -148,59 +144,74 @@ const FileSelectDialog: React.FC<FileSelectDialogProps> = ({
 							<div className="border rounded-md overflow-hidden flex-1 min-h-0 flex flex-col">
 								<div className="overflow-y-auto flex-1">
 									<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead className="w-12"></TableHead>
-											<TableHead>Name</TableHead>
-											<TableHead>Type</TableHead>
-											<TableHead>Size</TableHead>
-										</TableRow>
-									</TableHeader>
+										<TableHeader>
+											<TableRow>
+												<TableHead className="w-12"></TableHead>
+												<TableHead>Name</TableHead>
+												<TableHead>Type</TableHead>
+												<TableHead>Size</TableHead>
+											</TableRow>
+										</TableHeader>
 										<TableBody>
 											{files.map((file) => {
-											const selected = isFileSelected(file);
-											const canSelect = !selected && localSelected.length < maxFiles;
+												const selected = isFileSelected(file);
+												const canSelect =
+													!selected && localSelected.length < maxFiles;
 
-											return (
-												<TableRow
-													key={file.id}
-													onClick={() => toggleFile(file)}
-													className={cn(
-														"cursor-pointer h-12 transition-none",
-														selected && "bg-primary/10 hover:bg-primary/10",
-														!selected && !canSelect && "opacity-50 cursor-not-allowed hover:bg-transparent",
-														!selected && canSelect && "hover:bg-muted/30",
-													)}
-												>
-													<TableCell
-														className="w-12 h-12"
-														onClick={(e) => e.stopPropagation()}
+												return (
+													<TableRow
+														key={file.id}
+														onClick={() => toggleFile(file)}
+														className={cn(
+															"cursor-pointer h-12 transition-none",
+															selected &&
+																"bg-primary/10 hover:bg-primary/10",
+															!selected &&
+																!canSelect &&
+																"opacity-50 cursor-not-allowed hover:bg-transparent",
+															!selected &&
+																canSelect &&
+																"hover:bg-muted/30",
+														)}
 													>
-														<div className="flex items-center h-4">
-															<Checkbox
-																checked={selected}
-																onCheckedChange={() => toggleFile(file)}
-																disabled={!canSelect && !selected}
-															/>
-														</div>
-													</TableCell>
-													<TableCell>
-														<div className="flex items-center gap-2">
-															{getFileIcon(file)}
-															<div className="font-medium">{file.name}</div>
-														</div>
-													</TableCell>
-													<TableCell>
-														{file.contentType.startsWith("image/")
-															? "Image"
-															: file.contentType === "application/pdf"
-																? "PDF"
-																: file.contentType}
-													</TableCell>
-													<TableCell>{formatFileSize(file.size)}</TableCell>
-												</TableRow>
-											);
-										})}
+														<TableCell
+															className="w-12 h-12"
+															onClick={(e) => e.stopPropagation()}
+														>
+															<div className="flex items-center h-4">
+																<Checkbox
+																	checked={selected}
+																	onCheckedChange={() =>
+																		toggleFile(file)
+																	}
+																	disabled={
+																		!canSelect && !selected
+																	}
+																/>
+															</div>
+														</TableCell>
+														<TableCell>
+															<div className="flex items-center gap-2">
+																{getFileIcon(file)}
+																<div className="font-medium">
+																	{file.name}
+																</div>
+															</div>
+														</TableCell>
+														<TableCell>
+															{file.contentType.startsWith("image/")
+																? "Image"
+																: file.contentType ===
+																		"application/pdf"
+																	? "PDF"
+																	: file.contentType}
+														</TableCell>
+														<TableCell>
+															{formatFileSize(file.size)}
+														</TableCell>
+													</TableRow>
+												);
+											})}
 										</TableBody>
 									</Table>
 								</div>

@@ -92,16 +92,16 @@ function LogsTableComponent({
 										<tr
 											className={`cursor-pointer transition-colors ${
 												log.log_lvl === "ERROR"
-													? "bg-red-50 hover:bg-red-100 dark:bg-[#3c292a]"
+													? "bg-destructive/10 hover:bg-destructive/15"
 													: "hover:bg-muted/50"
 											}`}
 											onClick={() => onLogClick(log)}
 										>
 											<td className="w-12 p-3 text-center">
 												{log.log_lvl === "SUCCESS" ? (
-													<CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-[#2da44a] mx-auto" />
+													<CheckCircle2 className="mx-auto h-4 w-4 text-success" />
 												) : (
-													<XCircle className="h-4 w-4 text-destructive dark:text-[#d74746] mx-auto" />
+													<XCircle className="mx-auto h-4 w-4 text-destructive" />
 												)}
 											</td>
 
@@ -117,7 +117,10 @@ function LogsTableComponent({
 												{normalizeVendorName(log.vendor)}
 											</td>
 
-											<td className="w-[180px] p-3 text-center truncate" title={log.model}>
+											<td
+												className="w-[180px] p-3 text-center truncate"
+												title={log.model}
+											>
 												{modelDisplay}
 											</td>
 
@@ -181,7 +184,7 @@ function LogsTableComponent({
 												<h3 className="text-sm font-semibold">
 													Error Description
 												</h3>
-												<p className="text-sm dark:text-[#FFFFFF]">
+												<p className="text-sm text-popover-foreground">
 													{log.description}
 												</p>
 											</div>

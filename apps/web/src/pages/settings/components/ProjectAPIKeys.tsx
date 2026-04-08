@@ -72,9 +72,7 @@ export default function ProjectAPIKeys() {
 	return (
 		<Card className="rounded-md shadow-none">
 			<div className="flex items-center justify-between p-6">
-				<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
-					Project API Keys
-				</CardTitle>
+				<CardTitle className="text-[18px] font-medium text-foreground">Project API Keys</CardTitle>
 
 				<CreateAPIKeyDialog
 					open={isDialogOpen}
@@ -93,7 +91,7 @@ export default function ProjectAPIKeys() {
 						href="https://docs.genum.ai/Integration/integration-api"
 						target="_blank"
 						rel="noopener noreferrer"
-						className="text-blue-600 underline hover:text-blue-800"
+						className="text-brand underline hover:text-brand/80"
 					>
 						Learn more
 					</a>
@@ -103,7 +101,7 @@ export default function ProjectAPIKeys() {
 			<CardContent>
 				<div className="relative overflow-x-auto rounded-md">
 					<Table className="rounded-md overflow-hidden">
-						<TableHeader className="bg-[#F4F4F5] dark:bg-[#262626] dark:text-[#fff] h-12 font-medium text-muted-foreground text-center">
+						<TableHeader className="h-12 bg-table-header text-center font-medium text-muted-foreground">
 							<TableRow>
 								<TableHead
 									onClick={() => handleSort("name")}
@@ -144,14 +142,14 @@ export default function ProjectAPIKeys() {
 								<TableRow>
 									<td colSpan={6} className="py-8 text-center">
 										<div className="flex items-center justify-center gap-2">
-											<div className="h-5 w-5 animate-spin rounded-full border-b-2 border-gray-500" />
+											<div className="h-5 w-5 animate-spin rounded-full border-b-2 border-brand" />
 											Loading...
 										</div>
 									</td>
 								</TableRow>
 							) : apiKeys.length === 0 ? (
 								<TableRow>
-									<td colSpan={6} className="py-8 text-center text-gray-500">
+									<td colSpan={6} className="py-8 text-center text-muted-foreground">
 										No API keys found
 									</td>
 								</TableRow>

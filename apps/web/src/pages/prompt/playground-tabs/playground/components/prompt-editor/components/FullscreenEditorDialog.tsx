@@ -111,6 +111,7 @@ const FullscreenEditorDialog = ({
 							}}
 							isExpanded={isOpen}
 							setIsExpanded={onOpenChange}
+							showHeader={false}
 							main={true}
 							promptText={promptText}
 							setPromptText={setPromptText}
@@ -142,7 +143,7 @@ const FullscreenEditorDialog = ({
 						</EditorCard>
 					</div>
 
-					<div className="text-sm text-gray-800 flex flex-col gap-[6px] pt-16 max-w-[195px] w-full min-h-0 flex-1">
+					<div className="text-sm text-foreground flex flex-col gap-[6px] pt-16 max-w-[195px] w-full min-h-0 flex-1">
 						<div className="flex-1 min-h-0 flex flex-col">
 							<TableOfContents
 								items={tocItems}

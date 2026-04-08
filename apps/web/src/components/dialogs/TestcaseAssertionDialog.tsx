@@ -26,11 +26,11 @@ interface TestcaseAssertionModalProps {
 export const getTestCaseIcon = (type: TestStatus) => {
 	switch (type) {
 		case "OK":
-			return <CircleCheck className="text-[#2E9D2A]" />;
+			return <CircleCheck className="text-success" />;
 		case "NOK":
-			return <CirclePlus className="text-[#FF4545] transform rotate-45" />;
+			return <CirclePlus className="transform rotate-45 text-destructive" />;
 		case "NEED_RUN":
-			return <CircleAlert className="text-[#FAAD15]" />;
+			return <CircleAlert className="text-warning" />;
 		default:
 			return null;
 	}
@@ -38,16 +38,16 @@ export const getTestCaseIcon = (type: TestStatus) => {
 
 export const getTestCaseStatusIcon = (type: string) => {
 	if (type?.toLowerCase().includes("ok")) {
-		return <CircleCheck className="text-[#2E9D2A] min-w-[16px]" />;
+		return <CircleCheck className="min-w-[16px] text-success" />;
 	} else if (type?.toLowerCase().includes("nok") || type?.toLowerCase().includes("fail")) {
-		return <CirclePlus className="text-[#FF4545] min-w-[16px] transform rotate-45" />;
+		return <CirclePlus className="min-w-[16px] rotate-45 transform text-destructive" />;
 	} else if (
 		type?.toLowerCase().includes("need_run") ||
 		type?.toLowerCase().includes("pending")
 	) {
-		return <CircleAlert className="text-[#FAAD15] min-w-[16px]" />;
+		return <CircleAlert className="min-w-[16px] text-warning" />;
 	} else {
-		return <CircleAlert className="text-gray-400 min-w-[16px]" />;
+		return <CircleAlert className="min-w-[16px] text-muted-foreground" />;
 	}
 };
 
@@ -90,9 +90,11 @@ export const TestcaseAssertionModal = ({
 				<div>
 					<div className="flex justify-start gap-2 items-center text-[14px] h-[30px]">
 						<span className="font-semibold">Status</span>
-						<span className="[&_svg]:size-4 flex flex-row gap-1 items-center text-[#18181B] dark:text-muted-foreground">
+						<span className="flex flex-row items-center gap-1 [&_svg]:size-4">
 							{getTestCaseIcon(testcase.status as TestStatus)}
-							{getTestCaseTooltip(testcase.status as TestStatus)}
+							<span className="text-muted-foreground">
+								{getTestCaseTooltip(testcase.status as TestStatus)}
+							</span>
 						</span>
 					</div>
 
@@ -102,7 +104,7 @@ export const TestcaseAssertionModal = ({
 						<>
 							<div className="flex justify-start gap-2 items-center text-[14px] min-h-[30px]">
 								<span className="font-semibold">Prompt Run Status</span>
-								<span className="[&_svg]:size-4 flex flex-row gap-1 items-center text-[#18181B]">
+								<span className="flex flex-row items-center gap-1 text-foreground [&_svg]:size-4">
 									{getTestCaseStatusIcon(status)}
 									{status}
 								</span>
@@ -117,12 +119,12 @@ export const TestcaseAssertionModal = ({
 						<Badge
 							className={
 								`${currentAssertionType === "STRICT"
-									? "bg-[#2A9D90] text-white rounded-xl"
+									? "rounded-xl bg-chart-2 text-primary-foreground"
 									: currentAssertionType === "MANUAL"
-										? "bg-[#6C98F2] text-white rounded-xl"
+										? "rounded-xl bg-chart-7 text-primary-foreground"
 										: currentAssertionType === "AI"
-											? "bg-[#B66AD6] text-white rounded-xl"
-											: "bg-gray-200 text-black"} border-none`
+											? "rounded-xl bg-chart-4 text-primary-foreground"
+											: "rounded-xl bg-muted text-foreground"} border-none`
 							}
 						>
 							{currentAssertionType}

@@ -27,9 +27,7 @@ export default function ProjectDetails() {
 		<Card className="rounded-md shadow-none">
 			<CardContent className="space-y-4 p-6 max-w-[724px]">
 				<div className="flex items-start justify-between">
-					<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
-						Project Details
-					</CardTitle>
+					<CardTitle className="text-[18px] font-medium text-foreground">Project Details</CardTitle>
 					{canEditProject && (
 						<Button variant="outline" size="sm" onClick={() => setOpen(true)}>
 							Edit
@@ -37,13 +35,11 @@ export default function ProjectDetails() {
 					)}
 				</div>
 				<div className="space-y-1.5 ">
-					<Label className="mb-1 block text-[#18181B] dark:text-[#FAFAFA]">Name</Label>
+					<Label className="mb-1 block text-foreground">Name</Label>
 					<Input disabled value={project.name} />
 				</div>
 				<div className="space-y-1.5 ">
-					<Label className="mb-1 block text-[#18181B] dark:text-[#FAFAFA]">
-						Description
-					</Label>
+					<Label className="mb-1 block text-foreground">Description</Label>
 					<Input disabled value={project.description || ""} />
 				</div>
 			</CardContent>

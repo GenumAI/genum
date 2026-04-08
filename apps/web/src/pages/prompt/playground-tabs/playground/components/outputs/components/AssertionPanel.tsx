@@ -2,7 +2,13 @@ import type React from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { capitalizeFirstLetter } from "@/lib/capitalizeFirstLetter";
 import AssertionPopover from "@/components/popovers/AssertionPopover";
 import clsx from "clsx";
@@ -42,15 +48,16 @@ export const AssertionPanel: React.FC<AssertionPanelProps> = ({
 								type="button"
 								className="h-[32px] min-w-[120px] px-3 rounded-md transition-colors flex items-center justify-start gap-2 hover:bg-muted/50"
 							>
-								<h2 className="text-[#18181B] dark:text-[#FFFFFF] text-[12px] font-bold flex-shrink-0">
+								<h2 className="flex-shrink-0 text-[12px] font-bold text-foreground">
 									Assertion:
 								</h2>
 								<div
 									className={clsx(
-										"rounded-xl flex items-center justify-center h-4 text-[12px] font-[600] text-white flex-shrink-0",
+										"rounded-xl flex h-4 items-center justify-center text-[12px] font-[600] text-primary-foreground flex-shrink-0",
 										{
-											"bg-[#2A9D90] w-[56px]": currentAssertionType === "STRICT",
-											"bg-[#B66AD6] w-[56px]": currentAssertionType === "AI",
+											"bg-chart-2 w-[56px]":
+												currentAssertionType === "STRICT",
+											"bg-chart-4 w-[56px]": currentAssertionType === "AI",
 										},
 									)}
 								>
@@ -68,15 +75,15 @@ export const AssertionPanel: React.FC<AssertionPanelProps> = ({
 			</TooltipProvider>
 			<PopoverContent className="w-[400px] rounded-xl p-4" align="start">
 				<div className="space-y-3">
-					<h3 className="text-[#18181B] dark:text-[#FFFFFF] font-sans text-[14px] font-bold mb-4">
+					<h3 className="mb-4 font-sans text-[14px] font-bold text-foreground">
 						Assertion
 					</h3>
 
 					<Select value={currentAssertionType} onValueChange={onAssertionTypeChange}>
-						<SelectTrigger className="text-[#18181B] dark:text-[#FFFFFF] text-[14px] font-normal leading-[20px] w-full">
+						<SelectTrigger className="w-full text-[14px] font-normal leading-[20px] text-foreground">
 							<SelectValue placeholder="AI" />
 						</SelectTrigger>
-						<SelectContent className="text-[#18181B] dark:text-[#FFFFFF] text-[14px] font-normal leading-[20px] w-full">
+						<SelectContent className="w-full text-[14px] font-normal leading-[20px] text-foreground">
 							<SelectItem value="STRICT">Strict</SelectItem>
 							<SelectItem value="AI">AI</SelectItem>
 						</SelectContent>
@@ -85,7 +92,7 @@ export const AssertionPanel: React.FC<AssertionPanelProps> = ({
 					<div className="space-y-2">
 						{currentAssertionType === "AI" && (
 							<div className="flex items-center justify-between">
-								<span className="font-sans text-[12px] not-italic font-medium leading-[12px] text-[#18181B] dark:text-[#FFFFFF]">
+								<span className="font-sans text-[12px] not-italic font-medium leading-[12px] text-foreground">
 									Value
 								</span>
 								{promptId && (

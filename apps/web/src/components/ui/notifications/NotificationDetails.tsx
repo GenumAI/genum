@@ -105,7 +105,7 @@ export default function NotificationDetails() {
 				</div>
 
 				<div className="flex items-center justify-center py-12">
-					<div className="text-sm text-gray-500">Loading notification...</div>
+					<div className="text-sm text-muted-foreground">Loading notification...</div>
 				</div>
 			</div>
 		);
@@ -129,11 +129,13 @@ export default function NotificationDetails() {
 				</div>
 
 				<div className="flex flex-col items-center justify-center py-12 text-center">
-					<Bell className="h-12 w-12 text-gray-400 mb-4" />
-					<h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+					<Bell className="mb-4 h-12 w-12 text-muted-foreground/60" />
+					<h3 className="mb-2 text-lg font-medium text-foreground">
 						Notification not found
 					</h3>
-					<p className="text-sm text-gray-500">This notification could not be loaded.</p>
+					<p className="text-sm text-muted-foreground">
+						This notification could not be loaded.
+					</p>
 				</div>
 			</div>
 		);
@@ -159,19 +161,19 @@ export default function NotificationDetails() {
 							<NotificationIcon size="lg" />
 							<div className="flex-1 min-w-0">
 								<div className="flex items-center gap-3 mb-4">
-									<h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+									<h1 className="text-2xl font-bold text-foreground">
 										{notification.title}
 									</h1>
 								</div>
 
-								<div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+								<div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
 									<Calendar className="h-4 w-4" />
 									<span>{formatDate(notification.createdAt)}</span>
 								</div>
 							</div>
 						</div>
 						<div className="prose prose-lg max-w-none">
-							<div className="text-gray-700 dark:text-gray-300 leading-relaxed">
+							<div className="leading-relaxed text-foreground/85">
 								<ReactMarkdown
 									remarkPlugins={[remarkGfm]}
 									components={{
@@ -236,7 +238,7 @@ export default function NotificationDetails() {
 												href={href}
 												target="_blank"
 												rel="noopener noreferrer"
-												className="text-blue-500 underline break-words"
+												className="text-brand underline break-words"
 											>
 												{children}
 											</a>

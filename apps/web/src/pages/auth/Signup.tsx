@@ -1,12 +1,9 @@
-import { useTheme } from "@/components/theme/theme-provider";
 import { getInviteThemeAssets } from "@/pages/invite/utils/inviteThemeAssets";
 import { AuthPageFrame } from "./components/AuthPageFrame";
 import SignupForm from "./components/SignupForm";
 import { useSignupForm } from "./hooks/useSignupForm";
 
 export default function Signup() {
-	const { resolvedTheme } = useTheme();
-	const isDark = resolvedTheme === "dark";
 	const { isCloud, isAuthenticated, form, isLoading, onSubmit, navigateToLogin } =
 		useSignupForm();
 
@@ -17,7 +14,7 @@ export default function Signup() {
 	if (isAuthenticated) {
 		return null;
 	}
-	const { logoSrc, backgroundImage } = getInviteThemeAssets(isDark, false);
+	const { logoSrc, backgroundImage } = getInviteThemeAssets(false);
 
 	return (
 		<AuthPageFrame

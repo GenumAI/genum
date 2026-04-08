@@ -113,7 +113,7 @@ export function CreateAPIKeyDialog({
 									className="shrink-0 h-[40px] w-10"
 								>
 									{copied ? (
-										<CheckIcon className="h-4 w-4 text-green-600" size={16} />
+										<CheckIcon className="h-4 w-4 text-success" size={16} />
 									) : (
 										<CopyIcon className="h-4 w-4" size={16} />
 									)}
@@ -123,7 +123,7 @@ export function CreateAPIKeyDialog({
 
 						<p className="text-sm text-muted-foreground">
 							Your new API key has been created.{" "}
-							<span className="font-medium text-zinc-800">Please copy it now.</span>{" "}
+							<span className="font-medium text-foreground">Please copy it now.</span>{" "}
 							You won't be able to see it again!
 						</p>
 
