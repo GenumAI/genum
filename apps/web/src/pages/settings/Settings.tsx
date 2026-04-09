@@ -60,12 +60,11 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
 			end
 			className={({ isActive }) =>
 				cn(
-					"block h-[32px] rounded-md px-2 py-[9px] text-sm font-normal leading-[1] transition-colors text-foreground",
-					isActive
-						? "bg-muted font-medium"
-						: "hover:bg-muted text-muted-foreground",
+					"block h-[32px] rounded-md px-2 py-[9px] text-sm font-normal leading-[1] transition-colors",
+					isActive ? "bg-muted font-medium" : "hover:bg-muted",
 				)
 			}
+			data-settings-link="true"
 		>
 			{children}
 		</NavLink>
@@ -101,7 +100,7 @@ export default function Settings() {
 	return (
 		<div className="container pt-6 max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] mx-3 w-full">
 			<div className="flex flex-col gap-6 md:flex-row mt-3">
-				<aside className="shrink-0 w-[216px]">
+				<aside className="shrink-0 w-[216px]" data-settings-nav="true">
 				{MENU.map((section) => {
 						const visibleItems = section.items.filter((item) =>
 							hasAccess(item.minRole, orgRole),

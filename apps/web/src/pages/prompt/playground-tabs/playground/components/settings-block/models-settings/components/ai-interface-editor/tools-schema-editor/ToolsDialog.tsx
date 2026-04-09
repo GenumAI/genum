@@ -189,6 +189,7 @@ export default function ToolsModal({
 										placeholder="Enter your tool_name"
 										value={toolName}
 										onChange={(e) => handleNameChange(e.target.value)}
+										className="bg-background"
 									/>
 								</div>
 								<div className="flex-shrink-0">
@@ -203,6 +204,7 @@ export default function ToolsModal({
 										placeholder="Short tool description"
 										value={toolDescription}
 										onChange={(e) => setToolDescription(e.target.value)}
+										className="bg-background"
 									/>
 								</div>
 

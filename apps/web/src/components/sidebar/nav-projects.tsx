@@ -49,7 +49,11 @@ export function NavProjects({
 						<SidebarMenuItem key={item.title}>
 							<SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
 								{isExternal ? (
-									<a href={fullUrl} target="_blank" rel="noopener noreferrer">
+									<a
+										href={fullUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+									>
 										{item.icon && <item.icon />}
 										<span className="group-data-[collapsible=icon]:hidden">
 											{item.title}

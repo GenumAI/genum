@@ -76,7 +76,12 @@ const MemoryKey = ({ promptId }: MemoryKeyProps) => {
 										</SelectValue>
 									</SelectTrigger>
 
-									<SelectContent className="space-y-1 text-sm font-normal leading-5 w-full">
+									<SelectContent
+										position="popper"
+										side="bottom"
+										sideOffset={18}
+										className="ml-[-16px] w-[calc(var(--radix-select-trigger-width)+32px)] space-y-1 text-sm font-normal leading-5"
+									>
 										<div className="p-2">
 											{memories &&
 												memories.length > 0 &&

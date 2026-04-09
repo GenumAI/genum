@@ -56,7 +56,7 @@ export const InputContent = forwardRef<HTMLTextAreaElement, InputContentProps>(
 						onChange={onChange}
 						onBlur={onBlur}
 						placeholder="Enter your input here..."
-						className="resize-none border-border bg-[hsl(var(--editor-input-background))] text-[14px] focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 md:text-[14px]"
+						className="resize-none border-border bg-background text-[14px] focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 md:text-[14px]"
 						style={{ height: `${height}px`, minHeight: `${minHeight}px` }}
 					/>
 				)}

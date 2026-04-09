@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ListFilter } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Prompt } from "@/pages/prompt/utils/types";
 import type { TestStatus } from "@/types/TestСase";
 import { testcaseStatusOptions, truncateText } from "./utils/testcases.utils";
@@ -64,12 +65,25 @@ const TestCasesFilter = ({ prompts, filterState, setFilterState }: TestCasesFilt
 		[tempFilters.prompts],
 	);
 	return (
-		<Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-			<PopoverTrigger asChild>
-				<Button variant="outline" className="flex items-center gap-2">
-					<ListFilter className="w-4 h-4" /> Filters
-				</Button>
-			</PopoverTrigger>
+		<TooltipProvider>
+			<Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+				<Tooltip>
+					<PopoverTrigger asChild>
+						<TooltipTrigger asChild>
+							<Button
+								variant="outline"
+								size="icon"
+								aria-label="Filters"
+								className="h-9 w-9"
+							>
+								<ListFilter className="w-4 h-4" />
+							</Button>
+						</TooltipTrigger>
+					</PopoverTrigger>
+					<TooltipContent>
+						<p>Filters</p>
+					</TooltipContent>
+				</Tooltip>
 			<PopoverContent className="w-[280px] p-4" align="start">
 				<div className="flex flex-col gap-2">
 					<h3 className="text-base-foreground leading-7 text-sm font-semibold tracking-tight">
@@ -131,7 +145,8 @@ const TestCasesFilter = ({ prompts, filterState, setFilterState }: TestCasesFilt
 					</div>
 				</div>
 			</PopoverContent>
-		</Popover>
+			</Popover>
+		</TooltipProvider>
 	);
 };
 

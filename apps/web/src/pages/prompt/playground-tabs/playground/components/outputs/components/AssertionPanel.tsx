@@ -53,11 +53,12 @@ export const AssertionPanel: React.FC<AssertionPanelProps> = ({
 								</h2>
 								<div
 									className={clsx(
-										"rounded-xl flex h-4 items-center justify-center text-[12px] font-[600] text-primary-foreground flex-shrink-0",
+										"rounded-xl flex h-4 items-center justify-center text-[12px] font-[600] text-primary-foreground dark:text-white flex-shrink-0",
 										{
 											"bg-chart-2 w-[56px]":
 												currentAssertionType === "STRICT",
-											"bg-chart-4 w-[56px]": currentAssertionType === "AI",
+											"bg-[hsl(var(--ai-tag))] w-[56px]":
+												currentAssertionType === "AI",
 										},
 									)}
 								>

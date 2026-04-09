@@ -126,7 +126,7 @@ export default function AIGenerateButton(props: AIGenerateButtonProps) {
 	return (
 		<TooltipProvider>
 			<Tooltip>
-				<Popover open={isOpen} onOpenChange={setIsOpen}>
+				<Popover open={isOpen} onOpenChange={setIsOpen} modal>
 					<PopoverTrigger asChild>
 						<TooltipTrigger asChild>
 							{isInputMode ? (

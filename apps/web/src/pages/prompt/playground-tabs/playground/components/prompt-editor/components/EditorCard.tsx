@@ -191,7 +191,7 @@ const EditorCard = ({
 				)}
 			>
 				{showHeader && (
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 bg-background p-0 pb-2">
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 p-0 pb-2">
 						<div className="flex items-center gap-3">
 							<CardTitle className="text-sm font-medium">{title}</CardTitle>
 						</div>
@@ -228,7 +228,7 @@ const EditorCard = ({
 						!editorHeight && "flex flex-col h-full min-h-0",
 					)}
 				>
-					<div className="px-2 py-1.5 bg-muted rounded-t-md">
+					<div className="px-2 py-1.5 bg-table-header rounded-t-md">
 						<div className="flex w-full min-w-0 items-center gap-2">
 							<div className="min-w-0 flex-1 overflow-x-auto">
 								<div className="flex w-max items-center">

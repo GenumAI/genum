@@ -55,9 +55,9 @@ export const ToolsSection = memo(
 				{shouldShowAddFunction && (
 					<Button
 						type="button"
-						variant="secondary"
+						variant="ghost"
 						size="sm"
-						className="w-full self-start px-1 py-1 gap-1 transition-colors"
+						className="h-8 w-full self-start border border-border bg-muted/60 px-2 py-1 text-[12px] text-foreground transition-colors hover:bg-muted/80 dark:border-border dark:bg-background dark:hover:bg-muted"
 						onClick={() => setToolsModalOpen(true)}
 					>
 						Add Function

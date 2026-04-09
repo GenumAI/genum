@@ -19,6 +19,7 @@ interface InputActionsProps {
 	isPreviewDisabled?: boolean;
 	// Expand props
 	onExpandToggle: () => void;
+	showExpandButton?: boolean;
 }
 
 export const InputActions = ({
@@ -34,6 +35,7 @@ export const InputActions = ({
 	onPreviewToggle,
 	isPreviewDisabled = false,
 	onExpandToggle,
+	showExpandButton = true,
 }: InputActionsProps) => {
 	return (
 		<div className="flex items-center gap-2">
@@ -73,23 +75,25 @@ export const InputActions = ({
 				</Tooltip>
 			</TooltipProvider>
 
-			<TooltipProvider>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-6 w-6 text-foreground [&_svg]:size-3"
-							onClick={onExpandToggle}
-						>
-							<CornersOutIcon style={{ width: "20px", height: "20px" }} />
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent>
-						<p>Expand</p>
-					</TooltipContent>
-				</Tooltip>
-			</TooltipProvider>
+			{showExpandButton && (
+				<TooltipProvider>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-6 w-6 text-foreground [&_svg]:size-3"
+								onClick={onExpandToggle}
+							>
+								<CornersOutIcon style={{ width: "20px", height: "20px" }} />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							<p>Expand</p>
+						</TooltipContent>
+					</Tooltip>
+				</TooltipProvider>
+			)}
 		</div>
 	);
 };

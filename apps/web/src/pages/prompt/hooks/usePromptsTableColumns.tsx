@@ -77,11 +77,11 @@ export const usePromptsTableColumns = ({
 						? "bg-chart-2"
 						: value === "MANUAL"
 							? "bg-chart-7"
-							: "bg-chart-4";
+							: "bg-[hsl(var(--ai-tag))]";
 				return (
 					<div className="flex justify-center">
 						<Badge
-							className={`${color} shadow-none rounded-[50px] text-primary-foreground font-sans text-[12px] h-[20px] not-italic font-semibold leading-[16px]`}
+							className={`${color} shadow-none rounded-[50px] text-primary-foreground dark:text-white font-sans text-[12px] h-[20px] not-italic font-semibold leading-[16px]`}
 						>
 							{value.toLowerCase() === "ai"
 								? "AI"

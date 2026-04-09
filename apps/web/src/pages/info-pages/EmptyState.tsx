@@ -1,4 +1,5 @@
 import { Inbox } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
@@ -6,18 +7,28 @@ interface EmptyStateProps {
 	description: string;
 	minHeight?: string;
 	className?: string;
+	withBackground?: boolean;
+	children?: ReactNode;
 }
 
-export const EmptyState = ({ title, description, minHeight = "361px", className }: EmptyStateProps) => (
+export const EmptyState = ({
+	title,
+	description,
+	minHeight = "361px",
+	className,
+	withBackground = true,
+	children,
+}: EmptyStateProps) => (
 	<section
 		className={cn(
-			"flex w-full items-center justify-center rounded-xl border border-dashed border-border p-6 shadow-none bg-background",
+			"flex w-full items-center justify-center rounded-xl border border-dashed border-border p-6 shadow-none",
+			withBackground && "bg-background",
 			className
 		)}
 		style={{ minHeight }}
 		aria-label="Empty state"
 	>
-		<div className="flex flex-col items-center gap-6 text-muted-foreground">
+		<div className="flex w-full max-w-[560px] flex-col items-center gap-6 text-muted-foreground">
 			<div className="flex items-center justify-center rounded-xl h-12 w-12 border border-border shadow-sm text-foreground">
 				<Inbox className="h-6 w-6" strokeWidth={1.5} />
 			</div>
@@ -28,6 +39,8 @@ export const EmptyState = ({ title, description, minHeight = "361px", className 
 				</span>
 				<span className="text-muted-foreground text-[14px] text-center">{description}</span>
 			</div>
+
+			{children}
 		</div>
 	</section>
 );

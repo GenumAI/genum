@@ -119,11 +119,11 @@ export const TestcaseAssertionModal = ({
 						<Badge
 							className={
 								`${currentAssertionType === "STRICT"
-									? "rounded-xl bg-chart-2 text-primary-foreground"
+									? "rounded-xl bg-chart-2 text-primary-foreground dark:text-white"
 									: currentAssertionType === "MANUAL"
 										? "rounded-xl bg-chart-7 text-primary-foreground"
 										: currentAssertionType === "AI"
-											? "rounded-xl bg-chart-4 text-primary-foreground"
+											? "rounded-xl bg-[hsl(var(--ai-tag))] text-primary-foreground dark:text-white"
 											: "rounded-xl bg-muted text-foreground"} border-none`
 							}
 						>

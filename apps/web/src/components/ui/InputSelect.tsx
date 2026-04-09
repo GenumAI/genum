@@ -56,7 +56,6 @@ export const InputSelect: React.FC<{
 	renderOption,
 	listClassName,
 	popoverProps,
-	...restProps
 }) => {
 	const [selectedValue, setSelectedValue] = React.useState<string>(value);
 	const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
@@ -90,7 +89,7 @@ export const InputSelect: React.FC<{
 		if (value !== selectedValue) {
 			setSelectedValue(value);
 		}
-	}, [value]);
+	}, [value, selectedValue]);
 
 	const filteredGroups: InputSelectGroup[] | null = React.useMemo(() => {
 		if (!groups || groups.length === 0) return null;
@@ -317,8 +316,8 @@ export const InputSelectTrigger = React.forwardRef<
 				type="button"
 				disabled={disabled}
 				className={cn(
-					"flex h-11 w-full items-center justify-between p-1 [&_svg]:pointer-events-auto",
-					"hover:bg-transparent",
+					"flex h-9 w-full items-center justify-between border-input !bg-[hsl(var(--field-background))] p-1 text-foreground shadow-sm [&_svg]:pointer-events-auto",
+					"hover:!bg-[hsl(var(--field-background))]",
 					disabled && "[&_svg]:pointer-events-none",
 					className,
 				)}

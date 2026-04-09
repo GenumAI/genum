@@ -63,6 +63,7 @@ export const ExpandedOutputDialog: React.FC<ExpandedOutputDialogProps> = ({
 						modified={modifiedValue}
 						onChange={onModifiedValueChange}
 						onBlur={onSaveModifiedValue}
+						surfaceToken="--background"
 						className="output-diff-editor w-full min-w-0"
 					/>
 				</div>

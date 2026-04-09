@@ -39,7 +39,7 @@ export function NavMain({
 						const isActive = pathname.startsWith(fullUrl);
 						return (
 							<SidebarMenuItem key={item.title}>
-								<SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
+							<SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
 									<Link to={fullUrl}>
 										{item.icon && <item.icon />}
 										<span className="group-data-[collapsible=icon]:hidden">
