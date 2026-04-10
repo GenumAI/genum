@@ -18,7 +18,7 @@ type UsePromptsTableColumnsParams = {
 
 export const usePromptsTableColumns = ({
 	onDeletePrompt,
-}: UsePromptsTableColumnsParams): ColumnDef<Prompt>[] => {
+}: UsePromptsTableColumnsParams): ColumnDef<Prompt, unknown>[] => {
 	return [
 		{
 			accessorKey: "name",
