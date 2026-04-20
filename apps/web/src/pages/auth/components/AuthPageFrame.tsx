@@ -26,7 +26,7 @@ export function AuthPageFrame({
 		>
 			<div className={cardClassName ? `${defaultCardClassName} ${cardClassName}` : defaultCardClassName}>
 				<div className="text-center">
-					<div className="mx-auto flex h-[32px] w-[140px] items-center justify-center">
+					<div className="mx-auto flex h-[24px] w-[114px] items-center justify-center">
 						<img
 							src={logoSrc}
 							alt="Logo"
