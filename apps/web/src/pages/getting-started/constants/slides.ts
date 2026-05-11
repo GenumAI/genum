@@ -3,18 +3,24 @@ import type { GettingStartedSection, Slide } from "../types";
 export const QUICK_START_SLIDES: Slide[] = [
 	{
 		id: "qs-1",
+		title: "Genum AI Governance - Introduction",
+		youtubeId: "IJTmaSmOC70",
+		thumb: "https://img.youtube.com/vi/IJTmaSmOC70/mqdefault.jpg",
+	},
+	{
+		id: "qs-2",
 		title: "#1 – How to Create a Production-Ready Prompt",
 		youtubeId: "Q1-4C0G69eo",
 		thumb: "https://img.youtube.com/vi/Q1-4C0G69eo/mqdefault.jpg",
 	},
 	{
-		id: "qs-2",
+		id: "qs-3",
 		title: "#2 – How to Create Test Cases for Your Prompts",
 		youtubeId: "RwGPBcON6Oc",
 		thumb: "https://img.youtube.com/vi/RwGPBcON6Oc/mqdefault.jpg",
 	},
 	{
-		id: "qs-3",
+		id: "qs-4",
 		title: "#3 – Canvas Chat: Build & Refine Prompts Like an Agent",
 		youtubeId: "Mvx05PtZ4Os",
 		thumb: "https://img.youtube.com/vi/Mvx05PtZ4Os/mqdefault.jpg",

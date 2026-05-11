@@ -92,10 +92,10 @@ export function PromptsTable({
 							</TableRow>
 						))
 					) : (
-						<TableRow className="transition-none">
+						<TableRow className="transition-none border-0 hover:bg-transparent">
 							<TableCell
 								colSpan={columnsCount}
-								className="px-0 hover:bg-transparent"
+								className="border-0 px-0 hover:bg-transparent"
 							>
 								<EmptyState title="No results found" description="" />
 							</TableCell>
