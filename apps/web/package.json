@@ -44,7 +44,6 @@
     "@tiptap/extension-underline": "^2.11.7",
     "@tiptap/react": "^2.11.7",
     "@tiptap/starter-kit": "^2.11.7",
-    "@types/showdown": "^2.0.6",
     "@types/turndown": "^5.0.5",
     "axios": "^1.15.1",
     "class-variance-authority": "^0.7.1",
@@ -68,7 +67,6 @@
     "react-voice-visualizer": "^2.0.8",
     "recharts": "^2.15.4",
     "remark-gfm": "^4.0.1",
-    "showdown": "^2.1.0",
     "slate": "^0.123.0",
     "slate-history": "^0.115.0",
     "slate-react": "^0.123.0",
@@ -99,7 +97,7 @@
     "tailwindcss": "^3.4.1",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
-    "uuid": "^11.1.0",
+    "uuid": "^11.1.1",
     "vite": "^6.4.2",
     "vite-plugin-svgr": "^4.3.0"
   }
