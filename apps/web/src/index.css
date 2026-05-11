@@ -47,6 +47,8 @@ body,
 
 html {
 	background-color: hsl(var(--background));
+	overflow-y: scroll;
+	scrollbar-gutter: stable;
 }
 
 a {
@@ -110,7 +112,7 @@ body {
 		--surface-strong: 240 4.8% 88%;
 		--overlay: 240 10% 3.9% / 0.56;
 		--tooltip: 240 8% 18% / 0.96;
-		--tooltip-foreground: 240 1.8% 26.7%;
+		--tooltip-foreground: 0 0% 100%;
 		--brand: 218 84.8% 60.4%;
 		--brand-foreground: 0 0% 100%;
 		--ai-tag: 281.5 56.6% 62.7%;
@@ -193,7 +195,7 @@ body {
 		--surface-strong: 223 13% 22%;
 		--overlay: 222 30% 4% / 0.72;
 		--tooltip: 222 17% 16% / 0.96;
-		--tooltip-foreground: 220 12% 84%;
+		--tooltip-foreground: 0 0% 100%;
 		--brand: 217 74% 67%;
 		--brand-foreground: 222 28% 11%;
 		--ai-tag: 281.5 56.6% 62.7%;
@@ -477,6 +479,7 @@ html.firefox .monaco-diff-editor .inputarea {
 }
 
 body[data-scroll-locked] {
+	overflow: visible !important;
 	overflow-y: scroll !important;
 	margin-right: 0 !important;
 	padding-right: 0 !important;

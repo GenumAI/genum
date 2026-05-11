@@ -99,6 +99,7 @@ export default function AssertionPopover({
 			buttonText="Generate"
 			tooltipText="Generate assertion rule"
 			allowEmpty={true}
+			actionIconClassName="[&_path]:stroke-primary-foreground"
 			textareaClassName="text-foreground text-[14px] font-normal leading-[20px]"
 		/>
 	);
