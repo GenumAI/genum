@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
-import FileDropzone from "@/pages/files/components/FileDropzone";
+import { EmptyState } from "@/pages/info-pages/EmptyState";
 import { useFilesPage } from "./hooks/useFilesPage";
 
 export default function FilesPage() {
@@ -125,15 +125,15 @@ export default function FilesPage() {
 										colSpan={columnsCount}
 										className="border-0 px-0 pt-4 pb-0 hover:bg-transparent"
 									>
-										<FileDropzone
-											onUpload={handleUpload}
-											loading={isUploading}
-											className="w-full rounded-none border-x-0 border-b-0 border-t-0"
+										<EmptyState
 											title="No files found"
 											description="Click to upload or drag and drop"
-											helperText="Images and PDF files only (max 50MB)"
-											largeCopy={true}
 											minHeight="520px"
+											dropzone={{
+												onUpload: handleUpload,
+												loading: isUploading,
+												helperText: "Images and PDF files only (max 50MB)",
+											}}
 										/>
 									</TableCell>
 								</TableRow>
