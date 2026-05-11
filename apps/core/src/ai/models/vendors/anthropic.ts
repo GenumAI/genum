@@ -57,4 +57,28 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.maxTokens(1, ANTHROPIC_MAX_TOKENS)
 		.tools()
 		.build(),
+
+	model("claude-sonnet-4-6", AiVendor.ANTHROPIC)
+		.displayName("Claude Sonnet 4.6")
+		.description(
+			"The best combination of speed and intelligence with a 1M token context window.",
+		)
+		.pricing(3, 15)
+		.limits(1_000_000, 64_000)
+		.temperature(...ANTHROPIC_TEMPERATURE)
+		.maxTokens(1, 64_000)
+		.tools()
+		.build(),
+
+	model("claude-opus-4-7", AiVendor.ANTHROPIC)
+		.displayName("Claude Opus 4.7")
+		.description(
+			"Our most capable generally available model for complex reasoning and agentic coding.",
+		)
+		.pricing(5, 25)
+		.limits(1_000_000, 128_000)
+		.temperature(...ANTHROPIC_TEMPERATURE)
+		.maxTokens(1, 128_000)
+		.tools()
+		.build(),
 ];

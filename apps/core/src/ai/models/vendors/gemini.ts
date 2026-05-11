@@ -101,4 +101,30 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
 		.tools()
 		.build(),
+
+	model("gemini-3.1-flash-lite", AiVendor.GOOGLE)
+		.displayName("Gemini 3.1 Flash Lite")
+		.description(
+			"Frontier-class performance rivaling larger models at a fraction of the cost, optimized for low latency.",
+		)
+		.pricing(0.25, 1.5)
+		.limits(1_048_576, 65_536)
+		.temperature(...GEMINI_TEMPERATURE)
+		.maxTokens(1, 65_536)
+		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gemini-3.1-pro-preview", AiVendor.GOOGLE)
+		.displayName("Gemini 3.1 Pro Preview")
+		.description(
+			"Advanced intelligence, complex problem-solving, and powerful agentic coding capabilities with a 1M token context window.",
+		)
+		.pricing(2, 12)
+		.limits(1_048_576, 65_536)
+		.temperature(...GEMINI_TEMPERATURE)
+		.maxTokens(1, 65_536)
+		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
 ];
