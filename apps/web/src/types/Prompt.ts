@@ -53,7 +53,8 @@ export interface PromptSettings {
 			id: number;
 			name: string;
 			email: string;
-			picture: string;
+			picture?: string | null;
+			avatar?: string | null;
 		};
 	} | null;
 	_count: {

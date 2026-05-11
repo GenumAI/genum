@@ -92,10 +92,14 @@ export function AddAIKeyDialog({ onAdd }: AddAIKeyDialogProps) {
 							/>
 							<button
 								type="button"
-								className="absolute right-2 top-2 text-zinc-500 [&_svg]:size-5"
+								className="absolute right-2 top-2 text-muted-foreground [&_svg]:size-5"
 								onClick={() => setShowSecret((s) => !s)}
 							>
-								{showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+								{showSecret ? (
+									<EyeOff className="h-4 w-4" />
+								) : (
+									<Eye className="h-4 w-4" />
+								)}
 							</button>
 						</div>
 					</div>

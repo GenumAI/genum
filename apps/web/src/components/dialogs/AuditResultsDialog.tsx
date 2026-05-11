@@ -17,12 +17,12 @@ import { Separator } from "@/components/ui/separator";
 import type { AuditRisk, AuditData } from "@/types/audit";
 
 const RISK_BADGE_STYLES = {
-	high: "bg-[#DC262629] hover:bg-[#DC262629] text-[#FF4545]",
-	medium: "bg-[#E1924826] hover:bg-[#E1924826] text-[#EC790E]",
-	low: "bg-[#2E9D2A14] hover:bg-[#2E9D2A14] text-[#2E9D2A]",
+	high: "bg-destructive/15 hover:bg-destructive/15 text-destructive",
+	medium: "bg-warning/20 hover:bg-warning/20 text-warning",
+	low: "bg-success/15 hover:bg-success/15 text-success",
 } as const;
 
-const DEFAULT_BADGE_STYLE = "bg-[#AAAAAA] text-[#18181B]";
+const DEFAULT_BADGE_STYLE = "bg-muted text-foreground";
 
 const getBadgeClass = (level: string): string => {
 	const normalizedLevel = level.toLowerCase() as keyof typeof RISK_BADGE_STYLES;
@@ -59,7 +59,7 @@ const AuditResultsModal = ({
 	useEffect(() => {
 		if (auditData?.risks) {
 			setAuditSelectedRiskIndices(
-				auditData.risks.map((_: AuditRisk, index: number) => index)
+				auditData.risks.map((_: AuditRisk, index: number) => index),
 			);
 		} else {
 			setAuditSelectedRiskIndices([]);
@@ -76,11 +76,11 @@ const AuditResultsModal = ({
 
 	const handleProceedToTune = () => {
 		if (selectedRiskIndices.length === 0) return;
-		
+
 		const recommendations = selectedRiskIndices.map(
-			(index: number) => allRisks[index].recommendation
+			(index: number) => allRisks[index].recommendation,
 		);
-		
+
 		onFixRisks(recommendations);
 	};
 
@@ -94,14 +94,11 @@ const AuditResultsModal = ({
 					variant="default"
 					onClick={onRunAudit}
 					disabled={isLoading}
-					className="relative bg-[#437BEF]"
+					className="relative bg-brand text-brand-foreground"
 				>
 					{isLoading && (
 						<span className="absolute inset-0 flex items-center justify-center">
-							<CircleNotch 
-								size={20} 
-								className="animate-spin text-white dark:text-black"
-							/>
+							<CircleNotch size={20} className="animate-spin text-brand-foreground" />
 						</span>
 					)}
 					<span className={isLoading ? "opacity-0" : ""}>Run Audit</span>
@@ -119,9 +116,9 @@ const AuditResultsModal = ({
 					>
 						{isFixing && (
 							<span className="absolute inset-0 flex items-center justify-center">
-								<CircleNotch 
-									size={20} 
-									className="animate-spin text-white dark:text-black"
+								<CircleNotch
+									size={20}
+									className="animate-spin text-primary-foreground"
 								/>
 							</span>
 						)}
@@ -143,11 +140,8 @@ const AuditResultsModal = ({
 				>
 					<div className="flex items-center justify-center py-8">
 						<div className="flex items-center gap-3">
-							<CircleNotch 
-								size={24} 
-								className="animate-spin text-[#437BEF]"
-							/>
-							<span className="text-[14px] text-[#71717A] dark:text-[#A1A1AA]">
+							<CircleNotch size={24} className="animate-spin text-brand" />
+							<span className="text-[14px] text-muted-foreground">
 								Running audit...
 							</span>
 						</div>
@@ -167,7 +161,7 @@ const AuditResultsModal = ({
 					<DialogTitle className="flex flex-col gap-0.5">
 						<span className="leading-[28px]">Prompt Audit Results</span>
 						{auditData && (
-							<span className="text-[12px] font-normal text-[#71717A] dark:text-[#A1A1AA]">
+							<span className="text-[12px] font-normal text-muted-foreground">
 								Analysis completed • {allRisks.length} issues found
 							</span>
 						)}
@@ -190,7 +184,7 @@ const AuditResultsModal = ({
 							<div className="flex justify-between items-center h-[28px] mb-2">
 								<h5 className="text-[14px] font-semibold">Summary</h5>
 								{typeof rate === "number" && (
-									<h5 className="text-[14px] font-semibold text-[#437BEF] dark:text-[#739BEE] flex items-center gap-0.5">
+									<h5 className="flex items-center gap-0.5 text-[14px] font-semibold text-brand">
 										<BarChart2 className="h-4 w-4" />
 										Score {rate}/100
 									</h5>
@@ -214,7 +208,7 @@ const AuditResultsModal = ({
 									return (
 										<Card
 											key={`${item.type}-${item.level}-${index}`}
-											className={`fix-mode-risk-item border-0 p-0 shadow-none dark:bg-[#313135]`}
+											className="fix-mode-risk-item border-0 p-0 shadow-none"
 										>
 											<CardHeader className="p-0 pb-2">
 												<div className="flex justify-between items-center h-7">
@@ -242,12 +236,12 @@ const AuditResultsModal = ({
 														</Badge>
 													</div>
 												</div>
-												<CardDescription className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+												<CardDescription className="text-[12px] text-muted-foreground">
 													{item.comment}
 												</CardDescription>
 											</CardHeader>
-											<CardContent className="border border-[#739BEE] rounded-[6px] p-3">
-												<div className="text-[12px] text-[#437BEF] dark:text-[#739BEE]">
+											<CardContent className="rounded-[6px] border border-brand/50 p-3">
+												<div className="text-[12px] text-brand">
 													{item.recommendation}
 												</div>
 											</CardContent>
@@ -262,7 +256,7 @@ const AuditResultsModal = ({
 								<h5 className="text-[14px] font-semibold mb-2">
 									No audit data available
 								</h5>
-								<p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] mb-4">
+								<p className="mb-4 text-[12px] text-muted-foreground">
 									Run an audit to see the results
 								</p>
 							</div>

@@ -163,9 +163,7 @@ export default function CustomModelDialog({
 					<div className="space-y-1">
 						<Label>
 							API Key{" "}
-							<span className="text-muted-foreground font-normal">
-								(optional)
-							</span>
+							<span className="text-muted-foreground font-normal">(optional)</span>
 						</Label>
 						<div className="relative">
 							<Input
@@ -181,7 +179,7 @@ export default function CustomModelDialog({
 							/>
 							<button
 								type="button"
-								className="absolute right-2 top-2 text-zinc-500 [&_svg]:size-5"
+								className="absolute right-2 top-2 text-muted-foreground [&_svg]:size-5"
 								onClick={() => setShowProviderApiKey((s) => !s)}
 							>
 								{showProviderApiKey ? (
@@ -213,15 +211,15 @@ export default function CustomModelDialog({
 							<div className="flex items-center gap-2">
 								{connectionTestResult.success ? (
 									<>
-										<CheckCircle2 className="h-4 w-4 text-green-500" />
-										<span className="text-sm text-green-600">
+										<CheckCircle2 className="h-4 w-4 text-success" />
+										<span className="text-sm text-success">
 											Connected ({connectionTestResult.models?.length} models)
 										</span>
 									</>
 								) : (
 									<>
-										<XCircle className="h-4 w-4 text-red-500" />
-										<span className="text-sm text-red-600">
+										<XCircle className="h-4 w-4 text-destructive" />
+										<span className="text-sm text-destructive">
 											{connectionTestResult.error || "Failed"}
 										</span>
 									</>
@@ -257,7 +255,10 @@ export default function CustomModelDialog({
 					<Button
 						onClick={handleSaveProvider}
 						disabled={
-							!trimmedBaseUrl || isSavingProvider || !isUrlChanged || hasInvalidBaseUrl
+							!trimmedBaseUrl ||
+							isSavingProvider ||
+							!isUrlChanged ||
+							hasInvalidBaseUrl
 						}
 					>
 						{isSavingProvider ? "Saving..." : "Save"}

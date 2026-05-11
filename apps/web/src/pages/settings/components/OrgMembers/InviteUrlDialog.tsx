@@ -60,7 +60,7 @@ export function InviteUrlDialog({ open, onOpenChange, inviteUrl }: InviteUrlDial
 								className="shrink-0"
 							>
 								{copied ? (
-									<CheckIcon className="h-4 w-4 text-green-600" size={16} />
+									<CheckIcon className="h-4 w-4 text-success" size={16} />
 								) : (
 									<CopyIcon className="h-4 w-4" size={16} />
 								)}

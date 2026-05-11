@@ -1,6 +1,10 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState, useEffect } from "react";
-import { getAvatarColor, getAvatarInitial, getAvatarUrl } from "@/lib/avatarUtils";
+import {
+	getCommitAuthorAvatarFallbackClasses,
+	getAvatarInitial,
+	getAvatarUrl,
+} from "@/lib/avatarUtils";
 
 export interface CommitAuthorAvatarProps {
 	author: { name: string; picture?: string | null; avatar?: string | null };
@@ -9,17 +13,17 @@ export interface CommitAuthorAvatarProps {
 	rounded?: string;
 }
 
-export function CommitAuthorAvatar({ 
-	author, 
+export function CommitAuthorAvatar({
+	author,
 	size = "h-5 w-5",
 	textSize = "text-[10px]",
-	rounded = "rounded-full"
+	rounded = "rounded-full",
 }: CommitAuthorAvatarProps) {
 	const [imageLoaded, setImageLoaded] = useState(false);
 	const [imageError, setImageError] = useState(false);
 
 	const initial = getAvatarInitial(author.name ?? "U");
-	const colorClass = getAvatarColor(author.name ?? "U");
+	const fallbackColorClass = getCommitAuthorAvatarFallbackClasses(author.name ?? "U");
 	const avatarUrl = getAvatarUrl(author);
 	const hasPicture = Boolean(avatarUrl);
 
@@ -56,7 +60,7 @@ export function CommitAuthorAvatar({
 	return (
 		<Avatar className={`${size} ${rounded} cursor-default select-none`}>
 			{hasPicture && !imageLoaded && !imageError && (
-				<div className={`${size} ${rounded} bg-muted/40 animate-pulse`} />
+				<div className={`${size} ${rounded} bg-muted/30 animate-pulse`} />
 			)}
 			{hasPicture && imageLoaded && !imageError && avatarUrl && (
 				<AvatarImage
@@ -67,7 +71,9 @@ export function CommitAuthorAvatar({
 				/>
 			)}
 			{(!hasPicture || imageError) && (
-				<AvatarFallback className={`${rounded} ${textSize} font-bold ${colorClass} cursor-default select-none`}>
+				<AvatarFallback
+					className={`${rounded} ${textSize} font-bold ${fallbackColorClass} cursor-default select-none`}
+				>
 					{initial}
 				</AvatarFallback>
 			)}

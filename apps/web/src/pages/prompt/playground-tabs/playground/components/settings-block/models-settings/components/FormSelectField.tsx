@@ -51,7 +51,7 @@ export const FormSelectField = memo(
 								disabled={disabled}
 							>
 								<FormControl>
-									<SelectTrigger>
+									<SelectTrigger className="bg-background">
 										<SelectValue placeholder={`Select ${label}`} />
 									</SelectTrigger>
 								</FormControl>

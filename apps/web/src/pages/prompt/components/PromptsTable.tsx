@@ -8,8 +8,15 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "@/pages/info-pages/EmptyState";
 import type { Prompt } from "../utils/types";
+
+const narrowColumnClass = "w-[1%] whitespace-nowrap";
+
+function isNarrowPromptColumn(columnId: string) {
+	return columnId === "assertionType" || columnId === "updatedAt";
+}
 
 type PromptsTableProps = {
 	table: ReactTable<Prompt>;
@@ -27,14 +34,20 @@ export function PromptsTable({
 	return (
 		<div className="rounded-md overflow-auto">
 			<Table>
-				<TableHeader className="bg-[#F4F4F5] text-[#71717A] dark:bg-[#27272A] dark:text-[#fff] text-sm font-medium leading-5 h-[54px]">
+				<TableHeader className="h-[54px] bg-table-header text-sm font-medium leading-5 text-muted-foreground">
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow
 							key={headerGroup.id}
 							className="[&_th:first-child]:text-left [&_th:last-child]:text-right group py-[14px] h-[48px] leading-[16px]"
 						>
 							{headerGroup.headers.map((header) => (
-								<TableHead key={header.id} className="h-auto py-[16px] px-[14px]">
+								<TableHead
+									key={header.id}
+									className={cn(
+										"h-auto py-[16px] px-[14px]",
+										isNarrowPromptColumn(header.column.id) && narrowColumnClass,
+									)}
+								>
 									{flexRender(
 										header.column.columnDef.header,
 										header.getContext(),
@@ -60,7 +73,10 @@ export function PromptsTable({
 								{row.getVisibleCells().map((cell) => (
 									<TableCell
 										key={cell.id}
-										className="text-center"
+										className={cn(
+											"text-center",
+											isNarrowPromptColumn(cell.column.id) && narrowColumnClass,
+										)}
 										onClick={
 											cell.column.id !== "actions" && cell.column.id !== "select"
 												? () => onRowClick(row.original)
@@ -79,7 +95,7 @@ export function PromptsTable({
 						<TableRow className="transition-none">
 							<TableCell
 								colSpan={columnsCount}
-								className="px-0 hover:bg-[#fff] dark:hover:bg-[#212121]"
+								className="px-0 hover:bg-transparent"
 							>
 								<EmptyState title="No results found" description="" />
 							</TableCell>

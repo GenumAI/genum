@@ -39,9 +39,7 @@ export default function OrgModels() {
 		<>
 			<Card className="rounded-md shadow-none">
 				<CardHeader>
-					<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
-						Models
-					</CardTitle>
+					<CardTitle className="text-[18px] font-medium text-foreground">Models</CardTitle>
 					<CardDescription className="text-sm text-muted-foreground">
 						Control which AI models are available for use in your organization. Disabled
 						models will not appear in the model selector.

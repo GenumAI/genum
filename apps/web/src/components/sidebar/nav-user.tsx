@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -38,6 +39,10 @@ export function NavUser() {
 		: authUser?.picture || user?.avatar || user?.picture;
 	const authorInitial = getAvatarInitial(userName);
 	const authorColor = getAvatarColor(userName);
+	const localNavAuthor = {
+		name: userName,
+		picture: authUser?.picture || user?.avatar || user?.picture || null,
+	};
 
 	return (
 		<SidebarMenu>
@@ -48,17 +53,26 @@ export function NavUser() {
 							size="lg"
 							className="data-[state=open]:bg-sidebar-accent h-10 data-[state=open]:text-sidebar-accent-foreground p-1 group-data-[collapsible=icon]:!p-1 group-data-[collapsible=icon]:!h-10"
 						>
-							<Avatar className="h-8 w-8 rounded-lg">
-								<AvatarImage
-									src={userAvatar}
-									alt={userName}
+							{isCloud ? (
+								<Avatar className="h-8 w-8 rounded-lg">
+									<AvatarImage
+										src={userAvatar}
+										alt={userName}
+									/>
+									<AvatarFallback
+										className={`rounded-lg font-bold text-[18px] ${authorColor}`}
+									>
+										{authorInitial}
+									</AvatarFallback>
+								</Avatar>
+							) : (
+								<CommitAuthorAvatar
+									author={localNavAuthor}
+									size="h-8 w-8"
+									rounded="rounded-lg"
+									textSize="text-[18px]"
 								/>
-								<AvatarFallback
-									className={`rounded-lg font-bold text-[18px] ${authorColor}`}
-								>
-									{authorInitial}
-								</AvatarFallback>
-							</Avatar>
+							)}
 							<div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
 								<span className="truncate font-semibold">{userName}</span>
 								<span className="truncate text-xs">{userEmail}</span>
@@ -73,17 +87,26 @@ export function NavUser() {
 					>
 						<DropdownMenuLabel className="p-0 font-normal">
 							<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-								<Avatar className="h-8 w-8 rounded-lg">
-									<AvatarImage
-										src={userAvatar}
-										alt={userName}
+								{isCloud ? (
+									<Avatar className="h-8 w-8 rounded-lg">
+										<AvatarImage
+											src={userAvatar}
+											alt={userName}
+										/>
+										<AvatarFallback
+											className={`rounded-lg bg-brand/50 ${authorColor}`}
+										>
+											{authorInitial}
+										</AvatarFallback>
+									</Avatar>
+								) : (
+									<CommitAuthorAvatar
+										author={localNavAuthor}
+										size="h-8 w-8"
+										rounded="rounded-lg"
+										textSize="text-sm"
 									/>
-									<AvatarFallback
-										className={`rounded-lg bg-[#83ABFF80] ${authorColor}`}
-									>
-										{authorInitial}
-									</AvatarFallback>
-								</Avatar>
+								)}
 								<div className="grid flex-1 text-left text-sm leading-tight">
 									<span className="truncate font-semibold">{userName}</span>
 									<span className="truncate text-xs">{userEmail}</span>

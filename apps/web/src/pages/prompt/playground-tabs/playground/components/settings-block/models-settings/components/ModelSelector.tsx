@@ -70,7 +70,7 @@ export const ModelSelector = memo(
 							})}
 							placeholder="Select a model to continue"
 							className={`mt-1 text-[14px] ${
-								showStatusState && !selectedModelName ? "border-red-500" : ""
+								showStatusState && !selectedModelName ? "border-destructive" : ""
 							}`}
 							popoverProps={{
 								side: "bottom",
@@ -111,7 +111,7 @@ export const ModelSelector = memo(
 											>
 												<span>{label}</span>
 												{isModelDisabled && (
-													<span className="ml-auto text-xs text-amber-500 font-medium shrink-0">
+													<span className="ml-auto shrink-0 text-xs font-medium text-warning">
 														Disabled
 													</span>
 												)}
@@ -132,21 +132,17 @@ export const ModelSelector = memo(
 								);
 							}}
 						>
-							{({
-								placeholder,
-								disabled,
-								selectedValue,
-								setIsPopoverOpen,
-							}) => (
-								<InputSelectTrigger
-									options={triggerOptions}
-									placeholder={placeholder}
-									disabled={disabled}
-									selectedValue={selectedValue}
-									setIsPopoverOpen={setIsPopoverOpen}
-									className={`mt-1 text-[14px] dark:border-[#3C3D3F] h-9 ${
-										showStatusState && (!selectedModelName || isSelectedDisabled)
-											? "border-amber-500"
+							{({ placeholder, disabled, selectedValue, setIsPopoverOpen }) => (
+							<InputSelectTrigger
+								options={triggerOptions}
+								placeholder={placeholder}
+								disabled={disabled}
+								selectedValue={selectedValue}
+								setIsPopoverOpen={setIsPopoverOpen}
+								className={`mt-1 h-9 !bg-background hover:!bg-background text-[14px] ${
+									showStatusState &&
+									(!selectedModelName || isSelectedDisabled)
+										? "border-amber-500"
 											: ""
 									}`}
 								/>
@@ -154,12 +150,12 @@ export const ModelSelector = memo(
 						</InputSelect>
 						<FormMessage />
 						{showStatusState && !selectedModelName && (
-							<p className="text-[12px] text-red-500">
+							<p className="text-[12px] text-destructive">
 								Please select a model before running the prompt
 							</p>
 						)}
 						{showStatusState && isSelectedDisabled && (
-							<p className="text-[12px] text-amber-500">
+							<p className="text-[12px] text-warning">
 								This model is disabled for your organization. Please select a
 								different model.
 							</p>

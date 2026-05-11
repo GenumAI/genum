@@ -60,7 +60,7 @@ export const OutputHeader: React.FC<OutputHeaderProps> = ({
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-6 w-6 shrink-0 text-[#09090B] dark:text-[#FAFAFA] [&_svg]:size-3"
+								className="h-6 w-6 shrink-0 text-foreground [&_svg]:size-3"
 								onClick={onExpand}
 							>
 								<CornersOut style={{ width: "20px", height: "20px" }} />

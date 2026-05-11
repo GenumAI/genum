@@ -3,14 +3,14 @@ interface TuneIconProps {
 	stroke?: string;
 }
 
-export const TuneIcon = ({ className = "", stroke = "#437BEF" }: TuneIconProps) => (
+export const TuneIcon = ({ className = "", stroke = "currentColor" }: TuneIconProps) => (
 	<svg
 		width="17"
 		height="18"
 		viewBox="0 0 17 18"
 		fill="none"
 		xmlns="http://www.w3.org/2000/svg"
-		className={className}
+		className={`text-brand ${className}`.trim()}
 	>
 		<g clipPath="url(#clip0_6861_24864)">
 			<path
@@ -29,7 +29,7 @@ export const TuneIcon = ({ className = "", stroke = "#437BEF" }: TuneIconProps) 
 		</g>
 		<defs>
 			<clipPath id="clip0_6861_24864">
-				<rect width="14" height="14" fill={stroke} transform="translate(1.5 2.25293)">
+				<rect width="14" height="14" fill="currentColor" transform="translate(1.5 2.25293)">
 					<title>AI Tune Icon</title>
 				</rect>
 			</clipPath>

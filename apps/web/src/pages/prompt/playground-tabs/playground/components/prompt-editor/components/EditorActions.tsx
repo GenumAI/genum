@@ -74,7 +74,7 @@ export const EditorActions = ({
 								onClick={handleAuditClick}
 								disabled={!canAudit || isAuditLoading}
 								className={cn(
-									"border-[#437BEF] dark:border-[#437BEF] bg-transparent text-[#437BEF] [&_svg]:size-3 hover:text-[#437BEF] text-[10px] gap-0.5 px-[10px] h-[20px]",
+									"border-brand bg-transparent text-brand [&_svg]:size-3 hover:bg-brand/10 hover:text-brand text-[10px] gap-0.5 px-[10px] h-[20px]",
 									auditRate !== undefined ? "cursor-pointer" : "",
 								)}
 							>

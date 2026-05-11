@@ -34,6 +34,7 @@ interface EditorCardProps {
 	editor: any;
 	isExpanded: boolean;
 	setIsExpanded: (value: boolean) => void;
+	showHeader?: boolean;
 	main?: boolean;
 	promptText?: string;
 	setPromptText?: (value: string) => void;
@@ -74,6 +75,7 @@ const EditorCard = ({
 	editor,
 	isExpanded,
 	setIsExpanded,
+	showHeader = true,
 	main,
 	promptText = "",
 	setPromptText = () => {},
@@ -185,38 +187,40 @@ const EditorCard = ({
 			<Card
 				className={cn(
 					"border-0 rounded-lg shadow-none",
-					!editorHeight && "h-full flex flex-col min-h-0 dark:bg-[#313135]",
+					!editorHeight && "h-full flex flex-col min-h-0",
 				)}
 			>
-				<CardHeader className="flex flex-row items-center justify-between p-0 pb-2 bg-background space-y-0 dark:bg-transparent">
-					<div className="flex items-center gap-3">
-						<CardTitle className="text-sm font-medium">{title}</CardTitle>
-					</div>
+				{showHeader && (
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 p-0 pb-2">
+						<div className="flex items-center gap-3">
+							<CardTitle className="text-sm font-medium">{title}</CardTitle>
+						</div>
 
-					<div>
-						{!isExpanded && (
-							<TooltipProvider>
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="h-6 w-6 [&_svg]:size-3 text-[#09090B] dark:text-[#FAFAFA]"
-											onClick={() => setIsExpanded(true)}
-										>
-											<CornersOutIcon
-												style={{ width: "20px", height: "20px" }}
-											/>
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent>
-										<p>Expand</p>
-									</TooltipContent>
-								</Tooltip>
-							</TooltipProvider>
-						)}
-					</div>
-				</CardHeader>
+						<div>
+							{!isExpanded && (
+								<TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-6 w-6 [&_svg]:size-3 text-foreground"
+												onClick={() => setIsExpanded(true)}
+											>
+												<CornersOutIcon
+													style={{ width: "20px", height: "20px" }}
+												/>
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent>
+											<p>Expand</p>
+										</TooltipContent>
+									</Tooltip>
+								</TooltipProvider>
+							)}
+						</div>
+					</CardHeader>
+				)}
 
 				<div
 					className={cn(
@@ -224,7 +228,7 @@ const EditorCard = ({
 						!editorHeight && "flex flex-col h-full min-h-0",
 					)}
 				>
-					<div className="px-2 py-1.5 bg-muted dark:bg-[#27272A] rounded-t-md">
+					<div className="px-2 py-1.5 bg-table-header rounded-t-md">
 						<div className="flex w-full min-w-0 items-center gap-2">
 							<div className="min-w-0 flex-1 overflow-x-auto">
 								<div className="flex w-max items-center">

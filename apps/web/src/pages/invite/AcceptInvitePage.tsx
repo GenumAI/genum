@@ -1,11 +1,14 @@
 import type { FC } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "@/components/theme/theme-provider";
 import { isCloudAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { useAcceptInviteFlow } from "@/pages/invite/hooks/useAcceptInviteFlow";
-import { getInviteThemeAssets } from "@/pages/invite/utils/inviteThemeAssets";
+import {
+	getInviteThemeAssets,
+	isCssVariableImage,
+	resolveBackgroundImage,
+} from "@/pages/invite/utils/inviteThemeAssets";
 
 const getErrorMessage = (error: unknown): string => {
 	if (error instanceof Error) {
@@ -18,11 +21,8 @@ const getErrorMessage = (error: unknown): string => {
 const AcceptInvitePage: FC = () => {
 	const { token: urlToken } = useParams<{ token: string }>();
 	const navigate = useNavigate();
-	const { resolvedTheme } = useTheme();
 	const isCloud = isCloudAuth();
-	const isDark = resolvedTheme === "dark";
-	const isLocalDark = !isCloud && isDark;
-	const { logoSrc, backgroundImage } = getInviteThemeAssets(isLocalDark, isCloud);
+	const { logoSrc, backgroundImage } = getInviteThemeAssets(isCloud);
 	const {
 		isAuthenticated,
 		isLoadingAuth,
@@ -41,35 +41,35 @@ const AcceptInvitePage: FC = () => {
 
 	return (
 		<div
-			className={cn(
-				"fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat flex items-center justify-center",
-				isLocalDark && "dark:bg-zinc-950",
-			)}
-			style={{ backgroundImage: `url('${backgroundImage}')` }}
+			className="fixed inset-0 flex h-full w-full items-center justify-center bg-background bg-cover bg-center bg-no-repeat"
+			style={{ backgroundImage: resolveBackgroundImage(backgroundImage) }}
 		>
 			<div
 				className={cn(
-					"flex flex-col gap-6 w-[400px] shadow-[0_4px_16px_#00000014] rounded-[24px] p-[52px] bg-white",
+					"flex w-[400px] flex-col gap-6 rounded-[24px] border border-border bg-card/95 p-[52px] text-card-foreground shadow-2xl backdrop-blur-sm",
 					isLoginRequiredState ? "h-[350px]" : "min-h-[460px]",
-					isLocalDark &&
-						"dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] dark:bg-zinc-900 dark:border dark:border-zinc-800",
 				)}
 			>
 				<div className="text-center">
-					<img src={logoSrc} alt="Logo" className="w-[120px] h-[23px] mx-auto dark:invert-0" />
-					<h1
-						className={cn(
-							"text-[24px] font-bold text-gray-900 mb-[16px] mt-[24px]",
-							isLocalDark && "dark:text-zinc-50",
-						)}
-					>
+					{isCssVariableImage(logoSrc) ? (
+						<div
+							role="img"
+							aria-label="Logo"
+							className="mx-auto h-[23px] w-[120px] bg-contain bg-center bg-no-repeat"
+							style={{ backgroundImage: logoSrc }}
+						/>
+					) : (
+						<img src={logoSrc} alt="Logo" className="mx-auto h-[23px] w-[120px]" />
+					)}
+					<h1 className="mb-[16px] mt-[24px] text-[24px] font-bold text-foreground">
 						Accept Invitation
 					</h1>
-					<p className={cn("text-gray-800 text-[14px]", isLocalDark && "dark:text-zinc-400")}>
+					<p className="text-[14px] text-muted-foreground">
 						{inviteData?.invite?.org_name ? (
 							<>
-								You've been invited to join <strong>{inviteData.invite.org_name}</strong>.
-								{" "}Would you like to accept this invitation?
+								You've been invited to join{" "}
+								<strong>{inviteData.invite.org_name}</strong>. Would you like to
+								accept this invitation?
 							</>
 						) : (
 							"You've been invited to join an organization. Would you like to accept this invitation?"
@@ -79,25 +79,17 @@ const AcceptInvitePage: FC = () => {
 
 				{isLoadingAuth ? (
 					<div className="text-center">
-						<div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+						<div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-brand"></div>
 					</div>
 				) : !isAuthenticated ? (
 					<div className="flex flex-col gap-2">
-						<p
-							className={cn(
-								"mt-2 font-bold text-[14px] text-center text-gray-900",
-								isLocalDark && "dark:text-zinc-200",
-							)}
-						>
+						<p className="mt-2 text-center text-[14px] font-bold text-foreground">
 							First, you must log in to your account
 						</p>
 						<Button
 							variant="outline"
 							size="lg"
-							className={cn(
-								"flex-1 min-h-[40px] text-gray-900",
-								isLocalDark && "dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200",
-							)}
+							className="min-h-[40px] flex-1"
 							onClick={handleLogin}
 						>
 							Log In
@@ -105,20 +97,20 @@ const AcceptInvitePage: FC = () => {
 					</div>
 				) : inviteQuery.isPending ? (
 					<div className="text-center">
-						<div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-						<p className="mt-2 text-blue-700 font-medium">Validating invitation...</p>
+						<div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-brand"></div>
+						<p className="mt-2 font-medium text-brand">Validating invitation...</p>
 					</div>
 				) : inviteError || !inviteData?.invite?.invite_valid ? (
-					<div className={cn("text-center border border-0 rounded-md p-4 py-3 mb-0", isLocalDark && "dark:bg-zinc-900")}>
-						<h3 className="text-[#FF4545] font-medium">Invalid Invitation</h3>
-						<p className="text-[#FF4545] text-[12px]">
+					<div className="mb-0 rounded-md border border-destructive/20 bg-destructive/10 p-4 py-3 text-center">
+						<h3 className="font-medium text-destructive">Invalid Invitation</h3>
+						<p className="text-[12px] text-destructive">
 							This invitation does not exist or has expired.
 						</p>
 						<Button
 							variant="outline"
 							size="lg"
 							onClick={() => navigate("/")}
-							className={cn("w-full mt-4 text-gray-900", isLocalDark && "dark:text-zinc-100")}
+							className="mt-4 w-full"
 						>
 							Go Home
 						</Button>
@@ -127,25 +119,33 @@ const AcceptInvitePage: FC = () => {
 					<>
 						{isProcessing && (
 							<div className="text-center mb-4">
-								<div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-								<p className="mt-2 text-blue-700 font-medium">
+								<div className="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-brand"></div>
+								<p className="mt-2 font-medium text-brand">
 									Processing your invitation...
 								</p>
 							</div>
 						)}
 
 						{processError && (
-							<div className={cn("text-center border border-0 rounded-md p-4 py-3 mb-0", isLocalDark && "dark:bg-zinc-900")}>
-								<h3 className="text-[#FF4545] font-medium">Error</h3>
-								<p className="text-[#FF4545] text-[12px]">
+							<div className="mb-0 rounded-md border border-destructive/20 bg-destructive/10 p-4 py-3 text-center">
+								<h3 className="font-medium text-destructive">Error</h3>
+								<p className="text-[12px] text-destructive">
 									{getErrorMessage(processError)}
 								</p>
 								{getErrorMessage(processError).includes("email does not match") && (
-									<div className="mt-3 p-3 bg-red-100 rounded-md">
-										<p className="text-red-700 text-sm font-medium">What to do:</p>
-										<ul className="text-red-600 text-sm mt-1 list-disc list-inside">
-											<li>Make sure you're logged in with the correct email account</li>
-											<li>Check if the invitation was sent to a different email</li>
+									<div className="mt-3 rounded-md bg-destructive/10 p-3 text-left">
+										<p className="text-sm font-medium text-destructive">
+											What to do:
+										</p>
+										<ul className="mt-1 list-inside list-disc text-sm text-destructive/90">
+											<li>
+												Make sure you're logged in with the correct email
+												account
+											</li>
+											<li>
+												Check if the invitation was sent to a different
+												email
+											</li>
 											<li>Contact the person who sent the invitation</li>
 										</ul>
 									</div>
@@ -159,10 +159,7 @@ const AcceptInvitePage: FC = () => {
 								size="lg"
 								onClick={handleAcceptInvite}
 								disabled={isProcessing}
-								className={cn(
-									"w-full text-white bg-black hover:bg-gray-800",
-									isLocalDark && "dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200",
-								)}
+								className="w-full"
 							>
 								{isProcessing ? "Accepting..." : "Accept"}
 							</Button>
@@ -172,7 +169,7 @@ const AcceptInvitePage: FC = () => {
 								size="lg"
 								onClick={handleDecline}
 								disabled={isProcessing}
-								className={cn("w-full text-gray-900", isLocalDark && "dark:text-zinc-100")}
+								className="w-full"
 							>
 								Decline
 							</Button>

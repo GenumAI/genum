@@ -47,7 +47,7 @@ export function NavBottom({ items }: { items: BottomItem[] }) {
 											href={item.url}
 											target="_blank"
 											rel="noreferrer"
-											className="dark:text-sidebar-foreground font-normal"
+											className="font-normal"
 										>
 											<item.icon />
 											<span className="group-data-[collapsible=icon]:hidden">
@@ -62,10 +62,7 @@ export function NavBottom({ items }: { items: BottomItem[] }) {
 						return (
 							<SidebarMenuItem key={item.title}>
 								<SidebarMenuButton asChild tooltip={item.title}>
-									<Link
-										to={item.url}
-										className="dark:text-sidebar-foreground font-normal"
-									>
+									<Link to={item.url} className="font-normal">
 										<item.icon />
 										<span className="group-data-[collapsible=icon]:hidden">
 											{item.title}

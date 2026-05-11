@@ -54,7 +54,7 @@ const VersionStatus = ({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
-								className="rounded-md text-[13px] bg-black dark:bg-[#ECECEC] dark:text-primary-foreground hover:bg-gray-800 text-white w-[138px] h-[32px]"
+								className="h-[32px] w-[138px] rounded-md bg-primary text-[13px] text-primary-foreground hover:bg-primary/90"
 								onClick={() => {
 									setCommitDialogOpen(true);
 								}}

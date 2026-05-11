@@ -21,6 +21,11 @@ interface FullscreenEditorDialogProps {
 	handleGenerate: () => void;
 	handleTune: () => void;
 	handleClearContent: () => void;
+	onAuditPrompt?: () => void;
+	onOpenAuditModal?: () => void;
+	isAuditLoading?: boolean;
+	canAudit?: boolean;
+	auditRate?: number;
 	isMarkdownPreview: boolean;
 	handleMarkdownPreviewToggle: () => void;
 	tocItems: MarkdownTocItem[];
@@ -41,6 +46,11 @@ const FullscreenEditorDialog = ({
 	handleGenerate,
 	handleTune,
 	handleClearContent,
+	onAuditPrompt,
+	onOpenAuditModal,
+	isAuditLoading = false,
+	canAudit = false,
+	auditRate,
 	isMarkdownPreview,
 	handleMarkdownPreviewToggle,
 	tocItems,
@@ -93,6 +103,9 @@ const FullscreenEditorDialog = ({
 
 				<div className="flex-1 flex flex-row w-full gap-6 min-h-0">
 					<div className="flex flex-col h-full min-h-0" style={{ width: "80%" }}>
+						<div className="px-1 pb-2 text-sm font-medium text-foreground">
+							System Instructions
+						</div>
 						<EditorCard
 							title={title}
 							editor={{
@@ -111,6 +124,7 @@ const FullscreenEditorDialog = ({
 							}}
 							isExpanded={isOpen}
 							setIsExpanded={onOpenChange}
+							showHeader={false}
 							main={true}
 							promptText={promptText}
 							setPromptText={setPromptText}
@@ -122,6 +136,11 @@ const FullscreenEditorDialog = ({
 							handleGenerate={handleGenerate}
 							handleTune={handleTune}
 							clearContent={handleClearContent}
+							onAuditPrompt={onAuditPrompt}
+							onOpenAuditModal={onOpenAuditModal}
+							isAuditLoading={isAuditLoading}
+							canAudit={canAudit}
+							auditRate={auditRate}
 							handleUppercase={handleUppercase}
 							isMarkdownPreview={isMarkdownPreview}
 							onToggleMarkdownPreview={handleMarkdownPreviewToggle}
@@ -142,7 +161,7 @@ const FullscreenEditorDialog = ({
 						</EditorCard>
 					</div>
 
-					<div className="text-sm text-gray-800 flex flex-col gap-[6px] pt-16 max-w-[195px] w-full min-h-0 flex-1">
+					<div className="text-sm text-foreground flex flex-col gap-[6px] pt-16 max-w-[195px] w-full min-h-0 flex-1">
 						<div className="flex-1 min-h-0 flex flex-col">
 							<TableOfContents
 								items={tocItems}

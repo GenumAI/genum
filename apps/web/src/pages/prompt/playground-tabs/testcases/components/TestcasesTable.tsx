@@ -21,7 +21,7 @@ export default function TestcasesTable({ table, onRowClick }: TestcasesTableProp
 	return (
 		<div className="rounded-md overflow-hidden">
 			<Table>
-				<TableHeader className="bg-[#F4F4F5] text-[#71717A] dark:bg-[#262626] dark:text-[#fff] text-sm font-medium leading-5 h-[54px]">
+				<TableHeader className="h-[54px] bg-table-header text-sm font-medium leading-5 text-muted-foreground">
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow
 							key={headerGroup.id}

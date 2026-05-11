@@ -15,7 +15,7 @@ export function SocialIcons() {
 				href="https://www.linkedin.com/company/genum-ai/"
 				target="_blank"
 				rel="noreferrer"
-				className="w-6 h-6 flex items-center justify-center text-black dark:text-white hover:text-[#437BEF] transition-colors"
+				className="flex h-6 w-6 items-center justify-center text-foreground transition-colors hover:text-brand"
 			>
 				<LinkedInIcon />
 			</a>
@@ -23,7 +23,7 @@ export function SocialIcons() {
 				href="https://x.com/genum_ai"
 				target="_blank"
 				rel="noreferrer"
-				className="w-6 h-6 flex items-center justify-center text-black dark:text-white hover:text-[#437BEF] transition-colors"
+				className="flex h-6 w-6 items-center justify-center text-foreground transition-colors hover:text-brand"
 			>
 				<TwitterIcon />
 			</a>
@@ -31,7 +31,7 @@ export function SocialIcons() {
 				href="https://www.youtube.com/@Genum-ai"
 				target="_blank"
 				rel="noreferrer"
-				className="w-6 h-6 flex items-center justify-center text-black dark:text-white hover:text-[#437BEF] transition-colors"
+				className="flex h-6 w-6 items-center justify-center text-foreground transition-colors hover:text-brand"
 			>
 				<YouTubeIcon />
 			</a>

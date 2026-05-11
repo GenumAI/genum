@@ -30,7 +30,7 @@ const MetricsRow = ({
 	value: number | string;
 }) => {
 	return (
-		<li className="flex justify-between items-center text-[#18181B] dark:text-white font-sans text-[10px] not-italic font-normal leading-[16px]">
+		<li className="flex justify-between items-center text-foreground font-sans text-[10px] not-italic font-normal leading-[16px]">
 			<div className="flex items-center gap-2">
 				{icon} {title}
 			</div>
@@ -43,7 +43,7 @@ export const RunMetrics = memo(
 	({ tokens, cost }: RunMetricsProps) => {
 		return (
 			<div className="flex flex-col gap-2">
-				<span className="text-[#18181B] dark:text-white font-sans text-[14px] not-italic font-bold leading-[14px]">
+				<span className="text-foreground font-sans text-[14px] not-italic font-bold leading-[14px]">
 					Run Metrics
 				</span>
 				<ul className="flex flex-col gap-1.5">
@@ -80,7 +80,7 @@ export const ExecutionMetrics = memo(
 
 		return (
 			<div className="flex flex-col gap-2">
-				<span className="text-[#18181B] dark:text-white font-sans text-[14px] not-italic font-bold leading-[14px]">
+				<span className="text-foreground font-sans text-[14px] not-italic font-bold leading-[14px]">
 					Execution Metrics
 				</span>
 				<ul className="flex flex-col gap-1.5">
@@ -133,7 +133,7 @@ export const CostBreakdownMetrics = memo(
 
 		return (
 			<div className="flex flex-col gap-2">
-				<span className="text-[#18181B] dark:text-white font-sans text-[14px] not-italic font-bold leading-[14px]">
+				<span className="text-foreground font-sans text-[14px] not-italic font-bold leading-[14px]">
 					Cost Breakdown
 				</span>
 				<ul className="flex flex-col gap-1.5">

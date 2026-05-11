@@ -121,7 +121,7 @@ const Compare = () => {
 					<Button
 						variant="outline"
 						size="sm"
-						className="w-[81px] h-9 border-[#18181B] text-[14px]"
+						className="h-9 w-[81px] border-border text-[14px]"
 						onClick={() => navigate(`/${orgId}/${projectId}/prompt/${id}/versions`)}
 					>
 						<ChevronLeft className="h-4 w-4" />

@@ -56,7 +56,6 @@ export const InputSelect: React.FC<{
 	renderOption,
 	listClassName,
 	popoverProps,
-	...restProps
 }) => {
 	const [selectedValue, setSelectedValue] = React.useState<string>(value);
 	const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
@@ -90,7 +89,7 @@ export const InputSelect: React.FC<{
 		if (value !== selectedValue) {
 			setSelectedValue(value);
 		}
-	}, [value]);
+	}, [value, selectedValue]);
 
 	const filteredGroups: InputSelectGroup[] | null = React.useMemo(() => {
 		if (!groups || groups.length === 0) return null;
@@ -181,7 +180,7 @@ export const InputSelect: React.FC<{
 						groups && groups.length > 0 ? (
 							filteredGroups!.map((group, gi) => (
 								<div key={`group-${gi}`}>
-									<div className="leading-[18px] py-0.5 px-2.5 mb-1 mx-[-4px] border-b border-muted text-[11px] text-[#71717A] font-bold">
+									<div className="mx-[-4px] mb-1 border-b border-muted px-2.5 py-0.5 text-[11px] font-bold leading-[18px] text-muted-foreground">
 										{group.label}
 									</div>
 									<div>
@@ -203,7 +202,7 @@ export const InputSelect: React.FC<{
 												<div
 													key={option.value}
 													onClick={onSelect}
-													className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-[#F4F4F5] text-sm"
+													className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm hover:bg-table-row"
 													role="option"
 													aria-selected={isSelected}
 												>
@@ -242,7 +241,7 @@ export const InputSelect: React.FC<{
 									<div
 										key={option.value}
 										onClick={onSelect}
-										className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-[#F4F4F5] text-sm"
+										className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm hover:bg-table-row"
 										role="option"
 										aria-selected={isSelected}
 									>
@@ -317,8 +316,8 @@ export const InputSelectTrigger = React.forwardRef<
 				type="button"
 				disabled={disabled}
 				className={cn(
-					"flex h-11 w-full items-center justify-between p-1 [&_svg]:pointer-events-auto",
-					"hover:bg-transparent",
+					"flex h-9 w-full items-center justify-between border-input !bg-[hsl(var(--field-background))] p-1 text-foreground shadow-sm [&_svg]:pointer-events-auto",
+					"hover:!bg-[hsl(var(--field-background))]",
 					disabled && "[&_svg]:pointer-events-none",
 					className,
 				)}
