@@ -39,11 +39,7 @@ export function DeleteConfirmDialog({
 					>
 						{cancelText}
 					</Button>
-					<Button
-						onClick={handleConfirm}
-						disabled={isDeleting}
-						className="bg-red-600 hover:bg-red-700 text-white"
-					>
+					<Button variant="destructive" onClick={handleConfirm} disabled={isDeleting}>
 						{isDeleting ? "Deleting..." : confirmText}
 					</Button>
 				</DialogFooter>

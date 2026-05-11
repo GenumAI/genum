@@ -96,7 +96,7 @@ function CreateOrganizationForm({ onClose, onSuccess }: CreateOrganizationFormPr
 				<Label htmlFor="create-name">Organization Name</Label>
 				<Input id="create-name" {...form.register("name")} placeholder="My Organization" />
 				{form.formState.errors.name && (
-					<p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
+					<p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
 				)}
 			</div>
 			<div className="space-y-1">
@@ -109,7 +109,7 @@ function CreateOrganizationForm({ onClose, onSuccess }: CreateOrganizationFormPr
 					className="resize-none"
 				/>
 				{form.formState.errors.description && (
-					<p className="text-sm text-red-500">
+					<p className="text-sm text-destructive">
 						{form.formState.errors.description.message}
 					</p>
 				)}
@@ -229,16 +229,17 @@ export function OrganizationSwitcher({
 		setIsCreateDialogOpen(false);
 	};
 
-	const orgInitials = activeOrganization.name
-		.match(/[\p{L}\d]/gu)
-		?.slice(0, 2)
-		.join("")
-		.toUpperCase() || null;
+	const orgInitials =
+		activeOrganization.name
+			.match(/[\p{L}\d]/gu)
+			?.slice(0, 2)
+			.join("")
+			.toUpperCase() || null;
 
 	return (
 		<>
 			<div className="flex items-center gap-1.5 group-data-[collapsible=icon]:hidden">
-				<div className="flex aspect-square w-[36px] h-[36px] shrink-0 border-2 border-[#f4f4f5] dark:border-[#27272a] items-center justify-center rounded-lg bg-sidebar-primary dark:bg-white dark:text-black text-sidebar-primary-foreground font-semibold text-[14px]">
+				<div className="flex aspect-square w-[36px] h-[36px] shrink-0 border-2 border-sidebar-border items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-semibold text-[14px]">
 					{orgInitials ?? <Building2 className="h-4 w-4" />}
 				</div>
 
@@ -252,7 +253,7 @@ export function OrganizationSwitcher({
 							<DropdownMenuTrigger asChild>
 								<SidebarMenuButton
 									size="sm"
-									className="dark:text-sidebar-foreground dark:hover:bg-[#18181b] data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground p-1 gap-0.5 h-[18px] text-[#3f3f46] hover:bg-[#e4e4e7] [&>svg]:size-3 w-auto"
+									className="text-sidebar-foreground hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground p-1 gap-0.5 h-[18px] [&>svg]:size-3 w-auto"
 								>
 									<div className="grid text-left text-[12px] leading-tight">
 										<span className="truncate font-semibold">
@@ -322,14 +323,14 @@ export function OrganizationSwitcher({
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+					<div className="rounded-lg border border-info/30 bg-info-soft p-4">
 						<div className="flex items-start gap-3">
-							<Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+							<Info className="h-5 w-5 shrink-0 text-info mt-0.5" />
 							<div className="space-y-1">
-								<p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+								<p className="text-sm font-medium text-foreground">
 									API Keys Required
 								</p>
-								<p className="text-xs text-blue-700 dark:text-blue-300">
+								<p className="text-xs text-muted-foreground">
 									New organizations need API keys from LLM providers to function.
 									You can add them later in Settings after creating the
 									organization.

@@ -23,7 +23,7 @@ export const CommitSelect = ({ value, onChange, versions, placeholder }: CommitS
 						>
 							{v.commitMsg}
 						</div>
-						<div className="flex items-center rounded-[2px] px-1 h-[20px] justify-center text-[#2E9D2A] bg-[#2E9D2A] border border-[#2E9D2A] bg-opacity-[8%]">
+						<div className="flex h-[20px] items-center justify-center rounded-[2px] border border-success/40 bg-success/10 px-1 text-success">
 							{v.branchName}
 						</div>
 					</div>

@@ -106,7 +106,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
 	return (
 		<Sidebar collapsible="icon" {...props}>
-			<SidebarHeader className="flex flex-row items-center p-3 h-[54px] border-[#f4f4f5] dark:border-[#27272A]">
+			<SidebarHeader className="flex h-[54px] flex-row items-center border-border p-3">
 				<TeamSwitcher
 					teams={teams}
 					projects={projects}

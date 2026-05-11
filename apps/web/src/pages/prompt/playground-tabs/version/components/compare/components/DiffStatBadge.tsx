@@ -12,8 +12,8 @@ export const DiffStatBadge: React.FC<DiffStatBadgeProps> = ({ added, removed, cl
 
 	return (
 		<span className={cn("ml-2 flex items-center gap-3 text-xs", className)}>
-			<span className="text-green-600">+{added}</span>
-			<span className="text-red-500">-{removed}</span>
+			<span className="text-success">+{added}</span>
+			<span className="text-destructive">-{removed}</span>
 			<span className="text-muted-foreground">lines changed</span>
 		</span>
 	);

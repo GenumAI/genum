@@ -28,7 +28,7 @@ export function ProjectsTable({
 	return (
 		<div className="relative overflow-x-auto rounded-md border-0">
 			<Table className="rounded-md overflow-hidden">
-				<TableHeader className="bg-[#F4F4F5] text-[#71717A] dark:bg-[#262626] dark:text-[#fff] h-12 font-medium text-muted-foreground">
+				<TableHeader className="h-12 bg-table-header text-muted-foreground">
 					<TableRow>
 						<TableHead className="text-left p-4">Project Name</TableHead>
 						<TableHead className="text-left p-4">Description</TableHead>
@@ -43,7 +43,7 @@ export function ProjectsTable({
 							key={project.id}
 							className={
 								currentProjectId === project.id
-									? "hover:bg-[#F4F4F5] dark:hover:bg-[#1f1f22]"
+									? "hover:bg-table-row"
 									: undefined
 							}
 						>
@@ -51,7 +51,7 @@ export function ProjectsTable({
 								<div className="flex items-center gap-2">
 									<span>{project.name}</span>
 									{project.initial && (
-										<span className="rounded bg-[#E4E4E7] px-2 py-0.5 text-[11px] font-medium text-[#3f3f46] dark:bg-[#3f3f46] dark:text-[#fafafa]">
+										<span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
 											Default
 										</span>
 									)}

@@ -1,4 +1,5 @@
 import { flexRender } from "@tanstack/react-table";
+import { useRef } from "react";
 import {
 	Table,
 	TableBody,
@@ -9,9 +10,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import FileUploadDialog from "@/pages/files/components/FileUploadDialog";
 import DeleteConfirmDialog from "@/components/dialogs/DeleteConfirmDialog";
-import { EmptyState } from "@/pages/info-pages/EmptyState";
+import FileDropzone from "@/pages/files/components/FileDropzone";
 import { useFilesPage } from "./hooks/useFilesPage";
 
 export default function FilesPage() {
@@ -19,8 +19,6 @@ export default function FilesPage() {
 		table,
 		columnsCount,
 		isLoading,
-		uploadDialogOpen,
-		setUploadDialogOpen,
 		deleteDialogOpen,
 		setDeleteDialogOpen,
 		isUploading,
@@ -28,12 +26,33 @@ export default function FilesPage() {
 		handleUpload,
 		handleDelete,
 	} = useFilesPage();
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	const handleManualFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) {
+			return;
+		}
+
+		await handleUpload(file);
+		e.target.value = "";
+	};
 
 	return (
 		<>
 			<div className="space-y-6 max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] ml-3 mr-6 w-full pt-6">
+				<input
+					ref={fileInputRef}
+					type="file"
+					accept="image/*,application/pdf"
+					onChange={(e) => {
+						void handleManualFileSelect(e);
+					}}
+					className="hidden"
+				/>
+
 				<div className="flex justify-end">
-					<Button onClick={() => setUploadDialogOpen(true)}>
+					<Button onClick={() => fileInputRef.current?.click()}>
 						<Plus className="h-4 w-4 mr-2" />
 						Add File
 					</Button>
@@ -101,14 +120,20 @@ export default function FilesPage() {
 									</TableRow>
 								))
 							) : (
-								<TableRow className="transition-none border-0 hover:bg-transparent">
+								<TableRow className="border-0 hover:bg-transparent">
 									<TableCell
 										colSpan={columnsCount}
-										className="px-0 border-0 hover:bg-transparent"
+										className="border-0 px-0 pt-4 pb-0 hover:bg-transparent"
 									>
-										<EmptyState
+										<FileDropzone
+											onUpload={handleUpload}
+											loading={isUploading}
+											className="w-full rounded-none border-x-0 border-b-0 border-t-0"
 											title="No files found"
-											description="Upload your first file to get started"
+											description="Click to upload or drag and drop"
+											helperText="Images and PDF files only (max 50MB)"
+											largeCopy={true}
+											minHeight="520px"
 										/>
 									</TableCell>
 								</TableRow>
@@ -117,14 +142,6 @@ export default function FilesPage() {
 					</Table>
 				</div>
 			</div>
-
-			{/* Upload Dialog */}
-			<FileUploadDialog
-				open={uploadDialogOpen}
-				setOpen={setUploadDialogOpen}
-				onUpload={handleUpload}
-				loading={isUploading}
-			/>
 
 			{/* Delete Confirmation Dialog */}
 			<DeleteConfirmDialog

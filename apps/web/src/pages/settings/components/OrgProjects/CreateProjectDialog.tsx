@@ -80,7 +80,9 @@ export function CreateProjectDialog({
 								placeholder="Awesome project"
 							/>
 							{errors.name && (
-								<p className="text-sm text-red-600 mt-1">{errors.name.message}</p>
+								<p className="mt-1 text-sm text-destructive">
+									{errors.name.message}
+								</p>
 							)}
 						</div>
 						<div>

@@ -53,9 +53,7 @@ export default function OrgAPIKeys() {
 	return (
 		<Card className="rounded-md shadow-none">
 			<CardHeader className="flex items-center justify-between flex-row">
-				<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
-					Organization API Keys
-				</CardTitle>
+				<CardTitle className="text-[18px] font-medium text-foreground">Organization API Keys</CardTitle>
 			</CardHeader>
 
 			<div className="px-6 pb-4">
@@ -65,7 +63,7 @@ export default function OrgAPIKeys() {
 						href="https://docs.genum.ai/Integration/integration-api"
 						target="_blank"
 						rel="noopener noreferrer"
-						className="text-blue-600 hover:text-blue-800 underline"
+						className="text-brand underline hover:text-brand/80"
 					>
 						Learn more
 					</a>
@@ -75,7 +73,7 @@ export default function OrgAPIKeys() {
 			<CardContent className="p-6 pt-0">
 				<div className="relative overflow-x-auto rounded-md border-0">
 					<Table className="rounded-md overflow-hidden">
-						<TableHeader className="bg-[#F4F4F5] dark:bg-[#262626] dark:text-[#fff] h-12 font-medium text-muted-foreground text-center">
+						<TableHeader className="h-12 bg-table-header text-center font-medium text-muted-foreground">
 							<TableRow>
 								<TableHead
 									className="cursor-pointer px-4"
@@ -124,7 +122,7 @@ export default function OrgAPIKeys() {
 										className="py-8 text-center text-sm text-muted-foreground"
 									>
 										<div className="flex items-center justify-center gap-2">
-											<div className="h-5 w-5 animate-spin rounded-full border-b-2 border-gray-500" />
+											<div className="h-5 w-5 animate-spin rounded-full border-b-2 border-brand" />
 											Loading…
 										</div>
 									</td>

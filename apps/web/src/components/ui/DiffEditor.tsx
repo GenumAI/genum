@@ -1,8 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { DiffEditor, DiffEditorProps, DiffOnMount } from "@monaco-editor/react";
+import { DiffEditor, DiffEditorProps, DiffOnMount, useMonaco } from "@monaco-editor/react";
 import { parseJson } from "@/lib/jsonUtils";
 import { editor } from "monaco-editor";
 import { useTheme } from "@/components/theme/theme-provider";
+import { MONACO_THEME_NAMES, registerMonacoTheme } from "@/components/ui/monaco-theme";
+
+type DisposableHandle = {
+	dispose: () => void;
+};
+
+type DiffSurfaceToken = "--editor-input-background" | "--background";
 
 const CompareDiffEditor = ({
 	onChange,
@@ -10,21 +17,28 @@ const CompareDiffEditor = ({
 	renderOverviewRuler = true,
 	maxHeight,
 	loading,
+	surfaceToken = "--background",
 	...props
 }: DiffEditorProps & {
 	onChange?: (value: string) => void;
 	onBlur?: (value: string) => void;
 	renderOverviewRuler?: boolean;
 	maxHeight?: number;
+	surfaceToken?: DiffSurfaceToken;
 }) => {
 	const { resolvedTheme } = useTheme();
-	const monacoTheme = resolvedTheme === "dark" ? "vs-dark" : "vs";
+	const monaco = useMonaco();
+	const monacoTheme = resolvedTheme
+		? surfaceToken === "--background"
+			? MONACO_THEME_NAMES[`${resolvedTheme}Surface`]
+			: MONACO_THEME_NAMES[resolvedTheme]
+		: MONACO_THEME_NAMES.light;
 
 	const editorRef = useRef<editor.IStandaloneDiffEditor | null>(null);
-	const changeListenerRef = useRef<any>(null);
-	const originalChangeListenerRef = useRef<any>(null);
-	const blurListenerRef = useRef<any>(null);
-	const layoutListenerRef = useRef<any>(null);
+	const changeListenerRef = useRef<DisposableHandle | null>(null);
+	const originalChangeListenerRef = useRef<DisposableHandle | null>(null);
+	const blurListenerRef = useRef<DisposableHandle | null>(null);
+	const layoutListenerRef = useRef<DisposableHandle | null>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const onChangeRef = useRef(onChange);
 	const onBlurRef = useRef(onBlur);
@@ -40,6 +54,14 @@ const CompareDiffEditor = ({
 	useEffect(() => {
 		onBlurRef.current = onBlur;
 	}, [onBlur]);
+
+	useEffect(() => {
+		if (!monaco || !resolvedTheme) {
+			return;
+		}
+
+		registerMonacoTheme(monaco, resolvedTheme, { surfaceToken });
+	}, [monaco, resolvedTheme, surfaceToken]);
 
 	useEffect(() => {
 		return () => {

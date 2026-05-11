@@ -4,8 +4,7 @@ import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ChevronDown, SquareTerminal, type LucideIcon } from "lucide-react";
 import { JSONTree } from "react-json-tree";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/components/theme/theme-provider";
-import { jsonThemeDark, jsonThemeLight } from "../utils/utils";
+import { jsonTheme } from "../utils/utils";
 
 interface VersionJsonViewerProps {
 	title: string;
@@ -21,8 +20,6 @@ export const VersionJsonViewer: React.FC<VersionJsonViewerProps> = ({
 	defaultOpen = false,
 }) => {
 	const [viewMode, setViewMode] = useState<"tree" | "raw">("tree");
-	const { resolvedTheme } = useTheme();
-	const activeJsonTheme = resolvedTheme === "dark" ? jsonThemeDark : jsonThemeLight;
 
 	if (!data) return null;
 
@@ -49,7 +46,7 @@ export const VersionJsonViewer: React.FC<VersionJsonViewerProps> = ({
 							className={cn(
 								"px-4 py-1.5 text-sm font-medium focus:outline-none rounded-l-md border",
 								viewMode === "tree"
-									? "text-foreground border-[#2b6cb0] text-[#2b6cb0]"
+									? "border-brand text-brand"
 									: "text-muted-foreground border-border hover:bg-muted",
 							)}
 						>
@@ -61,7 +58,7 @@ export const VersionJsonViewer: React.FC<VersionJsonViewerProps> = ({
 							className={cn(
 								"px-4 py-1.5 text-sm font-medium focus:outline-none rounded-r-md border",
 								viewMode === "raw"
-									? "text-foreground border-[#2b6cb0] text-[#2b6cb0]"
+									? "border-brand text-brand"
 									: "text-muted-foreground border-border hover:bg-muted",
 							)}
 						>
@@ -71,7 +68,7 @@ export const VersionJsonViewer: React.FC<VersionJsonViewerProps> = ({
 
 					{viewMode === "tree" ? (
 						<div className="p-4 pt-0 rounded text-xs text-foreground overflow-auto">
-							<JSONTree data={data} theme={activeJsonTheme} invertTheme={false} />
+							<JSONTree data={data} theme={jsonTheme} invertTheme={false} />
 						</div>
 					) : (
 						<pre className="p-4 pt-0 rounded text-xs text-foreground overflow-auto">

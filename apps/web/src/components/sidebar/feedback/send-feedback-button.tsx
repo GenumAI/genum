@@ -95,9 +95,9 @@ export function FeedbackButton({
 	return (
 		<div className="flex flex-1 items-end overflow-hidden">
 			<div
-				className={`w-full rounded-2xl border border-gray-200 dark:bg-sidebar dark:border-[#27272A] bg-white py-3 px-4 flex flex-col items-center justify-center ${className}`}
+				className={`flex w-full flex-col items-center justify-center rounded-2xl border border-border bg-card px-4 py-3 ${className}`}
 			>
-				<p className="text-[#71717A] dark:text-[#a3a3a3] text-[12px] font-medium mb-2 text-center">
+				<p className="mb-2 text-center text-[12px] font-medium text-muted-foreground">
 					Got something on your mind?
 					<br />
 					Let us know.
@@ -144,7 +144,7 @@ export function FeedbackButton({
 							<div className="space-y-2">
 								<div className="flex items-center justify-between">
 									<Label htmlFor="subject">Subject</Label>
-									<span className="text-xs text-gray-500">
+									<span className="text-xs text-muted-foreground">
 										{subject.length}/128
 									</span>
 								</div>
@@ -161,7 +161,7 @@ export function FeedbackButton({
 							<div className="space-y-2">
 								<div className="flex items-center justify-between">
 									<Label htmlFor="message">Message</Label>
-									<span className="text-xs text-gray-500">
+									<span className="text-xs text-muted-foreground">
 										{message.length}/2500
 									</span>
 								</div>
@@ -175,7 +175,7 @@ export function FeedbackButton({
 									required
 									maxLength={2500}
 								/>
-								<p className="pt-1 pb-6 text-xs text-gray-500 text-right">
+								<p className="pt-1 pb-6 text-xs text-muted-foreground text-right">
 									<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
 										Ctrl
 									</kbd>{" "}

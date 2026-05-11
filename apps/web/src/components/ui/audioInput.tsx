@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Mic, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/useToast";
-import { useTheme } from "@/components/theme/theme-provider";
 import { useVoiceVisualizer, VoiceVisualizer } from "react-voice-visualizer";
 import { helpersApi } from "@/api/helpers";
 
@@ -36,7 +35,6 @@ const AudioInput = ({
 }: AudioInputProps) => {
 	const [isLoading, setIsLoading] = useState(false);
 	const { toast } = useToast();
-	const { resolvedTheme } = useTheme();
 	const recorderControls = useVoiceVisualizer();
 	const { startRecording, stopRecording, recordedBlob, error, isRecordingInProgress, audioData } =
 		recorderControls;
@@ -132,8 +130,8 @@ const AudioInput = ({
 	};
 
 	const defaultColors = {
-		recording: "#437BEF",
-		pulse: "#83ABFF50",
+		recording: "hsl(var(--brand))",
+		pulse: "hsl(var(--brand) / 0.32)",
 		button: "transparent",
 		icon: "currentColor",
 	};
@@ -167,9 +165,7 @@ const AudioInput = ({
 						barWidth={2}
 						gap={1}
 						backgroundColor="transparent"
-						mainBarColor={
-							colors.barColor ?? (resolvedTheme === "dark" ? "#FFFFFF" : "#000000")
-						}
+						mainBarColor={colors.barColor ?? "hsl(var(--foreground))"}
 					/>
 				</div>
 				<Button

@@ -87,6 +87,7 @@ const VisualSchemaEditor = ({
 							title={emptyTitle}
 							description={emptyDescription}
 							minHeight="200px"
+							withBackground={false}
 							className="border-none"
 						/>
 					</div>

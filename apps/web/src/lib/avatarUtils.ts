@@ -4,33 +4,48 @@ import { isCloudAuth } from "./auth";
  * Utility functions for avatar display and styling
  */
 
+const AVATAR_BG = [
+	"bg-[hsl(var(--avatar-1))]",
+	"bg-[hsl(var(--avatar-2))]",
+	"bg-[hsl(var(--avatar-3))]",
+	"bg-[hsl(var(--avatar-4))]",
+	"bg-[hsl(var(--avatar-5))]",
+	"bg-[hsl(var(--avatar-6))]",
+	"bg-[hsl(var(--avatar-7))]",
+	"bg-[hsl(var(--avatar-8))]",
+	"bg-[hsl(var(--avatar-9))]",
+	"bg-[hsl(var(--avatar-10))]",
+	"bg-[hsl(var(--avatar-11))]",
+	"bg-[hsl(var(--avatar-12))]",
+] as const;
+
 const LETTER_COLOR_MAP: Record<string, string> = {
-	A: "bg-[#D6CFFF]",
-	B: "bg-[#BBCAFF]",
-	C: "bg-[#BFDEFF]",
-	D: "bg-[#D5F0FF]",
-	E: "bg-[#D7EFEB]",
-	F: "bg-[#D6F6E6]",
-	G: "bg-[#DEEADE]",
-	H: "bg-[#E7F5C8]",
-	I: "bg-[#FFE4F2]",
-	J: "bg-[#FFD7D8]",
-	K: "bg-[#FFE6B1]",
-	L: "bg-[#F9ECDB]",
-	M: "bg-[#D6CFFF]",
-	N: "bg-[#BBCAFF]",
-	O: "bg-[#BFDEFF]",
-	P: "bg-[#D5F0FF]",
-	Q: "bg-[#D7EFEB]",
-	R: "bg-[#D6F6E6]",
-	S: "bg-[#DEEADE]",
-	T: "bg-[#E7F5C8]",
-	U: "bg-[#FFE4F2]",
-	V: "bg-[#FFD7D8]",
-	W: "bg-[#FFE6B1]",
-	X: "bg-[#F9ECDB]",
-	Y: "bg-[#D6CFFF]",
-	Z: "bg-[#BBCAFF]",
+	A: AVATAR_BG[0],
+	B: AVATAR_BG[1],
+	C: AVATAR_BG[2],
+	D: AVATAR_BG[3],
+	E: AVATAR_BG[4],
+	F: AVATAR_BG[5],
+	G: AVATAR_BG[6],
+	H: AVATAR_BG[7],
+	I: AVATAR_BG[8],
+	J: AVATAR_BG[9],
+	K: AVATAR_BG[10],
+	L: AVATAR_BG[11],
+	M: AVATAR_BG[0],
+	N: AVATAR_BG[1],
+	O: AVATAR_BG[2],
+	P: AVATAR_BG[3],
+	Q: AVATAR_BG[4],
+	R: AVATAR_BG[5],
+	S: AVATAR_BG[6],
+	T: AVATAR_BG[7],
+	U: AVATAR_BG[8],
+	V: AVATAR_BG[9],
+	W: AVATAR_BG[10],
+	X: AVATAR_BG[11],
+	Y: AVATAR_BG[0],
+	Z: AVATAR_BG[1],
 };
 
 /**
@@ -45,18 +60,32 @@ export function isLetter(char: string): boolean {
  */
 export function getAvatarColorByFirstLetter(name: string): string {
 	const firstLetter = name[0]?.toUpperCase() || "";
-	return LETTER_COLOR_MAP[firstLetter] || "bg-[#D6CFFF]";
+	return LETTER_COLOR_MAP[firstLetter] || AVATAR_BG[0];
 }
 
 /**
  * Gets avatar color class for a name, handling non-letter characters
  * @param name - The name to get color for
- * @returns Color class string. Returns "bg-black text-white" for non-letter first characters
+ * @returns Color class string. Returns inverted theme tokens for non-letter first characters
  */
 export function getAvatarColor(name: string): string {
 	const firstChar = name[0] ?? "";
 	const isNonLetter = !firstChar || !isLetter(firstChar);
-	return isNonLetter ? "bg-black text-white" : getAvatarColorByFirstLetter(name);
+	return isNonLetter
+		? "bg-foreground text-background"
+		: `${getAvatarColorByFirstLetter(name)} text-foreground`;
+}
+
+/**
+ * Tailwind classes for CommitAuthorAvatar fallback driven by global avatar tokens.
+ */
+export function getCommitAuthorAvatarFallbackClasses(name: string): string {
+	const firstChar = name[0] ?? "";
+	const isNonLetter = !firstChar || !isLetter(firstChar);
+	if (isNonLetter) {
+		return "bg-surface-strong text-foreground";
+	}
+	return getAvatarColor(name);
 }
 
 /**
@@ -82,12 +111,12 @@ export function getAvatarUrl(
 ): string | undefined {
 	if (!user) return undefined;
 	const isCloud = isCloudAuth();
-	
+
 	// On cloud: use avatar from backend (both fields come from backend, prioritize avatar)
 	if (isCloud) {
 		return user.avatar || user.picture || undefined;
 	}
-	
+
 	// On local: prefer picture (local avatar), then avatar from backend
 	return user.picture || user.avatar || undefined;
 }

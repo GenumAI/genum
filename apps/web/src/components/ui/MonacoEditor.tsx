@@ -1,7 +1,8 @@
 import { useRef, useEffect, memo } from "react";
-import Editor, { OnMount, EditorProps } from "@monaco-editor/react";
+import Editor, { OnMount, EditorProps, useMonaco } from "@monaco-editor/react";
 import { useTheme } from "@/components/theme/theme-provider";
 import type { editor } from "monaco-editor";
+import { MONACO_THEME_NAMES, registerMonacoTheme } from "@/components/ui/monaco-theme";
 
 export interface MonacoEditorProps extends Omit<EditorProps, "theme"> {
 	/**
@@ -20,6 +21,10 @@ export interface MonacoEditorProps extends Omit<EditorProps, "theme"> {
 	 * Aria label for accessibility
 	 */
 	ariaLabel?: string;
+	/**
+	 * Which CSS token should be used for the editor surface.
+	 */
+	surfaceToken?: "--editor-input-background" | "--background";
 }
 
 /**
@@ -68,12 +73,26 @@ const MonacoEditor = ({
 	options,
 	autoDispose = true,
 	ariaLabel,
+	surfaceToken = "--background",
 	loading,
 	...props
 }: MonacoEditorProps) => {
 	const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+	const monaco = useMonaco();
 	const { resolvedTheme } = useTheme();
-	const monacoTheme = resolvedTheme === "dark" ? "vs-dark" : "vs";
+	const monacoTheme = resolvedTheme
+		? surfaceToken === "--background"
+			? MONACO_THEME_NAMES[`${resolvedTheme}Surface`]
+			: MONACO_THEME_NAMES[resolvedTheme]
+		: MONACO_THEME_NAMES.light;
+
+	useEffect(() => {
+		if (!monaco || !resolvedTheme) {
+			return;
+		}
+
+		registerMonacoTheme(monaco, resolvedTheme, { surfaceToken });
+	}, [monaco, resolvedTheme, surfaceToken]);
 
 	useEffect(() => {
 		return () => {

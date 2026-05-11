@@ -38,7 +38,7 @@ export const ChatModalDialog = ({
 					</div>
 					<DialogClose
 						aria-label="Close"
-						className="rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-ring disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 text-secondary-foreground shadow-sm hover:bg-secondary/80 bg-transparent text-black"
+						className="rounded-md bg-transparent text-sm font-medium text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-ring disabled:opacity-50 hover:bg-secondary/80 [&_svg]:pointer-events-none [&_svg]:shrink-0"
 					>
 						<Compress />
 					</DialogClose>

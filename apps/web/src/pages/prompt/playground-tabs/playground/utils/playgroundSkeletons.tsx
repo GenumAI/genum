@@ -127,7 +127,7 @@ function ModelsSettingsControlsSkeleton() {
 function PlaygroundSettingsSkeleton() {
 	return (
 		<div className="flex w-full flex-col gap-3">
-			<div className="h-[398px] w-full rounded-2xl border border-[#83ABFF80] bg-card px-3 py-4 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A]">
+			<div className="h-[398px] w-full rounded-2xl border border-brand/50 bg-card px-3 py-4 shadow-sm">
 				<div className="flex h-full min-w-0 flex-col">
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-[6px]">
@@ -169,7 +169,7 @@ function PlaygroundSettingsSkeleton() {
 				</div>
 			</div>
 
-			<div className="flex h-[520px] w-full flex-col gap-3 rounded-xl border bg-card px-3 py-4 shadow-[0px_1px_2px_0px_#0000000F] shadow-[0px_1px_3px_0px_#0000001A]">
+			<div className="flex h-[520px] w-full flex-col gap-3 rounded-xl border bg-card px-3 py-4 shadow-sm">
 				<div className="flex w-full items-center justify-between">
 					<Skeleton className="h-5 w-24" />
 					<Skeleton className="h-4 w-4 rounded-sm" />
@@ -210,7 +210,7 @@ function TestcasesTableSkeleton() {
 
 	return (
 		<div className="overflow-hidden rounded-md">
-			<div className="flex h-[54px] items-center bg-[#F4F4F5] px-[14px] dark:bg-[#262626]">
+			<div className="flex h-[54px] items-center bg-table-header px-[14px]">
 				<div className="grid w-full grid-cols-[2.8fr_1.6fr_1fr_1fr_0.8fr] gap-4">
 					<Skeleton className="h-4 w-[58px]" />
 					<Skeleton className="h-4 w-[78px]" />

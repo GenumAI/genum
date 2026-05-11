@@ -55,7 +55,7 @@ export function DateRangePopoverField({ value, onApply }: DateRangePopoverFieldP
 					<button
 						className={cn(
 							"border rounded-md px-3 py-2 text-sm text-left flex items-center gap-2 text-muted-foreground shadow-sm transition-colors w-[245px]",
-							"hover:border-gray-400",
+							"hover:border-muted-foreground/50",
 							"truncate whitespace-nowrap overflow-hidden",
 						)}
 					>

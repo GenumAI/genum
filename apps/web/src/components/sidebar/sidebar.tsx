@@ -369,7 +369,7 @@ const SidebarHeader = React.forwardRef<HTMLDivElement, React.ComponentProps<"div
 				ref={ref}
 				data-sidebar="header"
 				className={cn(
-					"flex flex-col gap-2 p-2 bg-zinc-100 dark:bg-sidebar border-b border-[#27272A]",
+					"flex flex-col gap-2 border-b border-sidebar-border bg-[hsl(var(--sidebar-header-background))] p-2",
 					className,
 				)}
 				{...props}
@@ -386,7 +386,7 @@ const SidebarFooter = React.forwardRef<HTMLDivElement, React.ComponentProps<"div
 				<div
 					ref={ref}
 					data-sidebar="footer"
-					className={cn("flex flex-col gap-2 p-2 dark:bg-[#18181B]", className)}
+					className={cn("flex flex-col gap-2 bg-sidebar p-2", className)}
 					{...props}
 				/>
 			</>

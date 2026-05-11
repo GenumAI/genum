@@ -8,22 +8,19 @@ interface SelectedFilesListProps {
 	onRemove: (fileId: string) => void;
 }
 
-const SelectedFilesList: React.FC<SelectedFilesListProps> = ({
-	files,
-	onRemove,
-}) => {
+const SelectedFilesList: React.FC<SelectedFilesListProps> = ({ files, onRemove }) => {
 	if (files.length === 0) {
 		return null;
 	}
 
 	const getFileIcon = (file: FileMetadata) => {
 		if (file.contentType.startsWith("image/")) {
-			return <ImageIcon className="h-4 w-4 text-blue-500" />;
+			return <ImageIcon className="h-4 w-4 text-info" />;
 		}
 		if (file.contentType === "application/pdf") {
-			return <File className="h-4 w-4 text-red-500" />;
+			return <File className="h-4 w-4 text-destructive" />;
 		}
-		return <File className="h-4 w-4 text-gray-500" />;
+		return <File className="h-4 w-4 text-muted-foreground" />;
 	};
 
 	return (

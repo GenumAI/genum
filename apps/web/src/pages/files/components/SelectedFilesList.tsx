@@ -41,7 +41,7 @@ const SelectedFilesList: React.FC<SelectedFilesListProps> = ({
 					size="sm"
 					onClick={() => setIsFileDialogOpen(true)}
 					disabled={selectedFiles.length >= maxFiles}
-					className="text-[12px] h-[28px] px-2 bg-muted/50 hover:bg-muted/70 flex-shrink-0"
+					className="h-[28px] flex-shrink-0 border border-border bg-muted/60 px-2 text-[12px] text-foreground hover:bg-muted/80 dark:border-border dark:bg-background dark:hover:bg-muted"
 				>
 					<Plus className="h-3 w-3 mr-1.5" />
 					Add files

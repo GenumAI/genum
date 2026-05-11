@@ -158,7 +158,7 @@ function ModelsTableComponent({ models, isLoading, pendingModelIds, onToggle }: 
 			) : (
 				<div className="relative overflow-x-auto rounded-md border">
 					<Table>
-						<TableHeader className="bg-[#F4F4F5] dark:bg-[#262626]">
+						<TableHeader className="bg-table-header text-muted-foreground">
 							<TableRow>
 								<TableHead className="text-left p-4 w-[300px]">Model</TableHead>
 								<TableHead className="text-right p-4 w-[120px]">

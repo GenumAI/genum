@@ -48,7 +48,7 @@ export const ResponseFormatSection = memo(
 								<FormControl>
 									<SelectTrigger
 										id="response-format"
-										className="mt-1 text-[14px] dark:bg-transparent dark:border-[#3C3D3F]"
+										className="mt-1 bg-background text-[14px]"
 									>
 										<SelectValue placeholder={field.value} />
 									</SelectTrigger>

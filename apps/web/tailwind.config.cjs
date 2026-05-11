@@ -45,6 +45,39 @@ module.exports = {
 					DEFAULT: "hsl(var(--destructive))",
 					foreground: "hsl(var(--destructive-foreground))",
 				},
+				brand: {
+					DEFAULT: "hsl(var(--brand))",
+					foreground: "hsl(var(--brand-foreground))",
+				},
+				success: {
+					DEFAULT: "hsl(var(--success))",
+					foreground: "hsl(var(--success-foreground))",
+					soft: "hsl(var(--success-soft))",
+				},
+				warning: {
+					DEFAULT: "hsl(var(--warning))",
+					foreground: "hsl(var(--warning-foreground))",
+					soft: "hsl(var(--warning-soft))",
+				},
+				info: {
+					DEFAULT: "hsl(var(--info))",
+					foreground: "hsl(var(--info-foreground))",
+					soft: "hsl(var(--info-soft))",
+				},
+				overlay: "hsl(var(--overlay))",
+				tooltip: {
+					DEFAULT: "hsl(var(--tooltip))",
+					foreground: "hsl(var(--tooltip-foreground))",
+				},
+				surface: {
+					elevated: "hsl(var(--surface-elevated))",
+					muted: "hsl(var(--surface-muted))",
+					strong: "hsl(var(--surface-strong))",
+				},
+				table: {
+					header: "hsl(var(--table-header))",
+					row: "hsl(var(--table-row-hover))",
+				},
 				border: "hsl(var(--border))",
 				input: "hsl(var(--input))",
 				ring: "hsl(var(--ring))",
@@ -54,6 +87,13 @@ module.exports = {
 					3: "hsl(var(--chart-3))",
 					4: "hsl(var(--chart-4))",
 					5: "hsl(var(--chart-5))",
+					6: "hsl(var(--chart-6))",
+					7: "hsl(var(--chart-7))",
+					8: "hsl(var(--chart-8))",
+					9: "hsl(var(--chart-9))",
+					10: "hsl(var(--chart-10))",
+					11: "hsl(var(--chart-11))",
+					12: "hsl(var(--chart-12))",
 				},
 				sidebar: {
 					DEFAULT: "hsl(var(--sidebar-background))",

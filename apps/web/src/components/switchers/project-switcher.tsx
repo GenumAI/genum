@@ -155,7 +155,7 @@ export function ProjectSwitcher({
 						<DropdownMenuTrigger asChild>
 							<SidebarMenuButton
 								size="sm"
-								className="dark:text-sidebar-foreground dark:hover:bg-[#18181b] data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground p-1 gap-0.5 h-[18px] text-[#3f3f46] hover:bg-[#e4e4e7] [&>svg]:size-3"
+								className="text-sidebar-foreground hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground p-1 gap-0.5 h-[18px] [&>svg]:size-3"
 							>
 								<div className="grid flex-1 text-left text-[12px] leading-tight">
 									<span className="truncate font-semibold">

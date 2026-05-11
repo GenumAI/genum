@@ -5,13 +5,13 @@ export const LoadingIndicator = React.memo(() => {
 		<div className="flex justify-start">
 			<div className="px-3 py-2 text-sm">
 				<div className="flex space-x-1">
-					<div className="w-2 h-2 bg-[#71717A] rounded-full animate-bounce"></div>
+					<div className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground"></div>
 					<div
-						className="w-2 h-2 bg-[#71717A] rounded-full animate-bounce"
+						className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground"
 						style={{ animationDelay: "0.1s" }}
 					></div>
 					<div
-						className="w-2 h-2 bg-[#71717A] rounded-full animate-bounce"
+						className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground"
 						style={{ animationDelay: "0.2s" }}
 					></div>
 				</div>

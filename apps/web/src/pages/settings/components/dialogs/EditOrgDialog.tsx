@@ -52,7 +52,7 @@ export function EditOrgDialog({ open, onOpenChange, organization, onSuccess }: E
 							placeholder="Enter organization name"
 						/>
 						{form.formState.errors.name && (
-							<p className="text-sm text-red-500">
+							<p className="text-sm text-destructive">
 								{form.formState.errors.name.message}
 							</p>
 						)}
@@ -66,7 +66,7 @@ export function EditOrgDialog({ open, onOpenChange, organization, onSuccess }: E
 							placeholder="Enter organization description"
 						/>
 						{form.formState.errors.description && (
-							<p className="text-sm text-red-500">
+							<p className="text-sm text-destructive">
 								{form.formState.errors.description.message}
 							</p>
 						)}

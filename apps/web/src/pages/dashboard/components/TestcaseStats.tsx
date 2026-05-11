@@ -245,7 +245,7 @@ export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: P
 						<div className="px-6 py-2">
 							<div className="text-[16px] leading-[20px] font-medium flex items-center gap-1.5 mb-3 text-foreground">
 								Passed{" "}
-								<CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-[#2da44a]" />
+								<CheckCircle2 className="w-4 h-4 text-success" />
 							</div>
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
 								<TweenNumber
@@ -257,7 +257,7 @@ export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: P
 						<div className="px-6 py-2">
 							<div className="text-[16px] leading-[20px] font-medium flex items-center gap-1.5 mb-3 text-foreground">
 								Failed{" "}
-								<XCircle className="w-4 h-4 text-rose-600 dark:text-[#D64646]" />
+								<XCircle className="w-4 h-4 text-destructive" />
 							</div>
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
 								<TweenNumber
@@ -269,7 +269,7 @@ export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: P
 						<div className="px-6 py-2">
 							<div className="text-[16px] leading-[20px] font-medium flex items-center gap-1.5 mb-3 text-foreground">
 								Need Run{" "}
-								<AlertCircle className="w-4 h-4 text-amber-600 dark:text-[#cd9932]" />
+								<AlertCircle className="w-4 h-4 text-warning" />
 							</div>
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
 								<TweenNumber

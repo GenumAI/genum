@@ -59,7 +59,7 @@ export const ChatHeader = ({
           type="button"
           onClick={onToggle}
           aria-label={isOpen ? "Collapse chat" : "Expand chat"}
-          className="text-[#18181B] dark:text-white"
+          className="text-foreground"
         >
           {isOpen ? (
             <ChevronUp className="w-4 h-4" />

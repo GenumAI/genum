@@ -56,7 +56,9 @@ export function EditProjectDialog({
 							placeholder="Enter project name"
 						/>
 						{form.formState.errors.name && (
-							<p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
+							<p className="text-sm text-destructive">
+								{form.formState.errors.name.message}
+							</p>
 						)}
 					</div>
 					<div className="space-y-1">
@@ -68,7 +70,7 @@ export function EditProjectDialog({
 							placeholder="Enter project description"
 						/>
 						{form.formState.errors.description && (
-							<p className="text-sm text-red-500">
+							<p className="text-sm text-destructive">
 								{form.formState.errors.description.message}
 							</p>
 						)}

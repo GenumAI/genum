@@ -27,6 +27,7 @@ export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>
 		// State management
 		const [isExpanded, setExpanded] = useState(false);
 		const [isPreviewMode, setPreviewMode] = useState(false);
+		const [isFullscreenAIPopoverOpen, setIsFullscreenAIPopoverOpen] = useState(false);
 
 		// Custom hooks
 		const { textareaHeight, handleResizeStart } = useInputResize({ minHeight: 140 });
@@ -43,6 +44,8 @@ export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>
 		};
 
 		const handleExpandToggle = () => {
+			setIsPopoverOpen(false);
+			setIsFullscreenAIPopoverOpen(false);
 			setExpanded(!isExpanded);
 		};
 
@@ -70,7 +73,7 @@ export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>
 		return (
 			<>
 				<div className="flex flex-col gap-2">
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 bg-background p-0">
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
 						<CardTitle className="text-sm font-medium">Input</CardTitle>
 
 						<InputActions
@@ -103,7 +106,12 @@ export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>
 
 				<InputExpandedDialog
 					isOpen={isExpanded}
-					onOpenChange={setExpanded}
+					onOpenChange={(open) => {
+						if (!open) {
+							setIsFullscreenAIPopoverOpen(false);
+						}
+						setExpanded(open);
+					}}
 					value={inputContent}
 					onChange={handleChange}
 					onBlur={handleBlur}
@@ -111,8 +119,8 @@ export const InputTextArea = forwardRef<HTMLTextAreaElement, InputTextAreaProps>
 					onPreviewToggle={handlePreviewToggle}
 					isAIButtonActive={isAIButtonActive}
 					aiInactiveReason={getInactiveReason()}
-					isAIPopoverOpen={isPopoverOpen}
-					setIsAIPopoverOpen={setIsPopoverOpen}
+					isAIPopoverOpen={isFullscreenAIPopoverOpen}
+					setIsAIPopoverOpen={setIsFullscreenAIPopoverOpen}
 					aiQuery={aiQuery}
 					setAiQuery={setAiQuery}
 					onGenerate={handleGenerate}

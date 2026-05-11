@@ -1,4 +1,5 @@
 import type { PropsWithChildren } from "react";
+import { isCssVariableImage, resolveBackgroundImage } from "@/pages/invite/utils/inviteThemeAssets";
 
 type AuthPageFrameProps = PropsWithChildren<{
 	backgroundImage: string;
@@ -17,26 +18,41 @@ export function AuthPageFrame({
 	children,
 }: AuthPageFrameProps) {
 	const defaultCardClassName =
-		"flex flex-col gap-6 w-[400px] shadow-[0_4px_16px_#00000014] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)] rounded-[24px] p-[52px] bg-white dark:bg-zinc-900 dark:border dark:border-zinc-800";
+		"flex w-[400px] flex-col gap-6 rounded-[24px] border border-border bg-card/95 p-[52px] text-card-foreground shadow-2xl backdrop-blur-sm";
 
 	return (
 		<div
-			className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat flex items-center justify-center dark:bg-zinc-950"
-			style={{ backgroundImage: `url('${backgroundImage}')` }}
+			className="fixed inset-0 flex h-full w-full items-center justify-center bg-background bg-cover bg-center bg-no-repeat"
+			style={{ backgroundImage: resolveBackgroundImage(backgroundImage) }}
 		>
-			<div className={cardClassName ? `${defaultCardClassName} ${cardClassName}` : defaultCardClassName}>
+			<div
+				className={
+					cardClassName
+						? `${defaultCardClassName} ${cardClassName}`
+						: defaultCardClassName
+				}
+			>
 				<div className="text-center">
-					<div className="mx-auto flex h-[24px] w-[114px] items-center justify-center">
-						<img
-							src={logoSrc}
-							alt="Logo"
-							className="max-h-full max-w-full object-contain object-center dark:invert-0"
-						/>
+					<div className="mx-auto flex h-[32px] w-[140px] items-center justify-center">
+						{isCssVariableImage(logoSrc) ? (
+							<div
+								role="img"
+								aria-label="Logo"
+								className="h-full w-full bg-contain bg-center bg-no-repeat"
+								style={{ backgroundImage: logoSrc }}
+							/>
+						) : (
+							<img
+								src={logoSrc}
+								alt="Logo"
+								className="max-h-full max-w-full object-contain object-center"
+							/>
+						)}
 					</div>
-					<h1 className="text-[24px] font-bold text-gray-900 dark:text-zinc-50 mb-[16px] mt-[24px]">
+					<h1 className="mb-[16px] mt-[24px] text-[24px] font-bold text-foreground">
 						{title}
 					</h1>
-					<p className="text-gray-800 dark:text-zinc-400 text-[14px]">{description}</p>
+					<p className="text-[14px] text-muted-foreground">{description}</p>
 				</div>
 				{children}
 			</div>
