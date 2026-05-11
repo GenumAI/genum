@@ -3,7 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PopoverContent } from "@/components/ui/popover";
 import AudioInput from "@/components/ui/audioInput";
 import { Loader2 } from "lucide-react";
-import { ReactNode, useState } from "react";
+import { useState, type ReactNode } from "react";
 
 interface PromptActionPopoverProps {
 	placeholder: string;
@@ -37,6 +37,8 @@ export default function PromptActionPopover({
 	return (
 		<PopoverContent
 			align="end"
+			onOpenAutoFocus={(event) => event.preventDefault()}
+			onCloseAutoFocus={(event) => event.preventDefault()}
 			className="w-[600px] p-4 space-y-2 shadow-md border-0 flex flex-col items-end"
 		>
 			<Textarea

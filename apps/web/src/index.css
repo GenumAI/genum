@@ -47,6 +47,8 @@ body,
 
 html {
 	background-color: hsl(var(--background));
+	overflow-y: scroll;
+	scrollbar-gutter: stable;
 }
 
 a {
@@ -477,6 +479,7 @@ html.firefox .monaco-diff-editor .inputarea {
 }
 
 body[data-scroll-locked] {
+	overflow: visible !important;
 	overflow-y: scroll !important;
 	margin-right: 0 !important;
 	padding-right: 0 !important;

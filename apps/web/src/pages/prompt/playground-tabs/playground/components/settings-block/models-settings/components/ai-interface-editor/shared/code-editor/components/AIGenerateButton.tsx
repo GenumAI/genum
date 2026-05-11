@@ -37,6 +37,7 @@ interface ControlledModeProps extends BaseAIGenerateButtonProps {
 	inactiveReason?: string;
 	simpleButton?: boolean;
 	buttonClassName?: string;
+	actionIconClassName?: string;
 }
 
 type AIGenerateButtonProps = AutomaticModeProps | ControlledModeProps;
@@ -82,19 +83,32 @@ export default function AIGenerateButton(props: AIGenerateButtonProps) {
 	};
 
 	const label = getLabel();
-	const placeholder = controlled && props.placeholder ? props.placeholder : `What ${label} do you need?`;
+	const placeholder =
+		controlled && props.placeholder ? props.placeholder : `What ${label} do you need?`;
 	const buttonText = controlled && props.buttonText ? props.buttonText : "Generate";
-	const tooltipText = controlled && props.tooltipText ? props.tooltipText : `Generate ${label} with AI`;
-	const allowEmpty = controlled ? props.allowEmpty ?? false : false;
-	const textareaClassName = controlled ? props.textareaClassName ?? "" : "";
+	const tooltipText =
+		controlled && props.tooltipText ? props.tooltipText : `Generate ${label} with AI`;
+	const allowEmpty = controlled ? (props.allowEmpty ?? false) : false;
+	const textareaClassName = controlled ? (props.textareaClassName ?? "") : "";
 
 	const isInputMode = mode === "input";
-	const isActive = isInputMode && controlled ? props.isActive ?? true : true;
-	const inactiveReason = isInputMode && controlled ? props.inactiveReason ?? "" : "";
+	const isActive = isInputMode && controlled ? (props.isActive ?? true) : true;
+	const inactiveReason = isInputMode && controlled ? (props.inactiveReason ?? "") : "";
 
-	const isDisabled = controlled ? props.disabled ?? false : false;
+	const isDisabled = controlled ? (props.disabled ?? false) : false;
 	const simpleButton = controlled && props.simpleButton;
 	const buttonClassName = controlled && props.buttonClassName ? props.buttonClassName : "";
+	const hasWhiteActionIcon = ["prompt-tune", "input", "schema", "tool"].includes(mode);
+	const actionIconClassName =
+		controlled && props.actionIconClassName
+			? props.actionIconClassName
+			: hasWhiteActionIcon
+				? "[&_path]:stroke-primary-foreground"
+				: "";
+	const handleOpenChange = (open: boolean) => {
+		if (isInputMode && !isActive && open) return;
+		setIsOpen(open);
+	};
 
 	if (simpleButton) {
 		return (
@@ -104,15 +118,18 @@ export default function AIGenerateButton(props: AIGenerateButtonProps) {
 						<button
 							type="button"
 							aria-label={tooltipText}
-							className={buttonClassName || "rounded-md p-1.5 transition-all hover:bg-brand/10 text-brand disabled:cursor-not-allowed disabled:opacity-50"}
+							className={
+								buttonClassName ||
+								"rounded-md p-1.5 transition-all hover:bg-brand/10 text-brand disabled:cursor-not-allowed disabled:opacity-50"
+							}
 							disabled={isDisabled}
 							onClick={handleAction}
 						>
-					{isLoading ? (
-						<CircleNotch size={18} className="animate-spin" />
-					) : (
-						<TuneIcon stroke="currentColor" />
-					)}
+							{isLoading ? (
+								<CircleNotch size={18} className="animate-spin" />
+							) : (
+								<TuneIcon stroke="currentColor" />
+							)}
 						</button>
 					</TooltipTrigger>
 					<TooltipContent>
@@ -126,7 +143,7 @@ export default function AIGenerateButton(props: AIGenerateButtonProps) {
 	return (
 		<TooltipProvider>
 			<Tooltip>
-				<Popover open={isOpen} onOpenChange={setIsOpen} modal>
+				<Popover open={isOpen} onOpenChange={handleOpenChange}>
 					<PopoverTrigger asChild>
 						<TooltipTrigger asChild>
 							{isInputMode ? (
@@ -161,7 +178,7 @@ export default function AIGenerateButton(props: AIGenerateButtonProps) {
 						onChange={setInput}
 						onAction={handleAction}
 						buttonText={buttonText}
-						buttonIcon={<TuneIcon stroke="currentColor" />}
+						buttonIcon={<TuneIcon className={actionIconClassName} />}
 						loading={isLoading}
 						disabled={isDisabled || isLoading || (!allowEmpty && !input.trim())}
 						allowEmpty={allowEmpty}
