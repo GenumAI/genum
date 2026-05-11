@@ -190,4 +190,60 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
 		.tools()
 		.build(),
+
+	model("gpt-5.4", AiVendor.OPENAI)
+		.displayName("GPT-5.4")
+		.description("A more affordable model for coding and professional work.")
+		.pricing(2.5, 15)
+		.limits(1_050_000, 128_000)
+		.reasoningEffort(["none", "low", "medium", "high", "xhigh"], "medium")
+		.verbosity(["low", "medium", "high"], "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gpt-5.4-mini", AiVendor.OPENAI)
+		.displayName("GPT-5.4 mini")
+		.description("Our strongest mini model yet for coding, computer use, and subagents.")
+		.pricing(0.75, 4.5)
+		.limits(400_000, 128_000)
+		.reasoningEffort(["none", "low", "medium", "high", "xhigh"], "medium")
+		.verbosity(["low", "medium", "high"], "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gpt-5.4-nano", AiVendor.OPENAI)
+		.displayName("GPT-5.4 nano")
+		.description("Our cheapest GPT-5.4-class model for simple high-volume tasks.")
+		.pricing(0.2, 1.25)
+		.limits(400_000, 128_000)
+		.reasoningEffort(["none", "low", "medium", "high", "xhigh"], "medium")
+		.verbosity(["low", "medium", "high"], "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gpt-5.5", AiVendor.OPENAI)
+		.displayName("GPT-5.5")
+		.description("A new class of intelligence for coding and professional work.")
+		.pricing(5, 30)
+		.limits(1_050_000, 128_000)
+		.reasoningEffort(["none", "low", "medium", "high", "xhigh"], "medium")
+		.verbosity(["low", "medium", "high"], "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gpt-5.5-pro", AiVendor.OPENAI)
+		.displayName("GPT-5.5 pro")
+		.description(
+			"GPT-5.5 pro uses more compute to think harder and provide consistently better answers.",
+		)
+		.pricing(30, 180)
+		.limits(1_050_000, 128_000)
+		.reasoningEffort(["none", "low", "medium", "high", "xhigh"], "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
 ];
