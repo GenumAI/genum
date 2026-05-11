@@ -36,23 +36,17 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 	const [searchParams] = useSearchParams();
 	const testcaseId = searchParams.get("testcaseId");
 	const addParamsToUrl = useAddParamsToUrl();
-	const {
-		isEditing,
-		editableTitle,
-		modalOpen,
-		isUpdating,
-		setPageHeaderUi,
-		resetPageHeaderUi,
-	} = usePlaygroundStore(
-		useShallow((state) => ({
-			isEditing: state.pageHeaderUi.isEditing,
-			editableTitle: state.pageHeaderUi.editableTitle,
-			modalOpen: state.pageHeaderUi.modalOpen,
-			isUpdating: state.pageHeaderUi.isUpdating,
-			setPageHeaderUi: state.setPageHeaderUi,
-			resetPageHeaderUi: state.resetPageHeaderUi,
-		})),
-	);
+	const { isEditing, editableTitle, modalOpen, isUpdating, setPageHeaderUi, resetPageHeaderUi } =
+		usePlaygroundStore(
+			useShallow((state) => ({
+				isEditing: state.pageHeaderUi.isEditing,
+				editableTitle: state.pageHeaderUi.editableTitle,
+				modalOpen: state.pageHeaderUi.modalOpen,
+				isUpdating: state.pageHeaderUi.isUpdating,
+				setPageHeaderUi: state.setPageHeaderUi,
+				resetPageHeaderUi: state.resetPageHeaderUi,
+			})),
+		);
 	const status = "";
 
 	const { id } = useParams<{ id: string }>();
@@ -60,12 +54,19 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 	const projectId = getProjectId();
 	const promptId = id ? Number(id) : undefined;
 
-	const routeState = useMemo(() => getPageHeaderRouteState(location.pathname), [location.pathname]);
+	const routeState = useMemo(
+		() => getPageHeaderRouteState(location.pathname),
+		[location.pathname],
+	);
 	const { isPromptPage, isVersionsPage, isComparePage, isSettings, isGetting } = routeState;
 
 	const { data: testcaseStatusCounts } = useTestcaseStatusCounts(promptId);
-	const { updatePrompt, prompt, loading: promptLoading, initialLoading: promptInitialLoading } =
-		usePromptById(promptId);
+	const {
+		updatePrompt,
+		prompt,
+		loading: promptLoading,
+		initialLoading: promptInitialLoading,
+	} = usePromptById(promptId);
 
 	const { testcase, isTestcaseLoading, refreshTestcase, renameTestcase } = useHeaderTestcase(
 		testcaseId,
@@ -77,11 +78,12 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 		: isPromptPage && promptId
 			? promptInitialLoading
 			: false;
-	const resolvedTitle = testcaseId && testcase?.name && isPromptPage
-		? testcase.name
-		: isPromptPage && prompt?.prompt?.name
-			? prompt.prompt.name
-			: title;
+	const resolvedTitle =
+		testcaseId && testcase?.name && isPromptPage
+			? testcase.name
+			: isPromptPage && prompt?.prompt?.name
+				? prompt.prompt.name
+				: title;
 
 	useEffect(() => {
 		resetPageHeaderUi();
@@ -231,13 +233,15 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 						)}
 					>
 						<div className="container max-w-full flex flex-col gap-6">
-							<div className="flex justify-between text-[#18181B] dark:text-foreground md:items-center gap-6 md:flex-row flex-col">
+							<div className="flex justify-between text-foreground md:items-center gap-6 md:flex-row flex-col">
 								{!isVersionsPage && !isComparePage && (
 									<div className="w-full flex flex-row items-center gap-2">
 										{isPromptPage && isEditing && !testcaseId ? (
 											<PageHeaderTitleInput
 												value={editableTitle}
-												onChange={(value) => setPageHeaderUi({ editableTitle: value })}
+												onChange={(value) =>
+													setPageHeaderUi({ editableTitle: value })
+												}
 												onSubmit={() => {
 													void finishEditing();
 												}}
@@ -247,7 +251,9 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 										) : testcaseId && isEditing && isPromptPage ? (
 											<PageHeaderTitleInput
 												value={editableTitle}
-												onChange={(value) => setPageHeaderUi({ editableTitle: value })}
+												onChange={(value) =>
+													setPageHeaderUi({ editableTitle: value })
+												}
 												onSubmit={() => {
 													void finishEditing();
 												}}
@@ -255,7 +261,9 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 												className="w-full max-w-[60%] max-w-[480px] text-[21px] leading-[36px] h-[36px] font-bold bg-transparent outline-none border border-input px-2 py-0 rounded-md"
 											/>
 										) : isSettings ? (
-											<h1 className="text-[30px] leading-[42px] font-bold">Settings</h1>
+											<h1 className="text-[30px] leading-[42px] font-bold">
+												Settings
+											</h1>
 										) : shouldShowLoader ? (
 											<div className="flex items-center gap-3">
 												<Skeleton className="h-9 w-48" />
@@ -273,7 +281,10 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 														}}
 														onKeyDown={(event) => {
 															if (isUpdating) return;
-															if (event.key === "Enter" || event.key === " ") {
+															if (
+																event.key === "Enter" ||
+																event.key === " "
+															) {
 																event.preventDefault();
 																startEditing();
 															}
@@ -282,7 +293,9 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 														{getCurrentTitle()}
 													</h1>
 												) : (
-													<h1 className="text-[30px] leading-[36px] font-bold">{getCurrentTitle()}</h1>
+													<h1 className="text-[30px] leading-[36px] font-bold">
+														{getCurrentTitle()}
+													</h1>
 												)}
 												{isPromptPage && !testcaseId && (
 													<div className="flex items-center gap-1.5">
@@ -290,19 +303,28 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 															<span className="text-sm font-medium text-muted-foreground">
 																{testcaseStatusCounts.ok}
 															</span>
-															{getTestCaseIcon("OK", testcaseStatusCounts.ok)}
+															{getTestCaseIcon(
+																"OK",
+																testcaseStatusCounts.ok,
+															)}
 														</div>
 														<div className="flex items-center gap-1">
 															<span className="text-sm font-medium text-muted-foreground">
 																{testcaseStatusCounts.nok}
 															</span>
-															{getTestCaseIcon("NOK", testcaseStatusCounts.nok)}
+															{getTestCaseIcon(
+																"NOK",
+																testcaseStatusCounts.nok,
+															)}
 														</div>
 														<div className="flex items-center gap-1">
 															<span className="text-sm font-medium text-muted-foreground">
 																{testcaseStatusCounts.needRun}
 															</span>
-															{getTestCaseIcon("NEED_RUN", testcaseStatusCounts.needRun)}
+															{getTestCaseIcon(
+																"NEED_RUN",
+																testcaseStatusCounts.needRun,
+															)}
 														</div>
 													</div>
 												)}
@@ -311,7 +333,7 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 
 										<div>
 											{isPromptPage && !isEditing && testcaseId && (
-												<div className="flex flex-row items-center text-gray-500">
+												<div className="flex flex-row items-center text-muted-foreground">
 													<Button
 														variant="ghost"
 														className="w-[22px] h-[22px] p-0"
@@ -319,8 +341,11 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 															void handleOpenModal();
 														}}
 													>
-														{getTestCaseIcon((testcase?.status as TestStatus) || "NEED_RUN") ?? (
-															<CircleAlert className="w-4 h-4 text-gray-500" />
+														{getTestCaseIcon(
+															(testcase?.status as TestStatus) ||
+																"NEED_RUN",
+														) ?? (
+															<CircleAlert className="w-4 h-4 text-muted-foreground" />
 														)}
 													</Button>
 												</div>
@@ -349,7 +374,9 @@ export function PageHeader({ title, navItems = [] }: PageHeaderProps) {
 											>
 												<span
 													className={`md:px-3 px-2.5 py-2 block rounded-md ${
-														item.active ? "" : "hover:bg-muted hover:text-muted-foreground"
+														item.active
+															? ""
+															: "hover:bg-muted hover:text-muted-foreground"
 													}`}
 												>
 													{item.label}

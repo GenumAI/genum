@@ -34,7 +34,7 @@ export function StatsCardWithLineChart({
 		() => ({
 			value: {
 				label: label ?? title,
-				color: "#6C98F2",
+				color: "hsl(var(--chart-7))",
 			},
 		}),
 		[label, title],
@@ -50,7 +50,7 @@ export function StatsCardWithLineChart({
 	return (
 		<Card className="p-6 rounded-lg shadow-sm">
 			<CardHeader className="p-0">
-				<CardTitle className="text-[14px] text-medium mb-2 text-[#09090B] dark:text-foreground">
+				<CardTitle className="mb-2 text-[14px] font-medium text-foreground">
 					{title}
 				</CardTitle>
 			</CardHeader>
@@ -59,7 +59,7 @@ export function StatsCardWithLineChart({
 					<TweenNumber
 						value={value}
 						formatValue={formatValue}
-						className="text-[24px] text-[#09090B] dark:text-foreground font-bold leading-[100%]"
+						className="text-[24px] font-bold leading-[100%] text-foreground"
 					/>
 					{subtitle && (
 						<div className="text-[12px] text-muted-foreground">{subtitle}</div>

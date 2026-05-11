@@ -210,13 +210,13 @@ const SettingsScreen = ({
 	return (
 		<div className="contents">
 			<Dialog.Description asChild>
-				<div className="text-sm pb-2 flex flex-col gap-4 text-[#71717A]">
+				<div className="flex flex-col gap-4 pb-2 text-sm text-muted-foreground">
 					<div className="flex flex-col gap-2">
 						<p className="font-bold text-foreground">Cookies Preferences</p>
 						<p>
 							We use cookies to improve your experience. You can manage your
 							preferences below. For more details, see our{" "}
-							<Link to="#" className="underline font-[600] text-[#71717A]">
+							<Link to="#" className="font-[600] text-muted-foreground underline">
 								Privacy Policy
 							</Link>
 							.
@@ -232,28 +232,6 @@ const SettingsScreen = ({
 							</p>
 						</div>
 					</div>
-					{/* <div className="flex gap-2">
-          <Checkbox
-            id="analytics"
-            defaultChecked
-            className="mt-0.5 !rounded-[2px]"
-            onClick={handleChange}
-            checked={analytics}
-          />
-          <div className="flex flex-col text-sm font-[500] gap-1.5">
-            <label
-              htmlFor="analytics"
-              className="text-[#18181B] cursor-pointer font-[500]"
-            >
-              Analytics & Performance
-            </label>
-            <p className="font-[400] leading-[20px]">
-              These cookies help us understand how visitors use our website by collecting
-              anonymized data. They help us improve functionality and optimize
-              performance.
-            </p>
-          </div>
-        </div> */}
 					<div className="flex gap-2">
 						<Checkbox
 							id="functional"

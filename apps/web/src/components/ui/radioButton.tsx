@@ -18,7 +18,7 @@ const RadioButton = React.forwardRef<
 		{...props}
 	>
 		<RadioGroupPrimitive.Indicator className="flex items-center justify-center">
-			<div className="h-3 w-3 rounded-full border-[1px] border-white" />
+			<div className="h-3 w-3 rounded-full border-[1px] border-primary-foreground" />
 		</RadioGroupPrimitive.Indicator>
 	</RadioGroupPrimitive.Item>
 ));

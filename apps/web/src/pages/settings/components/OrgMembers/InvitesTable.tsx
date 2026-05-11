@@ -23,7 +23,7 @@ export function InvitesTable({ invites, isLoading, deletingIds, onDelete }: Invi
 	return (
 		<div className="relative overflow-x-auto rounded-md">
 			<Table className="rounded-md overflow-hidden">
-				<TableHeader className="bg-[#F4F4F5] dark:bg-[#262626] dark:text-[#fff] h-12">
+				<TableHeader className="h-12 bg-table-header text-muted-foreground">
 					<TableRow>
 						<TableHead className="p-4 text-left">Email</TableHead>
 						<TableHead className="p-4 text-left">Invited At</TableHead>

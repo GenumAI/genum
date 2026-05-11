@@ -36,9 +36,7 @@ export default function OrgAIKeys() {
 			<QuotaCard quota={quota} isLoading={isLoadingQuota} />
 
 			<CardHeader className="flex items-center justify-between flex-row">
-				<CardTitle className="text-[18px] font-medium dark:text-[#fff] text-[#18181B]">
-					LLM Provider Keys
-				</CardTitle>
+				<CardTitle className="text-[18px] font-medium text-foreground">LLM Provider Keys</CardTitle>
 			</CardHeader>
 
 			<CardContent className="p-6 pt-0">

@@ -85,10 +85,10 @@ export const CommitDropdowns = ({
 					</div>
 					{firstAuthor && !(firstAuthor.author === "Not" && !secondAuthor?.author) && (
 						<div className="flex items-center gap-2">
-							<div className="flex flex-shrink-0 flex-grow-0 items-center justify-center rounded-full w-4 h-4 bg-[#D7EFEB] dark:bg-muted text-[10px]">
+							<div className="flex h-4 w-4 flex-shrink-0 flex-grow-0 items-center justify-center rounded-full bg-muted text-[10px]">
 								{firstAuthor.author[0]}
 							</div>
-							<div className=" flex gap-2 text-[#71717A] text-sm">
+							<div className="flex gap-2 text-sm text-muted-foreground">
 								{firstAuthor.author} commited{" "}
 								<div className="font-[600]">{firstAuthor.date}</div>
 							</div>
@@ -97,7 +97,7 @@ export const CommitDropdowns = ({
 				</div>
 
 				<div className="flex h-10 items-center justify-center">
-					<BarChart2 className="stroke-[#71717A]" />
+					<BarChart2 className="stroke-muted-foreground" />
 				</div>
 
 				<div className="flex gap-4 flex-col">
@@ -125,10 +125,10 @@ export const CommitDropdowns = ({
 					</div>
 					{secondAuthor && (
 						<div className="flex items-center gap-2">
-							<div className="flex flex-shrink-0 flex-grow-0 items-center justify-center rounded-full w-4 h-4 bg-[#D7EFEB] dark:bg-muted text-[10px]">
+							<div className="flex h-4 w-4 flex-shrink-0 flex-grow-0 items-center justify-center rounded-full bg-muted text-[10px]">
 								{secondAuthor.author[0]}
 							</div>
-							<div className=" flex gap-2 text-[#71717A] text-sm">
+							<div className="flex gap-2 text-sm text-muted-foreground">
 								{secondAuthor.author} commited{" "}
 								<div className="font-[600]">{secondAuthor.date}</div>
 							</div>

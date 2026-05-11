@@ -35,7 +35,7 @@ export const InputContent = forwardRef<HTMLTextAreaElement, InputContentProps>(
 			<div className="relative">
 				{isPreviewMode ? (
 					<div
-						className="overflow-y-auto rounded-md border bg-transparent p-4 text-sm dark:border-border"
+						className="overflow-y-auto rounded-md border bg-transparent p-4 text-sm"
 						style={{ height: `${height}px`, minHeight: `${minHeight}px` }}
 					>
 						<AIPreview
@@ -56,7 +56,7 @@ export const InputContent = forwardRef<HTMLTextAreaElement, InputContentProps>(
 						onChange={onChange}
 						onBlur={onBlur}
 						placeholder="Enter your input here..."
-						className="resize-none bg-transparent text-[14px] focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 dark:bg-[#1E1E1E] dark:border-border md:text-[14px]"
+						className="resize-none border-border bg-background text-[14px] focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 md:text-[14px]"
 						style={{ height: `${height}px`, minHeight: `${minHeight}px` }}
 					/>
 				)}

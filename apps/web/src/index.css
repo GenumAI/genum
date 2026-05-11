@@ -5,57 +5,23 @@
 @tailwind utilities;
 
 *::selection {
-	background-color: #ddd;
-	color: #000;
-}
-
-html.dark {
-	background-color: #000;
-}
-
-:root {
-	--chart-1: 262 83% 77%;
-	--chart-2: 158 54% 80%;
-	--chart-3: 330 100% 92%;
-	--chart-4: 276 57% 62%;
-	--chart-5: 130 52% 84%;
-	--chart-6: 0 100% 85%;
-	--chart-7: 217 88% 69%;
-	--chart-8: 120 26% 86%;
-	--chart-9: 41 100% 85%;
-	--chart-10: 210 84% 86%;
-	--chart-11: 84 76% 86%;
-	--chart-12: 30 82% 90%;
-}
-
-.dark {
-	--chart-1: 262 83% 72%;
-	--chart-2: 135 57% 41%;
-	--chart-3: 330 75% 75%;
-	--chart-4: 276 57% 58%;
-	--chart-5: 130 45% 60%;
-	--chart-6: 0 64% 56%;
-	--chart-7: 217 78% 64%;
-	--chart-8: 120 20% 45%;
-	--chart-9: 41 90% 60%;
-	--chart-10: 210 70% 70%;
-	--chart-11: 84 60% 60%;
-	--chart-12: 30 70% 65%;
+	background-color: hsl(var(--selection));
+	color: hsl(var(--selection-foreground));
 }
 
 :root {
 	font-family: Inter, sans-serif;
 	line-height: 1.5;
 	font-weight: 400;
-
-	color-scheme: light dark;
-	color: rgba(255, 255, 255, 0.87);
-	background-color: #242424;
-
+	color-scheme: light;
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+}
+
+.dark {
+	color-scheme: dark;
 }
 
 ::-webkit-scrollbar {
@@ -64,16 +30,12 @@ html.dark {
 }
 
 ::-webkit-scrollbar-thumb {
-	background-color: #d4d4d8;
+	background-color: hsl(var(--surface-strong));
 	border-radius: 4px;
 }
 
 ::-webkit-scrollbar-track {
 	background: transparent;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-	background-color: #52525b;
 }
 
 html,
@@ -83,124 +45,224 @@ body,
 	width: 100%;
 }
 
+html {
+	background-color: hsl(var(--background));
+}
+
 a {
 	font-weight: 500;
-	color: #3f3f46;
 	text-decoration: inherit;
 }
 
-a:hover {
-	color: #18181b;
+[data-sidebar="sidebar"] a {
+	color: hsl(var(--sidebar-foreground));
+}
+
+[data-sidebar="sidebar"] a:link,
+[data-sidebar="sidebar"] a:visited,
+[data-sidebar="sidebar"] a:any-link,
+[data-sidebar="sidebar"] a:hover {
+	color: hsl(var(--sidebar-foreground));
+}
+
+[data-settings-nav="true"] a[data-settings-link="true"],
+[data-settings-nav="true"] a[data-settings-link="true"]:link,
+[data-settings-nav="true"] a[data-settings-link="true"]:visited,
+[data-settings-nav="true"] a[data-settings-link="true"]:any-link {
+	color: #737373;
+}
+
+[data-settings-nav="true"] a[data-settings-link="true"]:hover,
+[data-settings-nav="true"] a[data-settings-link="true"]:active,
+[data-settings-nav="true"] a[data-settings-link="true"][aria-current="page"] {
+	color: hsl(var(--sidebar-foreground));
 }
 
 body {
 	margin: 0;
-	display: block;
-	place-items: center;
 	min-width: 320px;
 	min-height: 100vh;
-}
-
-h1 {
-	font-size: 3.2em;
-	line-height: 1.1;
-}
-
-@media (prefers-color-scheme: light) {
-	:root {
-		color: #213547;
-		background-color: #ffffff;
-	}
-
-	a:hover {
-		color: #18181b;
-	}
-
-	button {
-		background-color: transparent;
-	}
 }
 
 @layer base {
 	:root {
 		--background: 0 0% 100%;
-		--foreground: 0 0% 3.9%;
+		--foreground: 240 1.8% 26.7%;
 		--card: 0 0% 100%;
-		--card-foreground: 0 0% 3.9%;
+		--card-foreground: 240 1.8% 26.7%;
 		--popover: 0 0% 100%;
-		--popover-foreground: 0 0% 3.9%;
+		--popover-foreground: 240 1.8% 26.7%;
 		--primary: 0 0% 9%;
 		--primary-foreground: 0 0% 98%;
 		--secondary: 0 0% 96.1%;
-		--secondary-foreground: 0 0% 9%;
+		--secondary-foreground: 240 1.8% 26.7%;
 		--muted: 0 0% 96.1%;
-		--muted-foreground: 0 0% 45.1%;
+		--muted-foreground: 240 1.8% 26.7%;
 		--accent: 0 0% 96.1%;
-		--accent-foreground: 0 0% 9%;
+		--accent-foreground: 240 1.8% 26.7%;
 		--destructive: 0 84.2% 60.2%;
-		--destructive-foreground: 0 0% 98%;
+		--destructive-foreground: 240 1.8% 26.7%;
 		--border: 0 0% 89.8%;
 		--input: 0 0% 89.8%;
-		--ring: 0 0% 3.9%;
+		--ring: 217.2 91.2% 59.8%;
+		--surface-elevated: 0 0% 100%;
+		--surface-muted: 0 0% 96.1%;
+		--surface-strong: 240 4.8% 88%;
+		--overlay: 240 10% 3.9% / 0.56;
+		--tooltip: 240 8% 18% / 0.96;
+		--tooltip-foreground: 240 1.8% 26.7%;
+		--brand: 218 84.8% 60.4%;
+		--brand-foreground: 0 0% 100%;
+		--ai-tag: 281.5 56.6% 62.7%;
+		--success: 174 57.8% 39.4%;
+		--success-foreground: 0 0% 100%;
+		--success-soft: 168 100% 95%;
+		--warning: 38 92% 50%;
+		--warning-foreground: 24 10% 10%;
+		--warning-soft: 48 100% 94%;
+		--info: 217.2 91.2% 59.8%;
+		--info-foreground: 0 0% 100%;
+		--info-soft: 214 100% 97%;
+		--table-header: 0 0% 96.1%;
+		--table-row-hover: 240 5% 97.5%;
+		--selection: 217 92% 88%;
+		--selection-foreground: 240 6% 10%;
+		--header-background: 0 0% 100%;
+		--sidebar-header-background: 240 4.8% 95.9%;
+		--field-background: 0 0% 100%;
+		--editor-input-background: 0 0% 100% / 0;
+		--invite-logo-image: url("./assets/genum_logo/light_theme_logo.png");
+		--invite-background-image: url("./assets/background/light_theme_background.png");
+		--avatar-1: 249 100% 91%;
+		--avatar-2: 227 100% 87%;
+		--avatar-3: 211 100% 87%;
+		--avatar-4: 201 100% 92%;
+		--avatar-5: 170 43% 89%;
+		--avatar-6: 150 64% 90%;
+		--avatar-7: 120 22% 89%;
+		--avatar-8: 79 69% 87%;
+		--avatar-9: 329 100% 95%;
+		--avatar-10: 358 100% 92%;
+		--avatar-11: 41 100% 85%;
+		--avatar-12: 34 71% 92%;
 		--chart-1: 12 76% 61%;
-		--chart-2: 173 58% 39%;
+		--chart-2: 174 57.8% 39.4%;
 		--chart-3: 197 37% 24%;
 		--chart-4: 43 74% 66%;
 		--chart-5: 27 87% 67%;
+		--chart-6: 0 100% 85%;
+		--chart-7: 217 88% 69%;
+		--chart-8: 120 26% 86%;
+		--chart-9: 41 100% 85%;
+		--chart-10: 210 84% 86%;
+		--chart-11: 84 76% 86%;
+		--chart-12: 30 82% 90%;
 		--radius: 0.5rem;
 		--sidebar-background: 0 0% 98%;
-		--sidebar-foreground: 240 5.3% 26.1%;
+		--sidebar-foreground: 240 1.8% 26.7%;
 		--sidebar-primary: 240 5.9% 10%;
 		--sidebar-primary-foreground: 0 0% 98%;
 		--sidebar-accent: 240 4.8% 95.9%;
-		--sidebar-accent-foreground: 240 5.9% 10%;
+		--sidebar-accent-foreground: 240 1.8% 26.7%;
 		--sidebar-border: 220 13% 91%;
 		--sidebar-ring: 217.2 91.2% 59.8%;
 	}
 
 	.dark {
-		--background: 0 0% 12.94%;
-		--foreground: 0 0% 98%;
-		--card: 0 0% 12.94%;
-		--card-foreground: 0 0% 98%;
-		--popover: 0 0% 3.9%;
-		--popover-foreground: 0 0% 98%;
-		--primary: 0 0% 98%;
-		--primary-foreground: 0 0% 9%;
-		--secondary: 0 0% 14.9%;
-		--secondary-foreground: 0 0% 98%;
-		--muted: 0 0% 14.9%;
-		--muted-foreground: 240 5.03% 64.9%;
-		--accent: 0 0% 14.9%;
-		--accent-foreground: 0 0% 98%;
-		--destructive: 0 62.8% 30.6%;
-		--destructive-foreground: 0 0% 98%;
-		--border: 220 2.44% 24.12%;
-		--input: 240 3.7% 15.88%;
-		--ring: 0 0% 83.1%;
-		--chart-1: 220 70% 50%;
-		--chart-2: 160 60% 45%;
-		--chart-3: 30 80% 55%;
-		--chart-4: 280 65% 60%;
-		--chart-5: 340 75% 55%;
-		--sidebar-background: 0 0% 7.45%;
-		--sidebar-foreground: 240 4.8% 95.9%;
-		--sidebar-primary: 224.3 76.3% 48%;
-		--sidebar-primary-foreground: 0 0% 100%;
-		--sidebar-accent: 240 3.7% 15.9%;
-		--sidebar-accent-foreground: 240 4.8% 95.9%;
-		--sidebar-border: 240 3.7% 15.9%;
-		--sidebar-ring: 217.2 91.2% 59.8%;
+		--background: 222 18% 11%;
+		--foreground: 220 12% 84%;
+		--card: 222 18% 13.5%;
+		--card-foreground: 220 12% 84%;
+		--popover: 222 17% 14%;
+		--popover-foreground: 220 12% 84%;
+		--primary: 220 16% 90%;
+		--primary-foreground: 222 28% 11%;
+		--secondary: 223 16% 18%;
+		--secondary-foreground: 220 12% 80%;
+		--muted: 223 14% 16%;
+		--muted-foreground: 220 9% 65%;
+		--accent: 223 16% 18%;
+		--accent-foreground: 220 12% 82%;
+		--destructive: 0 68% 58%;
+		--destructive-foreground: 0 0% 95%;
+		--border: 223 13% 24%;
+		--input: 223 13% 22%;
+		--ring: 217 75% 66%;
+		--surface-elevated: 222 18% 14%;
+		--surface-muted: 223 15% 16.5%;
+		--surface-strong: 223 13% 22%;
+		--overlay: 222 30% 4% / 0.72;
+		--tooltip: 222 17% 16% / 0.96;
+		--tooltip-foreground: 220 12% 84%;
+		--brand: 217 74% 67%;
+		--brand-foreground: 222 28% 11%;
+		--ai-tag: 281.5 56.6% 62.7%;
+		--success: 164 42% 52%;
+		--success-foreground: 222 28% 11%;
+		--success-soft: 164 30% 18%;
+		--warning: 39 88% 67%;
+		--warning-foreground: 222 28% 11%;
+		--warning-soft: 39 36% 21%;
+		--info: 214 82% 69%;
+		--info-foreground: 222 28% 11%;
+		--info-soft: 214 36% 20%;
+		--table-header: 223 14% 17.5%;
+		--table-row-hover: 223 14% 15%;
+		--selection: 217 48% 36%;
+		--selection-foreground: 0 0% 94%;
+		--header-background: 222 20% 10%;
+		--sidebar-header-background: 222 20% 10%;
+		--field-background: 223 15% 15%;
+		--editor-input-background: 223 15% 14%;
+		--invite-logo-image: url("./assets/genum_logo/dark_theme_logo.png");
+		--invite-background-image: url("./assets/background/dark_theme_background.png");
+		--avatar-1: 262 24% 37%;
+		--avatar-2: 226 32% 35%;
+		--avatar-3: 197 35% 33%;
+		--avatar-4: 210 35% 33%;
+		--avatar-5: 175 35% 33%;
+		--avatar-6: 152 35% 33%;
+		--avatar-7: 142 24% 33%;
+		--avatar-8: 82 28% 33%;
+		--avatar-9: 330 24% 33%;
+		--avatar-10: 0 24% 33%;
+		--avatar-11: 38 28% 33%;
+		--avatar-12: 30 24% 33%;
+		--chart-1: 262 83% 72%;
+		--chart-2: 174 57.8% 39.4%;
+		--chart-3: 330 75% 75%;
+		--chart-4: 276 57% 58%;
+		--chart-5: 130 45% 60%;
+		--chart-6: 0 64% 56%;
+		--chart-7: 217 78% 64%;
+		--chart-8: 120 20% 45%;
+		--chart-9: 41 90% 60%;
+		--chart-10: 210 70% 70%;
+		--chart-11: 84 60% 60%;
+		--chart-12: 30 70% 65%;
+		--sidebar-background: 222 20% 10%;
+		--sidebar-foreground: 220 12% 82%;
+		--sidebar-primary: 220 16% 90%;
+		--sidebar-primary-foreground: 222 28% 11%;
+		--sidebar-accent: 223 15% 16%;
+		--sidebar-accent-foreground: 220 12% 84%;
+		--sidebar-border: 223 14% 19%;
+		--sidebar-ring: 217 75% 66%;
 	}
-}
 
-@layer base {
 	* {
 		@apply border-border;
 	}
 
 	body {
 		@apply bg-background text-foreground;
+	}
+
+	button,
+	input,
+	textarea,
+	select {
+		color: inherit;
 	}
 }
 
@@ -212,7 +274,7 @@ h1 {
 	scrollbar-width: thin;
 	word-break: break-word;
 	overflow-wrap: anywhere;
-	scrollbar-color: #c4c4c4 transparent;
+	scrollbar-color: hsl(var(--surface-strong)) transparent;
 }
 
 .ProseMirror::-webkit-scrollbar {
@@ -221,7 +283,7 @@ h1 {
 
 .ProseMirror p.is-editor-empty:first-child::before {
 	content: attr(data-placeholder);
-	color: #71717a;
+	color: hsl(var(--muted-foreground));
 	pointer-events: none;
 	height: 0;
 	position: absolute;
@@ -414,6 +476,17 @@ html.firefox .monaco-diff-editor .inputarea {
 	min-width: 40px !important;
 }
 
-[data-scroll-locked][data-scroll-locked] {
+body[data-scroll-locked] {
 	overflow-y: scroll !important;
+	margin-right: 0 !important;
+	padding-right: 0 !important;
+	padding-left: 0 !important;
+}
+
+.width-before-scroll-bar {
+	margin-right: 0 !important;
+}
+
+.right-scroll-bar-position {
+	right: 0 !important;
 }

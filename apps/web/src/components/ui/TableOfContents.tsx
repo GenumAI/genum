@@ -16,7 +16,7 @@ interface TableOfContentsProps {
 const TableOfContents: React.FC<TableOfContentsProps> = memo(
 	({ items, onItemClick, className = "" }) => {
 		if (items.length === 0) {
-			return <div className={`text-sm text-gray-500 ${className}`}>No headings found</div>;
+			return <div className={`text-sm text-muted-foreground ${className}`}>No headings found</div>;
 		}
 
 		const getIndentClass = (level: number) => {
@@ -33,12 +33,12 @@ const TableOfContents: React.FC<TableOfContentsProps> = memo(
 
 		const getFontSizeClass = (level: number) => {
 			const fontSizeMap: Record<number, string> = {
-				1: "text-[17px] py-[8.5px] font-normal border-l border-l-[#E4E4E7]",
-				2: "text-[15px] py-[4px] font-normal border-l border-l-[#E4E4E7]",
-				3: "text-[13px] py-[4px] font-normal border-l border-l-[#E4E4E7]",
-				4: "text-[10px] py-[4px] font-normal border-l border-l-[#E4E4E7]",
-				5: "text-[10px] py-[4px] font-normal border-l border-l-[#E4E4E7]",
-				6: "text-[10px] py-[4px] font-normal border-l border-l-[#E4E4E7]",
+				1: "text-[17px] py-[8.5px] font-normal border-l border-l-border",
+				2: "text-[15px] py-[4px] font-normal border-l border-l-border",
+				3: "text-[13px] py-[4px] font-normal border-l border-l-border",
+				4: "text-[10px] py-[4px] font-normal border-l border-l-border",
+				5: "text-[10px] py-[4px] font-normal border-l border-l-border",
+				6: "text-[10px] py-[4px] font-normal border-l border-l-border",
 			};
 			return fontSizeMap[level] || "text-xs";
 		};

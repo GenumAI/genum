@@ -13,11 +13,11 @@ const Modal = forwardRef<HTMLDivElement, ModalProps>(
 		return (
 			<div
 				ref={ref}
-				className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4"
+				className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
 			>
 				<div
 					className={cn(
-						"bg-white rounded-lg shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col",
+						"flex h-full max-h-[90vh] w-full max-w-7xl flex-col rounded-lg border border-border bg-card text-card-foreground shadow-2xl",
 						className,
 					)}
 				>

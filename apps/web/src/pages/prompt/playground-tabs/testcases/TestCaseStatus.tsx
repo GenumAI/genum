@@ -31,13 +31,13 @@ export const getTestCaseTooltip = (type: TestStatus) => {
 export const getTestCaseColorClass = (type: TestStatus) => {
 	switch (type) {
 		case "OK":
-			return "text-[#2E9D2A] dark:text-[#2da44a]";
+			return "text-success";
 		case "NOK":
-			return "text-[#FF4545] dark:text-[#D64646]";
+			return "text-destructive";
 		case "NEED_RUN":
-			return "text-[#FAAD15] dark:text-[#CD9932]";
+			return "text-warning";
 		default:
-			return "text-gray-500 dark:text-[#D4D4D8]";
+			return "text-muted-foreground";
 	}
 };
 
@@ -52,7 +52,7 @@ const TestCaseStatus = ({ type, value }: Props) => {
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<div
-						className={`flex flex-row gap-1 items-center [&_svg]:size-4 ${Number(value) !== 0 ? getTestCaseColorClass(type) : "text-gray-500 dark:text-[#D4D4D8]"}`}
+						className={`flex flex-row gap-1 items-center [&_svg]:size-4 ${Number(value) !== 0 ? getTestCaseColorClass(type) : "text-muted-foreground"}`}
 					>
 						{value && <span>{value}</span>}
 						{getTestCaseIcon(type)}

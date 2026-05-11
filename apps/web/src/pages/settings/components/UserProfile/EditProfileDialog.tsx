@@ -59,7 +59,7 @@ export function EditProfileDialog({
 					<div className="space-y-2">
 						<Label
 							htmlFor="modal-name"
-							className="text-sm text-[#18181B] dark:text-[#FAFAFA]"
+							className="text-sm text-foreground"
 						>
 							Name
 						</Label>

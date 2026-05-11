@@ -38,7 +38,7 @@ export const RollBackButton = () => {
 			<Dialog open={isOn} onOpenChange={handleClose}>
 				<DialogContent className="min-w-[520px]">
 					<DialogHeader>
-						<DialogTitle className={showSuccess ? "text-[#2E9D2A]" : ""}>
+						<DialogTitle className={showSuccess ? "text-success" : ""}>
 							{!showSuccess ? "Rollback to this commit?" : "Rollback successfull"}
 						</DialogTitle>
 					</DialogHeader>

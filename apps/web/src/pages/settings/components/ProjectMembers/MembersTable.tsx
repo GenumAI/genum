@@ -58,7 +58,7 @@ export function MembersTable({
 	return (
 		<div className="relative overflow-x-auto rounded-md border-0">
 			<Table className="rounded-md overflow-hidden">
-				<TableHeader className="bg-[#F4F4F5] dark:bg-[#262626] dark:text-[#fff] h-12 font-medium text-muted-foreground">
+				<TableHeader className="h-12 bg-table-header font-medium text-muted-foreground">
 					<TableRow>
 						<TableHead className="text-left p-4">Name</TableHead>
 						<TableHead className="text-left p-4">Email</TableHead>
@@ -87,7 +87,7 @@ export function MembersTable({
 										/>
 										<span>{member.user.name}</span>
 										{isSelf && (
-											<Badge className="text-[#008635] bg-[color-mix(in_oklab,_#04b84c_15%,_transparent)] text-xs px-[5px] py-[2px] hover:bg-[color-mix(in_oklab,_#04b84c_15%,_transparent)]">
+											<Badge className="border-0 bg-success-soft px-[5px] py-[2px] text-xs text-success hover:bg-success-soft">
 												You
 											</Badge>
 										)}

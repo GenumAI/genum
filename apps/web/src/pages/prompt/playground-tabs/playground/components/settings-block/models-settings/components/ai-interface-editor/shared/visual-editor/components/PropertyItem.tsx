@@ -110,14 +110,14 @@ export const PropertyItem = ({
 					placeholder="Name"
 					disabled={disabled}
 					style={{ width: `${350 - level * 24}px` }}
-					className="shrink-0"
+					className="shrink-0 bg-background"
 				/>
 				<Select
 					onValueChange={handleTypeChange}
 					value={property.type || undefined}
 					disabled={disabled}
 				>
-					<SelectTrigger className="w-[200px]">
+					<SelectTrigger className="w-[200px] bg-background">
 						<SelectValue placeholder="Type" />
 					</SelectTrigger>
 					<SelectContent>
@@ -159,10 +159,7 @@ export const PropertyItem = ({
 								<MessageCircle className="w-4 h-4" />
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent
-							className="max-w-xs whitespace-normal bg-black text-white"
-							sideOffset={5}
-						>
+						<TooltipContent className="max-w-xs whitespace-normal" sideOffset={5}>
 							{property.description || "Add description"}
 						</TooltipContent>
 					</Tooltip>
@@ -185,7 +182,7 @@ export const PropertyItem = ({
 							<Input
 								value={val}
 								onChange={(e) => handleEnumValueChange(i, e.target.value)}
-								className="max-w-[322px]"
+								className="max-w-[322px] bg-background"
 							/>
 							<Button
 								variant="ghost"
@@ -199,7 +196,7 @@ export const PropertyItem = ({
 					<Button
 						variant="link"
 						onClick={handleAddEnumValue}
-						className="text-blue-600 h-auto p-0 flex items-center justify-start gap-1 mt-2 -ml-1"
+						className="text-brand h-auto p-0 flex items-center justify-start gap-1 mt-2 -ml-1"
 					>
 						<CirclePlus className="w-4 h-4" /> Add value
 					</Button>
@@ -230,7 +227,7 @@ export const PropertyItem = ({
 						<Button
 							variant="link"
 							onClick={handleAddNestedItem}
-							className="text-blue-600 h-auto p-0 flex items-center justify-start gap-1 mt-2 -ml-1"
+							className="text-brand h-auto p-0 flex items-center justify-start gap-1 mt-2 -ml-1"
 						>
 							<CirclePlus className="w-4 h-4" /> Add nested property
 						</Button>
@@ -247,6 +244,7 @@ export const PropertyItem = ({
 						value={property.description || ""}
 						onChange={(e) => handleDescriptionChange(e.target.value)}
 						placeholder="Enter property description"
+						className="bg-background"
 					/>
 					<DialogFooter>
 						<Button onClick={() => setShowDescriptionModal(false)}>Close</Button>

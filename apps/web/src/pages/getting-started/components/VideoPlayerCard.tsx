@@ -33,16 +33,13 @@ const BalanceInfo = memo(function BalanceInfo({
 		<div className="mt-6 text-center">
 			<p className="font-semibold text-[16px]">Your balance: {formatBalance(balance)}</p>
 
-			<p
-				className="text-[12px] mt-1 min-h-4"
-				aria-live="polite"
-			>
+			<p className="text-[12px] mt-1 min-h-4" aria-live="polite">
 				<span
 					className={
 						isLoadingBalance
 							? "text-muted-foreground"
 							: errorBalance
-								? "text-red-500"
+								? "text-destructive"
 								: "invisible"
 					}
 				>
@@ -78,7 +75,7 @@ function VideoPlayerCardComponent({
 		<Card className="p-0 px-[76px] shadow-none border-none flex flex-col items-center">
 			<h1 className="text-[16px] md:text-xl font-bold mb-6 text-center">{slide.title}</h1>
 
-			<div className="relative w-full bg-black/90 rounded-xl overflow-hidden aspect-video">
+			<div className="relative w-full rounded-xl overflow-hidden aspect-video bg-surface-strong">
 				<iframe
 					className="w-full h-full"
 					src={`https://www.youtube.com/embed/${slide.youtubeId}`}

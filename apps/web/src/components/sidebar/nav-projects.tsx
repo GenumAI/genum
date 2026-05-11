@@ -1,6 +1,6 @@
 import { type LucideIcon } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { getOrgId, getProjectId} from "@/api/client"
+import { getOrgId, getProjectId } from "@/api/client";
 import {
 	SidebarGroup,
 	SidebarMenu,
@@ -21,7 +21,7 @@ export function NavProjects({
 	const location = useLocation();
 	const pathname = location.pathname;
 	const orgId = getOrgId();
-	const projectId = getProjectId();	
+	const projectId = getProjectId();
 
 	// If orgId or projectId is not available, don't try to navigate
 	if (!orgId || !projectId) {
@@ -41,9 +41,9 @@ export function NavProjects({
 					const fullUrl = isExternal ? item.url : `/${orgId}/${projectId}${item.url}`;
 
 					const activeUrl = item.activePrefix
-					? `/${orgId}/${projectId}${item.activePrefix}`
-					: fullUrl;
-				const isActive = !isExternal && pathname.startsWith(activeUrl);
+						? `/${orgId}/${projectId}${item.activePrefix}`
+						: fullUrl;
+					const isActive = !isExternal && pathname.startsWith(activeUrl);
 
 					return (
 						<SidebarMenuItem key={item.title}>
@@ -52,7 +52,6 @@ export function NavProjects({
 									<a
 										href={fullUrl}
 										target="_blank"
-										className="dark:text-sidebar-foreground"
 										rel="noopener noreferrer"
 									>
 										{item.icon && <item.icon />}
@@ -61,7 +60,7 @@ export function NavProjects({
 										</span>
 									</a>
 								) : (
-									<Link to={fullUrl} className="dark:text-sidebar-foreground">
+									<Link to={fullUrl}>
 										{item.icon && <item.icon />}
 										<span className="group-data-[collapsible=icon]:hidden">
 											{item.title}

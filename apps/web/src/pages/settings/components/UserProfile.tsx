@@ -21,8 +21,8 @@ export default function UserProfile() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center p-6">
-				<div className="h-6 w-6 animate-spin text-gray-500" />
-				<span className="ml-2 text-sm text-gray-500">Loading user data...</span>
+				<div className="h-6 w-6 animate-spin text-muted-foreground" />
+				<span className="ml-2 text-sm text-muted-foreground">Loading user data...</span>
 			</div>
 		);
 	}
@@ -30,9 +30,7 @@ export default function UserProfile() {
 	return (
 		<Card className="rounded-md shadow-none w-full">
 			<CardHeader className="flex flex-row items-center justify-between max-w-[724px] space-y-0 pb-4">
-				<CardTitle className="font-medium text-[18px] dark:text-[#fff] leading-[28px]">
-					General
-				</CardTitle>
+				<CardTitle className="text-[18px] font-medium leading-[28px] text-foreground">General</CardTitle>
 				<EditProfileDialog
 					open={editDialogOpen}
 					onOpenChange={setEditDialogOpen}
@@ -44,7 +42,7 @@ export default function UserProfile() {
 
 			<CardContent className="space-y-5 max-w-[724px]">
 				<div className="space-y-1.5">
-					<Label htmlFor="name" className="text-sm text-[#18181B] dark:text-[#FAFAFA]">
+					<Label htmlFor="name" className="text-sm text-foreground">
 						Name
 					</Label>
 					<Input
@@ -52,21 +50,21 @@ export default function UserProfile() {
 						placeholder="Name Surname"
 						value={userData?.name || ""}
 						disabled
-						className="bg-[#F4F4F5] text-zinc-500"
+						className="bg-muted text-muted-foreground"
 					/>
 					<p className="text-sm text-muted-foreground">
 						The name associated with this account
 					</p>
 				</div>
 				<div className="space-y-1.5">
-					<Label htmlFor="email" className="text-sm text-[#18181B] dark:text-[#FAFAFA]">
+					<Label htmlFor="email" className="text-sm text-foreground">
 						Email address
 					</Label>
 					<Input
 						id="email"
 						type="email"
 						placeholder="johnsmith@mail.com"
-						className="bg-[#F4F4F5] text-zinc-500"
+						className="bg-muted text-muted-foreground"
 						disabled
 						defaultValue={userData?.email || ""}
 					/>
@@ -87,11 +85,11 @@ export default function UserProfile() {
 				<CardTitle className="font-medium text-[18px] leading-[28px]">Security</CardTitle>
 			</CardHeader>
 			<CardContent className="space-y-2 max-w-[724px]">
-				<p className="text-sm font-bold text-[#437BEF] mb-1">Coming soon</p>
-				<p className="text-sm font-bold text-zinc-500 mb-1">
+				<p className="mb-1 text-sm font-bold text-brand">Coming soon</p>
+				<p className="mb-1 text-sm font-bold text-muted-foreground">
 					Multi-factor authentication (MFA)
 				</p>
-				<p className="text-sm text-zinc-500 mb-4">
+				<p className="mb-4 text-sm text-muted-foreground">
 					Require an extra security challenge when logging in. If you are unable to pass
 					this challenge, you will have the option to recover your account via email.
 				</p>
@@ -104,7 +102,7 @@ export default function UserProfile() {
 				</CardTitle>
 			</CardHeader>
 			<CardContent className="max-w-[724px]">
-				<p className="text-sm text-zinc-500 mb-4">
+				<p className="mb-4 text-sm text-muted-foreground">
 					We value your feedback to improve our platform.
 				</p>
 				<SendFeedbackDialog

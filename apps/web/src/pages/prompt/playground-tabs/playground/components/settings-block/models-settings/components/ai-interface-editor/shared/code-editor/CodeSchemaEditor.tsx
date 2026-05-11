@@ -15,6 +15,7 @@ const CodeSchemaEditor = ({ code, onChange, onEditorMount, height = "500px" }: C
 			value={code}
 			onChange={onChange}
 			onMount={onEditorMount}
+			surfaceToken="--background"
 			options={{
 				lineNumbers: "on",
 				minimap: { enabled: false },

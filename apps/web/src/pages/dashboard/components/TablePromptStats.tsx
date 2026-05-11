@@ -132,11 +132,11 @@ export function TablePromptStats({ prompts, promptNames, isLoading = false }: Pr
 				cell: ({ getValue }) => {
 					const val = getValue() as number;
 					return val > 0 ? (
-						<span className="text-destructive dark:text-[#d64646]">
+						<span className="text-destructive">
 							<TweenNumber value={val} formatValue={(value) => formatPromptErrorRate(value)} />
 						</span>
 					) : (
-						<span className="text-emerald-600 dark:text-[#2da44a]">
+						<span className="text-success">
 							<TweenNumber value={val} formatValue={(value) => formatPromptErrorRate(value)} />
 						</span>
 					);

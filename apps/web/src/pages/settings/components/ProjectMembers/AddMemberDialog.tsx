@@ -20,7 +20,6 @@ import {
 import { ProjectRole } from "@/api/project";
 import type { AddMemberDialogProps } from "../../utils/types";
 
-
 export function AddMemberDialog({
 	open,
 	onOpenChange,
@@ -91,7 +90,9 @@ export function AddMemberDialog({
 										<SelectItem key={user.id} value={user.id.toString()}>
 											<div className="flex flex-col">
 												<span>{user.email}</span>
-												<span className="text-xs text-muted-foreground">{user.name}</span>
+												<span className="text-xs text-muted-foreground">
+													{user.name}
+												</span>
 											</div>
 										</SelectItem>
 									))}
@@ -101,18 +102,18 @@ export function AddMemberDialog({
 					)}
 
 					{hasEndpoint && availableUsers.length === 0 && (
-						<div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
-							<p className="text-sm text-gray-800">
+						<div className="rounded-md border border-muted bg-muted/50 p-4">
+							<p className="text-sm text-foreground">
 								All organization members are already part of this project.
 							</p>
 						</div>
 					)}
 
 					{!hasEndpoint && (
-						<div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-							<p className="text-sm text-yellow-800">
-								User selection is not available. Please contact an administrator to add
-								members to this project.
+						<div className="rounded-md border border-warning/30 bg-warning-soft p-4">
+							<p className="text-sm text-warning-foreground">
+								User selection is not available. Please contact an administrator to
+								add members to this project.
 							</p>
 						</div>
 					)}
@@ -121,18 +122,18 @@ export function AddMemberDialog({
 						<label htmlFor="role-select" className="text-sm font-medium">
 							Role
 						</label>
-					<Select
-						value={selectedRole}
-						onValueChange={(value) => setSelectedRole(value as ProjectRole)}
-					>
-						<SelectTrigger>
-							<SelectValue placeholder="Select role..." />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value={ProjectRole.MEMBER}>Member</SelectItem>
-							<SelectItem value={ProjectRole.ADMIN}>Admin</SelectItem>
-						</SelectContent>
-					</Select>
+						<Select
+							value={selectedRole}
+							onValueChange={(value) => setSelectedRole(value as ProjectRole)}
+						>
+							<SelectTrigger>
+								<SelectValue placeholder="Select role..." />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={ProjectRole.MEMBER}>Member</SelectItem>
+								<SelectItem value={ProjectRole.ADMIN}>Admin</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
 				</div>
 

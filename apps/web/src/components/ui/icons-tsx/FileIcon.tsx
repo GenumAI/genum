@@ -17,12 +17,12 @@ export default function FileIcon({ contentType, size = "md" }: FileIconProps) {
 	const sizeClass = sizeClasses[size];
 
 	if (iconType === "image") {
-		return <ImageIcon className={`${sizeClass} text-blue-500`} />;
+		return <ImageIcon className={`${sizeClass} text-info`} />;
 	}
 
 	if (iconType === "pdf") {
-		return <File className={`${sizeClass} text-red-500`} />;
+		return <File className={`${sizeClass} text-destructive`} />;
 	}
 
-	return <File className={`${sizeClass} text-gray-500`} />;
+	return <File className={`${sizeClass} text-muted-foreground`} />;
 }

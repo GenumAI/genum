@@ -64,7 +64,7 @@ export function StandardKeysSection({
 			) : (
 				<div className="relative overflow-x-auto rounded-md border-0">
 					<Table className="rounded-md overflow-hidden">
-						<TableHeader className="bg-[#F4F4F5] dark:bg-[#262626] dark:text-[#fff] h-12 font-medium text-muted-foreground">
+						<TableHeader className="h-12 bg-table-header font-medium text-muted-foreground">
 							<TableRow>
 								<TableHead className="text-left p-4">Vendor</TableHead>
 								<TableHead className="text-left p-4">API Key</TableHead>

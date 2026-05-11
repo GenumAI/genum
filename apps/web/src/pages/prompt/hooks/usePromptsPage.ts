@@ -50,8 +50,8 @@ export function usePromptsPage() {
 		});
 	}, [prompts, search]);
 
-	const table = useReactTable({
-		data: filteredData,
+	const table = useReactTable<Prompt>({
+		data: filteredData as Prompt[],
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 		state: {

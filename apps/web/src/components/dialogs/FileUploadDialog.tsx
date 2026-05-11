@@ -119,12 +119,12 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
 
 	const getFileIcon = (file: File) => {
 		if (file.type.startsWith("image/")) {
-			return <ImageIcon className="h-8 w-8 text-blue-500" />;
+			return <ImageIcon className="h-8 w-8 text-info" />;
 		}
 		if (file.type === "application/pdf") {
-			return <File className="h-8 w-8 text-red-500" />;
+			return <File className="h-8 w-8 text-destructive" />;
 		}
-		return <File className="h-8 w-8 text-gray-500" />;
+		return <File className="h-8 w-8 text-muted-foreground" />;
 	};
 
 	return (
@@ -192,7 +192,8 @@ const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
 										Click to upload or drag and drop
 									</p>
 									<p className="text-xs text-muted-foreground">
-										Images and PDF files only (max {Math.round(maxSize / 1024 / 1024)}MB)
+										Images and PDF files only (max{" "}
+										{Math.round(maxSize / 1024 / 1024)}MB)
 									</p>
 								</div>
 							</div>

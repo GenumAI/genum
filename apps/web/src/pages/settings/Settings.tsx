@@ -60,12 +60,11 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
 			end
 			className={({ isActive }) =>
 				cn(
-					"block rounded-md px-2 py-[9px] h-[32px] text-sm dark:text-[#F4F4F5] hover:dark:text-[#a3a3a3] font-normal transition-colors leading-[1]",
-					isActive
-						? "bg-muted dark:text-[#F4F4F5] font-medium"
-						: "hover:bg-muted text-muted-foreground",
+					"block h-[32px] rounded-md px-2 py-[9px] text-sm font-normal leading-[1] transition-colors",
+					isActive ? "bg-muted font-medium" : "hover:bg-muted",
 				)
 			}
+			data-settings-link="true"
 		>
 			{children}
 		</NavLink>
@@ -101,7 +100,7 @@ export default function Settings() {
 	return (
 		<div className="container pt-6 max-w-[1232px] 2xl-plus:max-w-[70%] 2xl-plus:min-w-[1232px] 2xl-plus:w-[70%] mx-3 w-full">
 			<div className="flex flex-col gap-6 md:flex-row mt-3">
-				<aside className="shrink-0 w-[216px]">
+				<aside className="shrink-0 w-[216px]" data-settings-nav="true">
 				{MENU.map((section) => {
 						const visibleItems = section.items.filter((item) =>
 							hasAccess(item.minRole, orgRole),
@@ -109,7 +108,7 @@ export default function Settings() {
 						if (visibleItems.length === 0) return null;
 						return (
 							<div key={section.title} className="mb-1">
-								<h3 className="leading-[36px] mb-1 text-sm font-medium text-[#18181B] dark:text-[#FAFAFA]">
+								<h3 className="mb-1 text-sm font-medium leading-[36px] text-foreground">
 									{section.title}
 								</h3>
 								{visibleItems.map((item) => (

@@ -56,7 +56,7 @@ export const ChatInput = React.memo<ChatInputProps>(
 				<div className="flex items-center gap-2">
 					{!isRecording && (
 						<Select value={mode} onValueChange={setMode}>
-							<SelectTrigger className="w-auto h-7 bg-transparent dark:bg-transparent shadow-none border-none focus:outline-none focus:ring-0 focus:border-none px-0 gap-1 text-[12px] font-medium text-foreground">
+							<SelectTrigger className="h-7 w-auto border-none bg-transparent px-0 text-[12px] font-medium text-foreground shadow-none focus:border-none focus:outline-none focus:ring-0">
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>

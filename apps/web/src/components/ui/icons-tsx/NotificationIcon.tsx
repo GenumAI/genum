@@ -26,8 +26,7 @@ export const NotificationIcon: React.FC<NotificationIconProps> = ({
 		<div
 			className={`
         ${containerSizeClasses[size]}
-        bg-sky-100
-        dark:bg-sky-900/30
+        bg-info-soft
         rounded-lg
         flex
         items-center
@@ -38,8 +37,7 @@ export const NotificationIcon: React.FC<NotificationIconProps> = ({
 			<Bell
 				className={`
           ${sizeClasses[size]}
-          text-sky-600
-          dark:text-sky-400
+          text-info
         `}
 			/>
 		</div>

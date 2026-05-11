@@ -43,7 +43,7 @@ export default function PromptActionPopover({
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				placeholder={placeholder}
-				className={`border-0 shadow-none p-0 resize-none border-transparent focus:outline-none focus:ring-0 focus:border-0 focus:border-transparent focus-visible:ring-0 text-sm text-foreground flex-1 min-h-[150px] ${textareaClassName}`}
+				className={`border-0 bg-transparent shadow-none p-0 resize-none border-transparent focus:outline-none focus:ring-0 focus:border-0 focus:border-transparent focus-visible:ring-0 text-sm text-foreground flex-1 min-h-[150px] ${textareaClassName}`}
 			/>
 			<div
 				className={

@@ -44,7 +44,7 @@ const markdownComponents = {
 			href={href}
 			target="_blank"
 			rel="noopener noreferrer"
-			className="text-blue-500 underline break-words"
+			className="text-brand underline break-words"
 		>
 			{children}
 		</a>

@@ -24,19 +24,19 @@ export const MetricsDisplay: React.FC<MetricsDisplayProps> = ({ title, content }
 			<div className="flex flex-wrap items-center text-muted-foreground gap-2.5">
 				<CardTitle className="text-sm font-medium text-foreground mr-1">{title}</CardTitle>
 				{shouldShowTokens && (
-					<span className="flex items-center text-zinc-500 text-xs gap-1">
+					<span className="flex items-center text-muted-foreground text-xs gap-1">
 						<Ticket className="w-4 h-4" />
 						{formatNumber(tokensTotal)}
 					</span>
 				)}
 				{shouldShowCost && (
-					<span className="flex items-center text-zinc-500 text-xs gap-1">
+					<span className="flex items-center text-muted-foreground text-xs gap-1">
 						<Coins className="w-4 h-4" />
 						{formatNumber(costTotal)}
 					</span>
 				)}
 				{shouldShowResponseTime && (
-					<span className="flex items-center text-zinc-500 text-xs gap-1">
+					<span className="flex items-center text-muted-foreground text-xs gap-1">
 						<CircleGauge className="w-4 h-4" />
 						{formatNumber(responseTimeSeconds)} sec
 					</span>

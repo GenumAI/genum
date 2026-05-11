@@ -52,6 +52,7 @@ const CreateMemoryDialog: React.FC<DeleteConfirmDialogProps> = ({
 							placeholder="Enter key"
 							value={key}
 							onChange={(e) => setKey(e.target.value)}
+							className="!bg-background"
 						/>
 					</div>
 					<div>
@@ -60,6 +61,7 @@ const CreateMemoryDialog: React.FC<DeleteConfirmDialogProps> = ({
 							placeholder="Enter value"
 							value={value}
 							onChange={(e) => setValue(e.target.value)}
+							className="!bg-background"
 						/>
 					</div>
 				</div>
