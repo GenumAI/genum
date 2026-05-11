@@ -34,7 +34,7 @@ export function formatPromptLastUsed(value: string): string {
 }
 
 export function formatUserCost(value: number): string {
-	return `$${value.toFixed(2)}`;
+	return `$${value.toFixed(4)}`;
 }
 
 export function formatUserActivityDate(value: string): string {

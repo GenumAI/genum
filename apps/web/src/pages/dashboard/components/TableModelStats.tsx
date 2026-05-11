@@ -145,9 +145,17 @@ export function TableModelStats({ models, isLoading = false }: Props) {
 								{headerGroup.headers.map((header) => (
 									<TableHead
 										key={header.id}
-										className="select-none px-4 py-[10px] h-5"
+										className={`select-none px-4 py-[10px] h-5 ${
+											header.column.id === "model" ? "!text-left" : "text-center"
+										}`}
 									>
-										<div className="flex items-center gap-1 text-[12px] text-muted-foreground">
+										<div
+											className={`flex items-center gap-1 text-[12px] text-muted-foreground ${
+												header.column.id === "model"
+													? "w-full justify-start text-left"
+													: "justify-center text-center"
+											}`}
+										>
 											{flexRender(
 												header.column.columnDef.header,
 												header.getContext(),
@@ -167,7 +175,9 @@ export function TableModelStats({ models, isLoading = false }: Props) {
 									{row.getVisibleCells().map((cell) => (
 										<TableCell
 											key={cell.id}
-											className="px-4 py-[9px] text-[14px]"
+											className={`px-4 py-[9px] text-[14px] ${
+												cell.column.id === "model" ? "text-left" : "text-center"
+											}`}
 										>
 											{flexRender(
 												cell.column.columnDef.cell,
@@ -202,10 +212,15 @@ function sortableHeader(title: string) {
 	return ({ column }: HeaderContext<ModelStats, unknown>) => {
 		const sorted = column.getIsSorted();
 		const toggleSortingHandler = column.getToggleSortingHandler();
+		const isModelColumn = column.id === "model";
 		return (
 			<button
 				type="button"
-				className="flex items-center gap-1 text-[12px] cursor-pointer select-none float-left"
+				className={
+					isModelColumn
+						? "inline-flex w-full items-center justify-start gap-1 text-left text-[12px] cursor-pointer select-none"
+						: "inline-flex items-center justify-center gap-1 text-[12px] cursor-pointer select-none mx-auto"
+				}
 				onClick={toggleSortingHandler}
 			>
 				<span className="text-muted-foreground">{title}</span>

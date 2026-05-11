@@ -198,9 +198,17 @@ export function TablePromptStats({ prompts, promptNames, isLoading = false }: Pr
 								{headerGroup.headers.map((header) => (
 									<TableHead
 										key={header.id}
-										className="select-none px-4 py-[10px] h-5"
+										className={`select-none px-4 py-[10px] h-5 ${
+											header.column.id === "prompt_id" ? "!text-left" : "text-center"
+										}`}
 									>
-										<div className="flex items-center gap-1 text-[12px] text-muted-foreground">
+										<div
+											className={`flex items-center gap-1 text-[12px] text-muted-foreground ${
+												header.column.id === "prompt_id"
+													? "w-full justify-start text-left"
+													: "justify-center text-center"
+											}`}
+										>
 											{flexRender(
 												header.column.columnDef.header,
 												header.getContext(),
@@ -218,7 +226,9 @@ export function TablePromptStats({ prompts, promptNames, isLoading = false }: Pr
 									{row.getVisibleCells().map((cell) => (
 										<TableCell
 											key={cell.id}
-											className="px-4 py-[9px] text-[14px] text-foreground"
+											className={`px-4 py-[9px] text-[14px] text-foreground ${
+												cell.column.id === "prompt_id" ? "text-left" : "text-center"
+											}`}
 										>
 											{flexRender(
 												cell.column.columnDef.cell,
@@ -273,10 +283,15 @@ function sortableHeader(title: string) {
 	return ({ column }: HeaderContext<PromptStats, unknown>) => {
 		const sorted = column.getIsSorted();
 		const toggleSortingHandler = column.getToggleSortingHandler();
+		const isPromptNameColumn = column.id === "prompt_id";
 		return (
 			<button
 				type="button"
-				className="flex items-center gap-1 text-[12px] cursor-pointer select-none float-left"
+				className={
+					isPromptNameColumn
+						? "inline-flex w-full items-center justify-start gap-1 text-left text-[12px] cursor-pointer select-none"
+						: "inline-flex items-center justify-center gap-1 text-[12px] cursor-pointer select-none mx-auto"
+				}
 				onClick={toggleSortingHandler}
 			>
 				<span className="text-muted-foreground">{title}</span>

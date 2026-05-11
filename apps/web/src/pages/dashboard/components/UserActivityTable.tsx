@@ -136,13 +136,15 @@ export function UserActivityTable({ users, isLoading = false }: Props) {
 								{headerGroup.headers.map((header) => (
 									<TableHead
 										key={header.id}
-										className="select-none px-4 py-[10px] h-5"
+										className={`select-none px-4 py-[10px] h-5 ${
+											header.column.id === "user_name" ? "!text-left" : "text-center"
+										}`}
 									>
 										<div
 											className={`flex items-center gap-1 text-[12px] text-muted-foreground ${
 												header.column.id === "user_name"
-													? "justify-start text-left"
-													: "justify-end text-right"
+													? "w-full justify-start text-left"
+													: "justify-center text-center"
 											}`}
 										>
 											{flexRender(
@@ -164,9 +166,7 @@ export function UserActivityTable({ users, isLoading = false }: Props) {
 										<TableCell
 											key={cell.id}
 											className={`px-4 py-[9px] text-[14px] text-foreground ${
-												cell.column.id === "user_name"
-													? "text-left"
-													: "text-right"
+												cell.column.id === "user_name" ? "text-left" : "text-center"
 											}`}
 										>
 											{flexRender(
@@ -202,10 +202,15 @@ function sortableHeader(title: string) {
 	return ({ column }: HeaderContext<User, unknown>) => {
 		const sorted = column.getIsSorted();
 		const toggleSortingHandler = column.getToggleSortingHandler();
+		const isUserColumn = column.id === "user_name";
 		return (
 			<button
 				type="button"
-				className="flex items-center gap-1 text-[12px] cursor-pointer select-none float-left"
+				className={
+					isUserColumn
+						? "inline-flex w-full items-center justify-start gap-1 text-left text-[12px] cursor-pointer select-none"
+						: "inline-flex items-center justify-center gap-1 text-[12px] cursor-pointer select-none mx-auto"
+				}
 				onClick={toggleSortingHandler}
 			>
 				<span className="text-muted-foreground">{title}</span>

@@ -41,6 +41,15 @@ export const baseSchema: VisualSchema = {
 
 export const generateId = (): string => Math.random().toString(36).substring(2, 9);
 
+const CHAIN_OF_THOUGHTS_PROPERTY = "chainOfThoughts";
+const PROMPT_STATUS_PROPERTY = "status";
+
+const addRequired = (required: string[], propertyName: string) => {
+	if (!required.includes(propertyName)) {
+		required.push(propertyName);
+	}
+};
+
 /**
  * Recursively checks if all properties are required
  */
@@ -164,11 +173,17 @@ const convertToVisualProperty = (
 
 export const transformToVisualSchema = (schema: any): VisualSchema => {
 	const targetSchema = schema.schema || schema;
+	const schemaProperties = targetSchema.properties || {};
 
-	const properties = targetSchema.properties
-		? Object.entries(targetSchema.properties).map(([k, v]) =>
-				convertToVisualProperty(k, v as any, targetSchema.required || []),
-			)
+	const properties = schemaProperties
+		? Object.entries(schemaProperties)
+				.filter(
+					([key]) =>
+						key !== CHAIN_OF_THOUGHTS_PROPERTY && key !== PROMPT_STATUS_PROPERTY,
+				)
+				.map(([k, v]) =>
+					convertToVisualProperty(k, v as any, targetSchema.required || []),
+				)
 		: [];
 
 	return {
@@ -176,8 +191,11 @@ export const transformToVisualSchema = (schema: any): VisualSchema => {
 		type: "object",
 		strict: schema.strict ?? false,
 		properties: properties,
-		chainOfThoughts: false,
-		promptStatus: false,
+		chainOfThoughts:
+			schema.chainOfThoughts === true ||
+			Boolean(schemaProperties[CHAIN_OF_THOUGHTS_PROPERTY]),
+		promptStatus:
+			schema.promptStatus === true || Boolean(schemaProperties[PROMPT_STATUS_PROPERTY]),
 	};
 };
 
@@ -232,8 +250,25 @@ export const transformToJsonSchema = (visual: VisualSchema): JsonSchemaRoot => {
 
 	visual.properties.forEach((p) => {
 		properties[p.name] = convertToJsonProperty(p);
-		if (p.required) required.push(p.name);
+		if (p.required) addRequired(required, p.name);
 	});
+
+	if (visual.chainOfThoughts) {
+		properties[CHAIN_OF_THOUGHTS_PROPERTY] = {
+			type: "string",
+			description: "Chain of Thoughts reasoning steps",
+		};
+		addRequired(required, CHAIN_OF_THOUGHTS_PROPERTY);
+	}
+
+	if (visual.promptStatus) {
+		properties[PROMPT_STATUS_PROPERTY] = {
+			type: "string",
+			description:
+				"Execution status of the prompt (OK, NOK); OK - if the prompt was executed successfully, NOK - if the prompt was not executed successfully or have some errors during the run. Give a short summary about the prompt execution",
+		};
+		addRequired(required, PROMPT_STATUS_PROPERTY);
+	}
 
 	const schemaStructure: any = {
 		type: "object",
