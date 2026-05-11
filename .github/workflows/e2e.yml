@@ -1,0 +1,122 @@
+name: E2E Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: Build E2E application images
+        run: docker compose -f docker-compose.e2e.yml build core web
+
+      - name: Start E2E infrastructure
+        run: |
+          if ! docker compose -f docker-compose.e2e.yml up -d; then
+            echo "E2E infrastructure failed to start"
+            docker ps -a
+            docker logs genum-core-e2e || true
+            docker logs genum-postgres-e2e || true
+            docker logs genum-clickhouse-e2e || true
+            exit 1
+          fi
+
+      - name: Show running containers
+        run: docker ps
+
+      - name: Wait for API
+        run: |
+          for i in {1..60}; do
+            api_status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' genum-core-e2e 2>/dev/null || echo missing)"
+            if [ "$api_status" = "healthy" ]; then
+              echo "API is ready"
+              exit 0
+            fi
+            if [ "$api_status" = "exited" ] || [ "$api_status" = "dead" ]; then
+              echo "API container stopped unexpectedly"
+              docker ps -a
+              docker logs genum-core-e2e || true
+              exit 1
+            fi
+            echo "Waiting for API... status=$api_status"
+            sleep 5
+          done
+          echo "API did not become ready in time"
+          docker ps -a
+          docker logs genum-core-e2e || true
+          exit 1
+
+      - name: Wait for frontend
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:4080 > /dev/null; then
+              echo "Frontend is ready"
+              exit 0
+            fi
+            echo "Waiting for frontend..."
+            sleep 5
+          done
+          echo "Frontend did not become ready in time"
+          docker ps
+          docker logs genum-web-e2e || true
+          docker logs genum-core-e2e || true
+          exit 1
+
+      - name: Run E2E tests
+        env:
+          CI: true
+          E2E: true
+          E2E_API_URL: http://localhost:4010
+          E2E_WEB_URL: http://localhost:4080
+        run: pnpm exec playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+
+      - name: Print container logs on failure
+        if: failure()
+        run: |
+          echo "=== genum-core-e2e logs ==="
+          docker logs genum-core-e2e || true
+          echo "=== genum-web-e2e logs ==="
+          docker logs genum-web-e2e || true
+          echo "=== genum-postgres-e2e logs ==="
+          docker logs genum-postgres-e2e || true
+          echo "=== genum-clickhouse-e2e logs ==="
+          docker logs genum-clickhouse-e2e || true
+
+      - name: Stop E2E infrastructure
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down

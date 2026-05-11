@@ -1,0 +1,107 @@
+services:
+  core:
+    build:
+      context: .
+      dockerfile: ./apps/core/Dockerfile
+    image: genum/core:latest
+    container_name: genum-core-e2e
+    ports:
+      - "4010:3010"
+    environment:
+      STAGE: e2e
+      INSTANCE_TYPE: local
+      CORE_PORT: 3010
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      FRONTEND_URL: http://localhost:4080
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: clickhouse
+      OPENAI_KEY: ${OPENAI_KEY:-}
+      ANTHROPIC_KEY: ${ANTHROPIC_KEY:-}
+      GEMINI_KEY: ${GEMINI_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3010', () => process.exit(0)).on('error', () => process.exit(1))",
+        ]
+      start_period: 180s
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    networks:
+      - genum-e2e-network
+
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+    image: genum/web:latest
+    container_name: genum-web-e2e
+    ports:
+      - "4080:80"
+    environment:
+      API_URL: http://localhost:4010
+      AUTH_MODE: local
+    depends_on:
+      core:
+        condition: service_healthy
+    networks:
+      - genum-e2e-network
+
+  postgres:
+    image: postgres:17
+    container_name: genum-postgres-e2e
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      TZ: UTC
+    ports:
+      - "5433:5432"
+    volumes:
+      - genum-postgres-e2e-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - genum-e2e-network
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.10
+    container_name: genum-clickhouse-e2e
+    environment:
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+    volumes:
+      - genum-clickhouse-e2e-data:/var/lib/clickhouse
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8123/ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - genum-e2e-network
+
+# ─────────────────────────────
+volumes:
+  genum-postgres-e2e-data:
+  genum-clickhouse-e2e-data:
+
+
+networks:
+  genum-e2e-network:
+    driver: bridge
