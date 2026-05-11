@@ -178,13 +178,13 @@ function LogsTableComponent({
 											side="top"
 											align="start"
 											showArrow={false}
-											className="max-w-[364px] p-4 bg-popover text-popover-foreground border border-border shadow-lg rounded-lg mb-[-50px] ml-[20%]"
+											className="max-w-[364px] p-4 bg-popover text-white border border-border shadow-lg rounded-lg mb-[-50px] ml-[20%]"
 										>
 											<div className="space-y-2">
 												<h3 className="text-sm font-semibold">
 													Error Description
 												</h3>
-												<p className="text-sm text-popover-foreground">
+												<p className="text-sm text-white">
 													{log.description}
 												</p>
 											</div>
