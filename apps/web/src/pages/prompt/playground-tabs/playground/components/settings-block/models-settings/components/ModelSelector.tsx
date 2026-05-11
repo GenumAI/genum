@@ -117,10 +117,10 @@ export const ModelSelector = memo(
 												)}
 											</div>
 										</TooltipTrigger>
-										<TooltipContent side="right" align="start">
+										<TooltipContent side="right" align="start" className="text-white">
 											<TooltipArrow />
 											{isModelDisabled ? (
-												<p className="text-xs max-w-[200px]">
+												<p className="text-xs max-w-[200px] text-white">
 													This model is disabled for your organization.
 													Please select a different model.
 												</p>
