@@ -112,6 +112,7 @@ export const router = createBrowserRouter([
 				path: "prompt/:id/compare",
 				element: <Compare />,
 			},
+			{ path: "prompt/:id", element: <Navigate to="playground" replace /> },
 			{ path: "prompt/:id/:tab", element: <PlaygroundWorkspace /> },
 			{ path: "getting-started", element: <GettingStarted /> },
 			{ path: "logs", element: <LogsPage /> },
