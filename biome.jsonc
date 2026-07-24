@@ -6,6 +6,10 @@
 			"!**/.turbo",
 			"!.generated",
 			"!**/.generated",
+			// Claude Code worktrees are nested checkouts; their biome.jsonc
+			// would abort the run with "Found a nested root configuration".
+			// Keep this as "!.claude" — "!**/.claude" ignores the whole repo.
+			"!.claude",
 			"!dist",
 			"!**/dist",
 			"!**/package.json",
