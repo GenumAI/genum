@@ -53,9 +53,10 @@ pnpm format:check              # biome check (no write)
 ### Testing
 ```bash
 pnpm test                      # turbo test (runs build first)
-pnpm test:run                  # vitest run (no watch)
-pnpm --filter core test:run    # core tests only
+pnpm --filter core test:run    # core tests only — no watch, no DB needed
 pnpm --filter core test:coverage
+# NB: root `pnpm test:run` does NOT work — turbo has no `test:run` task.
+# `web` has no tests and no type-check; `pnpm --filter web build` type-checks it.
 ```
 
 ### Database (core)
@@ -72,7 +73,11 @@ pnpm --filter core db:generate       # prisma generate (regenerates .generated/)
 
 Formatter: **Biome** — tabs, indent width 4, line width 100, LF line endings.
 Linter: ESLint (TypeScript rules). Biome linter also runs but `noExplicitAny` is off.
-Pre-commit: lint-staged runs `biome format --write` then `eslint --fix` on staged files.
+Pre-commit: **no hook is active** — `lefthook.yml` is commented out, so `lint-staged.config.mjs`
+(`biome format --write` then `eslint --fix`) never runs. Format your own changed files.
+
+Lint/format are red on `main` (core 35 problems, web 354, biome 172 errors). Judge your change by
+its delta on the files you touched, not by the exit code — see `.claude/skills/verifying-changes/`.
 
 ## Architecture
 
