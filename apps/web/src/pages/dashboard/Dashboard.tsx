@@ -4,6 +4,7 @@ import { TableModelStats } from "@/pages/dashboard/components/TableModelStats";
 import { TablePromptStats } from "@/pages/dashboard/components/TablePromptStats";
 import { TestcaseStats } from "@/pages/dashboard/components/TestcaseStats";
 import { UserActivityTable } from "@/pages/dashboard/components/UserActivityTable";
+import { ApiKeyActivityTable } from "@/pages/dashboard/components/ApiKeyActivityTable";
 import { Card } from "@/components/ui/card";
 import { LogsFilter } from "@/pages/logs/components/LogsFilter";
 import { useDashboardPageData } from "@/pages/dashboard/hooks/useDashboardPageData";
@@ -38,6 +39,7 @@ export default function DashboardPage() {
 
 						<TablePromptStats prompts={[]} promptNames={[]} isLoading />
 						<UserActivityTable users={[]} isLoading />
+						<ApiKeyActivityTable apiKeys={[]} isLoading />
 					</div>
 				)}
 
@@ -58,6 +60,8 @@ export default function DashboardPage() {
 						/>
 
 						<UserActivityTable users={data?.users || []} />
+
+						<ApiKeyActivityTable apiKeys={data?.api_keys || []} />
 					</div>
 				)}
 			</div>

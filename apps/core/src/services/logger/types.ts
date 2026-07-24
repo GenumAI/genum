@@ -110,6 +110,15 @@ export interface UserActivityStats {
 	first_activity: string | null;
 }
 
+export interface ApiKeyUsageStats {
+	api_key_id: number;
+	api_key_name?: string | null;
+	total_requests: number;
+	total_tokens_sum: number;
+	total_cost: number;
+	last_activity: string | null;
+}
+
 export interface ProjectDetailedUsageStats {
 	project_id: number;
 	orgId: number;
@@ -124,6 +133,7 @@ export interface ProjectDetailedUsageStats {
 	prompts: PromptUsageStats[];
 	models: ModelUsageStats[];
 	users: UserActivityStats[];
+	api_keys: ApiKeyUsageStats[];
 }
 
 export interface ProjectDailyUsageStats {
@@ -234,6 +244,14 @@ export interface ClickHouseUserStatsRow {
 	total_cost: number | string;
 	last_activity: string | null;
 	first_activity: string | null;
+}
+
+export interface ClickHouseApiKeyStatsRow {
+	api_key_id: number | string;
+	total_requests: number | string;
+	total_tokens_sum: number | string;
+	total_cost: number | string;
+	last_activity: string | null;
 }
 
 export interface ClickHouseDailyStatsRow {

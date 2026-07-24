@@ -25,6 +25,7 @@ export type {
 	PromptUsageStats,
 	ModelUsageStats,
 	UserActivityStats,
+	ApiKeyUsageStats,
 	ProjectDetailedUsageStats,
 	ProjectDailyUsageStats,
 	ProjectDetailedUsageStatsV2,

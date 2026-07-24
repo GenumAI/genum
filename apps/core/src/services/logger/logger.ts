@@ -15,6 +15,7 @@ import moment from "moment";
 import { env } from "@/env";
 import { WhereBuilder } from "./where.builder";
 import { QUERIES } from "./queries";
+import { mapApiKeyStatsRow } from "./mappers";
 import type {
 	LogDocument,
 	LogSearchResult,
@@ -22,6 +23,7 @@ import type {
 	PromptUsageStats,
 	ModelUsageStats,
 	UserActivityStats,
+	ApiKeyUsageStats,
 	ProjectDetailedUsageStats,
 	ProjectDailyUsageStats,
 	ProjectDetailedUsageStatsV2,
@@ -34,6 +36,7 @@ import type {
 	ClickHousePromptStatsRow,
 	ClickHouseModelStatsRow,
 	ClickHouseUserStatsRow,
+	ClickHouseApiKeyStatsRow,
 	ClickHouseDailyStatsRow,
 	ClickHouseProjectDailyStatsRow,
 	DailyStatsAggregation,
@@ -51,6 +54,7 @@ export type {
 	PromptUsageStats,
 	ModelUsageStats,
 	UserActivityStats,
+	ApiKeyUsageStats,
 	ProjectDetailedUsageStats,
 	ProjectDailyUsageStats,
 	ProjectDetailedUsageStatsV2,
@@ -63,6 +67,7 @@ export type {
 	ClickHousePromptStatsRow,
 	ClickHouseModelStatsRow,
 	ClickHouseUserStatsRow,
+	ClickHouseApiKeyStatsRow,
 	ClickHouseDailyStatsRow,
 	ClickHouseProjectDailyStatsRow,
 	DailyStatsAggregation,
@@ -415,11 +420,25 @@ async function getProjectDetailedUsageStats(
 			first_activity: row.first_activity ? moment(row.first_activity).toISOString() : null,
 		}));
 
+		// Get API key stats. Runs from the UI and from testcases carry no key, so they are excluded.
+		const apiKeysResult = await clickhouseClient.query({
+			query: QUERIES.API_KEY_STATS(
+				CLICKHOUSE_TABLES.LOGS,
+				`${where} AND api_key_id IS NOT NULL`,
+			),
+			query_params: params,
+			format: "JSONEachRow",
+		});
+
+		const apiKeysData = (await apiKeysResult.json()) as ClickHouseApiKeyStatsRow[];
+		const api_keys: ApiKeyUsageStats[] = apiKeysData.map(mapApiKeyStatsRow);
+
 		return {
 			...projectStats,
 			prompts,
 			models,
 			users,
+			api_keys,
 		};
 	} catch (error) {
 		console.error("Error getting detailed project usage stats from ClickHouse:", error);
