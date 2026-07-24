@@ -1,40 +1,41 @@
-# API Key Activity в дешборде проекта
+# API Key Activity on the project dashboard
 
-**Дата:** 2026-07-24
+**Date:** 2026-07-24
 
-## Задача
+## Goal
 
-Выяснить, логируем ли мы, какой именно API-ключ использовался, и показать это в дешборде.
+Find out whether we log which API key was used, and surface it on the dashboard.
 
-## Что уже есть
+## What already exists
 
-Логируем. Колонка `api_key_id Nullable(UInt32)` объявлена в `apps/core/clickhouse/init.sql:17`,
-`logUsage()` её пишет (`apps/core/src/services/logger/logger.ts:178`), `runPrompt()` прокидывает
-и в success-, и в error-ветке (`apps/core/src/ai/runner/run.ts:206,236`).
+We do log it. The `api_key_id Nullable(UInt32)` column is declared in
+`apps/core/clickhouse/init.sql:17`, `logUsage()` writes it
+(`apps/core/src/services/logger/logger.ts:178`), and `runPrompt()` passes it through on both
+the success and the error path (`apps/core/src/ai/runner/run.ts:206,236`).
 
-Заполняет её ровно один вызов — `ApiV1Controller.runPrompt` передаёт `api_key_id: key.id`
-(`apps/core/src/controllers/apiv1.controller.ts:156`). Это Genum-ключ проекта, модель
-`ProjectApiKey` (поля `name`, `publicKey`, `authorId`, `lastUsed`). Запуски из UI и из
-тесткейсов пишут `null`.
+Exactly one call site populates it: `ApiV1Controller.runPrompt` passes `api_key_id: key.id`
+(`apps/core/src/controllers/apiv1.controller.ts:156`). That is the project's Genum key, the
+`ProjectApiKey` model (fields `name`, `publicKey`, `authorId`, `lastUsed`). Runs from the UI
+and from testcases write `null`.
 
-Чего нет:
+What is missing:
 
-- ни один аналитический запрос в `logger/queries.ts` не группирует по `api_key_id`;
-- `api_key_id` возвращается из `transformRowToLogDocument`, но во фронтовом типе `Log` его нет,
-  то есть до UI поле не доезжает;
-- дешборд про ключи не показывает ничего.
+- no analytics query in `logger/queries.ts` groups by `api_key_id`;
+- `api_key_id` is returned by `transformRowToLogDocument`, but the frontend `Log` type has no
+  such field, so it never reaches the UI;
+- the dashboard shows nothing about keys.
 
-Ключ AI-провайдера (OpenAI / Anthropic / Gemini) не логируется вообще — только `vendor` и
-`model`. Это вне объёма данной работы.
+The AI provider key (OpenAI / Anthropic / Gemini) is not logged anywhere — only `vendor` and
+`model`. That is out of scope here.
 
-## Решение
+## Solution
 
-Новая карточка **API Key Activity** на странице дешборда — ещё один срез уже существующих
-данных, по образцу карточки User Activity. Миграции ClickHouse не требуются.
+A new **API Key Activity** card on the dashboard page — another slice of data we already
+have, modelled on the User Activity card. No ClickHouse migration required.
 
-### Бэкенд
+### Backend
 
-1. `apps/core/src/services/logger/queries.ts` — запрос `API_KEY_STATS`:
+1. `apps/core/src/services/logger/queries.ts` — an `API_KEY_STATS` query:
 
    ```sql
    SELECT
@@ -50,57 +51,61 @@
    LIMIT 100
    ```
 
-2. `apps/core/src/services/logger/types.ts` — интерфейсы `ApiKeyUsageStats`
+2. `apps/core/src/services/logger/types.ts` — the `ApiKeyUsageStats` interface
    (`api_key_id`, `api_key_name`, `total_requests`, `total_tokens_sum`, `total_cost`,
-   `last_activity`) и `ClickHouseApiKeyStatsRow`; поле `api_keys: ApiKeyUsageStats[]`
-   в `ProjectDetailedUsageStats`.
+   `last_activity`) and `ClickHouseApiKeyStatsRow`; an `api_keys: ApiKeyUsageStats[]` field
+   on `ProjectDetailedUsageStats`.
 
-3. `apps/core/src/services/logger/logger.ts` — в `getProjectDetailedUsageStats` добавить
-   запрос с `WHERE ... AND api_key_id IS NOT NULL`, как это уже сделано для `user_id`.
-   Строки с `null` (UI и тесткейсы) отсекаются: карточка про ключи, а не про весь трафик.
-   Маппинг строки ClickHouse в `ApiKeyUsageStats` выносится в экспортируемую чистую функцию
-   `mapApiKeyStatsRow` — она и покрывается тестом.
+3. `apps/core/src/services/logger/logger.ts` — add a query with
+   `WHERE ... AND api_key_id IS NOT NULL` to `getProjectDetailedUsageStats`, the same way it
+   is already done for `user_id`. Rows with `null` (UI and testcases) are filtered out: the
+   card is about keys, not about all traffic.
 
-4. `apps/core/src/controllers/project.controller.ts` — в `getProjectDetailedUsageStats`
-   обогатить срез именами через существующий `db.project.getProjectApiKeys(projID)`
-   (ключей на проект мало, отдельный репозиторный метод не нужен). Ключ, которого больше
-   нет в Postgres, имени не получает: `api_key_name: null`.
+   The ClickHouse row → `ApiKeyUsageStats` mapping lives in its own module,
+   `logger/mappers.ts`, as the exported pure function `mapApiKeyStatsRow`. Keeping it out of
+   `logger.ts` matters: `logger.ts` imports `@/env`, which validates the environment at
+   import time and would fail the unit test. That function is what the test covers.
 
-### Фронтенд
+4. `apps/core/src/controllers/project.controller.ts` — in `getProjectDetailedUsageStats`,
+   enrich the slice with names via the existing `db.project.getProjectApiKeys(projID)`
+   (a project has few keys, so no new repository method is needed). A key that no longer
+   exists in Postgres resolves to `api_key_name: null`.
 
-5. `apps/web/src/api/project/project.api.ts` — интерфейс `UsageApiKeyStat` и поле
-   `api_keys` в `UsageData`.
+### Frontend
 
-6. `apps/web/src/pages/dashboard/components/ApiKeyActivityTable.tsx` — новая карточка,
-   структурно повторяющая `UserActivityTable`: TanStack Table, сортировка по колонкам,
-   скелетон, `EmptyState` при отсутствии данных.
+5. `apps/web/src/api/project/project.api.ts` — the `UsageApiKeyStat` interface and an
+   `api_keys` field on `UsageData`.
 
-   Колонки: **API Key**, **Total Requests**, **Total Tokens**, **Total Cost**, **Last Used**.
-   Колонки First Used нет.
+6. `apps/web/src/pages/dashboard/components/ApiKeyActivityTable.tsx` — a new card structured
+   after `UserActivityTable`: TanStack Table, per-column sorting, skeleton, and `EmptyState`
+   when there is no data.
 
-   Ключ без имени отображается как `Key #<id> (deleted)` — по аналогии с тем, как
-   `UserActivityTable` показывает `User ${row.user_id}`.
+   Columns: **API Key**, **Total Requests**, **Total Tokens**, **Total Cost**, **Last Used**.
+   There is no First Used column.
 
-7. `apps/web/src/pages/dashboard/Dashboard.tsx` — карточка рендерится под
-   `UserActivityTable`, в обеих ветках: скелетон и контент.
+   A key with no name renders as `Key #<id> (deleted)`, mirroring how `UserActivityTable`
+   renders `User ${row.user_id}`.
 
-## Принятые решения
+7. `apps/web/src/pages/dashboard/Dashboard.tsx` — the card renders below `UserActivityTable`,
+   in both branches: skeleton and content.
 
-**Двойной учёт оставляем.** Для API-вызовов пишется `user_id: key.authorId`, поэтому один и
-тот же запрос виден и в User Activity (на авторе ключа), и в новой таблице. Это такой же
-независимый срез одних и тех же логов, как срезы по моделям и промптам. `USER_STATS` не
-трогаем, чтобы не менять цифры, к которым люди привыкли.
+## Decisions
 
-**Строки без ключа скрываем.** `api_key_id IS NOT NULL` отсекает запуски из UI и тесткейсов.
-Их объём виден в других карточках дешборда.
+**Double counting stays.** API calls log `user_id: key.authorId`, so the same request is
+visible both in User Activity (against the key's author) and in the new table. It is just
+another independent slice of the same logs, like the per-model and per-prompt slices.
+`USER_STATS` is left untouched so the numbers people are used to do not shift.
 
-## Тестирование
+**Rows without a key are hidden.** `api_key_id IS NOT NULL` filters out UI and testcase runs.
+Their volume is visible in the other dashboard cards.
 
-В репозитории тесты юнитовые и колокейтед (`*.test.ts`), интеграционных тестов с ClickHouse
-нет. Поэтому:
+## Testing
 
-- `apps/core/src/services/logger/logger.test.ts` — тест на `mapApiKeyStatsRow`: числа
-  приходят из ClickHouse строками и должны стать числами, `last_activity` может быть `null`,
-  отсутствующие значения дают `0`.
+Tests in this repository are unit-level and colocated (`*.test.ts`); there are no ClickHouse
+integration tests. Hence:
+
+- `apps/core/src/services/logger/mappers.test.ts` — covers `mapApiKeyStatsRow`: ClickHouse
+  returns numbers as strings and they must come back as numbers, `last_activity` may be
+  `null`, and absent aggregates default to `0`.
 - `pnpm --filter core type-check`
 - `pnpm build`
