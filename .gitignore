@@ -15,3 +15,9 @@ packages/**/.turbo
 
 
 .generated
+
+# Claude Code: share skills, keep local state out.
+# A worktree under .claude/worktrees/ is a full nested checkout — its biome.jsonc
+# makes `biome check .` fail with "Found a nested root configuration".
+.claude/worktrees/
+.claude/settings.local.json
