@@ -101,6 +101,23 @@ export const QUERIES = {
 	`,
 
 	/**
+	 * Get API key activity statistics
+	 */
+	API_KEY_STATS: (table: string, where: string) => `
+		SELECT
+			api_key_id,
+			count() as total_requests,
+			sum(tokens_sum) as total_tokens_sum,
+			sum(cost) as total_cost,
+			max(timestamp) as last_activity
+		FROM ${table}
+		WHERE ${where}
+		GROUP BY api_key_id
+		ORDER BY total_requests DESC
+		LIMIT 100
+	`,
+
+	/**
 	 * Get daily statistics for a project
 	 */
 	PROJECT_DAILY_STATS: (table: string, where: string) => `
