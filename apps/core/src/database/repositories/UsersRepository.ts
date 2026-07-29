@@ -166,6 +166,16 @@ export class UsersRepository {
 		});
 	}
 
+	public async getUserByAuthID(authID: string) {
+		if (authID.trim().length === 0) {
+			return null;
+		}
+
+		return await this.prisma.user.findFirst({
+			where: { authID },
+		});
+	}
+
 	public async countUsersByDate(startDate: Date, endDate: Date) {
 		return await this.prisma.user.count({
 			where: {

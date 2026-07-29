@@ -8,3 +8,4 @@ export * from "./types/project.type";
 export * from "./types/organization.type";
 export * from "./types/apiv1.type";
 export * from "./types/user.type";
+export * from "./types/mailservice.type";

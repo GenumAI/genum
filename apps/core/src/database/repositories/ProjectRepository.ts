@@ -99,6 +99,12 @@ export class ProjectRepository {
 		return project;
 	}
 
+	public async findProjectByOrgAndName(orgID: number, name: string) {
+		return await this.prisma.project.findFirst({
+			where: { organizationId: orgID, name },
+		});
+	}
+
 	public async getMemberByUserId(projID: number, userId: number) {
 		return await this.prisma.projectMember.findUnique({
 			where: {
