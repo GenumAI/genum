@@ -189,9 +189,18 @@ export class ProjectController {
 			user_name: userNameById.get(u.user_id) ?? null,
 		}));
 
+		// A key deleted after it was used stays in the logs but has no name to resolve
+		const projectApiKeys = await db.project.getProjectApiKeys(metadata.projID);
+		const apiKeyNameById = new Map(projectApiKeys.map((k) => [k.id, k.name]));
+		const apiKeysWithNames = (stats.api_keys || []).map((k) => ({
+			...k,
+			api_key_name: apiKeyNameById.get(k.api_key_id) ?? null,
+		}));
+
 		res.status(200).json({
 			...stats,
 			users: usersWithNames,
+			api_keys: apiKeysWithNames,
 			promptNames,
 		});
 	}

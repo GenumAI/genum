@@ -59,6 +59,15 @@ export interface UsageUserStat {
 	user_name?: string | null;
 }
 
+export interface UsageApiKeyStat {
+	api_key_id: number;
+	total_requests: number;
+	total_tokens_sum: number;
+	total_cost: number;
+	last_activity: string | null;
+	api_key_name?: string | null;
+}
+
 export interface UsageData {
 	project_id: number;
 	orgId: number;
@@ -74,6 +83,7 @@ export interface UsageData {
 	prompts: UsagePromptStat[];
 	models: UsageModelStat[];
 	users: UsageUserStat[];
+	api_keys: UsageApiKeyStat[];
 	promptNames: PromptName[];
 }
 
