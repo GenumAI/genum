@@ -36,6 +36,7 @@ const EnvSchema = z.object({
 	AUTH0_AUDIENCE: z.string().optional(),
 	AUTH0_USERID_CLAIM: z.string().optional(),
 	AUTH0_ACTION_APIKEY: z.string().optional(),
+	MAIL_SERVICE_APIKEY: z.string().optional(),
 	// Hooks
 	WEBHOOK_USERNAME: z.string().optional().default(""),
 	WEBHOOK_PASSWORD: z.string().optional().default(""),

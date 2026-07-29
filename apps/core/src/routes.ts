@@ -12,6 +12,7 @@ import { createHelpersRouter } from "./routers/HelpersRouter";
 import { createLocalUserRouter } from "./routers/LocalUserRouter";
 import { createFileRouter } from "./routers/FileRouter";
 import { createSystemRouter } from "./routers/SystemRouter";
+import { createMailServiceRouter } from "./routers/MailServiceRouter";
 
 export function setupRoutes(app: Express): void {
 	const w = createAuthMiddleware();
@@ -23,6 +24,9 @@ export function setupRoutes(app: Express): void {
 
 	// api
 	app.use(`/api/v1`, createApiV1Router());
+
+	// service integrations (own bearer guard, no JWT)
+	app.use(`/service/mail`, createMailServiceRouter());
 
 	// secure only
 	app.use(checkJwt); // check jwt token
