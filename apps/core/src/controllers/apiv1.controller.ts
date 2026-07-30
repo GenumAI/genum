@@ -203,8 +203,24 @@ export class ApiV1Controller {
 	async createPrompt(req: Request, res: Response) {
 		const { project, key } = await this.verifyRequest(req);
 
-		const data = PromptCreateSchema.parse(req.body);
-		const prompt = await db.prompts.newProjectPrompt(project.id, data, key.authorId);
+		const { languageModelName, languageModelConfig, ...promptData } = PromptCreateSchema.parse(
+			req.body,
+		);
+
+		const resolvedModel = await this.promptService.resolvePromptModelOverride(
+			project.organizationId,
+			{ languageModelName, languageModelConfig },
+		);
+		if (!resolvedModel.ok) {
+			return res.status(400).json({ error: resolvedModel.error });
+		}
+
+		const prompt = await db.prompts.newProjectPrompt(
+			project.id,
+			promptData,
+			key.authorId,
+			resolvedModel.override ?? undefined,
+		);
 		res.status(200).json({ prompt });
 	}
 }
