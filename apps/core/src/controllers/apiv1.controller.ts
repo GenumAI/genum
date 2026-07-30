@@ -221,6 +221,12 @@ export class ApiV1Controller {
 			key.authorId,
 			resolvedModel.override ?? undefined,
 		);
-		res.status(200).json({ prompt });
+
+		// An uncommitted prompt has no productive version, so the API could not run
+		// what it just created — commit immediately, as the seed does.
+		await db.prompts.commit(prompt.id, "Initial commit", key.authorId);
+		const committed = await db.prompts.changePromptCommitStatus(prompt.id, true);
+
+		res.status(200).json({ prompt: committed });
 	}
 }
