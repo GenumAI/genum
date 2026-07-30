@@ -14,6 +14,8 @@ vi.mock("@/database/db", () => ({
 		prompts: {
 			getDefaultLanguageModelRow: vi.fn(),
 			newProjectPrompt: vi.fn(),
+			commit: vi.fn(),
+			changePromptCommitStatus: vi.fn(),
 		},
 	},
 }));
@@ -59,6 +61,9 @@ describe("ApiV1Controller.createPrompt", () => {
 		controller = new ApiV1Controller();
 		(db.project.getProjectApiKeyByToken as ReturnType<typeof vi.fn>).mockResolvedValue(KEY);
 		(db.project.getProjectbyApiKeyById as ReturnType<typeof vi.fn>).mockResolvedValue(PROJECT);
+		(db.prompts.changePromptCommitStatus as ReturnType<typeof vi.fn>).mockImplementation(
+			(id: number) => Promise.resolve({ id, commited: true }),
+		);
 	});
 
 	it("400s with a clear error for an unknown model name, and never creates the prompt", async () => {
@@ -109,6 +114,33 @@ describe("ApiV1Controller.createPrompt", () => {
 			},
 		);
 		expect(captured.statusCode).toBe(200);
+	});
+
+	it("commits the created prompt immediately so the API can run it", async () => {
+		(db.prompts.newProjectPrompt as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 42 });
+		const { res, captured } = makeRes();
+
+		await controller.createPrompt(makeReq({ name: "p", value: "v" }), res);
+
+		expect(db.prompts.commit).toHaveBeenCalledWith(42, "Initial commit", 7);
+		expect(db.prompts.changePromptCommitStatus).toHaveBeenCalledWith(42, true);
+		expect(captured.statusCode).toBe(200);
+		expect(captured.body).toEqual({ prompt: { id: 42, commited: true } });
+	});
+
+	it("does not commit when creation was rejected for an unknown model", async () => {
+		(db.organization.getAvailableModels as ReturnType<typeof vi.fn>).mockResolvedValue([
+			GPT_4O,
+		]);
+		const { res } = makeRes();
+
+		await controller.createPrompt(
+			makeReq({ name: "p", value: "v", languageModelName: "does-not-exist" }),
+			res,
+		);
+
+		expect(db.prompts.commit).not.toHaveBeenCalled();
+		expect(db.prompts.changePromptCommitStatus).not.toHaveBeenCalled();
 	});
 
 	it("omitting both fields reproduces the prior call shape exactly (no override argument)", async () => {
