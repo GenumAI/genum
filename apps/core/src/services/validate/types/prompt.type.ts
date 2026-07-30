@@ -1,15 +1,39 @@
 import { AssertionTypeSchema, PromptSchema as PromptSchemaGenerated } from "@/prisma-types";
 import { LogLevel, SourceType } from "@/services/logger";
+import { FunctionCallSchema } from "@/ai/models/types";
 import { z } from "zod";
 
 const PromptSchema = PromptSchemaGenerated.extend({
 	name: z.string().trim().min(1).max(128),
 });
 
+// Shape mirrors ModelConfigParameters (src/ai/models/types.ts). Intentionally
+// permissive (not `.strict()`): the modelConfigService sanitizer discards
+// anything it doesn't recognize, so rejecting unknown keys here would just
+// duplicate that work with a worse error message.
+export const LanguageModelConfigSchema = z
+	.object({
+		temperature: z.number().optional(),
+		response_format: z.enum(["text", "json_object", "json_schema"]).optional(),
+		tools: z.array(FunctionCallSchema).optional(),
+		max_tokens: z.number().optional(),
+		json_schema: z.string().optional(),
+		reasoning_effort: z.enum(["none", "minimal", "low", "medium", "high", "xhigh"]).optional(),
+		verbosity: z.enum(["low", "medium", "high"]).optional(),
+	})
+	.partial();
+
+export type LanguageModelConfigInput = z.infer<typeof LanguageModelConfigSchema>;
+
 export const PromptCreateSchema = PromptSchema.pick({
 	name: true,
 	value: true,
-}).strict();
+})
+	.extend({
+		languageModelName: z.string().min(1).optional(),
+		languageModelConfig: LanguageModelConfigSchema.optional(),
+	})
+	.strict();
 
 export type PromptCreateType = z.infer<typeof PromptCreateSchema>;
 

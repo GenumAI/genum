@@ -20,6 +20,14 @@ type DefaultLanguageModel = {
 	config: ModelConfigParameters;
 };
 
+// Resolved override for prompt creation: an explicit model + already-sanitized
+// config, computed by the caller (see PromptService.resolvePromptModelOverride)
+// before newProjectPrompt is invoked.
+export type NewPromptModelOverride = {
+	languageModelId: number;
+	languageModelConfig: ModelConfigParameters;
+};
+
 export class PromptsRepository {
 	private prisma: PrismaClient;
 	private systemRepository: SystemRepository;
@@ -83,6 +91,11 @@ export class PromptsRepository {
 		this.defaultLanguageModel = null;
 	}
 
+	private async getDefaultModelOverride(): Promise<NewPromptModelOverride> {
+		const defaultModel = await this.getDefaultLanguageModel();
+		return { languageModelId: defaultModel.id, languageModelConfig: defaultModel.config };
+	}
+
 	// expose default language model config for callers that need a reset baseline
 	public async getDefaultLanguageModelForReset(): Promise<{
 		id: number;
@@ -93,6 +106,21 @@ export class PromptsRepository {
 			id: defaultModel.id,
 			config: defaultModel.config,
 		};
+	}
+
+	/**
+	 * Full row for the default language model — used when a caller supplies a
+	 * `languageModelConfig` to sanitize without naming a specific model.
+	 */
+	public async getDefaultLanguageModelRow() {
+		const defaultModel = await this.getDefaultLanguageModel();
+		const row = await this.prisma.languageModel.findUnique({
+			where: { id: defaultModel.id },
+		});
+		if (!row) {
+			throw new Error("Default language model not found in database");
+		}
+		return row;
 	}
 
 	// get project prompts
@@ -193,21 +221,26 @@ export class PromptsRepository {
 	}
 
 	// create new prompt
+	// `override` lets a caller (e.g. the public API's languageModelName /
+	// languageModelConfig extension) pin the model + config explicitly; when
+	// omitted this is byte-for-byte the historical default-model behavior.
 	public async newProjectPrompt(
 		projectId: number,
 		data: PromptCreateType,
 		_userId: number,
+		override?: NewPromptModelOverride,
 	): Promise<Prompt> {
-		const defaultModel = await this.getDefaultLanguageModel();
+		const { languageModelId, languageModelConfig } =
+			override ?? (await this.getDefaultModelOverride());
 
 		return await this.prisma.prompt.create({
 			data: {
 				name: data.name,
 				value: data.value,
-				languageModelConfig: defaultModel.config,
+				languageModelConfig,
 				languageModel: {
 					connect: {
-						id: defaultModel.id,
+						id: languageModelId,
 					},
 				},
 				project: {
