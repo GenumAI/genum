@@ -2,6 +2,7 @@ enum AiVendor {
     OPENAI
     GOOGLE
     ANTHROPIC
+    DEEPSEEK
     CUSTOM_OPENAI_COMPATIBLE
 }
 

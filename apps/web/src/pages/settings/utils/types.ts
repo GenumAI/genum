@@ -19,7 +19,7 @@ import type { ProjectFormValues } from "../hooks/useProject";
 // Enums & Base Types
 // ============================================================================
 
-export type Vendor = "OPENAI" | "GOOGLE" | "ANTHROPIC";
+export type Vendor = "OPENAI" | "GOOGLE" | "ANTHROPIC" | "DEEPSEEK";
 
 export enum SettingsTab {
 	PROVIDERS = "providers",
@@ -221,7 +221,10 @@ export interface DeleteConfirmDialogProps {
 export interface InviteMemberDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onInvite: (email: string, role: OrganizationRole) => Promise<{ success: boolean; inviteUrl?: string }>;
+	onInvite: (
+		email: string,
+		role: OrganizationRole,
+	) => Promise<{ success: boolean; inviteUrl?: string }>;
 	isInviting: boolean;
 }
 

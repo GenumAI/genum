@@ -33,6 +33,7 @@ export function normalizeVendorName(vendor: string | undefined): string {
 		OPENAI: "OpenAI",
 		GOOGLE: "Google",
 		ANTHROPIC: "Anthropic",
+		DEEPSEEK: "DeepSeek",
 	};
 
 	return vendorMap[vendor.toUpperCase()] || vendor;

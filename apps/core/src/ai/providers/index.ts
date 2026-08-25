@@ -3,6 +3,7 @@ import type { ModelConfigParameters } from "../models/types";
 
 export * from "./openai/generate";
 export * from "./gemini/generate";
+export * from "./deepseek/generate";
 
 export type ProviderRequest = {
 	apikey: string;

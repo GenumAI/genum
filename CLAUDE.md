@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What Is Genum
 
-An open-source platform to manage, test, and iterate on AI prompts across multiple LLM providers (OpenAI, Anthropic, Gemini). It ships with a REST API (`apps/core`) and a web UI (`apps/web`).
+An open-source platform to manage, test, and iterate on AI prompts across multiple LLM providers (OpenAI, Anthropic, Gemini, DeepSeek). It ships with a REST API (`apps/core`) and a web UI (`apps/web`).
 
 ## Monorepo Layout
 
@@ -96,7 +96,7 @@ database/
   prisma.ts         PrismaClient singleton
   repositories/     One repository per domain (Prompts, Testcases, Users, etc.)
 ai/
-  providers/        OpenAI, Anthropic, Gemini generation functions
+  providers/        OpenAI, Anthropic, Gemini, DeepSeek generation functions
   runner/run.ts     runPromptWithProvider() — routes to correct provider
   models/           Model config/parameter types
 services/
@@ -165,6 +165,7 @@ Single `.env` at repo root. Key variables:
 | `OPENAI_KEY` | no | — | Enables OpenAI |
 | `ANTHROPIC_KEY` | no | — | Enables Anthropic |
 | `GEMINI_KEY` | no | — | Enables Gemini |
+| `DEEPSEEK_KEY` | no | — | Enables DeepSeek |
 | `INSTANCE_TYPE` | no | `local` | `local` or `cloud` |
 | `AUTH0_*` | cloud only | — | Auth0 config for cloud mode |
 

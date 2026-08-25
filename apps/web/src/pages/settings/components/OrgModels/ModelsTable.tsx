@@ -23,6 +23,7 @@ const VENDOR_NAMES: Record<string, string> = {
 	OPENAI: "OpenAI",
 	ANTHROPIC: "Anthropic",
 	GOOGLE: "Google",
+	DEEPSEEK: "DeepSeek",
 	CUSTOM_OPENAI_COMPATIBLE: "Custom Provider",
 };
 
@@ -30,7 +31,8 @@ const VENDOR_ORDER: Record<string, number> = {
 	OPENAI: 1,
 	ANTHROPIC: 2,
 	GOOGLE: 3,
-	CUSTOM_OPENAI_COMPATIBLE: 4,
+	DEEPSEEK: 4,
+	CUSTOM_OPENAI_COMPATIBLE: 5,
 };
 
 function formatPrice(price: number) {
@@ -163,11 +165,15 @@ function ModelsTableComponent({ models, isLoading, pendingModelIds, onToggle }: 
 								<TableHead className="text-left p-4 w-[300px]">Model</TableHead>
 								<TableHead className="text-right p-4 w-[120px]">
 									Prompt Price
-									<div className="text-xs font-normal text-muted-foreground">/1M tokens</div>
+									<div className="text-xs font-normal text-muted-foreground">
+										/1M tokens
+									</div>
 								</TableHead>
 								<TableHead className="text-right p-4 w-[120px]">
 									Completion Price
-									<div className="text-xs font-normal text-muted-foreground">/1M tokens</div>
+									<div className="text-xs font-normal text-muted-foreground">
+										/1M tokens
+									</div>
 								</TableHead>
 								<TableHead className="text-right p-4 w-[120px]">Context</TableHead>
 								<TableHead className="text-center p-4 w-[100px]">Enabled</TableHead>

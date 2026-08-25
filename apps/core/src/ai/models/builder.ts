@@ -13,9 +13,19 @@ export type SeedModelFields = {
 	description: string;
 };
 
+/**
+ * Returns the prices to bill a run at, in USD per 1M tokens, at the moment it is called.
+ * Lets a vendor express pricing that the static `promptPrice`/`completionPrice` pair
+ * cannot — DeepSeek, for example, halves both prices outside its peak hours.
+ * Code-side only: never seeded to the database.
+ */
+export type PriceModifier = () => { prompt: number; completion: number };
+
 export type BuiltModel = SeedModelFields & {
 	/** API parameters schema for validation (ModelConfig.parameters) */
 	parameters: ModelParameters;
+	/** Resolves the effective prices at call time. Absent for flat-priced models. */
+	priceModifier?: PriceModifier;
 };
 
 type ModelBuilderState = {
@@ -28,6 +38,7 @@ type ModelBuilderState = {
 	contextTokensMax: number;
 	completionTokensMax: number;
 	parameters: ModelParameters;
+	priceModifier?: PriceModifier;
 };
 
 function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
@@ -53,9 +64,10 @@ function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
 			return builder;
 		},
 
-		pricing(promptPrice: number, completionPrice: number) {
+		pricing(promptPrice: number, completionPrice: number, modifier?: PriceModifier) {
 			state.promptPrice = promptPrice;
 			state.completionPrice = completionPrice;
+			state.priceModifier = modifier;
 			return builder;
 		},
 
@@ -116,6 +128,7 @@ function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
 				completionTokensMax: state.completionTokensMax,
 				description: state.description,
 				parameters: { ...state.parameters },
+				priceModifier: state.priceModifier,
 			};
 		},
 	};
@@ -126,7 +139,7 @@ function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
 export interface ModelBuilder {
 	displayName(value: string): ModelBuilder;
 	description(value: string): ModelBuilder;
-	pricing(promptPrice: number, completionPrice: number): ModelBuilder;
+	pricing(promptPrice: number, completionPrice: number, modifier?: PriceModifier): ModelBuilder;
 	limits(contextTokensMax: number, completionTokensMax: number): ModelBuilder;
 	temperature(min: number, max: number, defaultValue: number): ModelBuilder;
 	maxTokens(min: number, max: number, defaultValue?: number): ModelBuilder;

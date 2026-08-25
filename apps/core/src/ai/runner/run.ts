@@ -2,8 +2,15 @@ import { db } from "@/database/db";
 import { logUsage } from "../../services/logger/logger";
 import { AiVendor } from "@/prisma";
 import { mdToXml } from "@/utils/xml";
-import { calculateCost, generateGemini, generateOpenAI, type ProviderRequest } from "../providers";
+import {
+	calculateCost,
+	generateDeepSeek,
+	generateGemini,
+	generateOpenAI,
+	type ProviderRequest,
+} from "../providers";
 import type { ModelConfigParameters } from "../models/types";
+import { getEffectivePrices } from "../models/pricing";
 import { generateAnthropic } from "../providers/anthropic/generate";
 import { getApiKeyByQuota } from "@/services/access/AccessService";
 import { transcribeOpenAI } from "../providers/openai/speech";
@@ -85,6 +92,8 @@ async function runPromptWithProvider(provider: AiVendor, request: ProviderReques
 			return await generateGemini(request);
 		case AiVendor.ANTHROPIC:
 			return await generateAnthropic(request);
+		case AiVendor.DEEPSEEK:
+			return await generateDeepSeek(request);
 		default:
 			throw new Error(`Provider ${provider} not supported`);
 	}
@@ -174,10 +183,9 @@ export async function runPrompt(data: runPromptParams) {
 				prompt: completion.tokens.prompt,
 				completion: completion.tokens.completion,
 			},
-			{
-				prompt: model.promptPrice,
-				completion: model.completionPrice,
-			},
+			// Most models bill at the price stored on the model; some (DeepSeek) vary it by
+			// time of day, so resolve the effective price at the moment the run is billed.
+			getEffectivePrices(model.vendor, model.name, model.promptPrice, model.completionPrice),
 		);
 
 		if (quotaUsed) {

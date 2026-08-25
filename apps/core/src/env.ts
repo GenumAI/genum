@@ -24,6 +24,7 @@ const EnvSchema = z.object({
 	OPENAI_KEY: z.string().optional(),
 	ANTHROPIC_KEY: z.string().optional(),
 	GEMINI_KEY: z.string().optional(),
+	DEEPSEEK_KEY: z.string().optional(),
 	// ------------------[CLOUD]------------------
 	// Sentry
 	CORE_SENTRY_DSN: z.url().optional(),
