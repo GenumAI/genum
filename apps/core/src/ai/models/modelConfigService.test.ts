@@ -48,6 +48,31 @@ describe("ModelConfigService", () => {
 		});
 	});
 
+	describe("GPT-5.6 family", () => {
+		const GPT_5_6 = ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"];
+
+		it.each(GPT_5_6)("registers %s", (name) => {
+			expect(service.getModelConfig(name, AiVendor.OPENAI)?.vendor).toBe("OPENAI");
+		});
+
+		it.each(GPT_5_6)("accepts reasoning_effort 'max' for %s", (name) => {
+			const config = service.validateAndSanitizeConfig(name, AiVendor.OPENAI, {
+				reasoning_effort: "max",
+			} as ModelConfigParameters);
+
+			expect(config.reasoning_effort).toBe("max");
+		});
+
+		it("sanitizes 'max' away for a model that does not offer it", () => {
+			// gpt-5.5 stops at xhigh; the widened union must not leak across models.
+			const config = service.validateAndSanitizeConfig("gpt-5.5", AiVendor.OPENAI, {
+				reasoning_effort: "max",
+			} as ModelConfigParameters);
+
+			expect(config.reasoning_effort).toBe("medium");
+		});
+	});
+
 	describe("getLLMConfig", () => {
 		it("should return model config for existing model", () => {
 			const config = service.getLLMConfig("gpt-4o", AiVendor.OPENAI);
