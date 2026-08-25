@@ -10,6 +10,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { AiVendor } from "@/prisma";
+import { DEEPSEEK_BASE_URL } from "../providers/deepseek/generate";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph";
 
 const contextSchema = z.object({
@@ -199,6 +200,13 @@ function initAgentModel(provider: AiVendor, model: string, apiKey: string) {
 			return new ChatAnthropic({
 				apiKey: apiKey,
 				model: model,
+			});
+		case AiVendor.DEEPSEEK:
+			// DeepSeek is OpenAI wire-compatible, so ChatOpenAI drives it via its base URL.
+			return new ChatOpenAI({
+				apiKey: apiKey,
+				model: model,
+				configuration: { baseURL: DEEPSEEK_BASE_URL },
 			});
 		default:
 			throw new Error(`Provider ${provider} not supported`);

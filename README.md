@@ -55,6 +55,7 @@ For local Docker, **only AI provider keys are required** to enable AI features. 
 OPENAI_KEY=your_openai_key_here
 ANTHROPIC_KEY=your_anthropic_key_here
 GEMINI_KEY=your_gemini_key_here
+DEEPSEEK_KEY=your_deepseek_key_here
 ```
 
 Tip: start from `env.example` (copy it to `.env`).
@@ -99,6 +100,7 @@ This will:
 - `OPENAI_KEY`: OpenAI API key
 - `ANTHROPIC_KEY`: Anthropic API key
 - `GEMINI_KEY`: Google API key
+- `DEEPSEEK_KEY`: DeepSeek API key
 
 You can add any combination of these keys depending on which providers you want to use. Without them, Genum works but AI features are disabled.
 

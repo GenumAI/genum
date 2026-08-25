@@ -86,7 +86,7 @@ export function getDefaultParameters(modelConfig: ModelConfig): Record<string, u
 }
 
 export type RESPONSE_FORMAT = "text" | "json_object" | "json_schema";
-export type REASONING_EFFORT = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+export type REASONING_EFFORT = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type VERBOSITY = "low" | "medium" | "high";
 
 export type ModelConfigParameters = {
