@@ -8,6 +8,7 @@ import {
 import { db } from "@/database/db";
 import { isCloudInstance } from "@/utils/env";
 import { AiVendor } from "@/prisma";
+import type { OrganizationQuota } from "@/prisma";
 
 vi.mock("@/database/db", () => ({
 	db: {
@@ -104,6 +105,9 @@ describe("AccessService", () => {
 		const mockOrgId = 123;
 		const mockVendor = AiVendor.OPENAI;
 
+		/** Only `balance` is read by getApiKeyByQuota. */
+		const quotaOf = (balance: number) => ({ balance }) as unknown as OrganizationQuota;
+
 		describe("Cloud Instance", () => {
 			beforeEach(() => {
 				vi.mocked(isCloudInstance).mockReturnValue(true);
@@ -115,7 +119,7 @@ describe("AccessService", () => {
 					mockApiKey as any,
 				);
 
-				const result = await getApiKeyByQuota({ balance: 0 } as any, mockOrgId, mockVendor);
+				const result = await getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor);
 
 				expect(result).toEqual({ apiKey: mockApiKey, quotaUsed: false });
 				expect(db.organization.getOrganizationApiKey).toHaveBeenCalledWith(
@@ -128,7 +132,7 @@ describe("AccessService", () => {
 				vi.mocked(db.organization.getOrganizationApiKey).mockResolvedValue(null);
 
 				await expect(
-					getApiKeyByQuota({ balance: 0 } as any, mockOrgId, mockVendor),
+					getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor),
 				).rejects.toThrow(`User API key not found for ${mockVendor}`);
 			});
 
@@ -141,7 +145,7 @@ describe("AccessService", () => {
 				);
 
 				const result = await getApiKeyByQuota(
-					{ balance: 100 } as any,
+					quotaOf(100),
 					mockOrgId,
 					mockVendor,
 				);
@@ -156,42 +160,101 @@ describe("AccessService", () => {
 		});
 
 		describe("Local Instance", () => {
+			const SYSTEM_ORG_ID = 1;
+
+			/** Serves a different key per organization, as the database would. */
+			function keysByOrg(keys: Record<number, { key: string } | null>) {
+				vi.mocked(db.system.getSystemOrganizationId).mockResolvedValue(SYSTEM_ORG_ID);
+				vi.mocked(db.organization.getOrganizationApiKey).mockImplementation(
+					async (orgId: number) =>
+						(keys[orgId] ?? null) as Awaited<
+							ReturnType<typeof db.organization.getOrganizationApiKey>
+						>,
+				);
+			}
+
 			beforeEach(() => {
 				vi.mocked(isCloudInstance).mockReturnValue(false);
 			});
 
-			it("should always return system API key regardless of balance", async () => {
-				const mockSystemId = 1;
-				const mockSystemApiKey = { key: "system-key" };
-				vi.mocked(db.system.getSystemOrganizationId).mockResolvedValue(mockSystemId);
-				vi.mocked(db.organization.getOrganizationApiKey).mockResolvedValue(
-					mockSystemApiKey as any,
-				);
+			it("should return the organization's own key when it has one", async () => {
+				keysByOrg({
+					[mockOrgId]: { key: "org-key" },
+					[SYSTEM_ORG_ID]: { key: "system-key" },
+				});
 
-				const result = await getApiKeyByQuota({ balance: 0 } as any, mockOrgId, mockVendor);
+				const result = await getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor);
 
-				expect(result).toEqual({ apiKey: mockSystemApiKey, quotaUsed: true });
-				expect(db.system.getSystemOrganizationId).toHaveBeenCalled();
-				expect(db.organization.getOrganizationApiKey).toHaveBeenCalledWith(
-					mockSystemId,
+				expect(result).toEqual({ apiKey: { key: "org-key" }, quotaUsed: false });
+			});
+
+			it("should not fall back to the system key when the organization has its own", async () => {
+				keysByOrg({
+					[mockOrgId]: { key: "org-key" },
+					[SYSTEM_ORG_ID]: { key: "system-key" },
+				});
+
+				await getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor);
+
+				expect(db.organization.getOrganizationApiKey).not.toHaveBeenCalledWith(
+					SYSTEM_ORG_ID,
 					mockVendor,
 				);
 			});
 
+			it("should fall back to the system key when the organization has none", async () => {
+				// The documented self-hosted setup: keys come from the root .env, which
+				// seeds them into the system organization.
+				keysByOrg({ [mockOrgId]: null, [SYSTEM_ORG_ID]: { key: "system-key" } });
+
+				const result = await getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor);
+
+				expect(result).toEqual({ apiKey: { key: "system-key" }, quotaUsed: false });
+			});
+
+			it("should treat an empty stored key as missing and fall back", async () => {
+				// Seeding creates a row per vendor even when its .env variable is unset.
+				keysByOrg({ [mockOrgId]: { key: "" }, [SYSTEM_ORG_ID]: { key: "system-key" } });
+
+				const result = await getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor);
+
+				expect(result).toEqual({ apiKey: { key: "system-key" }, quotaUsed: false });
+			});
+
+			it("should never charge quota on a local instance", async () => {
+				keysByOrg({ [mockOrgId]: null, [SYSTEM_ORG_ID]: { key: "system-key" } });
+
+				const result = await getApiKeyByQuota(
+					quotaOf(100),
+					mockOrgId,
+					mockVendor,
+				);
+
+				expect(result.quotaUsed).toBe(false);
+			});
+
 			it("should throw error if system organization ID is not found", async () => {
+				vi.mocked(db.organization.getOrganizationApiKey).mockResolvedValue(null);
 				vi.mocked(db.system.getSystemOrganizationId).mockResolvedValue(null);
 
 				await expect(
-					getApiKeyByQuota({ balance: 0 } as any, mockOrgId, mockVendor),
+					getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor),
 				).rejects.toThrow("System organization ID not found in database");
 			});
 
-			it("should throw error if system API key is not found", async () => {
-				vi.mocked(db.system.getSystemOrganizationId).mockResolvedValue(1);
-				vi.mocked(db.organization.getOrganizationApiKey).mockResolvedValue(null);
+			it("should throw error if neither the organization nor the system has a key", async () => {
+				keysByOrg({ [mockOrgId]: null, [SYSTEM_ORG_ID]: null });
 
 				await expect(
-					getApiKeyByQuota({ balance: 0 } as any, mockOrgId, mockVendor),
+					getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor),
+				).rejects.toThrow(`System API key not found for ${mockVendor}`);
+			});
+
+			it("should throw error if the only key found is empty", async () => {
+				keysByOrg({ [mockOrgId]: { key: "" }, [SYSTEM_ORG_ID]: { key: "" } });
+
+				await expect(
+					getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor),
 				).rejects.toThrow(`System API key not found for ${mockVendor}`);
 			});
 		});

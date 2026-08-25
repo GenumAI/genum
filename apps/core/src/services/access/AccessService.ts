@@ -37,26 +37,47 @@ export async function checkTestcaseAccess(testcaseId: number, projectId: number)
 	}
 }
 
+/**
+ * The system organization holds Genum's own provider keys, seeded from the root .env.
+ * A row is created per vendor even when its variable is unset, so an empty key means
+ * "not configured" just as much as a missing row does.
+ */
+async function getSystemApiKey(vendor: AiVendor) {
+	const systemId = await db.system.getSystemOrganizationId();
+	if (!systemId) {
+		throw new Error("System organization ID not found in database");
+	}
+	const systemApiKey = await db.organization.getOrganizationApiKey(systemId, vendor);
+	if (!systemApiKey?.key) {
+		throw new Error(`System API key not found for ${vendor}`);
+	}
+
+	return systemApiKey;
+}
+
 export async function getApiKeyByQuota(quota: OrganizationQuota, orgId: number, vendor: AiVendor) {
-	// if cloud instance and quota is 0 - return user API key.
-	// if local instance always return system API key.
-	if (isCloudInstance() && quota.balance <= 0) {
+	if (isCloudInstance()) {
+		// Genum foots the bill while the organization still has quota, so that new users
+		// can run prompts before wiring up any keys of their own.
+		if (quota.balance > 0) {
+			return { apiKey: await getSystemApiKey(vendor), quotaUsed: true };
+		}
+
+		// Quota spent - the organization runs on its own key from here on.
 		const userApiKey = await db.organization.getOrganizationApiKey(orgId, vendor);
 		if (!userApiKey) {
 			throw new Error(`User API key not found for ${vendor}`);
 		}
 		return { apiKey: userApiKey, quotaUsed: false };
-	} else {
-		// if quota is greater than 0, return organization GENUM API KEY
-		const systemId = await db.system.getSystemOrganizationId();
-		if (!systemId) {
-			throw new Error("System organization ID not found in database");
-		}
-		const systemApiKey = await db.organization.getOrganizationApiKey(systemId, vendor);
-		if (!systemApiKey) {
-			throw new Error(`System API key not found for ${vendor}`);
-		}
-
-		return { apiKey: systemApiKey, quotaUsed: true };
 	}
+
+	// Self-hosted: there is no quota to spend and nobody to bill, so an organization's
+	// own key always wins. The system key is the fallback that keeps the documented
+	// .env setup working for organizations that never configured one.
+	const ownApiKey = await db.organization.getOrganizationApiKey(orgId, vendor);
+	if (ownApiKey?.key) {
+		return { apiKey: ownApiKey, quotaUsed: false };
+	}
+
+	return { apiKey: await getSystemApiKey(vendor), quotaUsed: false };
 }
