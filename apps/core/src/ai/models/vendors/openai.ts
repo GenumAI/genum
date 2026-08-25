@@ -5,6 +5,9 @@ import type { BuiltModel } from "../builder";
 const OPENAI_RESPONSE_FORMAT = ["text", "json_object", "json_schema"] as const;
 const DEFAULT_RESPONSE_FORMAT = "text" as const;
 
+/** The GPT-5.6 family is the first OpenAI line to offer "max". */
+const GPT_5_6_REASONING_EFFORT = ["none", "low", "medium", "high", "xhigh", "max"] as const;
+
 export const OPENAI_MODELS: BuiltModel[] = [
 	model("gpt-4o", AiVendor.OPENAI)
 		.displayName("GPT-4o")
@@ -243,6 +246,41 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.pricing(30, 180)
 		.limits(1_050_000, 128_000)
 		.reasoningEffort(["none", "low", "medium", "high", "xhigh"], "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gpt-5.6-sol", AiVendor.OPENAI)
+		.displayName("GPT-5.6 Sol")
+		.description(
+			"OpenAI's frontier model for complex professional work. Listed at its standard price; OpenAI is running a promotion of $4.00/$20.00 per 1M tokens through at least November 21, 2026.",
+		)
+		.pricing(5, 30)
+		.limits(1_050_000, 128_000)
+		.reasoningEffort(GPT_5_6_REASONING_EFFORT, "medium")
+		.verbosity(["low", "medium", "high"], "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gpt-5.6-terra", AiVendor.OPENAI)
+		.displayName("GPT-5.6 Terra")
+		.description("Balances GPT-5.6 intelligence against cost for everyday production work.")
+		.pricing(2, 12)
+		.limits(1_050_000, 128_000)
+		.reasoningEffort(GPT_5_6_REASONING_EFFORT, "medium")
+		.verbosity(["low", "medium", "high"], "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gpt-5.6-luna", AiVendor.OPENAI)
+		.displayName("GPT-5.6 Luna")
+		.description("The cheapest GPT-5.6-class model, for cost-sensitive high-volume workloads.")
+		.pricing(0.2, 1.2)
+		.limits(1_050_000, 128_000)
+		.reasoningEffort(GPT_5_6_REASONING_EFFORT, "medium")
+		.verbosity(["low", "medium", "high"], "medium")
 		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
 		.tools()
 		.build(),
