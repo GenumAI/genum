@@ -67,6 +67,11 @@ pnpm --filter core dev:db-init
 # After schema change
 pnpm --filter core db:migrate:dev    # prisma migrate dev
 pnpm --filter core db:generate       # prisma generate (regenerates .generated/)
+
+# Root shortcuts for the same three (Prisma lives only in apps/core)
+pnpm prisma:generate
+pnpm prisma:migrate                  # -> core db:migrate:dev
+pnpm prisma:studio                   # -> core db:studio, browse the database
 ```
 
 ## Code Style
