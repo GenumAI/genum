@@ -34,6 +34,10 @@ const DEFAULT_SYSTEM_PROMPTS_DATA = [
 		vendor: AiVendor.GOOGLE,
 		key: env.GEMINI_KEY || "",
 	},
+	{
+		vendor: AiVendor.DEEPSEEK,
+		key: env.DEEPSEEK_KEY || "",
+	},
 ];
 
 // LLM API keys

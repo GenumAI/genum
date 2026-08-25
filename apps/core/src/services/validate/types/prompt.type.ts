@@ -18,7 +18,9 @@ export const LanguageModelConfigSchema = z
 		tools: z.array(FunctionCallSchema).optional(),
 		max_tokens: z.number().optional(),
 		json_schema: z.string().optional(),
-		reasoning_effort: z.enum(["none", "minimal", "low", "medium", "high", "xhigh"]).optional(),
+		reasoning_effort: z
+			.enum(["none", "minimal", "low", "medium", "high", "xhigh", "max"])
+			.optional(),
 		verbosity: z.enum(["low", "medium", "high"]).optional(),
 	})
 	.partial();

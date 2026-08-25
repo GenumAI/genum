@@ -1,3 +1,4 @@
+import type { ReasoningEffort } from "openai/resources/shared.js";
 import type {
 	ResponseFormatTextConfig,
 	ResponseFormatTextJSONSchemaConfig,
@@ -31,7 +32,9 @@ export function responsesConfigMapper(request: ProviderRequest) {
 		max_output_tokens: request.parameters.max_tokens,
 		reasoning: request.parameters.reasoning_effort
 			? {
-					effort: request.parameters.reasoning_effort,
+					// REASONING_EFFORT spans every vendor; "max" is DeepSeek-only and no
+					// OpenAI model offers it, so it can never reach this call.
+					effort: request.parameters.reasoning_effort as ReasoningEffort,
 				}
 			: undefined,
 		text: {

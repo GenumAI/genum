@@ -76,6 +76,7 @@ export function AddAIKeyDialog({ onAdd }: AddAIKeyDialogProps) {
 								<SelectItem value="OPENAI">OpenAI</SelectItem>
 								<SelectItem value="GOOGLE">Google</SelectItem>
 								<SelectItem value="ANTHROPIC">Anthropic</SelectItem>
+								<SelectItem value="DEEPSEEK">DeepSeek</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
