@@ -1,5 +1,5 @@
 # Stage 1: Builder - Build React application
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Enable corepack for pnpm support
 RUN corepack enable && corepack prepare pnpm@10.28.2 --activate

@@ -1,6 +1,9 @@
 {
   "name": "genum",
   "version": "1.8.0",
+  "engines": {
+    "node": ">=22"
+  },
   "private": true,
   "packageManager": "pnpm@10.28.2",
   "author": "support@genum.ai",

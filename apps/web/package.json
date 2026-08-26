@@ -2,6 +2,9 @@
   "name": "web",
   "private": true,
   "version": "1.8.0",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
