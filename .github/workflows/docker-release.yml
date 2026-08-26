@@ -9,51 +9,23 @@ env:
   DOCKER_IMAGE_PREFIX: ${{ secrets.DOCKER_HUB_USERNAME || 'genum' }}
 
 jobs:
+  # Gate for the whole release: runs the checks, then resolves the version and image
+  # tags once so the two build jobs below do not each repeat that logic.
   test-and-lint:
     runs-on: ubuntu-latest
     if: github.event.repository.fork == false && (github.event.release.target_commitish == 'main' || github.event.release.target_commitish == 'refs/heads/main')
+    outputs:
+      tag: ${{ steps.release_version.outputs.tag }}
+      core_tags: ${{ steps.image_tags.outputs.core_tags }}
+      web_tags: ${{ steps.image_tags.outputs.web_tags }}
+      is_prerelease: ${{ steps.image_tags.outputs.is_prerelease }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
           ref: main
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-
-      - name: Generate Prisma client
-        run: pnpm --filter core db:generate
-
-      - name: Run Biome linter (core)
-        run: pnpm biome check apps/core
-
-      - name: Run unit tests (core)
-        run: pnpm --filter core test:run
-
-  build-and-push:
-    runs-on: ubuntu-latest
-    needs: test-and-lint
-    if: github.event.repository.fork == false && (github.event.release.target_commitish == 'main' || github.event.release.target_commitish == 'refs/heads/main')
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-        with:
-          ref: main
+          # Full history so the tag can be verified against main below.
           fetch-depth: 0
 
       - name: Verify tag is on main branch
@@ -80,8 +52,66 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter core db:generate
 
-      - name: Build Web (for source maps)
-        run: pnpm --filter web build
+      - name: Run Biome linter (core)
+        run: pnpm biome check apps/core
+
+      - name: Run unit tests (core)
+        run: pnpm --filter core test:run
+
+      - name: Extract release version
+        id: release_version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          if [[ ! "$TAG" =~ ^v ]]; then
+            echo "Error: Release tag must start with 'v' (e.g., v1.0.0)"
+            exit 1
+          fi
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Compute image tags
+        id: image_tags
+        run: |
+          CORE_TAGS="${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:${{ steps.release_version.outputs.tag }}"
+          WEB_TAGS="${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.tag }}"
+
+          if [[ "${{ github.event.release.prerelease }}" == "false" ]]; then
+            CORE_TAGS="$CORE_TAGS,${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:latest"
+            WEB_TAGS="$WEB_TAGS,${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:latest"
+          fi
+
+          echo "core_tags=$CORE_TAGS" >> "$GITHUB_OUTPUT"
+          echo "web_tags=$WEB_TAGS" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${{ github.event.release.prerelease }}" >> "$GITHUB_OUTPUT"
+
+  build-core:
+    runs-on: ubuntu-latest
+    needs: test-and-lint
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter core db:generate
 
       - name: Build Core (for source maps)
         run: pnpm --filter core build
@@ -102,34 +132,6 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Extract release version
-        id: release_version
-        run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          if [[ ! "$TAG" =~ ^v ]]; then
-            echo "Error: Release tag must start with 'v' (e.g., v1.0.0)"
-            exit 1
-          fi
-          VERSION=${TAG#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=$VERSION" >> $GITHUB_OUTPUT
-          echo "latest_tag=latest" >> $GITHUB_OUTPUT
-
-      - name: Compute image tags
-        id: image_tags
-        run: |
-          CORE_TAGS="${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:${{ steps.release_version.outputs.tag }}"
-          WEB_TAGS="${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.tag }}"
-
-          if [[ "${{ github.event.release.prerelease }}" == "false" ]]; then
-            CORE_TAGS="$CORE_TAGS,${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:latest"
-            WEB_TAGS="$WEB_TAGS,${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:latest"
-          fi
-
-          echo "core_tags=$CORE_TAGS" >> "$GITHUB_OUTPUT"
-          echo "web_tags=$WEB_TAGS" >> "$GITHUB_OUTPUT"
-          echo "is_prerelease=${{ github.event.release.prerelease }}" >> "$GITHUB_OUTPUT"
-
       - name: Build and push Core image
         uses: docker/build-push-action@v7
         with:
@@ -138,35 +140,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           build-args: |
-            RELEASE_VERSION=${{ steps.release_version.outputs.tag }}
-          tags: ${{ steps.image_tags.outputs.core_tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
-
-      - name: Build and push Web image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./apps/web/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          build-args: |
-            RELEASE_VERSION=${{ steps.release_version.outputs.tag }}
-          tags: ${{ steps.image_tags.outputs.web_tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
-
-      - name: Create Sentry release for Web
-        continue-on-error: true
-        uses: getsentry/action-release@v3
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WEB }}
-        with:
-          environment: production
-          release: ${{ steps.release_version.outputs.tag }}
-          sourcemaps: ./apps/web/dist
+            RELEASE_VERSION=${{ needs.test-and-lint.outputs.tag }}
+          tags: ${{ needs.test-and-lint.outputs.core_tags }}
 
       - name: Create Sentry release for Core
         continue-on-error: true
@@ -177,29 +152,105 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_CORE }}
         with:
           environment: production
-          release: ${{ steps.release_version.outputs.tag }}
+          release: ${{ needs.test-and-lint.outputs.tag }}
           sourcemaps: ./apps/core/dist
 
+  build-web:
+    runs-on: ubuntu-latest
+    needs: test-and-lint
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Web (for source maps)
+        run: pnpm --filter web build
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64,amd64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./apps/web/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            RELEASE_VERSION=${{ needs.test-and-lint.outputs.tag }}
+          tags: ${{ needs.test-and-lint.outputs.web_tags }}
+
+      - name: Create Sentry release for Web
+        continue-on-error: true
+        uses: getsentry/action-release@v3
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WEB }}
+        with:
+          environment: production
+          release: ${{ needs.test-and-lint.outputs.tag }}
+          sourcemaps: ./apps/web/dist
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [test-and-lint, build-core, build-web]
+
+    steps:
       - name: Summary
+        env:
+          TAG: ${{ needs.test-and-lint.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.test-and-lint.outputs.is_prerelease }}
+          IMAGE_BASE: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}
         run: |
           echo "## 🐳 Docker Images Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Core" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:${{ steps.release_version.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ steps.image_tags.outputs.is_prerelease }}" == "false" ]]; then
-            echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`$IMAGE_BASE/core:$TAG\`" >> $GITHUB_STEP_SUMMARY
+          if [[ "$IS_PRERELEASE" == "false" ]]; then
+            echo "- \`$IMAGE_BASE/core:latest\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "- (latest tag skipped for prerelease)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Web" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ steps.image_tags.outputs.is_prerelease }}" == "false" ]]; then
-            echo "- \`${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`$IMAGE_BASE/web:$TAG\`" >> $GITHUB_STEP_SUMMARY
+          if [[ "$IS_PRERELEASE" == "false" ]]; then
+            echo "- \`$IMAGE_BASE/web:latest\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "- (latest tag skipped for prerelease)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔍 Sentry Releases" >> $GITHUB_STEP_SUMMARY
-          echo "- **Web**: \`${{ steps.release_version.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Core**: \`${{ steps.release_version.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Web**: \`$TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Core**: \`$TAG\`" >> $GITHUB_STEP_SUMMARY

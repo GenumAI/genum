@@ -1,5 +1,11 @@
 # Stage 1: Builder - Compile TypeScript
-FROM node:22-alpine AS builder
+# Pinned to the *build* platform: this stage emits only JavaScript (tsc output plus
+# the generated Prisma client, which is engine-less under the `prisma-client`
+# generator + driver adapters), so its output is architecture-independent. Its
+# node_modules are never copied into the runtime stage -- that stage installs its
+# own, so native modules (bcrypt) and the Prisma migration engine are still built
+# for the target architecture.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
 
 # Install openssl for Prisma
 RUN apk add --no-cache openssl
