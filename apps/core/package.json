@@ -2,6 +2,9 @@
   "name": "core",
   "private": true,
   "version": "1.8.0",
+  "engines": {
+    "node": ">=22"
+  },
   "main": "index.js",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
