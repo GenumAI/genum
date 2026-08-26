@@ -1,5 +1,8 @@
 # Stage 1: Builder - Build React application
-FROM node:22-alpine AS builder
+# Pinned to the *build* platform: this stage only produces static assets in dist/,
+# which are identical for every target architecture. Without this, a linux/arm64
+# build runs pnpm install + vite build under QEMU emulation and takes ~10x longer.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
 
 # Enable corepack for pnpm support
 RUN corepack enable && corepack prepare pnpm@10.28.2 --activate

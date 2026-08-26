@@ -1,10 +1,13 @@
 **/.env
 .cache
 assets
-node_modules
-packages/**/node_modules
-packages/**/dist
-packages/**/.turbo
+# Match at every depth, not just the repo root: the release workflow runs
+# `pnpm install` on the runner before `docker build`, so apps/*/node_modules
+# exists in the build context and would otherwise be copied over the ones
+# installed inside the image.
+**/node_modules
+**/dist
+**/.turbo
 .git
 .github
 !.github/scripts
