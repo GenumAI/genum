@@ -1,6 +1,6 @@
 ---
 name: release-it
-description: Use when cutting a release of genum — the user asks to publish a new version, "сделать релиз", "патч релиз", "cut a minor", or invokes /release-it with or without a bump type (patch/minor/major/explicit version). Runs the pre-flight the CI cannot, drafts release notes in this repo's established style, then hands the interactive release-it command to the user.
+description: Use when cutting a release of genum — the user asks to publish a new version, cut a patch/minor/major, or invokes /release-it with or without a bump type (patch/minor/major/explicit version), in any language. Runs the pre-flight the CI cannot, drafts release notes in this repo's established style, then hands the interactive release-it command to the user.
 ---
 
 # release-it (genum)
@@ -20,8 +20,8 @@ Driver for `release-it`, configured under the `release-it` key in the root `pack
 
 | Input | Pass to release-it |
 |---|---|
-| `patch` / "патч релиз" / "патч" / nothing | `patch` |
-| `minor` / "minor release" / "минор" | `minor` |
+| `patch` / "patch release" / nothing | `patch` |
+| `minor` / "minor release" | `minor` |
 | `major` | `major` |
 | Explicit `1.9.0` | `1.9.0` |
 
