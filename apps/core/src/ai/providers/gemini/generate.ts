@@ -13,8 +13,6 @@ export async function generateGemini(request: ProviderRequest) {
 		contents: mapContentsToGeminiFormat(request),
 	});
 
-	console.log(JSON.stringify(response, null, 2));
-
 	let answer = "";
 
 	if (response.candidates?.[0]?.content?.parts) {

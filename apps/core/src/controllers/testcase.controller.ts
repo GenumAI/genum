@@ -87,7 +87,19 @@ export class TestcasesController {
 		const id = numberSchema.parse(req.params.id);
 		const data = TestcasesUpdateSchema.parse(req.body);
 
-		await checkTestcaseAccess(id, metadata.projID);
+		const existing = await checkTestcaseAccess(id, metadata.projID);
+
+		// memoryId is writable through the update schema, so it needs the same check
+		// createTestcase does -- otherwise another prompt's memory can be attached here.
+		if (data.memoryId) {
+			const memory = await db.memories.getMemoryByIDAndPromptId(
+				data.memoryId,
+				existing.promptId,
+			);
+			if (!memory) {
+				throw new Error("Memory not found");
+			}
+		}
 
 		const testcase = await db.testcases.updateTestcaseByID(id, data);
 

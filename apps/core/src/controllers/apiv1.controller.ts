@@ -12,6 +12,7 @@ import { PromptService } from "@/services/prompt.service";
 import type { FileInput } from "@/services/file.service";
 import { extractBearerToken } from "@/utils/http";
 import { env } from "@/env";
+import { HttpError } from "@/utils/errors";
 
 export class ApiV1Controller {
 	private readonly promptService: PromptService;
@@ -25,17 +26,20 @@ export class ApiV1Controller {
 	private async verifyRequest(req: Request) {
 		const apiKey = extractBearerToken(req.headers.authorization);
 		if (!apiKey) {
-			throw new Error("Invalid or missing Authorization header. Expected: Bearer <token>");
+			throw new HttpError(
+				401,
+				"Invalid or missing Authorization header. Expected: Bearer <token>",
+			);
 		}
 
 		const key = await db.project.getProjectApiKeyByToken(apiKey);
 		if (!key) {
-			throw new Error("Invalid API key");
+			throw new HttpError(401, "Invalid API key");
 		}
 
 		const project = await db.project.getProjectbyApiKeyById(key.id);
 		if (!project) {
-			throw new Error("Project not found");
+			throw new HttpError(404, "Project not found");
 		}
 
 		return { project, key };

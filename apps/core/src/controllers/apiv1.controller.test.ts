@@ -160,3 +160,48 @@ describe("ApiV1Controller.createPrompt", () => {
 		expect(captured.statusCode).toBe(200);
 	});
 });
+
+describe("ApiV1Controller.verifyRequest status codes", () => {
+	let controller: ApiV1Controller;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		controller = new ApiV1Controller();
+	});
+
+	function reqWithAuth(authorization?: string): Request {
+		return {
+			headers: authorization ? { authorization } : {},
+			body: { name: "n", value: "v" },
+		} as unknown as Request;
+	}
+
+	// Previously these threw a bare Error, so the public API answered an
+	// unauthenticated probe with 500 plus a Sentry event instead of 401.
+	it("401s on a missing Authorization header", async () => {
+		const { res } = makeRes();
+
+		await expect(controller.createPrompt(reqWithAuth(), res)).rejects.toMatchObject({
+			statusCode: 401,
+		});
+	});
+
+	it("401s on an unknown API key", async () => {
+		(db.project.getProjectApiKeyByToken as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+		const { res } = makeRes();
+
+		await expect(
+			controller.createPrompt(reqWithAuth("Bearer nope"), res),
+		).rejects.toMatchObject({ statusCode: 401 });
+	});
+
+	it("404s when the key resolves but its project is gone", async () => {
+		(db.project.getProjectApiKeyByToken as ReturnType<typeof vi.fn>).mockResolvedValue(KEY);
+		(db.project.getProjectbyApiKeyById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+		const { res } = makeRes();
+
+		await expect(
+			controller.createPrompt(reqWithAuth("Bearer valid-key"), res),
+		).rejects.toMatchObject({ statusCode: 404 });
+	});
+});

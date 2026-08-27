@@ -89,9 +89,10 @@ export class ProjectController {
 		const metadata = req.genumMeta.ids;
 		const { userId, role } = ProjectMemberCreateSchema.parse(req.body);
 
-		// check if user exists
-		const user = await db.users.getUserByID(userId);
-		if (!user) {
+		// The user must already belong to this organization; getUserByID alone is a
+		// global lookup and would attach any user in the database to this project.
+		const orgMember = await db.organization.getMemberByUserId(metadata.orgID, userId);
+		if (!orgMember) {
 			res.status(404).json({ error: "User is not found" });
 			return;
 		}
@@ -158,8 +159,17 @@ export class ProjectController {
 	}
 
 	public async deleteProjectApiKey(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
 		const apiKeyId = numberSchema.parse(req.params.apiKeyId);
-		await db.project.deleteProjectApiKeyById(apiKeyId);
+
+		// Scope the delete to the caller's project. Without it any key id in the
+		// instance could be deleted from any project.
+		const { count } = await db.project.deleteProjectApiKeyById(apiKeyId, metadata.projID);
+		if (count === 0) {
+			res.status(404).json({ error: "API key is not found" });
+			return;
+		}
+
 		res.status(200).json({ id: apiKeyId });
 	}
 

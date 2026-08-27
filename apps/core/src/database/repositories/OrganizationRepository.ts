@@ -746,6 +746,28 @@ export class OrganizationRepository {
 	}
 
 	/**
+	 * Whether a model may be used by an organization at all.
+	 *
+	 * This is an allow-list: the model must be global or reachable through one of the
+	 * organization's own provider keys, and must not be disabled. `isModelDisabled`
+	 * alone is a deny-list, so another organization's custom model — simply absent
+	 * from this organization's disabled list — used to pass.
+	 */
+	public async isModelAvailableForOrg(orgId: number, modelId: number): Promise<boolean> {
+		const model = await this.prisma.languageModel.findFirst({
+			where: {
+				id: modelId,
+				OR: [{ apiKeyId: null }, { apiKey: { organizationId: orgId } }],
+			},
+			select: { id: true },
+		});
+		if (!model) {
+			return false;
+		}
+		return !(await this.isModelDisabled(orgId, modelId));
+	}
+
+	/**
 	 * Check if a model is disabled for an organization
 	 */
 	public async isModelDisabled(orgId: number, modelId: number): Promise<boolean> {

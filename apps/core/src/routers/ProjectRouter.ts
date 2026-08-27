@@ -35,12 +35,16 @@ export function createProjectRouter(): Router {
 		"/api-keys",
 		asyncHandler(projectController.getProjectApiKeys.bind(projectController)),
 	);
+	// Minting and revoking project API keys is an admin action: these keys
+	// authenticate the public API. Listing stays open -- it exposes only publicKey.
 	router.post(
 		"/api-keys",
+		w.hasMinProjectRole(ProjectRole.ADMIN),
 		asyncHandler(projectController.createProjectApiKey.bind(projectController)),
 	);
 	router.delete(
 		"/api-keys/:apiKeyId",
+		w.hasMinProjectRole(ProjectRole.ADMIN),
 		asyncHandler(projectController.deleteProjectApiKey.bind(projectController)),
 	);
 
