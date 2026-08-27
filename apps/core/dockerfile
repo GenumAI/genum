@@ -36,7 +36,14 @@ RUN pnpm exec prisma generate
 RUN pnpm run build:full
 WORKDIR /app
 
-# Stage 2: Runtime - Production image
+# Stage 2: Dist - artifact-only stage used by CI to pull the compiled output out of
+# the image (`--target dist`) for the Sentry source map upload. This is the same
+# `build:full` output that actually ships, unlike a separate `build` run on the
+# runner. Kept before the runtime stage so `runtime` stays last.
+FROM scratch AS dist
+COPY --from=builder /app/apps/core/dist /
+
+# Stage 3: Runtime - Production image
 FROM node:22-alpine AS runtime
 
 # Install openssl for Prisma

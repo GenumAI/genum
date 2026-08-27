@@ -29,7 +29,13 @@ WORKDIR /app/apps/web
 RUN pnpm run build
 WORKDIR /app
 
-# Stage 2: Runtime - Production image with Nginx
+# Stage 2: Dist - artifact-only stage used by CI to pull the built assets out of
+# the image (`--target dist`) for the Sentry source map upload. Keeping it before
+# the runtime stage leaves `runtime` last, so a plain `docker build` is unchanged.
+FROM scratch AS dist
+COPY --from=builder /app/apps/web/dist /
+
+# Stage 3: Runtime - Production image with Nginx
 FROM nginx:alpine AS runtime
 
 # Copy built static files from builder stage
