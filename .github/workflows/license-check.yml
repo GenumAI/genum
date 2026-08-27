@@ -9,6 +9,11 @@ on:
     branches:
       - "main"
 
+# A newer push to the same ref makes the in-flight check obsolete.
+concurrency:
+  group: license-check-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   license_check:
     runs-on: ubuntu-latest
