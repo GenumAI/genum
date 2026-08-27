@@ -1,39 +1,40 @@
 import type { AiVendor, OrganizationQuota } from "@/prisma";
 import { db } from "@/database/db";
 import { isCloudInstance } from "@/utils/env";
+import { HttpError } from "@/utils/errors";
 
 export async function checkPromptAccess(promptId: number, projectId: number) {
 	const prompt = await db.prompts.getPromptById(promptId);
 	if (!prompt) {
 		// prompt not found
-		throw new Error("Prompt is not found");
+		throw new HttpError(404, "Prompt is not found");
 	} else if (prompt.projectId === projectId) {
 		// prompt found and belongs to project
 		return prompt;
 	} else {
-		throw new Error("Prompt is not found");
+		throw new HttpError(404, "Prompt is not found");
 	}
 }
 
 export async function checkMemoryAccess(memoryId: number, promptId: number) {
 	const memory = await db.memories.getMemoryByIDAndPromptId(memoryId, promptId);
 	if (!memory) {
-		throw new Error("Memory is not found");
+		throw new HttpError(404, "Memory is not found");
 	} else if (memory.promptId === promptId) {
 		return memory;
 	} else {
-		throw new Error("Memory is not found");
+		throw new HttpError(404, "Memory is not found");
 	}
 }
 
 export async function checkTestcaseAccess(testcaseId: number, projectId: number) {
 	const testcase = await db.testcases.getTestcaseByID(testcaseId);
 	if (!testcase) {
-		throw new Error("Testcase is not found");
+		throw new HttpError(404, "Testcase is not found");
 	} else if (testcase.prompt.projectId === projectId) {
 		return testcase;
 	} else {
-		throw new Error("Testcase is not found");
+		throw new HttpError(404, "Testcase is not found");
 	}
 }
 

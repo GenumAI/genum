@@ -8,6 +8,7 @@ import {
 import { db } from "@/database/db";
 import { isCloudInstance } from "@/utils/env";
 import { AiVendor } from "@/prisma";
+import { HttpError } from "@/utils/errors";
 import type { OrganizationQuota } from "@/prisma";
 
 vi.mock("@/database/db", () => ({
@@ -98,6 +99,35 @@ describe("AccessService", () => {
 			vi.mocked(db.testcases.getTestcaseByID).mockResolvedValue(mockTestcase as any);
 
 			await expect(checkTestcaseAccess(1, 10)).rejects.toThrow("Testcase is not found");
+		});
+	});
+
+	describe("status codes", () => {
+		// These used to throw a bare Error, which the global handler turned into a 500
+		// with a Sentry event -- so every probe for someone else's prompt id looked
+		// like a server fault and polluted error monitoring.
+		it("reports a missing prompt as 404, not a server error", async () => {
+			vi.mocked(db.prompts.getPromptById).mockResolvedValue(null);
+
+			await expect(checkPromptAccess(1, 10)).rejects.toMatchObject({ statusCode: 404 });
+		});
+
+		it("reports a prompt from another project as 404", async () => {
+			vi.mocked(db.prompts.getPromptById).mockResolvedValue({ id: 1, projectId: 20 } as any);
+
+			await expect(checkPromptAccess(1, 10)).rejects.toBeInstanceOf(HttpError);
+		});
+
+		it("reports a missing memory as 404", async () => {
+			vi.mocked(db.memories.getMemoryByIDAndPromptId).mockResolvedValue(null);
+
+			await expect(checkMemoryAccess(1, 100)).rejects.toMatchObject({ statusCode: 404 });
+		});
+
+		it("reports a missing testcase as 404", async () => {
+			vi.mocked(db.testcases.getTestcaseByID).mockResolvedValue(null);
+
+			await expect(checkTestcaseAccess(1, 10)).rejects.toMatchObject({ statusCode: 404 });
 		});
 	});
 
