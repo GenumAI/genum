@@ -335,4 +335,6 @@ export interface APIKeyTableRowProps {
 	onDelete: () => void;
 	showProject?: boolean;
 	isDeleting?: boolean;
+	/** Renders the actions cell. Callers that gate deletion by role pass false. */
+	canDelete?: boolean;
 }

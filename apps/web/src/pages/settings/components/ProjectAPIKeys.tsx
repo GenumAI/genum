@@ -7,7 +7,9 @@ import { CreateAPIKeyDialog } from "./shared/CreateAPIKeyDialog";
 import { APIKeyTableRow } from "./shared/APIKeyTableRow";
 import { DeleteConfirmDialog } from "./shared/DeleteConfirmDialog";
 import { compareStrings, compareDates } from "../utils/sorting";
+import { useCurrentProjectRole } from "@/hooks/useCurrentProjectRole";
 import type { ProjectAPIKey } from "@/api/project";
+import { ProjectRole, hasProjectAccess } from "@/api/project";
 
 type SortColumn = "name" | "publicKey" | "author" | "createdAt" | "lastUsed";
 
@@ -23,6 +25,12 @@ export default function ProjectAPIKeys() {
 		clearNewKeyResponse,
 		refresh,
 	} = useProjectAPIKeys();
+
+	// Minting and revoking these keys is an ADMIN action on the server; without
+	// this the buttons stayed visible to every member and failed with a 403.
+	const { role: projectRole } = useCurrentProjectRole();
+	const canManageKeys = projectRole !== null && hasProjectAccess(projectRole, ProjectRole.ADMIN);
+	const columnCount = canManageKeys ? 6 : 5;
 
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -74,14 +82,16 @@ export default function ProjectAPIKeys() {
 			<div className="flex items-center justify-between p-6">
 				<CardTitle className="text-[18px] font-medium text-foreground">Project API Keys</CardTitle>
 
-				<CreateAPIKeyDialog
-					open={isDialogOpen}
-					onOpenChange={setIsDialogOpen}
-					onCreate={handleCreate}
-					isCreating={isCreating}
-					newKeyResponse={newKeyResponse}
-					onDone={handleDone}
-				/>
+				{canManageKeys && (
+					<CreateAPIKeyDialog
+						open={isDialogOpen}
+						onOpenChange={setIsDialogOpen}
+						onCreate={handleCreate}
+						isCreating={isCreating}
+						newKeyResponse={newKeyResponse}
+						onDone={handleDone}
+					/>
+				)}
 			</div>
 
 			<div className="px-6 pb-4">
@@ -133,14 +143,14 @@ export default function ProjectAPIKeys() {
 								>
 									Last Used
 								</TableHead>
-								<TableHead className="px-4">Actions</TableHead>
+								{canManageKeys && <TableHead className="px-4">Actions</TableHead>}
 							</TableRow>
 						</TableHeader>
 
 						<TableBody>
 							{isLoading ? (
 								<TableRow>
-									<td colSpan={6} className="py-8 text-center">
+									<td colSpan={columnCount} className="py-8 text-center">
 										<div className="flex items-center justify-center gap-2">
 											<div className="h-5 w-5 animate-spin rounded-full border-b-2 border-brand" />
 											Loading...
@@ -149,7 +159,7 @@ export default function ProjectAPIKeys() {
 								</TableRow>
 							) : apiKeys.length === 0 ? (
 								<TableRow>
-									<td colSpan={6} className="py-8 text-center text-muted-foreground">
+									<td colSpan={columnCount} className="py-8 text-center text-muted-foreground">
 										No API keys found
 									</td>
 								</TableRow>
@@ -160,6 +170,7 @@ export default function ProjectAPIKeys() {
 										keyData={apiKey}
 										onDelete={() => openDeleteDialog(apiKey)}
 										isDeleting={deletingId === apiKey.id}
+										canDelete={canManageKeys}
 									/>
 								))
 							)}
