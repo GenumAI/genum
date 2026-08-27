@@ -108,8 +108,8 @@
     },
     "github": {
       "release": true,
-      "web": true,
-      "autoGenerate": true,
+      "web": false,
+      "draft": true,
       "releaseName": "v${version}",
       "comments": {
         "submit": true,
