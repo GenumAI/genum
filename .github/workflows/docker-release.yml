@@ -21,10 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.repository.fork == false && (github.event.release.target_commitish == 'main' || github.event.release.target_commitish == 'refs/heads/main')
     outputs:
+      # Only the version travels between jobs. Image tags embed
+      # secrets.DOCKER_HUB_USERNAME, and GitHub drops any job output containing a
+      # secret ("Skip output ... since it may contain secret"), which silently
+      # yields an empty tag and "tag is needed when pushing to registry".
+      # Each build job computes its own tags instead.
       tag: ${{ steps.release_version.outputs.tag }}
-      core_tags: ${{ steps.image_tags.outputs.core_tags }}
-      web_tags: ${{ steps.image_tags.outputs.web_tags }}
-      is_prerelease: ${{ steps.image_tags.outputs.is_prerelease }}
 
     steps:
       - name: Checkout code
@@ -75,22 +77,6 @@ jobs:
           VERSION=${TAG#v}
           echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Compute image tags
-        id: image_tags
-        run: |
-          CORE_TAGS="${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:${{ steps.release_version.outputs.tag }}"
-          WEB_TAGS="${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:${{ steps.release_version.outputs.tag }}"
-
-          if [[ "${{ github.event.release.prerelease }}" == "false" ]]; then
-            CORE_TAGS="$CORE_TAGS,${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/core:latest"
-            WEB_TAGS="$WEB_TAGS,${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}/web:latest"
-          fi
-
-          {
-            echo "core_tags=$CORE_TAGS"
-            echo "web_tags=$WEB_TAGS"
-            echo "is_prerelease=${{ github.event.release.prerelease }}"
-          } >> "$GITHUB_OUTPUT"
 
   build-core:
     runs-on: ubuntu-latest
@@ -121,6 +107,19 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
+      - name: Compute image tags
+        id: image_tags
+        env:
+          IMAGE_BASE: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}
+          VERSION: ${{ needs.test-and-lint.outputs.tag }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          TAGS="$IMAGE_BASE/core:$VERSION"
+          if [[ "$IS_PRERELEASE" == "false" ]]; then
+            TAGS="$TAGS,$IMAGE_BASE/core:latest"
+          fi
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+
       - name: Build and push Core image
         uses: docker/build-push-action@v7
         with:
@@ -130,7 +129,7 @@ jobs:
           push: true
           build-args: |
             RELEASE_VERSION=${{ needs.test-and-lint.outputs.tag }}
-          tags: ${{ needs.test-and-lint.outputs.core_tags }}
+          tags: ${{ steps.image_tags.outputs.tags }}
 
       # Pulls the compiled output straight out of the image just built, instead of
       # repeating the build natively on the runner. Reuses the builder layers from
@@ -159,7 +158,7 @@ jobs:
       - name: Summary
         env:
           TAG: ${{ needs.test-and-lint.outputs.tag }}
-          IS_PRERELEASE: ${{ needs.test-and-lint.outputs.is_prerelease }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
           IMAGE_BASE: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}
         run: |
           {
@@ -202,6 +201,19 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
+      - name: Compute image tags
+        id: image_tags
+        env:
+          IMAGE_BASE: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}
+          VERSION: ${{ needs.test-and-lint.outputs.tag }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          TAGS="$IMAGE_BASE/web:$VERSION"
+          if [[ "$IS_PRERELEASE" == "false" ]]; then
+            TAGS="$TAGS,$IMAGE_BASE/web:latest"
+          fi
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+
       - name: Build and push Web image
         uses: docker/build-push-action@v7
         with:
@@ -211,7 +223,7 @@ jobs:
           push: true
           build-args: |
             RELEASE_VERSION=${{ needs.test-and-lint.outputs.tag }}
-          tags: ${{ needs.test-and-lint.outputs.web_tags }}
+          tags: ${{ steps.image_tags.outputs.tags }}
 
       # See the note in build-core: same trick, reusing the builder layers instead
       # of running `vite build` a second time on the runner.
@@ -239,7 +251,7 @@ jobs:
       - name: Summary
         env:
           TAG: ${{ needs.test-and-lint.outputs.tag }}
-          IS_PRERELEASE: ${{ needs.test-and-lint.outputs.is_prerelease }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
           IMAGE_BASE: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}
         run: |
           {
