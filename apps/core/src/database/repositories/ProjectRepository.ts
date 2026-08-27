@@ -270,9 +270,10 @@ export class ProjectRepository {
 		});
 	}
 
-	public async deleteProjectApiKeyById(id: number) {
-		return await this.prisma.projectApiKey.delete({
-			where: { id },
+	/** Scoped to the project on purpose: an unscoped delete is a cross-tenant IDOR. */
+	public async deleteProjectApiKeyById(id: number, projectId: number) {
+		return await this.prisma.projectApiKey.deleteMany({
+			where: { id, projectId },
 		});
 	}
 

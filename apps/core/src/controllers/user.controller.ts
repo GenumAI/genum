@@ -57,7 +57,9 @@ export class UserController {
 			return;
 		}
 
-		if (invitation.email !== user.email && invitation.expiresAt < new Date()) {
+		// Both conditions must be enforced independently: a forwarded invite must not
+		// let the wrong account in, and a matching email must not resurrect an expired one.
+		if (invitation.email !== user.email || invitation.expiresAt < new Date()) {
 			res.status(400).json({ error: "Invitation is not found or expired" });
 			return;
 		}

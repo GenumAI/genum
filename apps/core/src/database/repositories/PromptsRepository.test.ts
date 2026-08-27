@@ -112,3 +112,58 @@ describe("PromptsRepository.getDefaultLanguageModelRow", () => {
 		);
 	});
 });
+
+describe("PromptsRepository.rollbackPrompt", () => {
+	function makeTxPrisma() {
+		const tx = {
+			audit: { update: vi.fn().mockResolvedValue({}) },
+			prompt: { update: vi.fn().mockResolvedValue({ id: 12 }) },
+		};
+		const prisma = {
+			audit: { update: vi.fn().mockResolvedValue({}) },
+			prompt: { update: vi.fn().mockResolvedValue({ id: 12 }) },
+			$transaction: vi.fn(async (cb: (c: typeof tx) => unknown) => cb(tx)),
+		};
+		return { prisma, tx };
+	}
+
+	const VERSION = {
+		value: "restored",
+		languageModelConfig: { temperature: 1 },
+		languageModelId: 3,
+		audit: { a: 1 },
+	};
+
+	it("applies the audit and prompt writes atomically", async () => {
+		// Previously these were two independent statements: a crash between them left
+		// the prompt rolled back while the audit still held the newer data.
+		const { prisma, tx } = makeTxPrisma();
+		const repo = new PromptsRepository(
+			prisma as unknown as PrismaClient,
+			{} as unknown as SystemRepository,
+		);
+
+		await repo.rollbackPrompt(12, VERSION as never, true);
+
+		expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+		expect(tx.audit.update).toHaveBeenCalledTimes(1);
+		expect(tx.prompt.update).toHaveBeenCalledTimes(1);
+		// Nothing may be written outside the transaction.
+		expect(prisma.audit.update).not.toHaveBeenCalled();
+		expect(prisma.prompt.update).not.toHaveBeenCalled();
+	});
+
+	it("still runs inside a transaction when there is no audit to restore", async () => {
+		const { prisma, tx } = makeTxPrisma();
+		const repo = new PromptsRepository(
+			prisma as unknown as PrismaClient,
+			{} as unknown as SystemRepository,
+		);
+
+		await repo.rollbackPrompt(12, VERSION as never, false);
+
+		expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+		expect(tx.audit.update).not.toHaveBeenCalled();
+		expect(tx.prompt.update).toHaveBeenCalledTimes(1);
+	});
+});

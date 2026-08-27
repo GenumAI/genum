@@ -718,19 +718,22 @@ export class PromptsRepository {
 			languageModelId: version.languageModelId,
 		};
 
-		// update audit if needed
-		if (updateAudit) {
-			await this.prisma.audit.update({
-				where: { promptId },
-				data: {
-					data: version.audit === null ? Prisma.JsonNull : version.audit,
-				},
-			});
-		}
+		// One transaction: a crash between the two writes used to leave the prompt
+		// rolled back while the audit still held the newer data.
+		return await this.prisma.$transaction(async (tx) => {
+			if (updateAudit) {
+				await tx.audit.update({
+					where: { promptId },
+					data: {
+						data: version.audit === null ? Prisma.JsonNull : version.audit,
+					},
+				});
+			}
 
-		return await this.prisma.prompt.update({
-			where: { id: promptId },
-			data: values,
+			return await tx.prompt.update({
+				where: { id: promptId },
+				data: values,
+			});
 		});
 	}
 
