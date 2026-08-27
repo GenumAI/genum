@@ -12,6 +12,7 @@ export function APIKeyTableRow({
 	onDelete,
 	showProject = false,
 	isDeleting = false,
+	canDelete = true,
 }: APIKeyTableRowProps) {
 	const authorName = keyData.author?.name || "Unknown";
 	const authorAvatar = getAvatarUrl(keyData.author);
@@ -77,19 +78,21 @@ export function APIKeyTableRow({
 					<span className="text-sm text-muted-foreground">Never</span>
 				)}
 			</TableCell>
-			<TableCell className="text-center px-4 py-3">
-				<div className="flex gap-1 justify-center">
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={onDelete}
-						disabled={isDeleting}
-						className="h-8 w-8 p-0"
-					>
-						<Trash2 className="h-4 w-4" />
-					</Button>
-				</div>
-			</TableCell>
+			{canDelete && (
+				<TableCell className="text-center px-4 py-3">
+					<div className="flex gap-1 justify-center">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={onDelete}
+							disabled={isDeleting}
+							className="h-8 w-8 p-0"
+						>
+							<Trash2 className="h-4 w-4" />
+						</Button>
+					</div>
+				</TableCell>
+			)}
 		</TableRow>
 	);
 }
