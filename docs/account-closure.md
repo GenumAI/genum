@@ -182,10 +182,11 @@ edges.
 
 ## Running one
 
-There is no HTTP endpoint. `ErasureService` is the only entry point, and it is
-deliberately not routed: a public prefix carrying an account-erasure endpoint is
-the kind of thing that has to be guarded per-route and tested per-handler, and
-the orchestrator that will call this runs in-process.
+There is no HTTP endpoint, deliberately: a public prefix carrying an
+account-erasure endpoint has to be guarded per route and tested per handler, and
+both callers below run in-process.
+
+**`ErasureService` — this system only.**
 
 ```ts
 const outcome = await erasureService.previewErasure(userId); // writes nothing
@@ -195,3 +196,37 @@ const outcome = await erasureService.eraseUser(userId);      // tombstones
 `previewErasure` counts exactly what `eraseUser` would delete, using the same
 classification — a dry run cannot promise more than the run delivers. Both return
 `not_found` for an unknown id, so a caller can tell "no such user" from "refused".
+
+**`AccountClosureService` — every system.** Use this one to close an account for
+real; `ErasureService` on its own leaves the identity provider untouched.
+
+```ts
+const preview = await closureService.previewClosure(userId); // writes nothing
+const outcome = await closureService.closeAccount(userId);
+```
+
+It runs six steps in a fixed order — our guard, their guard, lock out every
+identity, their tombstone, our tombstone, delete the identities — and both guards
+run before anything is written. That is what makes it a two-phase commit rather
+than a fan-out: without it we lock a person out of their identity provider and
+only then discover a leg refuses. Identity deletion is last because it is the
+only irreversible step.
+
+Every step is idempotent, so re-running a closure that died part way through is
+the intended recovery. A failure reports the step it stopped on plus the steps
+that already landed.
+
+Configuration decides reach, and the branch is not cosmetic. On
+`INSTANCE_TYPE=local` there is no identity provider and no mail service, so an
+unset `MAIL_SERVICE_URL` / `MAIL_ERASURE_APIKEY` means a local-only closure —
+refusing there would make every self-hosted account permanently unclosable. On
+`INSTANCE_TYPE=cloud` the same unset configuration **refuses**, because the
+account also exists at the identity provider and erasing only this side would
+tell the person their account is closed while they can still log in.
+
+### Not yet verified
+
+`MailErasureClient`'s wire shapes — the request body naming the user, and the
+response readers — were written without the mail service's repository open, and
+are gathered in one marked block at the top of that file for exactly that reason.
+Reconcile them against its request parser before this ships.

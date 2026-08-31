@@ -38,6 +38,19 @@ const EnvSchema = z.object({
 	AUTH0_USERID_CLAIM: z.string().optional(),
 	AUTH0_ACTION_APIKEY: z.string().optional(),
 	MAIL_SERVICE_APIKEY: z.string().optional(),
+	// Account closure, outbound leg. MAIL_ERASURE_APIKEY is deliberately NOT
+	// MAIL_SERVICE_APIKEY: that one is the inbound key the mail service presents
+	// to us. One shared value would make a leak of the onboarding key an
+	// account-erasure capability, and leave neither key rotatable alone.
+	// Unset on a local instance = the closure is local-only, which is correct:
+	// there is no identity provider and no mail service to reach. Unset on a
+	// cloud instance = the closure REFUSES, because the account also exists at
+	// the identity provider and skipping it would leave the person able to log
+	// in. See AccountClosureService.resolveReach.
+	// Note removeEmptyEnvVariables() strips "" before parsing, so an empty value
+	// reads as unset.
+	MAIL_SERVICE_URL: z.url().optional(),
+	MAIL_ERASURE_APIKEY: z.string().optional(),
 	// Hooks
 	WEBHOOK_USERNAME: z.string().optional().default(""),
 	WEBHOOK_PASSWORD: z.string().optional().default(""),
