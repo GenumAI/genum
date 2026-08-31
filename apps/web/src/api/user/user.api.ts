@@ -245,3 +245,53 @@ export const userApi = {
 		return response.data;
 	},
 };
+
+// ============================================================================
+// Account closure
+// ============================================================================
+
+/** Mirrors ClosurePreview / ClosureOutcome in apps/core. */
+export type ClosureRefusal = {
+	status: "refused";
+	step: string;
+	/** Machine-readable; shown as `detail`, which is written to be actionable. */
+	reason: string;
+	detail: string;
+};
+
+export type ClosurePreview =
+	| { status: "erasable"; alreadyErased: boolean; labOnly: boolean }
+	| ClosureRefusal;
+
+export type ClosureOutcome =
+	| {
+			status: "closed";
+			completed: string[];
+			identitiesDeleted: number;
+			alreadyErased: boolean;
+			labOnly: boolean;
+	  }
+	| ClosureRefusal;
+
+export const accountClosureApi = {
+	/** Writes nothing. Safe to call whenever the dialog opens. */
+	preview: async (): Promise<ClosurePreview> => {
+		const response = await apiClient.get<ClosurePreview>("/user/closure/preview");
+		return response.data;
+	},
+
+	/**
+	 * Irreversible, and there is no cancel path.
+	 *
+	 * `password` is sent only on a self-hosted instance, where it replaces the
+	 * identity provider's step-up. On a cloud instance the server refuses a
+	 * password outright, so sending one would be pointless as well as wrong.
+	 */
+	close: async (password?: string): Promise<ClosureOutcome> => {
+		const response = await apiClient.post<ClosureOutcome>(
+			"/user/closure",
+			password ? { password } : {},
+		);
+		return response.data;
+	},
+};
