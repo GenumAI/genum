@@ -6,14 +6,35 @@ import { countRunsByDate } from "@/services/logger";
 import { webhooks } from "@/services/webhooks/webhooks";
 
 export class AdminController {
+	/**
+	 * Find-or-create by address, called by the identity provider's Post-Login
+	 * Action on every login.
+	 *
+	 * The lookup is not an optimisation. Any divergence between the provider's
+	 * app_metadata and this table used to reach an unconditional create, break on
+	 * `User_email_key`, answer 500 and hard-fail the login — leaving that person
+	 * locked out with no way back.
+	 *
+	 * An existing row returns its id and nothing else happens. Creating the
+	 * personal organization and firing the registration webhook are
+	 * once-per-account side effects; re-running them on each login would be a
+	 * worse defect than the constraint error.
+	 *
+	 * A closed account cannot be resurrected here. Closure rewrites the address to
+	 * `erased-<id>@erased.invalid`, so this lookup does not match a tombstone and a
+	 * returning person correctly gets a fresh row.
+	 */
 	public async createNewUser(req: Request, res: Response) {
 		const user = AuthNewUserSchema.parse(req.body.user);
-		console.log("user:", user);
+
+		const existingUser = await db.users.getUserByEmail(user.email);
+		if (existingUser) {
+			res.status(200).json({ id: existingUser.id });
+			return;
+		}
 
 		const newUser = await db.users.createUser(user.email, user.name, user.authID, user.picture);
 		await db.organization.createPersonalOrganization(newUser);
-
-		console.log("user created:", newUser);
 
 		// for post register webhook
 		const registeredUser = {
