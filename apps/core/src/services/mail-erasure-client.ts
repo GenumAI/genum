@@ -103,8 +103,9 @@ export class MailErasureClient {
 				? axios.create({
 						baseURL: env.MAIL_SERVICE_URL,
 						headers: {
-							// Case-sensitive "Bearer", exactly two parts — the other side
-							// splits on whitespace and compares the scheme literally.
+							// The other side matches /^Bearer\s+(.+)$/i and trims, so the
+							// scheme's case does not matter and a token may not begin or
+							// end with whitespace. Sent in the canonical form regardless.
 							Authorization: `Bearer ${env.MAIL_ERASURE_APIKEY}`,
 							"Content-Type": "application/json",
 						},
