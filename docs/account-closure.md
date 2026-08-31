@@ -216,6 +216,30 @@ Every step is idempotent, so re-running a closure that died part way through is
 the intended recovery. A failure reports the step it stopped on plus the steps
 that already landed.
 
+**From a shell.** `close-account` is the operator entry point, and until the
+self-service control exists it is the only one:
+
+```bash
+# preview — writes nothing, anywhere
+docker compose exec core pnpm run close-account -- --user=a.person@example.com
+
+# execute — irreversible, and immediate: there is no grace period
+docker compose exec core pnpm run close-account -- \
+  --user=a.person@example.com --confirm=a.person@example.com --apply
+```
+
+Preview is the default, because both guards are read-only and a refusal
+discovered after the identity provider is locked is a refusal discovered too
+late. `--apply` additionally requires `--confirm` to be exactly the address the
+preview printed: a closure cannot be undone, so a mistyped id must not be able to
+erase a stranger. On a re-run of an already-tombstoned account that address is
+the tombstone's, which is what the preview shows.
+
+`--user` takes an id or an address, and branches on whether the value is all
+digits — **not** on whether it contains an `@`. The legacy system account's email
+column holds the literal `SYSTEM_USER`, and treating a non-address as an id would
+report "no account matches" for the very row the first refusal exists to protect.
+
 Configuration decides reach, and the branch is not cosmetic. On
 `INSTANCE_TYPE=local` there is no identity provider and no mail service, so an
 unset `MAIL_SERVICE_URL` / `MAIL_ERASURE_APIKEY` means a local-only closure —
