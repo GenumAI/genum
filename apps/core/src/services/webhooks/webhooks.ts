@@ -18,6 +18,10 @@ type WebhookPayload =
 			};
 	  }
 	| {
+			type: "accountClosureNotice";
+			data: { to: string; stage: string };
+	  }
+	| {
 			type: "postRegister";
 			data: {
 				id: number;
@@ -55,6 +59,34 @@ async function sendFeedback(feedback: {
 	return send({ type: "sendFeedback", data: feedback });
 }
 
+/**
+ * Tell a person their account is being closed, while the address is still theirs.
+ *
+ * Sent BEFORE anything is written, for two reasons. The tombstone overwrites
+ * `User.email` with `erased-<id>@erased.invalid`, so afterwards there is nobody
+ * left to write to; and a closure has no grace period, so this notice cannot
+ * undo anything — it is how a person finds out an account was destroyed without
+ * them, which only works if it goes out.
+ *
+ * Best-effort, like `postRegister` and unlike `sendEmail`. A closure that aborted
+ * because a notification failed would be the worse outcome: the caller reports
+ * whether this landed, so a failure is visible without being able to strand a
+ * half-closed account.
+ */
+async function accountClosureNotice(notice: { to: string; stage: string }): Promise<boolean> {
+	// `send` returns early on an unset WEBHOOK_URL without throwing, so a bare
+	// try/catch would report a delivered notice on a self-hosted instance that has
+	// no consumer at all — the exact silent success this feature exists to prevent.
+	if (!env.WEBHOOK_URL) return false;
+	try {
+		await send({ type: "accountClosureNotice", data: notice });
+		return true;
+	} catch (error) {
+		console.error("accountClosureNotice failed:", error);
+		return false;
+	}
+}
+
 async function postRegister(user: {
 	id: number;
 	email: string;
@@ -82,4 +114,5 @@ export const webhooks = {
 	sendEmail,
 	sendFeedback,
 	postRegister,
+	accountClosureNotice,
 };

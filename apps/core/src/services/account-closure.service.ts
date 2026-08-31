@@ -1,6 +1,7 @@
 import type { Database } from "@/database/db";
 import { env } from "@/env";
 import { decideLabErasure } from "@/erasure/decide-user-erasure";
+import { webhooks } from "./webhooks/webhooks";
 import type { MailCallFailure, MailErasureClient } from "./mail-erasure-client";
 
 /**
@@ -46,6 +47,12 @@ export type ClosureOutcome =
 			alreadyErased: boolean;
 			/** True on a self-hosted instance, where this is the only system. */
 			labOnly: boolean;
+			/**
+			 * Whether the person was told. False is a real outcome, not a failure:
+			 * the notice is best-effort so it can never strand a closure, which
+			 * means the only way a missed one is visible is here.
+			 */
+			notified: boolean;
 	  };
 
 export type ClosurePreview =
@@ -163,6 +170,7 @@ export class AccountClosureService {
 
 		if (reach.kind === "lab_only") {
 			// Self-hosted: this is the only system that holds the account.
+			const notified = await this.notify(email);
 			try {
 				await this.db.erasure.eraseUser(userId, email);
 			} catch (error) {
@@ -175,6 +183,7 @@ export class AccountClosureService {
 				identitiesDeleted: 0,
 				alreadyErased: decision.alreadyErased,
 				labOnly: true,
+				notified,
 			};
 		}
 
@@ -192,6 +201,11 @@ export class AccountClosureService {
 			};
 		}
 		completed.push("mail_guard");
+
+		// Both guards have passed and nothing is written yet, so this is the last
+		// moment the address is still the person's own — the tombstone overwrites
+		// it — and the first moment we know the closure will actually proceed.
+		const notified = await this.notify(email);
 
 		// 3. Lock every identity out. First step that changes anything.
 		const lockout = await this.mail.lockout(email);
@@ -229,7 +243,19 @@ export class AccountClosureService {
 			identitiesDeleted: deleted.value.deleted.length,
 			alreadyErased: decision.alreadyErased,
 			labOnly: false,
+			notified,
 		};
+	}
+
+	/**
+	 * Tell the person, through the same webhook the org invite goes out on.
+	 *
+	 * Never throws: a notification that could abort a closure would be able to
+	 * strand a half-closed account, which is the state every ordering decision
+	 * here exists to avoid. The outcome carries whether it landed instead.
+	 */
+	private async notify(email: string): Promise<boolean> {
+		return await webhooks.accountClosureNotice({ to: email, stage: env.NODE_ENV });
 	}
 
 	/**

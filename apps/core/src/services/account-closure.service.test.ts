@@ -1,7 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const mockEnv = vi.hoisted(() => ({ INSTANCE_TYPE: "cloud" as "cloud" | "local" }));
+const mockEnv = vi.hoisted(() => ({
+	INSTANCE_TYPE: "cloud" as "cloud" | "local",
+	NODE_ENV: "test",
+}));
 vi.mock("@/env", () => ({ env: mockEnv }));
+
+// The notice goes out on the same webhook the org invite uses. Without this mock
+// `send()` reads an unset WEBHOOK_URL, returns early, and every assertion about
+// notifying passes while nothing is ever sent.
+const mockWebhooks = vi.hoisted(() => ({ accountClosureNotice: vi.fn() }));
+vi.mock("./webhooks/webhooks", () => ({ webhooks: mockWebhooks }));
 
 import { AccountClosureService } from "./account-closure.service";
 import type { Database } from "@/database/db";
@@ -93,6 +102,8 @@ const UNREACHABLE = { ok: false as const, kind: "unreachable" as const, detail: 
 describe("AccountClosureService.closeAccount", () => {
 	beforeEach(() => {
 		mockEnv.INSTANCE_TYPE = "cloud";
+		mockWebhooks.accountClosureNotice.mockReset();
+		mockWebhooks.accountClosureNotice.mockResolvedValue(true);
 	});
 
 	it("reports not_found for an unknown user and touches nothing", async () => {
@@ -311,5 +322,90 @@ describe("AccountClosureService.previewClosure", () => {
 			step: "mail_guard",
 			reason: "sole_workspace_owner",
 		});
+	});
+});
+
+describe("the closure notice", () => {
+	beforeEach(() => {
+		mockEnv.INSTANCE_TYPE = "cloud";
+		mockWebhooks.accountClosureNotice.mockReset();
+		mockWebhooks.accountClosureNotice.mockResolvedValue(true);
+	});
+
+	// It goes out on the same webhook the org invite uses, and it must go out
+	// while the address is still the person's own: the tombstone overwrites
+	// `User.email`, so after that there is nobody left to write to.
+	it("is sent to the real address before anything is written", async () => {
+		const { service, mail } = build();
+
+		const outcome = await service.closeAccount(42);
+
+		expect(mockWebhooks.accountClosureNotice).toHaveBeenCalledWith({
+			to: "a.person@example.com",
+			stage: "test",
+		});
+		// Before the FIRST write, which is the Auth0 lockout.
+		expect(mockWebhooks.accountClosureNotice.mock.invocationCallOrder[0]).toBeLessThan(
+			mail.lockout.mock.invocationCallOrder[0] as number,
+		);
+		expect(outcome).toMatchObject({ status: "closed", notified: true });
+	});
+
+	// Best-effort by design: a closure that aborted because a notification failed
+	// could strand a half-closed account, which is what every ordering decision
+	// here exists to avoid. So the failure is reported, never thrown.
+	it("does not abort the closure when it fails, and says so", async () => {
+		const { service, trace } = build();
+		mockWebhooks.accountClosureNotice.mockResolvedValue(false);
+
+		const outcome = await service.closeAccount(42);
+
+		expect(outcome).toMatchObject({ status: "closed", notified: false });
+		expect(trace).toEqual([
+			"mail.erasability",
+			"mail.lockout",
+			"mail.erase",
+			"lab.eraseUser",
+			"mail.auth0Delete",
+		]);
+	});
+
+	it("is not sent when our own guard refuses", async () => {
+		const { service, db } = build();
+		db.erasure.getErasureSubject.mockResolvedValue(subject({ systemUserId: 42 }));
+
+		await service.closeAccount(42);
+
+		expect(mockWebhooks.accountClosureNotice).not.toHaveBeenCalled();
+	});
+
+	// The guard order is the point: both sides refuse before anything happens, and
+	// telling someone their account is closing and then not closing it is its own
+	// kind of wrong.
+	it("is not sent when the other side refuses", async () => {
+		const { service, mail } = build();
+		mail.erasability.mockResolvedValue({
+			ok: true,
+			value: { erasable: false, notFound: false, reason: "sole_workspace_owner", detail: "x" },
+		});
+
+		await service.closeAccount(42);
+
+		expect(mockWebhooks.accountClosureNotice).not.toHaveBeenCalled();
+	});
+
+	// Attempted, not necessarily delivered: a self-hosted instance usually has no
+	// webhook consumer, and `accountClosureNotice` reports false there rather than
+	// claiming a notice nobody received. The orchestrator propagates either way.
+	it("attempts the notice on a self-hosted closure too, and reports what came back", async () => {
+		const { service, mail } = build();
+		mockEnv.INSTANCE_TYPE = "local";
+		mail.isConfigured.mockReturnValue(false);
+		mockWebhooks.accountClosureNotice.mockResolvedValue(false);
+
+		const outcome = await service.closeAccount(42);
+
+		expect(mockWebhooks.accountClosureNotice).toHaveBeenCalledTimes(1);
+		expect(outcome).toMatchObject({ status: "closed", labOnly: true, notified: false });
 	});
 });
