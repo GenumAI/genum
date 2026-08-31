@@ -4,6 +4,12 @@ model User {
     name      String
     authID    String
     picture   String?
+
+    /// Set when the account was closed and this row tombstoned. The row is never
+    /// deleted: a delete cascades through seven relations and takes the
+    /// organization's prompt history with it. See src/erasure/.
+    erasedAt DateTime? @db.Timestamp(6)
+
     createdAt DateTime @default(now()) @db.Timestamp(6)
     updatedAt DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
