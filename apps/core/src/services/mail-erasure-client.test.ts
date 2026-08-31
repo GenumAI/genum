@@ -41,7 +41,7 @@ describe("MailErasureClient configuration", () => {
 		const client = new MailErasureClient();
 
 		expect(client.isConfigured()).toBe(false);
-		const result = await client.erasability({ labUserId: 42, email: "a.person@example.com" });
+		const result = await client.erasability("a.person@example.com");
 
 		expect(result).toMatchObject({ ok: false, kind: "not_configured" });
 		expect(axiosMock.post).not.toHaveBeenCalled();
@@ -71,7 +71,7 @@ describe("MailErasureClient configuration", () => {
 
 describe("MailErasureClient status mapping", () => {
 	let client: MailErasureClient;
-	const ref = { labUserId: 42, email: "a.person@example.com" };
+	const email = "a.person@example.com";
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -87,13 +87,13 @@ describe("MailErasureClient status mapping", () => {
 		// closure silently skip a system that is simply unconfigured.
 		answers(404, {});
 
-		expect(await client.erasability(ref)).toMatchObject({ ok: false, kind: "service_disabled" });
+		expect(await client.erasability(email)).toMatchObject({ ok: false, kind: "service_disabled" });
 	});
 
 	it("reads a 409 as their refusal and carries the reason verbatim", async () => {
 		answers(409, { reason: "sole_workspace_owner", detail: "Transfer ownership first." });
 
-		expect(await client.erase(ref)).toEqual({
+		expect(await client.erase(email)).toEqual({
 			ok: false,
 			kind: "refused",
 			reason: "sole_workspace_owner",
@@ -104,7 +104,7 @@ describe("MailErasureClient status mapping", () => {
 	it("falls back to a usable reason when a refusal body is malformed", async () => {
 		answers(409, {});
 
-		const result = await client.erase(ref);
+		const result = await client.erase(email);
 
 		expect(result).toMatchObject({ ok: false, kind: "refused", reason: "refused" });
 	});
@@ -112,7 +112,7 @@ describe("MailErasureClient status mapping", () => {
 	it("treats a 5xx as unreachable so the caller stops", async () => {
 		answers(503, {});
 
-		expect(await client.erasability(ref)).toMatchObject({ ok: false, kind: "unreachable" });
+		expect(await client.erasability(email)).toMatchObject({ ok: false, kind: "unreachable" });
 	});
 
 	it("treats a transport failure as unreachable without leaking the key", async () => {
@@ -129,7 +129,7 @@ describe("MailErasureClient status mapping", () => {
 	it("does not throw on a success body it cannot read", async () => {
 		answers(200, null);
 
-		const result = await client.erasability(ref);
+		const result = await client.erasability(email);
 
 		expect(result).toMatchObject({ ok: true });
 	});
@@ -137,7 +137,7 @@ describe("MailErasureClient status mapping", () => {
 
 describe("MailErasureClient requests and readers", () => {
 	let client: MailErasureClient;
-	const ref = { labUserId: 42, email: "a.person@example.com" };
+	const email = "a.person@example.com";
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -149,17 +149,17 @@ describe("MailErasureClient requests and readers", () => {
 	it("reads an erasable answer", async () => {
 		answers(200, { erasable: true });
 
-		expect(await client.erasability(ref)).toEqual({
+		expect(await client.erasability(email)).toEqual({
 			ok: true,
 			value: { erasable: true, notFound: false, reason: null, detail: null },
 		});
 	});
 
-	it("reads their not_found as an answer, not an error", async () => {
+	it("reads their `found: false` as an answer, not an error", async () => {
 		// A person can hold an account here and never have used the mail product.
-		answers(200, { status: "not_found" });
+		answers(200, { found: false });
 
-		const result = await client.erasability(ref);
+		const result = await client.erasability(email);
 
 		expect(result).toMatchObject({ ok: true, value: { notFound: true } });
 	});
@@ -196,9 +196,28 @@ describe("MailErasureClient requests and readers", () => {
 		});
 	});
 
+	// Their parser takes ONE string and branches on whether it contains an `@`;
+	// anything without one it looks up as ITS OWN primary key, which is not our
+	// user id and never will be. Sending our id would not match the wrong account,
+	// it would match nothing — and a closure reads "nothing" as "they hold no such
+	// person" and skips a leg that had real data to erase.
+	it("names the person by address, never by our own user id", async () => {
+		answers(200, { erasable: true });
+		await client.erasability(email);
+		expect(axiosMock.post.mock.calls[0]?.[1]).toEqual({ user: "a.person@example.com" });
+
+		vi.clearAllMocks();
+		answers(200, { found: true, erased: true });
+		await client.erase(email);
+		expect(axiosMock.post.mock.calls[0]?.[1]).toEqual({
+			user: "a.person@example.com",
+			confirm: "erase",
+		});
+	});
+
 	it("sends the confirmation token on the two destructive calls", async () => {
 		answers(200, {});
-		await client.erase(ref);
+		await client.erase(email);
 		expect(axiosMock.post.mock.calls[0]?.[1]).toMatchObject({ confirm: "erase" });
 
 		vi.clearAllMocks();

@@ -13,24 +13,33 @@ import { env } from "@/env";
  *
  * ────────────────────────────────────────────────────────────────────────────
  * EVERYTHING IN THE `wire shapes` BLOCK BELOW IS A CONTRACT WITH A SEPARATE
- * SERVICE, AND IS THE ONE THING IN THIS FILE THAT NO TEST HERE CAN PROVE.
- *
- * It was written without the other repository open. Before this ships, open the
- * mail service's request parser and reconcile `userRefBody()` and the response
- * readers against it. They are gathered here, in one block, precisely so that
- * reconciling is a single-file edit and nothing else has to move.
+ * SERVICE. Reconciled against its request parser and route handlers; keep them
+ * gathered here so the next reconciliation is a single-file edit.
  * ────────────────────────────────────────────────────────────────────────────
  */
 
 // ── wire shapes ─────────────────────────────────────────────────────────────
 
 /**
- * How we name a person to the mail service. Both keys are sent: that side
- * stores its own copy of our user id, and the address is the fallback join.
- * If its parser is strict about unknown keys, drop whichever it does not read.
+ * How we name a person to the mail service: `{ user: "<id or email>" }`.
+ *
+ * We always send the ADDRESS, never our own user id. Its parser branches on
+ * whether the value contains an `@` and otherwise looks the value up as ITS OWN
+ * primary key — which is not our id and never will be. Sending our id would not
+ * match the wrong account, it would match nothing, and the closure would read
+ * that as "the mail service holds no such person" and silently skip a leg that
+ * had real data to erase.
  */
-function userRefBody(ref: MailUserRef): Record<string, unknown> {
-	return { labUserId: ref.labUserId, email: ref.email };
+function userRefBody(email: string): Record<string, unknown> {
+	return { user: email };
+}
+
+/**
+ * Its endpoints report "no such account" as `{ found: false }` with a 200, not as
+ * an error status. A person can hold a Genum account and never have used mail.
+ */
+function readNotFound(data: Record<string, unknown>): boolean {
+	return data.found === false;
 }
 
 /** Its erase endpoint requires an explicit confirmation token, like ours does. */
@@ -44,8 +53,6 @@ const PATHS = {
 } as const;
 
 // ── results ─────────────────────────────────────────────────────────────────
-
-export type MailUserRef = { labUserId: number; email: string };
 
 /** One identity at the identity provider. `userId` is the `sub`. */
 export type Auth0IdentityRef = { userId: string; email: string };
@@ -112,10 +119,10 @@ export class MailErasureClient {
 	}
 
 	/** Whether the mail service would erase this account. Writes nothing. */
-	public async erasability(ref: MailUserRef): Promise<MailResult<MailErasability>> {
-		return await this.post(PATHS.erasability, userRefBody(ref), TIMEOUT_MS.read, (data) => ({
+	public async erasability(email: string): Promise<MailResult<MailErasability>> {
+		return await this.post(PATHS.erasability, userRefBody(email), TIMEOUT_MS.read, (data) => ({
 			erasable: data.erasable === true,
-			notFound: data.status === "not_found" || data.notFound === true,
+			notFound: readNotFound(data),
 			reason: typeof data.reason === "string" ? data.reason : null,
 			detail: typeof data.detail === "string" ? data.detail : null,
 		}));
@@ -150,12 +157,12 @@ export class MailErasureClient {
 	}
 
 	/** Step 2: the mail service tombstones its own copy of the account. */
-	public async erase(ref: MailUserRef): Promise<MailResult<{ notFound: boolean }>> {
+	public async erase(email: string): Promise<MailResult<{ notFound: boolean }>> {
 		return await this.post(
 			PATHS.erase,
-			{ ...userRefBody(ref), confirm: CONFIRM_TOKEN },
+			{ ...userRefBody(email), confirm: CONFIRM_TOKEN },
 			TIMEOUT_MS.write,
-			(data) => ({ notFound: data.status === "not_found" || data.notFound === true }),
+			(data) => ({ notFound: readNotFound(data) }),
 		);
 	}
 

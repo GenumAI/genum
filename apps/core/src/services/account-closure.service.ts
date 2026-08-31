@@ -1,7 +1,7 @@
 import type { Database } from "@/database/db";
 import { env } from "@/env";
 import { decideLabErasure } from "@/erasure/decide-user-erasure";
-import type { MailCallFailure, MailErasureClient, MailUserRef } from "./mail-erasure-client";
+import type { MailCallFailure, MailErasureClient } from "./mail-erasure-client";
 
 /**
  * Closing an account across every system that holds it.
@@ -96,7 +96,7 @@ export class AccountClosureService {
 			return { status: "erasable", alreadyErased: decision.alreadyErased, labOnly: true };
 		}
 
-		const erasability = await this.mail.erasability(refFor(subject.userId, subject.email));
+		const erasability = await this.mail.erasability(subject.email);
 		if (!erasability.ok) {
 			const mapped = mapFailure("mail_guard", erasability, []);
 			return mapped.status === "refused"
@@ -150,7 +150,6 @@ export class AccountClosureService {
 		// The address, read BEFORE our tombstone overwrites it. The mail service
 		// and the identity provider both find the person by it.
 		const email = subject.email;
-		const ref = refFor(subject.userId, email);
 
 		const reach = this.resolveReach();
 		if (reach.kind === "refuse") {
@@ -180,7 +179,7 @@ export class AccountClosureService {
 		}
 
 		// 2. Their guard. Still nothing written.
-		const erasability = await this.mail.erasability(ref);
+		const erasability = await this.mail.erasability(email);
 		if (!erasability.ok) {
 			return mapFailure("mail_guard", erasability, completed);
 		}
@@ -203,7 +202,7 @@ export class AccountClosureService {
 		const identities = lockout.value.identities.map((i) => i.userId);
 
 		// 4. Their tombstone.
-		const erased = await this.mail.erase(ref);
+		const erased = await this.mail.erase(email);
 		if (!erased.ok) {
 			return mapFailure("mail_erase", erased, completed);
 		}
@@ -262,10 +261,6 @@ export class AccountClosureService {
 		}
 		return { kind: "lab_only" };
 	}
-}
-
-function refFor(labUserId: number, email: string): MailUserRef {
-	return { labUserId, email };
 }
 
 /**

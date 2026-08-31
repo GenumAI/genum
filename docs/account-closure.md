@@ -224,9 +224,23 @@ refusing there would make every self-hosted account permanently unclosable. On
 account also exists at the identity provider and erasing only this side would
 tell the person their account is closed while they can still log in.
 
-### Not yet verified
+### Naming the person on the wire
 
-`MailErasureClient`'s wire shapes — the request body naming the user, and the
-response readers — were written without the mail service's repository open, and
-are gathered in one marked block at the top of that file for exactly that reason.
-Reconcile them against its request parser before this ships.
+`MailErasureClient` addresses the subject by **email address**, never by our own
+user id, and that is a correctness requirement rather than a preference.
+
+The mail service takes one string — `{ "user": "..." }` — and branches on whether
+it contains an `@`. With one, it looks the value up as an address; without one, it
+looks it up as **its own primary key**, which is not our id and never will be. So
+sending our id would not erase the wrong account, it would match nothing at all —
+and a closure reads "nothing" as "that system holds no such person" and skips a
+leg that had real data to erase. The failure is silent and reports success, which
+is the one outcome this whole design exists to prevent.
+
+Its endpoints likewise report an unknown account as `{ "found": false }` with a
+200, not as an error status, because a person can hold a Genum account and never
+have used the mail product.
+
+Both facts live in one marked `wire shapes` block at the top of that file, and
+`mail-erasure-client.test.ts` asserts the request body is the address — that test
+is what stops the id creeping back in.
