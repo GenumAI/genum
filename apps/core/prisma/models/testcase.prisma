@@ -24,4 +24,5 @@ model TestCase {
 
     prompt Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
 	files TestcaseFile[]
+	placeholderValues TestCasePlaceholderValue[]
 }
