@@ -1,0 +1,17 @@
+{
+	"name": "@genum/placeholders",
+	"version": "0.0.0",
+	"private": true,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest",
+		"test:run": "vitest run"
+	},
+	"devDependencies": {
+		"typescript": "^5.7.3",
+		"vitest": "^3.0.5"
+	}
+}
