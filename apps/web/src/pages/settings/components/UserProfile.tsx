@@ -9,6 +9,8 @@ import { useUserProfile } from "../hooks/useUserProfile";
 import { useUserFeedback } from "../hooks/useUserFeedback";
 import { EditProfileDialog } from "./UserProfile/EditProfileDialog";
 import { SendFeedbackDialog } from "./UserProfile/SendFeedbackDialog";
+import { CloseAccountDialog } from "./UserProfile/CloseAccountDialog";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function UserProfile() {
 	const { user: userData, isLoading } = useCurrentUser();
@@ -17,6 +19,8 @@ export default function UserProfile() {
 
 	const [editDialogOpen, setEditDialogOpen] = useState(false);
 	const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+	const [closeAccountOpen, setCloseAccountOpen] = useState(false);
+	const { logout } = useAuth();
 
 	if (isLoading) {
 		return (
@@ -112,6 +116,31 @@ export default function UserProfile() {
 					isSubmitting={isSubmitting}
 				/>
 			</CardContent>
+
+			<CardHeader className="py-2 max-w-[724px]">
+				<CardTitle className="font-medium text-[18px] leading-[28px] text-destructive">
+					Close account
+				</CardTitle>
+			</CardHeader>
+			<CardContent className="max-w-[724px]">
+				<p className="mb-4 text-sm text-muted-foreground">
+					Closing your account anonymises your profile and deletes your sign-in
+					credentials, sessions and personal activity. It is permanent, takes effect
+					immediately, and cannot be undone. Work that belongs to an organization stays
+					with the organization.
+				</p>
+				<Button variant="destructive" onClick={() => setCloseAccountOpen(true)}>
+					Close my account
+				</Button>
+			</CardContent>
+
+			<CloseAccountDialog
+				open={closeAccountOpen}
+				onOpenChange={setCloseAccountOpen}
+				// The session outlives nothing: the credentials behind it are gone, so
+				// the only correct next screen is the logged-out one.
+				onClosed={() => logout()}
+			/>
 		</Card>
 	);
 }

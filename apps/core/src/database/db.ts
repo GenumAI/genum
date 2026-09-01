@@ -8,6 +8,7 @@ import { AuthRepository } from "./repositories/AuthRepository";
 import { FileRepository } from "./repositories/FileRepository";
 import { prisma } from "@/database/prisma";
 import { SystemRepository } from "./repositories/SystemRepository";
+import { ErasureRepository } from "./repositories/ErasureRepository";
 
 /**
  * centralized access to database repositories
@@ -31,6 +32,7 @@ class Database {
 	public readonly project: ProjectRepository;
 	public readonly auth: AuthRepository;
 	public readonly file: FileRepository;
+	public readonly erasure: ErasureRepository;
 
 	constructor() {
 		// all repositories use the same PrismaClient (singleton)
@@ -43,6 +45,7 @@ class Database {
 		this.project = new ProjectRepository(prisma);
 		this.auth = new AuthRepository(prisma);
 		this.file = new FileRepository(prisma);
+		this.erasure = new ErasureRepository(prisma, this.system);
 	}
 }
 

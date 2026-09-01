@@ -15,6 +15,8 @@
     "dev": "dotenv -e ../../.env tsx watch src/server.ts",
     "seed:dev": "tsx src/database/seed/seed.ts",
     "seed:prod": "node dist/database/seed/seed.js",
+    "close-account": "node dist/erasure/close-account.js",
+    "close-account:dev": "dotenv -e ../../.env tsx src/erasure/close-account.ts",
     "clickhouse:init:dev": "dotenv -e ../../.env tsx src/services/logger/init-clickhouse.ts",
     "clickhouse:init:prod": "node dist/services/logger/init-clickhouse.js",
     "db:generate": "prisma generate",
