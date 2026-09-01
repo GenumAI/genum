@@ -66,6 +66,12 @@ Settled in brainstorming, recorded because each one closes off a different desig
 6. **Committed as a snapshot** on `PromptVersion`, alongside the text it belongs to.
 7. **`memoryKey` survives in the public API as a deprecated alias.** `RunPromptSchema` is `.strict()`,
    so dropping the field would answer an existing integrator with a 400, not a degradation.
+8. **The syntax lives in one shared workspace package**, `packages/placeholders`, consumed by both
+   apps. `apps/web` does not depend on `apps/core` and the repository has no shared package today,
+   but `pnpm-workspace.yaml` already globs `packages/*`. The alternative — a copy of the regex in the
+   frontend — makes it possible for the chips to promise something the runtime does not do, which is
+   the failure this whole design is meant to remove. A server round trip is not an option: the chips
+   track the live draft as it is typed.
 
 ## Data model
 
@@ -151,7 +157,8 @@ No new relation is added to `model User`, so the closed-world erasure guard
 
 ## Rendering
 
-One pure module, no database, next to the runner. It is the only place that knows the syntax:
+One pure package — `packages/placeholders`, no dependencies, no database — consumed by `apps/core` at
+run time and by `apps/web` for the chips and the tab. It is the only place that knows the syntax:
 
 ```ts
 type PlaceholderDefinition = {
@@ -185,7 +192,7 @@ Rules:
 4. `{{key}}` with no definition is left **verbatim** and listed in `undefinedKeys`. Stripping it would
    destroy text the author typed; the UI flags it instead.
 
-The detector — pulling `{{key}}` out of a text — is the same module, exported separately
+The detector — pulling `{{key}}` out of a text — is the same package, exported separately
 (`detectPlaceholderKeys`). The playground chips, the Placeholders tab and the runtime all call it, so
 the UI cannot promise something the runtime does not do.
 
@@ -246,8 +253,10 @@ string where `resolved` holds `null` (a ClickHouse `Map` has no null value, and 
 be indistinguishable from a key that was not in the text at all). Not just what the caller passed: one
 log line should answer both which knobs existed on that run and how they stood.
 
-**Read:** `mappers.ts` coalesces — an empty map plus a non-null `memory_key` is presented as
-`{memory_key: X}`. Old logs stay usable, and exactly one place in the reading code branches.
+**Read:** the coalesce — an empty map plus a non-null `memory_key` reads back as `{memory_key: X}` —
+is an exported pure function in `logger/mappers.ts` (the module that exists precisely to stay "free of
+env/client imports so they stay unit-testable"), called from the private `transformRowToLogDocument`
+in `logger.ts:136`. Old logs stay usable, and exactly one place in the reading code branches.
 
 ## Testcases and "add testcase from log"
 
