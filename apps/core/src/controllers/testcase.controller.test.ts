@@ -171,4 +171,52 @@ describe("TestcasesController.updateTestcase", () => {
 			(captured.body as { unresolvedPlaceholders: string[] }).unresolvedPlaceholders,
 		).toEqual(["admin_role"]);
 	});
+
+	it("leaves an existing placeholder selection untouched when the update omits the field", async () => {
+		const { res, captured } = makeRes();
+
+		await controller.updateTestcase(makeReq({ name: "renamed" }), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(db.placeholders.resolveSelection).not.toHaveBeenCalled();
+		expect(db.testcases.setPlaceholderSelection).not.toHaveBeenCalled();
+		expect(
+			(captured.body as { unresolvedPlaceholders: string[] }).unresolvedPlaceholders,
+		).toEqual([]);
+	});
+
+	it("clears the placeholder selection when the update sends an explicit empty object", async () => {
+		vi.mocked(db.placeholders.resolveSelection).mockResolvedValue({
+			rows: [],
+			unresolved: [],
+		} as never);
+		const { res, captured } = makeRes();
+
+		await controller.updateTestcase(makeReq({ placeholders: {} }), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(db.placeholders.resolveSelection).toHaveBeenCalledWith(PROMPT, {});
+		expect(db.testcases.setPlaceholderSelection).toHaveBeenCalledWith(5, []);
+	});
+
+	it("pins a real selection on update, as before", async () => {
+		vi.mocked(db.placeholders.resolveSelection).mockResolvedValue({
+			rows: [{ placeholderId: 5, placeholderValueId: 9 }],
+			unresolved: [],
+		} as never);
+		const { res, captured } = makeRes();
+
+		await controller.updateTestcase(
+			makeReq({ placeholders: { admin_role: "true" } }),
+			res,
+		);
+
+		expect(captured.statusCode).toBe(200);
+		expect(db.placeholders.resolveSelection).toHaveBeenCalledWith(PROMPT, {
+			admin_role: "true",
+		});
+		expect(db.testcases.setPlaceholderSelection).toHaveBeenCalledWith(5, [
+			{ placeholderId: 5, placeholderValueId: 9 },
+		]);
+	});
 });

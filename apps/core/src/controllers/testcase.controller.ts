@@ -110,11 +110,19 @@ export class TestcasesController {
 
 		const testcase = await db.testcases.updateTestcaseByID(id, data);
 
-		const { rows, unresolved } = await db.placeholders.resolveSelection(
-			existing.promptId,
-			data.placeholders ?? {},
-		);
-		await db.testcases.setPlaceholderSelection(id, rows);
+		// `placeholders` follows the file's existing `memoryId` convention: absent means
+		// leave it alone, an explicit `{}` means clear it. Resolving unconditionally would
+		// wipe a testcase's pinned selection on every unrelated partial update (e.g. a
+		// rename), since `data.placeholders ?? {}` can't tell "not sent" from "sent empty".
+		let unresolved: string[] = [];
+		if (data.placeholders !== undefined) {
+			const resolved = await db.placeholders.resolveSelection(
+				existing.promptId,
+				data.placeholders,
+			);
+			unresolved = resolved.unresolved;
+			await db.testcases.setPlaceholderSelection(id, resolved.rows);
+		}
 
 		res.status(200).json({ testcase, unresolvedPlaceholders: unresolved });
 	}
