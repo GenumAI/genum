@@ -9,19 +9,32 @@ vi.mock("@/database/db", () => ({
 	db: {
 		testcases: {
 			updateTestcaseByID: vi.fn(),
+			newTestcase: vi.fn(),
+			setPlaceholderSelection: vi.fn(),
 		},
 		memories: {
 			getMemoryByIDAndPromptId: vi.fn(),
+		},
+		placeholders: {
+			resolveSelection: vi.fn(),
 		},
 	},
 }));
 
 vi.mock("@/services/access/AccessService", () => ({
 	checkTestcaseAccess: vi.fn(),
+	checkPromptAccess: vi.fn(),
+}));
+
+vi.mock("@/ai/runner/system", () => ({
+	system_prompt: {
+		testcaseNamer: vi.fn(),
+	},
 }));
 
 import { db } from "@/database/db";
-import { checkTestcaseAccess } from "@/services/access/AccessService";
+import { checkTestcaseAccess, checkPromptAccess } from "@/services/access/AccessService";
+import { system_prompt } from "@/ai/runner/system";
 import { TestcasesController } from "./testcase.controller";
 
 const PROJECT = 10;
@@ -62,6 +75,18 @@ describe("TestcasesController.updateTestcase", () => {
 			prompt: { projectId: PROJECT },
 		} as never);
 		vi.mocked(db.testcases.updateTestcaseByID).mockResolvedValue({ id: 5 } as never);
+		vi.mocked(db.testcases.newTestcase).mockResolvedValue({ id: 5 } as never);
+		vi.mocked(db.testcases.setPlaceholderSelection).mockResolvedValue(undefined as never);
+		vi.mocked(db.placeholders.resolveSelection).mockResolvedValue({
+			rows: [],
+			unresolved: [],
+		} as never);
+		vi.mocked(checkPromptAccess).mockResolvedValue({
+			id: PROMPT,
+			projectId: PROJECT,
+			value: "do this",
+		} as never);
+		vi.mocked(system_prompt.testcaseNamer).mockResolvedValue({ answer: "generated" } as never);
 	});
 
 	it("updates a testcase that carries no memory reference", async () => {
@@ -95,5 +120,55 @@ describe("TestcasesController.updateTestcase", () => {
 		);
 
 		expect(db.testcases.updateTestcaseByID).not.toHaveBeenCalled();
+	});
+
+	it("pins the resolved values on the testcase", async () => {
+		vi.mocked(db.placeholders.resolveSelection).mockResolvedValue({
+			rows: [{ placeholderId: 5, placeholderValueId: 9 }],
+			unresolved: [],
+		} as never);
+		const { res, captured } = makeRes();
+
+		await controller.createTestcase(
+			makeReq({
+				promptId: PROMPT,
+				input: "i",
+				expectedOutput: "e",
+				lastOutput: "",
+				placeholders: { admin_role: "true" },
+			}),
+			res,
+		);
+
+		expect(captured.statusCode).toBe(200);
+		expect(db.testcases.setPlaceholderSelection).toHaveBeenCalledWith(expect.any(Number), [
+			{ placeholderId: 5, placeholderValueId: 9 },
+		]);
+	});
+
+	it("refuses a placeholder value belonging to another prompt", async () => {
+		// The guard `memoryId` used to carry: resolution is scoped to this prompt, so a
+		// value id from another tenant's prompt is simply not resolvable here.
+		vi.mocked(db.placeholders.resolveSelection).mockResolvedValue({
+			rows: [],
+			unresolved: ["admin_role"],
+		} as never);
+		const { res, captured } = makeRes();
+
+		await controller.createTestcase(
+			makeReq({
+				promptId: PROMPT,
+				input: "i",
+				expectedOutput: "e",
+				lastOutput: "",
+				placeholders: { admin_role: "true" },
+			}),
+			res,
+		);
+
+		expect(db.testcases.setPlaceholderSelection).toHaveBeenCalledWith(expect.any(Number), []);
+		expect(
+			(captured.body as { unresolvedPlaceholders: string[] }).unresolvedPlaceholders,
+		).toEqual(["admin_role"]);
 	});
 });

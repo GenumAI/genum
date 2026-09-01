@@ -95,4 +95,34 @@ export class PlaceholdersRepository {
 	public async deleteValueByID(id: number) {
 		return await this.prisma.placeholderValue.delete({ where: { id } });
 	}
+
+	/**
+	 * Names -> ids, scoped to one prompt. Scoping is the guard: a value id belonging to
+	 * another prompt is unreachable rather than merely rejected, which is what
+	 * `checkMemoryAccess` had to do by hand for `memoryId`.
+	 */
+	public async resolveSelection(promptId: number, selection: Record<string, string>) {
+		const keys = Object.keys(selection);
+		if (keys.length === 0) return { rows: [], unresolved: [] };
+
+		const placeholders = await this.prisma.placeholder.findMany({
+			where: { promptId, key: { in: keys } },
+			include: { values: true },
+		});
+
+		const rows: { placeholderId: number; placeholderValueId: number }[] = [];
+		const unresolved: string[] = [];
+
+		for (const key of keys) {
+			const placeholder = placeholders.find((candidate) => candidate.key === key);
+			const value = placeholder?.values.find((entry) => entry.name === selection[key]);
+			if (!placeholder || !value) {
+				unresolved.push(key);
+				continue;
+			}
+			rows.push({ placeholderId: placeholder.id, placeholderValueId: value.id });
+		}
+
+		return { rows, unresolved };
+	}
 }

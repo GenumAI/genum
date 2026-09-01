@@ -79,7 +79,14 @@ export class TestcasesController {
 		};
 
 		const testcase = await db.testcases.newTestcase(testcaseData);
-		res.status(200).json({ testcase });
+
+		const { rows, unresolved } = await db.placeholders.resolveSelection(
+			prompt.id,
+			data.placeholders ?? {},
+		);
+		await db.testcases.setPlaceholderSelection(testcase.id, rows);
+
+		res.status(200).json({ testcase, unresolvedPlaceholders: unresolved });
 	}
 
 	async updateTestcase(req: Request, res: Response) {
@@ -103,7 +110,13 @@ export class TestcasesController {
 
 		const testcase = await db.testcases.updateTestcaseByID(id, data);
 
-		res.status(200).json({ testcase });
+		const { rows, unresolved } = await db.placeholders.resolveSelection(
+			existing.promptId,
+			data.placeholders ?? {},
+		);
+		await db.testcases.setPlaceholderSelection(id, rows);
+
+		res.status(200).json({ testcase, unresolvedPlaceholders: unresolved });
 	}
 
 	async deleteTestcase(req: Request, res: Response) {

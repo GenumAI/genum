@@ -18,6 +18,7 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 		expectedChainOfThoughts: z.string().optional(),
 		lastChainOfThoughts: z.string().optional(),
 		memoryId: z.number().nullable().optional(),
+		placeholders: z.record(z.string(), z.string()).optional(),
 	})
 	.strict();
 
@@ -41,6 +42,7 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 })
 	.extend({
 		status: TestCaseStatusSchema.optional(),
+		placeholders: z.record(z.string(), z.string()).optional(),
 	})
 	.partial()
 	.strict();

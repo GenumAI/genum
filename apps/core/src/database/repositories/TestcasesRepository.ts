@@ -40,6 +40,7 @@ export class TestcasesRepository {
 						file: true,
 					},
 				},
+				placeholderValues: { include: { placeholderValue: true } },
 			},
 		});
 	}
@@ -59,7 +60,7 @@ export class TestcasesRepository {
 	}
 
 	public async newTestcase(data: TestcasesCreateType & { files?: string[] }) {
-		const { files, ...testcaseData } = data;
+		const { files, placeholders: _placeholders, ...testcaseData } = data;
 
 		const testcase = await this.prisma.testCase.create({
 			data: testcaseData,
@@ -85,7 +86,21 @@ export class TestcasesRepository {
 	}
 
 	public async updateTestcaseByID(id: number, data: TestcasesUpdateType) {
-		return await this.prisma.testCase.update({ where: { id }, data });
+		const { placeholders: _placeholders, ...testcaseData } = data;
+		return await this.prisma.testCase.update({ where: { id }, data: testcaseData });
+	}
+
+	public async setPlaceholderSelection(
+		testCaseId: number,
+		rows: { placeholderId: number; placeholderValueId: number }[],
+	) {
+		return await this.prisma.$transaction(async (tx) => {
+			await tx.testCasePlaceholderValue.deleteMany({ where: { testCaseId } });
+			if (rows.length === 0) return;
+			await tx.testCasePlaceholderValue.createMany({
+				data: rows.map((row) => ({ ...row, testCaseId })),
+			});
+		});
 	}
 
 	public async getTestcasesByPromptId(promptId: number) {

@@ -7,15 +7,18 @@ vi.mock("@/database/db", () => ({
 		project: {
 			getProjectApiKeyByToken: vi.fn(),
 			getProjectbyApiKeyById: vi.fn(),
+			updateProjectApiKeyLastUsed: vi.fn(),
 		},
 		organization: {
 			getAvailableModels: vi.fn(),
+			getOrganizationById: vi.fn(),
 		},
 		prompts: {
 			getDefaultLanguageModelRow: vi.fn(),
 			newProjectPrompt: vi.fn(),
 			commit: vi.fn(),
 			changePromptCommitStatus: vi.fn(),
+			getPromptById: vi.fn(),
 		},
 	},
 }));
@@ -24,7 +27,12 @@ vi.mock("@/env", () => ({
 	env: { FRONTEND_URL: "https://lab.genum.ai" },
 }));
 
+vi.mock("@/ai/runner/run", () => ({
+	runPrompt: vi.fn(),
+}));
+
 import { db } from "@/database/db";
+import { runPrompt } from "@/ai/runner/run";
 import { ApiV1Controller } from "./apiv1.controller";
 
 function makeReq(body: unknown): Request {
@@ -203,5 +211,44 @@ describe("ApiV1Controller.verifyRequest status codes", () => {
 		await expect(
 			controller.createPrompt(reqWithAuth("Bearer valid-key"), res),
 		).rejects.toMatchObject({ statusCode: 404 });
+	});
+});
+
+describe("ApiV1Controller.runPrompt", () => {
+	let controller: ApiV1Controller;
+	const ORGANIZATION = { id: 1 };
+	const PROMPT = { id: 20, projectId: PROJECT.id, value: "hi" };
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		controller = new ApiV1Controller();
+		(db.project.getProjectApiKeyByToken as ReturnType<typeof vi.fn>).mockResolvedValue(KEY);
+		(db.project.getProjectbyApiKeyById as ReturnType<typeof vi.fn>).mockResolvedValue(PROJECT);
+		(db.organization.getOrganizationById as ReturnType<typeof vi.fn>).mockResolvedValue(
+			ORGANIZATION,
+		);
+		(db.prompts.getPromptById as ReturnType<typeof vi.fn>).mockResolvedValue(PROMPT);
+		vi.mocked(runPrompt).mockResolvedValue({
+			answer: "a",
+			placeholders: { resolved: {}, ignored: [] },
+		} as never);
+	});
+
+	// A `promptWithCommit.placeholderDefinitions ?? []` typo here would type-check and
+	// pass every other test, but `run.ts` treats any truthy value -- `[]` included -- as
+	// "these are the definitions" and skips loading the live placeholder tables, so a
+	// non-productive run must see `undefined`, not an empty array.
+	it("on a non-productive run, passes placeholderDefinitions as undefined, not []", async () => {
+		const { res, captured } = makeRes();
+
+		await controller.runPrompt(
+			makeReq({ id: PROMPT.id, question: "q", productive: false }),
+			res,
+		);
+
+		expect(captured.statusCode).toBe(200);
+		expect(runPrompt).toHaveBeenCalledTimes(1);
+		const arg = vi.mocked(runPrompt).mock.calls[0][0];
+		expect(arg.placeholderDefinitions).toBeUndefined();
 	});
 });
