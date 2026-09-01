@@ -307,4 +307,42 @@ describe("TestcasesController.runTestcase", () => {
 			expect.objectContaining({ placeholders: { admin_role: "false" } }),
 		);
 	});
+
+	it("accepts the exact body the playground sends -- question, files and placeholders together", async () => {
+		// Regression test: TestcaseRunSchema is `.strict()`. RunTestcaseData
+		// (testcases.api.ts) and usePlaygroundPromptRun.ts both build a body carrying
+		// all four run-param fields, not just `placeholders` -- a schema that declares
+		// only `placeholders` 400s on this exact shape via errorHandler's ZodError
+		// mapping, even though the controller legitimately ignores `question`/`files`
+		// here (it uses the testcase's own input and files).
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTestcase([
+				{
+					placeholderId: 5,
+					placeholderValueId: 9,
+					placeholderValue: {
+						id: 9,
+						name: "true",
+						isDefault: false,
+						placeholder: { id: 5, key: "admin_role" },
+					},
+				},
+			]),
+		);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(
+			makeReq({
+				question: "question",
+				files: [],
+				placeholders: { admin_role: "false" },
+			}),
+			res,
+		);
+
+		expect(captured.statusCode).toBe(200);
+		expect(runPrompt).toHaveBeenCalledWith(
+			expect.objectContaining({ placeholders: { admin_role: "false" } }),
+		);
+	});
 });

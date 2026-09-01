@@ -20,6 +20,23 @@ export interface TestCaseFile {
 	};
 }
 
+// The testcase's pinned placeholder selection (Task 8). The list endpoint
+// (getTestcasesByPromptId) includes this alongside the detail read so the
+// playground can seed its chips from a testcase's pin without a second fetch.
+export interface TestCasePinnedPlaceholderValue {
+	placeholderId: number;
+	placeholderValueId: number;
+	placeholderValue: {
+		id: number;
+		name: string;
+		isDefault: boolean;
+		placeholder: {
+			id: number;
+			key: string;
+		};
+	};
+}
+
 export interface TestCase {
 	id: number;
 	name: string;
@@ -37,6 +54,7 @@ export interface TestCase {
 	assertionType: "AI" | "STRICT";
 	assertionValue: string;
 	files?: TestCaseFile[];
+	placeholderValues?: TestCasePinnedPlaceholderValue[];
 }
 
 export type TestCaseResponse = {

@@ -120,6 +120,13 @@ export class TestcasesRepository {
 						file: true,
 					},
 				},
+				// The playground seeds its placeholder chips from each testcase's pinned
+				// selection (Task 9 fix round 2) so the chips show what a run will actually
+				// use. That needs the placeholder's key, not just the pinned value's name --
+				// same include shape as the detail read (getTestcaseByID) below.
+				placeholderValues: {
+					include: { placeholderValue: { include: { placeholder: true } } },
+				},
 			},
 			orderBy: {
 				createdAt: "desc",

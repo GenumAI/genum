@@ -106,6 +106,10 @@ interface PlaygroundDraftActions {
 
 	setPlaceholderSelection: (key: string, valueName: string) => void;
 	clearPlaceholderSelection: (key: string) => void;
+	// Wholesale replace, not a merge -- the one write a testcase-pin-seeding effect needs
+	// so a prompt/testcase switch cannot leave a stale key from the previous selection
+	// mixed in with the newly seeded one.
+	replacePlaceholderSelections: (next: PlaceholderSelectionState) => void;
 
 	resetForTestcaseExit: (promptId: ScopeParam, prevTestcaseId: ScopeParam) => void;
 	resetAfterAddTestcase: (promptId: ScopeParam) => void;
@@ -334,6 +338,8 @@ const usePlaygroundStore = create<PlaygroundState>()(
 					false,
 					"clearPlaceholderSelection",
 				),
+			replacePlaceholderSelections: (next) =>
+				set({ selectedPlaceholders: next }, false, "replacePlaceholderSelections"),
 
 			resetForTestcaseExit: (promptId, prevTestcaseId) =>
 				set(
