@@ -38,9 +38,13 @@ export default function PlaceholderValueEditor({
 
 	const contentFor = (value: PromptPlaceholderValue) => drafts[value.id] ?? value.content;
 
-	const clearDraft = (valueId: number) => {
+	// Only clears the draft if it still equals what was submitted -- if the user
+	// re-focused and kept typing before the request settled, `drafts[valueId]` has
+	// since moved on, and wiping it back to the submitted (or pre-save) text would
+	// discard their in-progress edit.
+	const clearDraftIfUnchanged = (valueId: number, submittedContent: string) => {
 		setDrafts((prev) => {
-			if (!(valueId in prev)) return prev;
+			if (prev[valueId] !== submittedContent) return prev;
 			const next = { ...prev };
 			delete next[valueId];
 			return next;
@@ -54,13 +58,16 @@ export default function PlaceholderValueEditor({
 	const handleBlur = (value: PromptPlaceholderValue) => {
 		const draft = drafts[value.id];
 		if (draft === undefined || draft === value.content) return;
-		// Clear the draft either way: on success the draft becomes the server's value
-		// once the invalidated query refetches, and on failure the toast already fired
-		// -- leaving the draft in place would keep the textarea showing content the
+		const submittedContent = draft;
+		// Clear the draft either way, but only if nothing changed underneath it (see
+		// clearDraftIfUnchanged): on success `usePlaceholderMutations` has already
+		// seeded the cache with this exact content, so `value.content` is current, not
+		// stale, the instant the draft drops. On failure the toast already fired --
+		// leaving the draft in place would keep the textarea showing content the
 		// server rejected, permanently shadowing the real (server) value.
-		updateValue(placeholder.id, value.id, { content: draft })
-			.then(() => clearDraft(value.id))
-			.catch(() => clearDraft(value.id));
+		updateValue(placeholder.id, value.id, { content: submittedContent })
+			.then(() => clearDraftIfUnchanged(value.id, submittedContent))
+			.catch(() => clearDraftIfUnchanged(value.id, submittedContent));
 	};
 
 	const handleMakeDefault = (value: PromptPlaceholderValue) => {

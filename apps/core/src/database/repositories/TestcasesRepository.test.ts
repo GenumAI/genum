@@ -6,6 +6,7 @@ function makeMockPrisma() {
 	return {
 		testCase: {
 			update: vi.fn(),
+			findMany: vi.fn(),
 		},
 	};
 }
@@ -75,5 +76,76 @@ describe("TestcasesRepository.updateTestcaseByID", () => {
 		const call = mockPrisma.testCase.update.mock.calls[0][0];
 		expect(call.data).not.toHaveProperty("placeholders");
 		expect(call.data).toEqual({ name: "renamed" });
+	});
+});
+
+// Regression guard for Task 10 fix round 2: this is the project-wide Testcases
+// page's only data source (GET /testcases has no promptId to route through
+// getTestcasesByPromptId's opt-in). Losing this include once already made every
+// pinned testcase on that page silently read as unpinned -- the UI stating "pins
+// nothing" while the database held a pin.
+describe("TestcasesRepository.getProjectTestcases", () => {
+	let mockPrisma: ReturnType<typeof makeMockPrisma>;
+	let repo: TestcasesRepository;
+
+	beforeEach(() => {
+		mockPrisma = makeMockPrisma();
+		repo = new TestcasesRepository(mockPrisma as unknown as PrismaClient);
+	});
+
+	it("includes placeholderValues (with the placeholder's key) in the query", async () => {
+		mockPrisma.testCase.findMany.mockResolvedValue([]);
+
+		await repo.getProjectTestcases(1);
+
+		expect(mockPrisma.testCase.findMany).toHaveBeenCalledWith(
+			expect.objectContaining({
+				include: expect.objectContaining({
+					placeholderValues: expect.objectContaining({
+						include: { placeholderValue: { include: { placeholder: true } } },
+					}),
+				}),
+			}),
+		);
+	});
+});
+
+// Regression guard for Task 10 fix round 2: `getProjectTestcases`'s include had no
+// test pinning it and it went missing once already. Pin both branches of this
+// method's own opt-in so the same class of regression can't happen here either.
+describe("TestcasesRepository.getTestcasesByPromptId", () => {
+	let mockPrisma: ReturnType<typeof makeMockPrisma>;
+	let repo: TestcasesRepository;
+
+	beforeEach(() => {
+		mockPrisma = makeMockPrisma();
+		repo = new TestcasesRepository(mockPrisma as unknown as PrismaClient);
+	});
+
+	it("includes placeholderValues when includePlaceholders is true", async () => {
+		mockPrisma.testCase.findMany.mockResolvedValue([]);
+
+		await repo.getTestcasesByPromptId(1, { includePlaceholders: true });
+
+		const call = mockPrisma.testCase.findMany.mock.calls[0][0];
+		expect(call.include).toHaveProperty("placeholderValues");
+		expect(call.include.placeholderValues).toEqual(
+			expect.objectContaining({
+				include: { placeholderValue: { include: { placeholder: true } } },
+			}),
+		);
+	});
+
+	it("omits placeholderValues when includePlaceholders is false or unset", async () => {
+		mockPrisma.testCase.findMany.mockResolvedValue([]);
+
+		await repo.getTestcasesByPromptId(1);
+		let call = mockPrisma.testCase.findMany.mock.calls[0][0];
+		expect(call.include).not.toHaveProperty("placeholderValues");
+
+		mockPrisma.testCase.findMany.mockClear();
+		await repo.getTestcasesByPromptId(1, { includePlaceholders: false });
+		call = mockPrisma.testCase.findMany.mock.calls[0][0];
+		expect(call.include).not.toHaveProperty("placeholderValues");
 	});
 });

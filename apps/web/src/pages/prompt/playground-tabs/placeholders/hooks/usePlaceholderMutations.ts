@@ -8,6 +8,7 @@ import type {
 	UpdatePlaceholderData,
 	UpdatePlaceholderValueData,
 } from "@/api/prompt/placeholder.api";
+import { getOrgId, getProjectId } from "@/api/client";
 import { toast } from "@/hooks/useToast";
 import { promptPlaceholdersQueryKey } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePromptPlaceholders";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
@@ -24,6 +25,15 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 	const queryClient = useQueryClient();
 	const invalidate = () =>
 		queryClient.invalidateQueries({ queryKey: promptPlaceholdersQueryKey(promptId) });
+	// Both testcase list surfaces now read `placeholderValues` (Task 10 fix round 1),
+	// so both need invalidating on a deletion that cascades pins: the per-prompt list
+	// (mounted inside this same playground) and the project-wide list (not mounted
+	// alongside this tab today, since it queries with `enabled: !promptId`, but
+	// invalidating it here is correctness, not a bet on navigation timing).
+	const invalidateTestcaseCaches = () => {
+		queryClient.invalidateQueries({ queryKey: testcaseKeys.promptTestcases(promptId) });
+		queryClient.invalidateQueries({ queryKey: testcaseKeys.list(getOrgId(), getProjectId()) });
+	};
 
 	const createPlaceholderMutation = useMutation({
 		mutationFn: (data: CreatePlaceholderData) => {
@@ -75,7 +85,13 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 			if (!promptId) throw new Error("No prompt id");
 			return placeholderApi.deletePlaceholder(promptId, placeholderId);
 		},
-		onSuccess: () => invalidate(),
+		onSuccess: () => {
+			invalidate();
+			// Deleting a placeholder cascades all of its values' TestCasePlaceholderValue
+			// rows too -- the same staleness deleteValueMutation guards against below,
+			// just for every value at once.
+			invalidateTestcaseCaches();
+		},
 		onError: (error) => {
 			toast({
 				title: serverErrorMessage(error, "Could not delete placeholder"),
@@ -117,7 +133,31 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 			if (!promptId) throw new Error("No prompt id");
 			return placeholderApi.updatePlaceholderValue(promptId, placeholderId, valueId, data);
 		},
-		onSuccess: () => invalidate(),
+		onSuccess: ({ value }, { placeholderId, valueId }) => {
+			// Seed the cache with the saved value synchronously, ahead of
+			// `invalidate()`'s refetch. Without this, a caller that clears its own
+			// "unsaved draft" state right after this resolves (PlaceholderValueEditor's
+			// blur-to-save) would briefly render the not-yet-refetched, pre-update
+			// `value.content` from cache -- the exact stale-value flash this feature is
+			// held to elsewhere.
+			queryClient.setQueryData<PromptPlaceholder[]>(
+				promptPlaceholdersQueryKey(promptId),
+				(prev) =>
+					prev?.map((placeholder) =>
+						placeholder.id === placeholderId
+							? {
+									...placeholder,
+									values: placeholder.values.map((existing) =>
+										existing.id === valueId
+											? { ...existing, ...value }
+											: existing,
+									),
+								}
+							: placeholder,
+					),
+			);
+			invalidate();
+		},
 		onError: (error) => {
 			toast({
 				title: serverErrorMessage(error, "Could not update value"),
@@ -135,10 +175,11 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 			invalidate();
 			// Deleting a value cascades its TestCasePlaceholderValue rows on the server,
 			// so the testcase list's cached `placeholderValues` (seeded by
-			// GET /prompts/:id/testcases) now disagrees with the database until this is
-			// invalidated -- it would otherwise keep showing the deleted pin in the
-			// testcases table until something else happens to refetch it.
-			queryClient.invalidateQueries({ queryKey: testcaseKeys.promptTestcases(promptId) });
+			// GET /prompts/:id/testcases, and now GET /testcases too) now disagrees with
+			// the database until this is invalidated -- it would otherwise keep showing
+			// the deleted pin in the testcases table until something else happens to
+			// refetch it.
+			invalidateTestcaseCaches();
 		},
 		onError: (error) => {
 			toast({
