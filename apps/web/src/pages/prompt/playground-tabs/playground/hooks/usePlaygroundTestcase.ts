@@ -170,10 +170,20 @@ export function usePlaygroundTestcaseController({
 	// doesn't belong to the current prompt" (e.g. a stale testcaseId left over from a
 	// prompt switch) -- the latter must clear the selection, not wait forever.
 	const isTestcaseUnresolved = Boolean(testcaseId) && !testcase && isTestcasesLoading;
-	const pinnedPlaceholdersKey = useMemo(
-		() => (isTestcaseUnresolved ? "__pending__" : JSON.stringify(pinnedPlaceholders)),
-		[isTestcaseUnresolved, pinnedPlaceholders],
-	);
+	const pinnedPlaceholdersKey = useMemo(() => {
+		if (isTestcaseUnresolved) return "__pending__";
+		// Sort keys before stringifying: the server include has no guaranteed row
+		// order across requests (Postgres does not promise one without ORDER BY, and
+		// even with a deterministic ORDER BY a refetch is still a fresh query), so two
+		// fetches of the identical pin content could otherwise serialize differently
+		// and register as a "real" change, re-running the seed and discarding a
+		// manual chip choice made for this run only.
+		return JSON.stringify(
+			Object.keys(pinnedPlaceholders)
+				.sort()
+				.map((key) => [key, pinnedPlaceholders[key]]),
+		);
+	}, [isTestcaseUnresolved, pinnedPlaceholders]);
 
 	// This effect intentionally depends on pinnedPlaceholdersKey (a content-derived
 	// proxy), not on pinnedPlaceholders/testcase directly -- see the comment above

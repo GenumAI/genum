@@ -42,6 +42,7 @@ export class TestcasesRepository {
 				},
 				placeholderValues: {
 					include: { placeholderValue: { include: { placeholder: true } } },
+					orderBy: { placeholderId: "asc" },
 				},
 			},
 		});
@@ -87,9 +88,23 @@ export class TestcasesRepository {
 		});
 	}
 
+	// Callers (runTestcase, updateTestcase) write this response straight into the
+	// prompt-testcases list cache as a wholesale replacement of the cached entry, so it
+	// must carry the same placeholderValues shape as that list -- an update response
+	// missing the relation would read in the cache as "no pin", clearing the chips even
+	// though nothing about the pin changed.
 	public async updateTestcaseByID(id: number, data: TestcasesUpdateType) {
 		const { placeholders: _placeholders, ...testcaseData } = data;
-		return await this.prisma.testCase.update({ where: { id }, data: testcaseData });
+		return await this.prisma.testCase.update({
+			where: { id },
+			data: testcaseData,
+			include: {
+				placeholderValues: {
+					include: { placeholderValue: { include: { placeholder: true } } },
+					orderBy: { placeholderId: "asc" },
+				},
+			},
+		});
 	}
 
 	public async setPlaceholderSelection(
@@ -105,7 +120,18 @@ export class TestcasesRepository {
 		});
 	}
 
-	public async getTestcasesByPromptId(promptId: number) {
+	// `includePlaceholders` is opt-in and defaults to off. getTestcasesByPromptId is
+	// called from several places that only read status/summary fields (getProjectPrompts
+	// and getPromptById's status-count reducers, the prompt-auditor and assertion-editor
+	// context builders in ai/runner/system.ts) -- none of them touch placeholderValues,
+	// and the nested join isn't free. It is turned on in exactly one place:
+	// PromptsController.getTestcasesByPromptId (the `GET /prompts/:id/testcases` route),
+	// which backs the playground's testcase list and is what the placeholder chips seed
+	// their pin from (Task 9 fix round 2).
+	public async getTestcasesByPromptId(
+		promptId: number,
+		options?: { includePlaceholders?: boolean },
+	) {
 		return await this.prisma.testCase.findMany({
 			where: { promptId },
 			include: {
@@ -120,13 +146,14 @@ export class TestcasesRepository {
 						file: true,
 					},
 				},
-				// The playground seeds its placeholder chips from each testcase's pinned
-				// selection (Task 9 fix round 2) so the chips show what a run will actually
-				// use. That needs the placeholder's key, not just the pinned value's name --
-				// same include shape as the detail read (getTestcaseByID) below.
-				placeholderValues: {
-					include: { placeholderValue: { include: { placeholder: true } } },
-				},
+				...(options?.includePlaceholders
+					? {
+							placeholderValues: {
+								include: { placeholderValue: { include: { placeholder: true } } },
+								orderBy: { placeholderId: "asc" as const },
+							},
+						}
+					: {}),
 			},
 			orderBy: {
 				createdAt: "desc",

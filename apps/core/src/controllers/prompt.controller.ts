@@ -308,7 +308,14 @@ export class PromptsController {
 
 		await checkPromptAccess(id, metadata.projID);
 
-		const testcases = await db.testcases.getTestcasesByPromptId(id);
+		// This is the one call site that opts into placeholderValues: it backs the
+		// playground's testcase list, which seeds the placeholder chips from each
+		// testcase's pin (Task 9 fix round 2). Every other caller of
+		// getTestcasesByPromptId only reads status/summary fields and leaves the
+		// default (off).
+		const testcases = await db.testcases.getTestcasesByPromptId(id, {
+			includePlaceholders: true,
+		});
 		res.status(200).json({ testcases });
 	}
 
