@@ -10,6 +10,7 @@ import { getOrgId, getProjectId } from "@/api/client";
 import { usePromptPlaceholders } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePromptPlaceholders";
 import usePlaygroundStore from "@/stores/playground.store";
 import type { PromptPlaceholder } from "@/api/prompt/placeholder.api";
+import { filterValidPlaceholderSelections } from "@/pages/prompt/playground-tabs/playground/lib/validatePlaceholderSelection";
 
 const MAX_VISIBLE_CHIPS = 6;
 
@@ -127,12 +128,37 @@ function UndefinedPlaceholderChip({
 	);
 }
 
+// A pending or permanently-failed definitions load must never be presented as "not
+// defined" — that reads as a real, actionable fact (create this placeholder) when it
+// is only a loading state. Neutral and non-interactive either way; only the pulse
+// differs, so a still-loading key doesn't look identical to a load that already failed.
+function UnsettledPlaceholderChip({
+	placeholderKey,
+	pending,
+}: {
+	placeholderKey: string;
+	pending: boolean;
+}) {
+	return (
+		<Badge
+			variant="outline"
+			className={cn("gap-1 rounded-full text-muted-foreground", pending && "animate-pulse")}
+		>
+			{placeholderKey}
+		</Badge>
+	);
+}
+
 export default function PlaceholderChips({ promptId, text }: PlaceholderChipsProps) {
 	const navigate = useNavigate();
 	const [isExpanded, setIsExpanded] = useState(false);
 
 	const keys = useMemo(() => detectPlaceholderKeys(text), [text]);
-	const { data: placeholders = [] } = usePromptPlaceholders(promptId, keys.length > 0);
+	const {
+		data: placeholders = [],
+		isLoading,
+		isError,
+	} = usePromptPlaceholders(promptId, keys.length > 0);
 
 	const { selectedPlaceholders, setPlaceholderSelection, clearPlaceholderSelection } =
 		usePlaygroundStore(
@@ -150,6 +176,13 @@ export default function PlaceholderChips({ promptId, text }: PlaceholderChipsPro
 		}
 		return map;
 	}, [placeholders]);
+
+	// Shared with usePlaygroundPromptRun so what the chip shows and what the run
+	// body sends always agree — see filterValidPlaceholderSelections' own comment.
+	const validSelection = useMemo(
+		() => filterValidPlaceholderSelections(selectedPlaceholders, placeholders),
+		[selectedPlaceholders, placeholders],
+	);
 
 	if (keys.length === 0) {
 		return null;
@@ -172,6 +205,20 @@ export default function PlaceholderChips({ promptId, text }: PlaceholderChipsPro
 	return (
 		<div className="flex flex-wrap items-center gap-1.5">
 			{visibleKeys.map((key) => {
+				// While the definitions query is pending — and permanently after it fails —
+				// definitionsByKey is empty for every key. That must never render as "not
+				// defined": it is a loading state, not a fact about whether the placeholder
+				// exists, and offering to create one that already exists is actively wrong.
+				if (isLoading || isError) {
+					return (
+						<UnsettledPlaceholderChip
+							key={key}
+							placeholderKey={key}
+							pending={isLoading}
+						/>
+					);
+				}
+
 				const definition = definitionsByKey.get(key);
 				if (!definition) {
 					return (
@@ -183,20 +230,7 @@ export default function PlaceholderChips({ promptId, text }: PlaceholderChipsPro
 					);
 				}
 
-				// The store's selection map is a flat, unscoped Record<key, valueName> that
-				// persists across prompts and is never invalidated when a definition's
-				// values change. A stale name (from another prompt, or a value that was
-				// since renamed/removed) must not read as "selected" — that would show an
-				// active, unmuted chip for a value the run will silently fail to resolve
-				// and fall back from. Validating against the live definition here is the
-				// one place this gets decided, so the popover's checkmark and the run body
-				// agree with what the chip displays.
-				const rawSelection = selectedPlaceholders[key];
-				const selectedValueName = definition.values.some(
-					(value) => value.name === rawSelection,
-				)
-					? rawSelection
-					: undefined;
+				const selectedValueName = validSelection[key];
 
 				return (
 					<DefinedPlaceholderChip

@@ -1,4 +1,4 @@
-import { CheckCircleIcon, TrashIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -8,18 +8,32 @@ interface PlaceholderListProps {
 	placeholders: PromptPlaceholder[];
 	keysInPromptText: Set<string>;
 	selectedId: number | undefined;
+	isLoading?: boolean;
 	onSelect: (id: number) => void;
 	onRequestDelete: (placeholder: PromptPlaceholder) => void;
+	onRequestEdit: (placeholder: PromptPlaceholder) => void;
 }
 
 export default function PlaceholderList({
 	placeholders,
 	keysInPromptText,
 	selectedId,
+	isLoading = false,
 	onSelect,
 	onRequestDelete,
+	onRequestEdit,
 }: PlaceholderListProps) {
 	if (placeholders.length === 0) {
+		// While the query is still in flight, `placeholders` is `[]` by default just
+		// like a genuinely empty prompt -- asserting "No placeholders yet." here would
+		// tell the author they have none before the data has even arrived.
+		if (isLoading) {
+			return (
+				<div className="flex min-h-[200px] items-center justify-center rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+					Loading placeholders…
+				</div>
+			);
+		}
 		return (
 			<div className="flex min-h-[200px] items-center justify-center rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
 				No placeholders yet.
@@ -73,7 +87,17 @@ export default function PlaceholderList({
 							type="button"
 							variant="ghost"
 							size="icon"
-							className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
+							className="h-7 w-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
+							onClick={() => onRequestEdit(placeholder)}
+							aria-label={`Edit ${placeholder.key}`}
+						>
+							<PencilSimpleIcon className="h-4 w-4" />
+						</Button>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							className="h-7 w-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
 							onClick={() => onRequestDelete(placeholder)}
 							aria-label={`Delete ${placeholder.key}`}
 						>

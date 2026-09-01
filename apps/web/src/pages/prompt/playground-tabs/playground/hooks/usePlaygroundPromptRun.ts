@@ -11,6 +11,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import { usePromptActions } from "@/stores/prompt.store";
 import usePlaygroundStore from "@/stores/playground.store";
+import { usePromptPlaceholders } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePromptPlaceholders";
+import { filterValidPlaceholderSelections } from "@/pages/prompt/playground-tabs/playground/lib/validatePlaceholderSelection";
 
 export function usePlaygroundPromptRun({
 	promptId,
@@ -45,6 +47,25 @@ export function usePlaygroundPromptRun({
 	const { setRunLoading, setRunError, setLastRunResult } = usePromptActions();
 	const queryClient = useQueryClient();
 	const selectedPlaceholders = usePlaygroundStore((state) => state.selectedPlaceholders);
+	// Same source PlaceholderChips reads to validate the selection for display --
+	// see filterValidPlaceholderSelections' own comment for why both must agree.
+	const { data: placeholderDefinitions = [] } = usePromptPlaceholders(promptId);
+
+	// The chips are computed from the live draft, but the server renders the SAVED
+	// Prompt.value (the editor only saves on fieldset blur). A selection made after
+	// typing a new {{key}} but before that save lands in `ignored`, not the answer --
+	// silently, unless this names the keys back to the author.
+	const warnAboutIgnoredPlaceholders = useCallback(
+		(ignored: string[] | undefined) => {
+			if (!ignored || ignored.length === 0) return;
+			toast({
+				title: "Some placeholder selections were ignored",
+				description: `These keys aren't in the saved prompt text yet, so they had no effect: ${ignored.join(", ")}.`,
+				variant: "default",
+			});
+		},
+		[toast],
+	);
 
 	const handleRun = useCallback(async () => {
 		if (!promptId) return;
@@ -57,7 +78,10 @@ export function usePlaygroundPromptRun({
 			const runParams = {
 				question: inputContent,
 				...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
-				placeholders: selectedPlaceholders,
+				placeholders: filterValidPlaceholderSelections(
+					selectedPlaceholders,
+					placeholderDefinitions,
+				),
 			};
 
 			if (!testcaseId) {
@@ -65,6 +89,7 @@ export function usePlaygroundPromptRun({
 				if (result) {
 					setLastRunResult(result);
 					setOutputContent(result);
+					warnAboutIgnoredPlaceholders(result.placeholders?.ignored);
 				}
 				return;
 			}
@@ -89,6 +114,7 @@ export function usePlaygroundPromptRun({
 			if (result) {
 				setLastRunResult(result);
 				setOutputContent(result);
+				warnAboutIgnoredPlaceholders(result.placeholders?.ignored);
 				setRunState({ loading: false, wasRun: true });
 				return;
 			}
@@ -116,6 +142,7 @@ export function usePlaygroundPromptRun({
 		promptId,
 		selectedFiles,
 		selectedPlaceholders,
+		placeholderDefinitions,
 		setRunState,
 		setOutputContent,
 		testcaseId,
@@ -124,6 +151,7 @@ export function usePlaygroundPromptRun({
 		setRunError,
 		setLastRunResult,
 		toast,
+		warnAboutIgnoredPlaceholders,
 	]);
 
 	useEffect(() => {

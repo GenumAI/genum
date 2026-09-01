@@ -67,21 +67,34 @@ export const useTestcaseActions = ({
 			};
 
 			let success = false;
+			let unresolvedPlaceholders: string[] = [];
 
 			try {
-				await createTestcaseMutation.mutateAsync(createPayload);
+				const response = await createTestcaseMutation.mutateAsync(createPayload);
+				unresolvedPlaceholders = response.unresolvedPlaceholders ?? [];
 				success = true;
 			} catch (err) {
 				console.error("Create testcase error:", err);
 				success = false;
 			} finally {
-				toast({
-					title: success ? "Test case added" : "Failed to add test case",
-					description: success
-						? "Your test case was saved successfully."
-						: "Unknown error, try again.",
-					variant: success ? "default" : "destructive",
-				});
+				if (success && unresolvedPlaceholders.length > 0) {
+					// A value that has since been renamed or deleted cannot transfer --
+					// saying so here is the difference between a partial transfer and a
+					// silent one. Matches useAddTestcaseFromLog's wording for the same case.
+					toast({
+						title: "Test case added",
+						description: `Your test case was saved, but these placeholders could not transfer: ${unresolvedPlaceholders.join(", ")}.`,
+						variant: "default",
+					});
+				} else {
+					toast({
+						title: success ? "Test case added" : "Failed to add test case",
+						description: success
+							? "Your test case was saved successfully."
+							: "Unknown error, try again.",
+						variant: success ? "default" : "destructive",
+					});
+				}
 			}
 
 			return { success };

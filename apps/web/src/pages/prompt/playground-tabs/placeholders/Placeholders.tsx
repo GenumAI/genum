@@ -35,8 +35,14 @@ export default function Placeholders() {
 	);
 
 	const { data: placeholders = [], isLoading } = usePromptPlaceholders(promptId, isActive);
-	const { createPlaceholder, deletePlaceholder, isCreatingPlaceholder, isDeletingPlaceholder } =
-		usePlaceholderMutations(promptId);
+	const {
+		createPlaceholder,
+		updatePlaceholder,
+		deletePlaceholder,
+		isCreatingPlaceholder,
+		isUpdatingPlaceholder,
+		isDeletingPlaceholder,
+	} = usePlaceholderMutations(promptId);
 
 	const [search, setSearch] = useState("");
 	const [selectedId, setSelectedId] = useState<number | undefined>(undefined);
@@ -45,6 +51,11 @@ export default function Placeholders() {
 	const [newDescription, setNewDescription] = useState("");
 	const [placeholderPendingDelete, setPlaceholderPendingDelete] =
 		useState<PromptPlaceholder | null>(null);
+	const [placeholderBeingEdited, setPlaceholderBeingEdited] = useState<PromptPlaceholder | null>(
+		null,
+	);
+	const [editKey, setEditKey] = useState("");
+	const [editDescription, setEditDescription] = useState("");
 
 	const filteredPlaceholders = useMemo(() => {
 		const term = search.trim().toLowerCase();
@@ -99,6 +110,25 @@ export default function Placeholders() {
 		}
 	};
 
+	const handleRequestEditPlaceholder = (placeholder: PromptPlaceholder) => {
+		setPlaceholderBeingEdited(placeholder);
+		setEditKey(placeholder.key);
+		setEditDescription(placeholder.description ?? "");
+	};
+
+	const handleConfirmEditPlaceholder = async () => {
+		if (!placeholderBeingEdited || !editKey.trim()) return;
+		try {
+			await updatePlaceholder(placeholderBeingEdited.id, {
+				key: editKey.trim(),
+				description: editDescription.trim() || null,
+			});
+			setPlaceholderBeingEdited(null);
+		} catch {
+			// usePlaceholderMutations already surfaces a toast on failure.
+		}
+	};
+
 	return (
 		<div className="w-full min-w-0 space-y-6 bg-background px-3 pt-8 text-foreground lg:pr-6">
 			<div className="flex flex-wrap items-center justify-between gap-3">
@@ -127,8 +157,10 @@ export default function Placeholders() {
 						placeholders={filteredPlaceholders}
 						keysInPromptText={keysInPromptText}
 						selectedId={selectedId}
+						isLoading={isLoading}
 						onSelect={setSelectedId}
 						onRequestDelete={setPlaceholderPendingDelete}
+						onRequestEdit={handleRequestEditPlaceholder}
 					/>
 					<div className="min-w-0 rounded-xl border border-border p-4">
 						{selectedPlaceholder && promptId ? (
@@ -179,6 +211,50 @@ export default function Placeholders() {
 							disabled={isCreatingPlaceholder || !newKey.trim()}
 						>
 							Create
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog
+				open={!!placeholderBeingEdited}
+				onOpenChange={(open) => {
+					if (!open) setPlaceholderBeingEdited(null);
+				}}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Edit placeholder</DialogTitle>
+					</DialogHeader>
+					<div className="space-y-4">
+						<div>
+							<p className="mb-2 text-xs font-medium text-muted-foreground">Key</p>
+							<Input
+								placeholder="e.g. admin_role"
+								value={editKey}
+								onChange={(e) => setEditKey(e.target.value)}
+							/>
+						</div>
+						<div>
+							<p className="mb-2 text-xs font-medium text-muted-foreground">
+								Description (optional)
+							</p>
+							<Textarea
+								placeholder="What is this placeholder for?"
+								value={editDescription}
+								onChange={(e) => setEditDescription(e.target.value)}
+							/>
+						</div>
+					</div>
+					<DialogFooter className="mt-4">
+						<Button variant="outline" onClick={() => setPlaceholderBeingEdited(null)}>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleConfirmEditPlaceholder}
+							disabled={isUpdatingPlaceholder || !editKey.trim()}
+						>
+							Save
 						</Button>
 					</DialogFooter>
 				</DialogContent>

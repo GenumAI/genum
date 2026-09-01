@@ -140,6 +140,11 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 			// blur-to-save) would briefly render the not-yet-refetched, pre-update
 			// `value.content` from cache -- the exact stale-value flash this feature is
 			// held to elsewhere.
+			//
+			// The server clears the previous default in the SAME transaction that sets
+			// the new one, so the seed must too: leaving the outgoing default's
+			// `isDefault: true` in cache until the refetch is what let two chips both
+			// read as "default" in that window.
 			queryClient.setQueryData<PromptPlaceholder[]>(
 				promptPlaceholdersQueryKey(promptId),
 				(prev) =>
@@ -147,11 +152,14 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 						placeholder.id === placeholderId
 							? {
 									...placeholder,
-									values: placeholder.values.map((existing) =>
-										existing.id === valueId
-											? { ...existing, ...value }
-											: existing,
-									),
+									values: placeholder.values.map((existing) => {
+										if (existing.id === valueId) {
+											return { ...existing, ...value };
+										}
+										return value.isDefault && existing.isDefault
+											? { ...existing, isDefault: false }
+											: existing;
+									}),
 								}
 							: placeholder,
 					),
@@ -203,6 +211,7 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 		deleteValue: (placeholderId: number, valueId: number) =>
 			deleteValueMutation.mutateAsync({ placeholderId, valueId }),
 		isCreatingPlaceholder: createPlaceholderMutation.isPending,
+		isUpdatingPlaceholder: updatePlaceholderMutation.isPending,
 		isDeletingPlaceholder: deletePlaceholderMutation.isPending,
 		isMutatingValue:
 			createValueMutation.isPending ||

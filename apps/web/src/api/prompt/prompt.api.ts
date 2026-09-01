@@ -18,6 +18,14 @@ export interface PromptResponse {
 	};
 	response_time_ms: number;
 	status: string;
+	// `ignored` is load-bearing, not cosmetic: the chips are computed from the live
+	// draft while the server renders the saved Prompt.value, so a selection made
+	// before the editor's blur-save lands here instead of in the answer.
+	placeholders?: {
+		resolved: Record<string, string | null>;
+		ignored: string[];
+		undefinedKeys: string[];
+	};
 }
 
 // ============================================================================
@@ -156,7 +164,6 @@ export interface Log {
 	out?: string;
 	log_type?: string;
 	user_name?: string;
-	memory_key?: string;
 	placeholders?: Record<string, string>;
 	api?: string;
 	prompt_id?: number;

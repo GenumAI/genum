@@ -14,7 +14,6 @@ export interface Log {
 	out?: string;
 	log_type?: string;
 	user_name?: string;
-	memory_key?: string;
 	placeholders?: Record<string, string>;
 	api?: string;
 	prompt_id?: number;
