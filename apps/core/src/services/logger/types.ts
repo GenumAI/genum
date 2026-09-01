@@ -53,6 +53,7 @@ export interface LogDocument {
 	in: string;
 	out: string;
 	memory_key?: string;
+	placeholders?: Record<string, string>;
 }
 
 export interface LogSearchResult {

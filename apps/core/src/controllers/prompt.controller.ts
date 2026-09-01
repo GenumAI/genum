@@ -84,7 +84,12 @@ export class PromptsController {
 
 	public async runPrompt(req: Request, res: Response) {
 		const id = numberSchema.parse(req.params.id);
-		const { question, memoryId, files: filesIds } = PromptRunSchema.parse(req.body);
+		const {
+			question,
+			memoryId,
+			files: filesIds,
+			placeholders,
+		} = PromptRunSchema.parse(req.body);
 
 		const metadata = req.genumMeta.ids;
 		const files = await fileService.getFileObjectsByIds(filesIds, metadata.projID);
@@ -100,6 +105,7 @@ export class PromptsController {
 			userOrgId: metadata.orgID,
 			user_id: metadata.userID,
 			files: files,
+			placeholders: placeholders ?? {},
 		});
 
 		res.status(200).json({ ...run });

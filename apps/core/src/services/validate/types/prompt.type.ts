@@ -68,6 +68,7 @@ export const PromptRunSchema = z
 		question: z.string(),
 		memoryId: z.number().optional(),
 		files: z.array(z.string()).optional().default([]),
+		placeholders: z.record(z.string(), z.string()).optional(),
 	})
 	.strict();
 

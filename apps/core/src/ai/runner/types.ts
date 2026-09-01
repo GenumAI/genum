@@ -4,6 +4,7 @@ import type { SourceType } from "@/services/logger";
 import type { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "langchain";
 import type OpenAI from "openai";
 import type { FileInput } from "@/services/file.service";
+import type { PlaceholderDefinition, PlaceholderSelection } from "@genum/placeholders";
 
 export type runPromptParams = {
 	prompt: Prompt;
@@ -18,6 +19,9 @@ export type runPromptParams = {
 	system_instructions?: string;
 	systemPrompt?: boolean;
 	files?: FileInput[];
+	placeholders?: PlaceholderSelection;
+	/** Committed definitions, when the caller resolved a productive commit. */
+	placeholderDefinitions?: PlaceholderDefinition[];
 };
 
 export type testcaseAssertion = {
