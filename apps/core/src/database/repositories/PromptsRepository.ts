@@ -12,6 +12,7 @@ import type { SystemRepository } from "./SystemRepository";
 import type { ModelConfigParameters } from "@/ai/models/types";
 import type { InputJsonValue } from "@prisma/client/runtime/client";
 import type { PromptAuditResponse } from "@/ai/runner/types";
+import { toPlaceholderDefinitions } from "@/ai/placeholders/definitions";
 
 type DefaultLanguageModel = {
 	id: number;
@@ -447,6 +448,14 @@ export class PromptsRepository {
 
 		const generations = await this.getPromptCommitCount(promptId);
 
+		const placeholders = toPlaceholderDefinitions(
+			await this.prisma.placeholder.findMany({
+				where: { promptId },
+				include: { values: { orderBy: { id: "asc" } } },
+				orderBy: { id: "asc" },
+			}),
+		);
+
 		// create version
 		const version = await this.prisma.promptVersion.create({
 			data: {
@@ -467,6 +476,7 @@ export class PromptsRepository {
 					prompt.languageModelConfig === null
 						? Prisma.JsonNull
 						: prompt.languageModelConfig,
+				placeholders: placeholders as unknown as Prisma.InputJsonValue,
 				audit: prompt.audit?.data || undefined,
 				author: {
 					connect: {

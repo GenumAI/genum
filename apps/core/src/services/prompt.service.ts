@@ -1,15 +1,18 @@
 import { ModelConfigService } from "@/ai/models/modelConfigService";
 import type { ModelConfigParameters } from "@/ai/models/types";
+import { parsePlaceholderSnapshot } from "@/ai/placeholders/definitions";
 import type { Database } from "@/database/db";
 import type { NewPromptModelOverride } from "@/database/repositories/PromptsRepository";
 import type { AiVendor, Prompt } from "@/prisma";
 import { commitHash } from "@/utils/hash";
+import type { PlaceholderDefinition } from "@genum/placeholders";
 
-type ProductivePrompt = {
+export type ProductivePrompt = {
 	id: number;
 	value: string;
 	languageModelConfig: unknown;
 	languageModelId: number;
+	placeholderDefinitions?: PlaceholderDefinition[];
 };
 
 export type ResolvePromptModelOverrideResult =
@@ -175,6 +178,12 @@ export class PromptService {
 		const productiveCommit = await this.db.prompts.getProductiveCommit(prompt.id);
 
 		if (!productiveCommit) {
+			// AMENDMENT (task-5): do NOT default placeholderDefinitions to [] here.
+			// run.ts treats a truthy (even empty) placeholderDefinitions array as
+			// "these are the definitions" and skips loading the live placeholder
+			// tables. With no productive commit the text being served is live, so
+			// the definitions must be live too — leave the field absent so the
+			// runner falls through to the DB.
 			return options.requireCommit ? null : prompt;
 		}
 
@@ -183,6 +192,7 @@ export class PromptService {
 			value: productiveCommit.value,
 			languageModelConfig: productiveCommit.languageModelConfig,
 			languageModelId: productiveCommit.languageModelId,
+			placeholderDefinitions: parsePlaceholderSnapshot(productiveCommit.placeholders),
 		};
 	}
 }

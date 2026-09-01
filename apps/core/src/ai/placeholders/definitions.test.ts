@@ -46,4 +46,36 @@ describe("parsePlaceholderSnapshot", () => {
 		expect(parsePlaceholderSnapshot({ nope: true })).toEqual([]);
 		expect(parsePlaceholderSnapshot([{ key: 1 }])).toEqual([]);
 	});
+
+	it("refuses a non-array values field", () => {
+		expect(parsePlaceholderSnapshot([{ key: "k", values: "not-an-array" }])).toEqual([]);
+	});
+
+	it("refuses a non-object entry inside values", () => {
+		expect(parsePlaceholderSnapshot([{ key: "k", values: ["not-an-object"] }])).toEqual([]);
+	});
+
+	it("refuses a value entry with a non-string name", () => {
+		expect(
+			parsePlaceholderSnapshot([
+				{ key: "k", values: [{ name: 1, content: "c", isDefault: true }] },
+			]),
+		).toEqual([]);
+	});
+
+	it("refuses a value entry with a non-string content", () => {
+		expect(
+			parsePlaceholderSnapshot([
+				{ key: "k", values: [{ name: "v", content: 1, isDefault: true }] },
+			]),
+		).toEqual([]);
+	});
+
+	it("refuses a value entry with a non-boolean isDefault", () => {
+		expect(
+			parsePlaceholderSnapshot([
+				{ key: "k", values: [{ name: "v", content: "c", isDefault: "true" }] },
+			]),
+		).toEqual([]);
+	});
 });
