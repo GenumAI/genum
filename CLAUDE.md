@@ -104,6 +104,7 @@ ai/
   providers/        OpenAI, Anthropic, Gemini, DeepSeek generation functions
   runner/run.ts     runPromptWithProvider() — routes to correct provider
   models/           Model config/parameter types
+erasure/            Account closure: pure tombstone values, relation classification, guard
 services/
   logger/           ClickHouse write/query layer for AI usage analytics
   access/           API key quota management
@@ -125,6 +126,8 @@ routers/            Express router factories (one per domain)
 **Request context**: The middleware chain in `wizard.ts` populates `req.genumMeta` with `user`, `organizationMember`, `projectMember`, and `ids`. All protected routes receive this.
 
 **ClickHouse** is append-only for AI run logs (`logUsage()`). Never use it for transactional data — that goes to PostgreSQL via Prisma.
+
+**Account closure tombstones the `User` row — never `user.delete`.** Seven of its eight relations are `onDelete: Cascade`, so a delete takes the organization's prompt chats and API keys with it and orphans the personal organization, whose prompts the mail integration still calls by id. Adding ANY relation to `model User` fails `src/erasure/user-relations.test.ts` until you classify it as erased or retained-with-grounds — that closed world is the point, because the defect this prevents is a relation added later, in an unrelated feature, whose rows then survive every future closure while all tests pass. Values are derived from the row id (never random, never a shared constant: `getUserByAuthID` is a `findFirst` over a non-unique column). Closing an account for real is `AccountClosureService`, not `ErasureService` — the latter is this system only and leaves the identity provider untouched. Its six steps are ordered and the order is load-bearing: **both guards run before anything is written** (or we lock someone out of their identity provider and only then learn a leg refuses), and **deleting the identities is last** because it is the only irreversible step. Mechanism: [docs/account-closure.md](docs/account-closure.md).
 
 ### Frontend (`apps/web/src/`)
 
