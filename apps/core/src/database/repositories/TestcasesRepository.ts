@@ -8,6 +8,11 @@ export class TestcasesRepository {
 		this.prisma = prisma;
 	}
 
+	// `placeholderValues` is included here too, not just in getTestcasesByPromptId's
+	// opt-in: this backs GET /testcases, the project-wide Testcases page's only data
+	// source, which has no promptId to route through the opt-in call. Leaving it out
+	// would silently misreport every pinned testcase on that page as unpinned -- the
+	// UI would state "pins nothing" while the database holds a pin.
 	public async getProjectTestcases(projectId: number) {
 		return await this.prisma.testCase.findMany({
 			where: {
@@ -21,6 +26,10 @@ export class TestcasesRepository {
 						id: true,
 						key: true,
 					},
+				},
+				placeholderValues: {
+					include: { placeholderValue: { include: { placeholder: true } } },
+					orderBy: { placeholderId: "asc" },
 				},
 			},
 			orderBy: {

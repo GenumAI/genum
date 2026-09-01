@@ -4,11 +4,13 @@ import { placeholderApi } from "@/api/prompt/placeholder.api";
 import type {
 	CreatePlaceholderData,
 	CreatePlaceholderValueData,
+	PromptPlaceholder,
 	UpdatePlaceholderData,
 	UpdatePlaceholderValueData,
 } from "@/api/prompt/placeholder.api";
 import { toast } from "@/hooks/useToast";
 import { promptPlaceholdersQueryKey } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePromptPlaceholders";
+import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 function serverErrorMessage(error: unknown, fallback: string): string {
 	if (isAxiosError(error)) {
@@ -28,7 +30,18 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 			if (!promptId) throw new Error("No prompt id");
 			return placeholderApi.createPlaceholder(promptId, data);
 		},
-		onSuccess: () => invalidate(),
+		onSuccess: ({ placeholder }) => {
+			// Seed the cache with the created placeholder synchronously, ahead of
+			// `invalidate()`'s refetch. Without this, the caller's own follow-up
+			// `setSelectedId(placeholder.id)` can render before the invalidated query
+			// resolves; the selection-correcting effect then finds the id missing from
+			// `filteredPlaceholders` and resets it to some other key.
+			queryClient.setQueryData<PromptPlaceholder[]>(
+				promptPlaceholdersQueryKey(promptId),
+				(prev) => [...(prev ?? []), placeholder],
+			);
+			invalidate();
+		},
 		onError: (error) => {
 			toast({
 				title: serverErrorMessage(error, "Could not create placeholder"),
@@ -118,7 +131,15 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 			if (!promptId) throw new Error("No prompt id");
 			return placeholderApi.deletePlaceholderValue(promptId, placeholderId, valueId);
 		},
-		onSuccess: () => invalidate(),
+		onSuccess: () => {
+			invalidate();
+			// Deleting a value cascades its TestCasePlaceholderValue rows on the server,
+			// so the testcase list's cached `placeholderValues` (seeded by
+			// GET /prompts/:id/testcases) now disagrees with the database until this is
+			// invalidated -- it would otherwise keep showing the deleted pin in the
+			// testcases table until something else happens to refetch it.
+			queryClient.invalidateQueries({ queryKey: testcaseKeys.promptTestcases(promptId) });
+		},
 		onError: (error) => {
 			toast({
 				title: serverErrorMessage(error, "Could not delete value"),

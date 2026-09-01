@@ -98,9 +98,14 @@ export const useTestcasesColumns = ({
 		...(!hidePromptColumn ? [promptColumn] : []),
 		{
 			id: "placeholders",
+			// `placeholderValues` is `undefined` when the caller's list endpoint didn't
+			// include the relation, and `[]` when it did and the testcase pins nothing.
+			// Those are different facts -- "we don't know" vs "we know it's empty" -- and
+			// collapsing them into the same "-" would silently misreport a testcase that
+			// actually pins values as unpinned on any surface that doesn't opt in.
 			accessorFn: (row) => {
-				const pins = row.placeholderValues ?? [];
-				return pins
+				if (row.placeholderValues === undefined) return null;
+				return row.placeholderValues
 					.map(
 						(pin) =>
 							`${pin.placeholderValue.placeholder.key}: ${pin.placeholderValue.name}`,
@@ -109,7 +114,10 @@ export const useTestcasesColumns = ({
 			},
 			header: ({ column }) => <TableSortButton column={column} headerText="Placeholders" />,
 			cell: ({ row }) => {
-				const placeholders = row.getValue("placeholders") as string;
+				const placeholders = row.getValue("placeholders") as string | null;
+				if (placeholders === null) {
+					return <span className="text-muted-foreground">—</span>;
+				}
 				return <span className="font-medium">{placeholders || "-"}</span>;
 			},
 			enableSorting: true,

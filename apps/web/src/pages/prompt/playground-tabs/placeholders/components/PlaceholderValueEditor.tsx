@@ -38,6 +38,15 @@ export default function PlaceholderValueEditor({
 
 	const contentFor = (value: PromptPlaceholderValue) => drafts[value.id] ?? value.content;
 
+	const clearDraft = (valueId: number) => {
+		setDrafts((prev) => {
+			if (!(valueId in prev)) return prev;
+			const next = { ...prev };
+			delete next[valueId];
+			return next;
+		});
+	};
+
 	const handleContentChange = (valueId: number, content: string) => {
 		setDrafts((prev) => ({ ...prev, [valueId]: content }));
 	};
@@ -45,11 +54,19 @@ export default function PlaceholderValueEditor({
 	const handleBlur = (value: PromptPlaceholderValue) => {
 		const draft = drafts[value.id];
 		if (draft === undefined || draft === value.content) return;
-		void updateValue(placeholder.id, value.id, { content: draft });
+		// Clear the draft either way: on success the draft becomes the server's value
+		// once the invalidated query refetches, and on failure the toast already fired
+		// -- leaving the draft in place would keep the textarea showing content the
+		// server rejected, permanently shadowing the real (server) value.
+		updateValue(placeholder.id, value.id, { content: draft })
+			.then(() => clearDraft(value.id))
+			.catch(() => clearDraft(value.id));
 	};
 
 	const handleMakeDefault = (value: PromptPlaceholderValue) => {
-		void updateValue(placeholder.id, value.id, { isDefault: true });
+		updateValue(placeholder.id, value.id, { isDefault: true }).catch(() => {
+			// usePlaceholderMutations already surfaces a toast on failure.
+		});
 	};
 
 	const handleCreateValue = async () => {
