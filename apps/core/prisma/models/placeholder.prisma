@@ -29,18 +29,25 @@ model PlaceholderValue {
     testCases TestCasePlaceholderValue[]
 
     @@unique([placeholderId, name])
+    @@unique([id, placeholderId])
 }
 
 // `placeholderId` is denormalised so that @@unique([testCaseId, placeholderId]) can
 // exist. Without it, "one key, one value" is not expressible in the database and a
 // testcase holding both admin_role=true and admin_role=false becomes representable.
+// The composite FK on placeholderValue (placeholderValueId, placeholderId) ->
+// PlaceholderValue(id, placeholderId) is what keeps this denormalised key honest: it
+// forces placeholderId to match the placeholder that actually owns placeholderValueId,
+// not just any existing Placeholder row. Existence of the Placeholder itself is then
+// guaranteed transitively via PlaceholderValue.placeholderId's own FK, so no separate
+// plain FK on placeholderId is added here.
 model TestCasePlaceholderValue {
     testCaseId         Int
     placeholderId      Int
     placeholderValueId Int
 
     testCase         TestCase         @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
-    placeholderValue PlaceholderValue @relation(fields: [placeholderValueId], references: [id], onDelete: Cascade)
+    placeholderValue PlaceholderValue @relation(fields: [placeholderValueId, placeholderId], references: [id, placeholderId], onDelete: Cascade)
 
     @@id([testCaseId, placeholderValueId])
     @@unique([testCaseId, placeholderId])

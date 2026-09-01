@@ -42,6 +42,9 @@ CREATE UNIQUE INDEX "Placeholder_key_promptId_key" ON "Placeholder"("key", "prom
 CREATE UNIQUE INDEX "PlaceholderValue_placeholderId_name_key" ON "PlaceholderValue"("placeholderId", "name");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "PlaceholderValue_id_placeholderId_key" ON "PlaceholderValue"("id", "placeholderId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "TestCasePlaceholderValue_testCaseId_placeholderId_key" ON "TestCasePlaceholderValue"("testCaseId", "placeholderId");
 
 -- AddForeignKey
@@ -54,7 +57,11 @@ ALTER TABLE "PlaceholderValue" ADD CONSTRAINT "PlaceholderValue_placeholderId_fk
 ALTER TABLE "TestCasePlaceholderValue" ADD CONSTRAINT "TestCasePlaceholderValue_testCaseId_fkey" FOREIGN KEY ("testCaseId") REFERENCES "TestCase"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TestCasePlaceholderValue" ADD CONSTRAINT "TestCasePlaceholderValue_placeholderValueId_fkey" FOREIGN KEY ("placeholderValueId") REFERENCES "PlaceholderValue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- Composite FK: forces placeholderId to match the placeholder that owns
+-- placeholderValueId, not merely an existing Placeholder row, so the denormalised
+-- placeholderId used by @@unique([testCaseId, placeholderId]) cannot disagree with
+-- the value it points at.
+ALTER TABLE "TestCasePlaceholderValue" ADD CONSTRAINT "TestCasePlaceholderValue_placeholderValueId_placeholderId_fkey" FOREIGN KEY ("placeholderValueId", "placeholderId") REFERENCES "PlaceholderValue"("id", "placeholderId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- At most one default value per placeholder.
 CREATE UNIQUE INDEX "PlaceholderValue_one_default_per_placeholder"
