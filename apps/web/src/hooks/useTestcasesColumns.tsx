@@ -97,17 +97,20 @@ export const useTestcasesColumns = ({
 		},
 		...(!hidePromptColumn ? [promptColumn] : []),
 		{
-			id: "memoryKey",
+			id: "placeholders",
 			accessorFn: (row) => {
-				const testcaseWithMemory = row as TestCase & {
-					memory?: { key?: string | null } | null;
-				};
-				return testcaseWithMemory.memory?.key ?? null;
+				const pins = row.placeholderValues ?? [];
+				return pins
+					.map(
+						(pin) =>
+							`${pin.placeholderValue.placeholder.key}: ${pin.placeholderValue.name}`,
+					)
+					.join(" · ");
 			},
-			header: ({ column }) => <TableSortButton column={column} headerText="Memory Key" />,
+			header: ({ column }) => <TableSortButton column={column} headerText="Placeholders" />,
 			cell: ({ row }) => {
-				const memoryKey = row.getValue("memoryKey") as string | null;
-				return <span className="font-medium">{memoryKey || "-"}</span>;
+				const placeholders = row.getValue("placeholders") as string;
+				return <span className="font-medium">{placeholders || "-"}</span>;
 			},
 			enableSorting: true,
 		},

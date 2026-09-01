@@ -9,6 +9,12 @@ export interface TestcasePayload {
 	name?: string;
 	memoryId?: number | null;
 	files?: string[];
+	placeholders?: Record<string, string>;
+}
+
+export interface CreateTestcaseResult {
+	ok: boolean;
+	unresolvedPlaceholders: string[];
 }
 
 export function useCreateTestcase() {
@@ -18,13 +24,13 @@ export function useCreateTestcase() {
 		},
 	});
 
-	const createTestcase = async (payload: TestcasePayload): Promise<boolean> => {
+	const createTestcase = async (payload: TestcasePayload): Promise<CreateTestcaseResult> => {
 		try {
-			await createTestcaseMutation.mutateAsync(payload);
-			return true;
+			const response = await createTestcaseMutation.mutateAsync(payload);
+			return { ok: true, unresolvedPlaceholders: response.unresolvedPlaceholders ?? [] };
 		} catch (err: any) {
 			console.error("Create testcase error:", err);
-			return false;
+			return { ok: false, unresolvedPlaceholders: [] };
 		}
 	};
 

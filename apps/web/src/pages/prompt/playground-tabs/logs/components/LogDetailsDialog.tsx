@@ -73,6 +73,16 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 	const isPromptDeletedForCurrentLog = useMemo(() => {
 		return isSinglePromptPage ? false : isPromptDeleted(selectedLog?.prompt_id, promptNames);
 	}, [isSinglePromptPage, promptNames, selectedLog?.prompt_id]);
+
+	// `selectedLog.placeholders` is `key -> valueName` (run.ts's toLogPlaceholders wraps
+	// render.resolved). A legacy row without real placeholders still surfaces here as
+	// `{ memory_key: "..." }` -- resolveLogPlaceholders' fallback on the read path -- so
+	// old log rows keep displaying through this panel without any special-casing here.
+	const placeholdersLabel = useMemo(() => {
+		const entries = Object.entries(selectedLog?.placeholders ?? {});
+		if (entries.length === 0) return null;
+		return entries.map(([key, value]) => `${key}: ${value}`).join(" · ");
+	}, [selectedLog?.placeholders]);
 	const handlePreviewError = useCallback(
 		(error: string) => {
 			toast({
@@ -155,7 +165,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 											</td>
 											<td
 												className="p-4 border font-semibold"
-												colSpan={selectedLog.memory_key ? 1 : 3}
+												colSpan={placeholdersLabel ? 1 : 3}
 											>
 												{isPromptDeletedForCurrentLog ? (
 													<span className="text-destructive">
@@ -165,25 +175,25 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 													promptName
 												)}
 											</td>
-											{selectedLog.memory_key && (
+											{placeholdersLabel && (
 												<>
 													<td className="bg-muted p-4 border font-medium text-foreground">
-														Memory Key
+														Placeholders
 													</td>
 													<td className="p-4 border">
-														{selectedLog.memory_key}
+														{placeholdersLabel}
 													</td>
 												</>
 											)}
 										</tr>
 									)}
-									{isSinglePromptPage && selectedLog.memory_key && (
+									{isSinglePromptPage && placeholdersLabel && (
 										<tr>
 											<td className="bg-muted p-4 border font-medium text-foreground">
-												Memory Key
+												Placeholders
 											</td>
 											<td className="p-4 border" colSpan={3}>
-												{selectedLog.memory_key}
+												{placeholdersLabel}
 											</td>
 										</tr>
 									)}

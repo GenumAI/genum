@@ -224,6 +224,31 @@ describe("TestcasesController.updateTestcase", () => {
 			{ placeholderId: 5, placeholderValueId: 9 },
 		]);
 	});
+
+	it("responds with the newly pinned selection, not the pre-update one", async () => {
+		// updateTestcaseByID's response carries the placeholderValues include (Task 9), so
+		// writing the new pin AFTER building that response would answer with the stale
+		// pin. Assert the write happens first by having the mocked read reflect it.
+		vi.mocked(db.placeholders.resolveSelection).mockResolvedValue({
+			rows: [{ placeholderId: 5, placeholderValueId: 9 }],
+			unresolved: [],
+		} as never);
+		vi.mocked(db.testcases.setPlaceholderSelection).mockImplementation(async () => {
+			vi.mocked(db.testcases.updateTestcaseByID).mockResolvedValue({
+				id: 5,
+				placeholderValues: [{ placeholderId: 5, placeholderValueId: 9 }],
+			} as never);
+		});
+		const { res, captured } = makeRes();
+
+		await controller.updateTestcase(makeReq({ placeholders: { admin_role: "true" } }), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(
+			(captured.body as { testcase: { placeholderValues: unknown[] } }).testcase
+				.placeholderValues,
+		).toEqual([{ placeholderId: 5, placeholderValueId: 9 }]);
+	});
 });
 
 describe("TestcasesController.runTestcase", () => {

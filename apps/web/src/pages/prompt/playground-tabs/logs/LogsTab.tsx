@@ -36,19 +36,17 @@ export default function LogsTab() {
 	const [isInputExpanded, setIsInputExpanded] = useState(false);
 	const [isOutputExpanded, setIsOutputExpanded] = useState(false);
 
-	const { logs, total, memoriesData, isInitialLoadingLogs, isLogsError } = useLogsData({
+	const { logs, total, isInitialLoadingLogs, isLogsError } = useLogsData({
 		promptId,
 		page,
 		pageSize,
 		logsFilter,
-		shouldFetchMemories: isLogDetailsOpen,
 		isActive,
 	});
 
 	const { handleAddTestcaseFromLog, creatingTestcase } = useAddTestcaseFromLog({
 		promptId,
 		selectedLog,
-		memoriesData,
 	});
 
 	useEffect(() => {

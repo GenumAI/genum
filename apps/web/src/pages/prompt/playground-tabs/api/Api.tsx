@@ -42,7 +42,11 @@ const RESPONSE_EXAMPLE = `{
   },
   "response_time_ms": 500,
   "chainOfThoughts": "Optional reasoning chain",
-  "status": "Optional status (e.g. NOK: error message)"
+  "status": "Optional status (e.g. NOK: error message)",
+  "placeholders": {
+    "resolved": { "admin_role": "true" },  // key -> the value name actually used
+    "ignored": ["unused_key"]              // keys you sent that the prompt text doesn't reference
+  }
 }`;
 
 const ERROR_EXAMPLE = `{

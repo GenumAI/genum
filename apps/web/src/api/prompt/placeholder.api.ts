@@ -10,6 +10,7 @@ export interface PromptPlaceholderValue {
 	name: string;
 	content: string;
 	isDefault: boolean;
+	_count?: { testCases: number };
 }
 
 export interface PromptPlaceholder {

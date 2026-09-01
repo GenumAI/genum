@@ -16,7 +16,12 @@ export class PlaceholdersRepository {
 	public async getPlaceholdersByPromptID(promptId: number) {
 		return await this.prisma.placeholder.findMany({
 			where: { promptId },
-			include: { values: { orderBy: { id: "asc" } } },
+			include: {
+				values: {
+					include: { _count: { select: { testCases: true } } },
+					orderBy: { id: "asc" },
+				},
+			},
 			orderBy: { id: "asc" },
 		});
 	}

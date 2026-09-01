@@ -3,17 +3,17 @@ import { Navigate, useLocation, useParams } from "react-router-dom";
 import Playground from "@/pages/prompt/playground-tabs/playground/Playground";
 import PromptTestcases from "@/pages/prompt/playground-tabs/testcases/Testcases";
 import Versions from "@/pages/prompt/playground-tabs/version/Versions";
-import Memory from "@/pages/prompt/playground-tabs/memory/Memory";
 import Logs from "@/pages/prompt/playground-tabs/logs/LogsTab";
 import Api from "@/pages/prompt/playground-tabs/api/Api";
+import Placeholders from "@/pages/prompt/playground-tabs/placeholders/Placeholders";
 
-type WorkspaceTab = "playground" | "testcases" | "versions" | "memory" | "logs" | "api";
+type WorkspaceTab = "playground" | "testcases" | "versions" | "placeholders" | "logs" | "api";
 
 const WORKSPACE_TAB_ORDER: WorkspaceTab[] = [
 	"playground",
 	"testcases",
 	"versions",
-	"memory",
+	"placeholders",
 	"logs",
 	"api",
 ];
@@ -24,7 +24,7 @@ const WORKSPACE_TAB_COMPONENTS: Record<WorkspaceTab, ComponentType> = {
 	playground: Playground,
 	testcases: PromptTestcases,
 	versions: Versions,
-	memory: Memory,
+	placeholders: Placeholders,
 	logs: Logs,
 	api: Api,
 };
