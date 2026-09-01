@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapApiKeyStatsRow } from "./mappers";
+import { mapApiKeyStatsRow, resolveLogPlaceholders, toLogPlaceholders } from "./mappers";
 
 describe("mapApiKeyStatsRow", () => {
 	it("coerces the string aggregates ClickHouse returns into numbers", () => {
@@ -42,5 +42,34 @@ describe("mapApiKeyStatsRow", () => {
 		expect(result.total_requests).toBe(0);
 		expect(result.total_tokens_sum).toBe(0);
 		expect(result.total_cost).toBe(0);
+	});
+});
+
+describe("toLogPlaceholders", () => {
+	it("writes an unresolved key as an empty string", () => {
+		// A ClickHouse Map has no null value, and dropping the entry would make
+		// "no value resolved" indistinguishable from "the key was not in the text".
+		expect(toLogPlaceholders({ admin_role: "true", memory_key: null })).toEqual({
+			admin_role: "true",
+			memory_key: "",
+		});
+	});
+});
+
+describe("resolveLogPlaceholders", () => {
+	it("returns the map when the row has one", () => {
+		expect(resolveLogPlaceholders({ placeholders: { admin_role: "true" } })).toEqual({
+			admin_role: "true",
+		});
+	});
+
+	it("presents a legacy memory_key row as a memory_key placeholder", () => {
+		expect(resolveLogPlaceholders({ placeholders: {}, memory_key: "client_bmw" })).toEqual({
+			memory_key: "client_bmw",
+		});
+	});
+
+	it("returns undefined when the row carries neither", () => {
+		expect(resolveLogPlaceholders({ placeholders: {}, memory_key: null })).toBeUndefined();
 	});
 });

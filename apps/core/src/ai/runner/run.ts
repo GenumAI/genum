@@ -19,13 +19,10 @@ import { transcribeOpenAI } from "../providers/openai/speech";
 import type { runPromptParams, SystemPrompt } from "./types";
 import { getSystemPrompt, SYSTEM_PROMPTS } from "./system";
 import { LogLevel, LogType, SourceType } from "@/services/logger";
+import { toLogPlaceholders } from "@/services/logger/mappers";
 import { HttpError } from "@/utils/errors";
 
 let systemPromptsConfig: SystemPrompt;
-
-// TODO(task-6): move to services/logger once the ClickHouse column exists.
-const toLogPlaceholders = (resolved: Record<string, string | null>) =>
-	Object.fromEntries(Object.entries(resolved).map(([key, name]) => [key, name ?? ""]));
 
 export async function initSystemPromptsConfig() {
 	const systemOrgId = await db.system.getSystemOrganizationId();

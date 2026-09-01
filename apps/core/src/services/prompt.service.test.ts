@@ -184,6 +184,7 @@ describe("getPromptWithProductiveCommit", () => {
 			languageModelId: 1,
 		} as unknown as ProductivePrompt);
 
+		expect(result).not.toBeNull();
 		expect(result?.placeholderDefinitions).toBeUndefined();
 	});
 });

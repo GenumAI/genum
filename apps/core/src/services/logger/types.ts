@@ -197,6 +197,7 @@ export interface ClickHouseLogRow {
 	in: string;
 	out: string;
 	memory_key: string | null;
+	placeholders: Record<string, string>;
 	stage?: string;
 }
 

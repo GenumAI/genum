@@ -15,7 +15,7 @@ import moment from "moment";
 import { env } from "@/env";
 import { WhereBuilder } from "./where.builder";
 import { QUERIES } from "./queries";
-import { mapApiKeyStatsRow } from "./mappers";
+import { mapApiKeyStatsRow, resolveLogPlaceholders } from "./mappers";
 import type {
 	LogDocument,
 	LogSearchResult,
@@ -156,7 +156,7 @@ function transformRowToLogDocument(row: ClickHouseLogRow): LogDocument {
 		response_ms: row.response_ms,
 		in: row.in,
 		out: row.out,
-		memory_key: row.memory_key || undefined,
+		placeholders: resolveLogPlaceholders(row),
 	};
 }
 
@@ -191,7 +191,8 @@ export async function logUsage(document: LogDocument): Promise<void> {
 					response_ms: document.response_ms,
 					in: document.in,
 					out: document.out,
-					memory_key: document.memory_key || null,
+					memory_key: null,
+					placeholders: document.placeholders ?? {},
 					stage: env.NODE_ENV,
 				},
 			],

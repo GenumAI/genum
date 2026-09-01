@@ -16,3 +16,20 @@ export function mapApiKeyStatsRow(row: ClickHouseApiKeyStatsRow): ApiKeyUsageSta
 		last_activity: row.last_activity ? moment(row.last_activity).toISOString() : null,
 	};
 }
+
+export function toLogPlaceholders(resolved: Record<string, string | null>): Record<string, string> {
+	return Object.fromEntries(Object.entries(resolved).map(([key, name]) => [key, name ?? ""]));
+}
+
+export function resolveLogPlaceholders(row: {
+	placeholders?: Record<string, string>;
+	memory_key?: string | null;
+}): Record<string, string> | undefined {
+	if (row.placeholders && Object.keys(row.placeholders).length > 0) {
+		return row.placeholders;
+	}
+	if (row.memory_key) {
+		return { memory_key: row.memory_key };
+	}
+	return undefined;
+}
