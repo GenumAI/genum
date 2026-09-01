@@ -92,6 +92,40 @@ export function createPromptsRouter(): Router {
 		asyncHandler(promptsController.deleteMemory.bind(promptsController)),
 	);
 
+	// Placeholders endpoints
+	router.get(
+		"/:id/placeholders",
+		asyncHandler(promptsController.getPlaceholdersByPromptId.bind(promptsController)),
+	);
+	router.post(
+		"/:id/placeholders",
+		asyncHandler(promptsController.createPlaceholder.bind(promptsController)),
+	);
+	router.get(
+		"/:id/placeholders/:placeholderId",
+		asyncHandler(promptsController.getPlaceholderById.bind(promptsController)),
+	);
+	router.put(
+		"/:id/placeholders/:placeholderId",
+		asyncHandler(promptsController.updatePlaceholder.bind(promptsController)),
+	);
+	router.delete(
+		"/:id/placeholders/:placeholderId",
+		asyncHandler(promptsController.deletePlaceholder.bind(promptsController)),
+	);
+	router.post(
+		"/:id/placeholders/:placeholderId/values",
+		asyncHandler(promptsController.createPlaceholderValue.bind(promptsController)),
+	);
+	router.put(
+		"/:id/placeholders/:placeholderId/values/:valueId",
+		asyncHandler(promptsController.updatePlaceholderValue.bind(promptsController)),
+	);
+	router.delete(
+		"/:id/placeholders/:placeholderId/values/:valueId",
+		asyncHandler(promptsController.deletePlaceholderValue.bind(promptsController)),
+	);
+
 	// Execution endpoints
 	router.get("/:id/logs", asyncHandler(promptsController.getPromptLogs.bind(promptsController)));
 	router.post("/:id/run", asyncHandler(promptsController.runPrompt.bind(promptsController)));

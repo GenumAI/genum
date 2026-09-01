@@ -27,6 +27,17 @@ export async function checkMemoryAccess(memoryId: number, promptId: number) {
 	}
 }
 
+export async function checkPlaceholderAccess(placeholderId: number, promptId: number) {
+	const placeholder = await db.placeholders.getPlaceholderByIDAndPromptId(
+		placeholderId,
+		promptId,
+	);
+	if (!placeholder) {
+		throw new HttpError(404, "Placeholder is not found");
+	}
+	return placeholder;
+}
+
 export async function checkTestcaseAccess(testcaseId: number, projectId: number) {
 	const testcase = await db.testcases.getTestcaseByID(testcaseId);
 	if (!testcase) {
