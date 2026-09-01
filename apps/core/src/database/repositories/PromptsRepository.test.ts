@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PromptsRepository } from "./PromptsRepository";
 import type { SystemRepository } from "./SystemRepository";
-import { AiVendor, type PrismaClient } from "@/prisma";
+import { AiVendor, Prisma, type PrismaClient } from "@/prisma";
 
 function makeMockPrisma() {
 	return {
@@ -165,5 +165,91 @@ describe("PromptsRepository.rollbackPrompt", () => {
 		expect(prisma.$transaction).toHaveBeenCalledTimes(1);
 		expect(tx.audit.update).not.toHaveBeenCalled();
 		expect(tx.prompt.update).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("PromptsRepository.commit", () => {
+	function makeCommitPrisma() {
+		return {
+			branch: { findFirst: vi.fn().mockResolvedValue({ id: 1 }) },
+			prompt: {
+				findUnique: vi.fn().mockResolvedValue({
+					id: 5,
+					value: "text",
+					languageModelId: 3,
+					languageModelConfig: {},
+					audit: null,
+				}),
+			},
+			promptVersion: {
+				count: vi.fn().mockResolvedValue(0),
+				create: vi.fn().mockResolvedValue({ id: 99 }),
+			},
+			placeholder: {
+				findMany: vi.fn().mockResolvedValue([
+					{
+						id: 1,
+						key: "live_key",
+						values: [{ id: 1, name: "n", content: "live content", isDefault: false }],
+					},
+				]),
+			},
+		};
+	}
+
+	it("snapshots the live placeholder tables when no override is given", async () => {
+		const prisma = makeCommitPrisma();
+		const repo = new PromptsRepository(
+			prisma as unknown as PrismaClient,
+			{} as unknown as SystemRepository,
+		);
+
+		await repo.commit(5, "msg", 1);
+
+		expect(prisma.placeholder.findMany).toHaveBeenCalledTimes(1);
+		const data = prisma.promptVersion.create.mock.calls[0][0].data;
+		expect(data.placeholders).toEqual([
+			{ key: "live_key", values: [{ name: "n", content: "live content", isDefault: false }] },
+		]);
+	});
+
+	// C2: rollback must reproduce the old commit exactly -- text and definitions
+	// from the SAME version -- not pair old text with today's live definitions.
+	it("carries the restored version's own snapshot forward instead of the live tables", async () => {
+		const prisma = makeCommitPrisma();
+		const repo = new PromptsRepository(
+			prisma as unknown as PrismaClient,
+			{} as unknown as SystemRepository,
+		);
+
+		const restoredSnapshot = [
+			{
+				key: "admin_role",
+				values: [
+					{ name: "on", content: "act as admin", isDefault: false },
+					{ name: "off", content: "", isDefault: true },
+				],
+			},
+		];
+
+		await repo.commit(5, "Rollback to abcd1234", 1, restoredSnapshot);
+
+		expect(prisma.placeholder.findMany).not.toHaveBeenCalled();
+		const data = prisma.promptVersion.create.mock.calls[0][0].data;
+		expect(data.placeholders).toEqual(restoredSnapshot);
+	});
+
+	it("stores JSON null when the restored version had no snapshot", async () => {
+		const prisma = makeCommitPrisma();
+		const repo = new PromptsRepository(
+			prisma as unknown as PrismaClient,
+			{} as unknown as SystemRepository,
+		);
+
+		await repo.commit(5, "Rollback to abcd1234", 1, null);
+
+		expect(prisma.placeholder.findMany).not.toHaveBeenCalled();
+		const data = prisma.promptVersion.create.mock.calls[0][0].data;
+		expect(data.placeholders).toBe(Prisma.JsonNull);
 	});
 });

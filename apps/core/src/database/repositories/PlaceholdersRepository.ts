@@ -124,6 +124,12 @@ export class PlaceholdersRepository {
 		const unresolved: string[] = [];
 
 		for (const key of keys) {
+			// An empty string is "no selection was made", not "a value named ''". A
+			// placeholder with no default (e.g. the migrated memory_key) logs an
+			// unselected key as "" by design -- resolving that back is neither a row
+			// nor a loss, so it must be neither a pin nor an unresolved report.
+			if (selection[key] === "") continue;
+
 			const placeholder = placeholders.find((candidate) => candidate.key === key);
 			const value = placeholder?.values.find((entry) => entry.name === selection[key]);
 			if (!placeholder || !value) {

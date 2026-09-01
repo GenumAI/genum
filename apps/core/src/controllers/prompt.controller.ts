@@ -211,10 +211,16 @@ export class PromptsController {
 
 		const updatedPrompt = await db.prompts.rollbackPrompt(id, version, updateAudit);
 
+		// Carry the rolled-back version's own placeholder snapshot forward instead of
+		// letting commit() re-snapshot the live tables: the old text and the old
+		// definitions must land in the new commit together, or a renamed/deleted key
+		// pairs old text with today's definitions -- the exact drift this feature
+		// exists to remove.
 		const rollbackVersion = await db.prompts.commit(
 			id,
 			`Rollback to ${version.commitHash.slice(0, 8)}`,
 			metadata.userID,
+			version.placeholders,
 		);
 
 		await this.promptService.updateCommitedStatus(updatedPrompt);

@@ -51,4 +51,9 @@ model TestCasePlaceholderValue {
 
     @@id([testCaseId, placeholderValueId])
     @@unique([testCaseId, placeholderId])
+    // Both the PK and the unique above lead with testCaseId, so PlaceholderValue's
+    // ON DELETE CASCADE and getPlaceholdersByPromptID's `_count: { testCases }` both
+    // scan the whole table without one of these.
+    @@index([placeholderValueId])
+    @@index([placeholderId])
 }

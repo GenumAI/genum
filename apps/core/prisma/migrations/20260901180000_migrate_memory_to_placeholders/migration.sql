@@ -31,10 +31,24 @@ WHERE t."memoryId" IS NOT NULL;
 -- it in front of the author, who can move or delete it. Committed versions are NOT
 -- touched — that would be forging history — so production stays on the old commit
 -- until the author decides to commit. See the report script for who that is.
+-- The text just changed, so the draft and the productive commit now differ. Leaving
+-- "commited" untouched would tell generateCommit there is nothing to commit, and the
+-- memory block would silently never reach a productive run until some unrelated edit
+-- flips the flag for the author. Flagging it here is the entire remedy this design
+-- offers for the migration's own behaviour loss: the author must commit the draft.
 UPDATE "Prompt"
-SET "value" = "value" || E'\n\n{{memory_key}}'
+SET "value" = "value" || E'\n\n{{memory_key}}',
+    "commited" = FALSE
 WHERE "id" IN (SELECT DISTINCT "promptId" FROM "Memory")
   AND "value" NOT LIKE '%{{memory_key}}%';
 
 ALTER TABLE "TestCase" DROP COLUMN "memoryId";
 DROP TABLE "Memory";
+
+-- TestCasePlaceholderValue's PK (testCaseId, placeholderValueId) and its unique
+-- (testCaseId, placeholderId) both lead with testCaseId, so PlaceholderValue's
+-- ON DELETE CASCADE and getPlaceholdersByPromptID's `_count: { testCases }` both scan
+-- the whole join table. Added here, not in the earlier migration that created the
+-- table, so that already-applied migration's checksum is left untouched.
+CREATE INDEX "TestCasePlaceholderValue_placeholderValueId_idx" ON "TestCasePlaceholderValue"("placeholderValueId");
+CREATE INDEX "TestCasePlaceholderValue_placeholderId_idx" ON "TestCasePlaceholderValue"("placeholderId");

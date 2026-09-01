@@ -3,7 +3,8 @@ import { z } from "zod";
 // The key is what the author types inside {{ }}, so it must be exactly what the
 // renderer can find. Anything else creates a placeholder no substitution can reach.
 // This literal is pinned equal to @genum/placeholders' PLACEHOLDER_KEY_PATTERN by a
-// test in packages/placeholders/src/detect.test.ts — keep them in lockstep.
+// test in this file's own placeholder.type.test.ts, which imports the pattern and
+// asserts this schema against it directly — keep them in lockstep.
 const placeholderKey = z
 	.string()
 	.trim()
