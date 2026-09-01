@@ -88,7 +88,11 @@ export default function Playground() {
 							onReadyStateChange={handleTextEditorReadyStateChange}
 						/>
 
-						<PlaceholderChips promptId={promptId} text={prompt.content} />
+						<PlaceholderChips
+							key={promptId}
+							promptId={promptId}
+							text={prompt.content}
+						/>
 
 						<div>
 							<InputTextArea

@@ -3,6 +3,10 @@ import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import type { PromptResponse } from "@/api/prompt";
 
+// Slated for deletion in Task 11 along with the rest of the Memory feature
+// (memorySelectionDrafts, DEFAULT_MEMORY_SELECTION, getMemorySelectionDraft,
+// setMemorySelectionDraft) — kept alive here because the Memory tab still
+// reads and writes it.
 export type MemorySelectionState = {
 	selectedMemoryId: string;
 	selectedMemoryKeyName: string;
@@ -441,6 +445,11 @@ const usePlaygroundStore = create<PlaygroundState>()(
 							expectedThoughtsDrafts,
 							sessionDrafts,
 							memorySelectionDrafts,
+							// selectedPlaceholders is a flat, unscoped map (see its declaration
+							// above), so there is no per-prompt key to delete here — leaving a
+							// prompt clears the whole thing rather than let a stale key from
+							// this prompt keep shipping in another prompt's run body.
+							selectedPlaceholders: {},
 						};
 					},
 					false,

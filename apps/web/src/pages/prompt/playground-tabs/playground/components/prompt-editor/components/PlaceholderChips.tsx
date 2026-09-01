@@ -118,14 +118,12 @@ function UndefinedPlaceholderChip({
 	onClick: () => void;
 }) {
 	return (
-		<Badge
-			variant="destructive"
-			className="cursor-pointer gap-1 rounded-full"
-			onClick={onClick}
-		>
-			<WarningCircleIcon className="h-3.5 w-3.5" weight="fill" />
-			{placeholderKey} — not defined
-		</Badge>
+		<button type="button" onClick={onClick} className="inline-flex rounded-full">
+			<Badge variant="destructive" className="cursor-pointer gap-1 rounded-full">
+				<WarningCircleIcon className="h-3.5 w-3.5" weight="fill" />
+				{placeholderKey} — not defined
+			</Badge>
+		</button>
 	);
 }
 
@@ -185,11 +183,26 @@ export default function PlaceholderChips({ promptId, text }: PlaceholderChipsPro
 					);
 				}
 
+				// The store's selection map is a flat, unscoped Record<key, valueName> that
+				// persists across prompts and is never invalidated when a definition's
+				// values change. A stale name (from another prompt, or a value that was
+				// since renamed/removed) must not read as "selected" — that would show an
+				// active, unmuted chip for a value the run will silently fail to resolve
+				// and fall back from. Validating against the live definition here is the
+				// one place this gets decided, so the popover's checkmark and the run body
+				// agree with what the chip displays.
+				const rawSelection = selectedPlaceholders[key];
+				const selectedValueName = definition.values.some(
+					(value) => value.name === rawSelection,
+				)
+					? rawSelection
+					: undefined;
+
 				return (
 					<DefinedPlaceholderChip
 						key={key}
 						definition={definition}
-						selectedValueName={selectedPlaceholders[key]}
+						selectedValueName={selectedValueName}
 						onSelect={(valueName) => setPlaceholderSelection(key, valueName)}
 						onClear={() => clearPlaceholderSelection(key)}
 					/>

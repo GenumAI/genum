@@ -40,7 +40,9 @@ export class TestcasesRepository {
 						file: true,
 					},
 				},
-				placeholderValues: { include: { placeholderValue: true } },
+				placeholderValues: {
+					include: { placeholderValue: { include: { placeholder: true } } },
+				},
 			},
 		});
 	}

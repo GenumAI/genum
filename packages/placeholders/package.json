@@ -2,10 +2,24 @@
 	"name": "@genum/placeholders",
 	"version": "0.0.0",
 	"private": true,
-	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
+	"type": "commonjs",
+	"main": "./dist/cjs/index.js",
+	"module": "./dist/esm/index.js",
+	"types": "./dist/cjs/index.d.ts",
+	"exports": {
+		".": {
+			"import": {
+				"types": "./dist/esm/index.d.ts",
+				"default": "./dist/esm/index.js"
+			},
+			"require": {
+				"types": "./dist/cjs/index.d.ts",
+				"default": "./dist/cjs/index.js"
+			}
+		}
+	},
 	"scripts": {
-		"build": "tsc -p tsconfig.build.json",
+		"build": "tsc -p tsconfig.build.cjs.json && tsc -p tsconfig.build.esm.json && node ./scripts/write-dist-package-json.mjs",
 		"type-check": "tsc --noEmit",
 		"test": "vitest",
 		"test:run": "vitest run"

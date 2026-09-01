@@ -48,3 +48,13 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 	.strict();
 
 export type TestcasesUpdateType = z.infer<typeof TestcasesUpdateSchema>;
+
+// An explicit selection in the run request beats the testcase's pinned one (Task 8) --
+// see TestcasesController.runTestcase. Absent (not an empty object) means "use the pin".
+export const TestcaseRunSchema = z
+	.object({
+		placeholders: z.record(z.string(), z.string()).optional(),
+	})
+	.strict();
+
+export type TestcaseRunType = z.infer<typeof TestcaseRunSchema>;

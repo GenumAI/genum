@@ -32,9 +32,14 @@ vi.mock("@/ai/runner/system", () => ({
 	},
 }));
 
+vi.mock("@/ai/runner/run", () => ({
+	runPrompt: vi.fn(),
+}));
+
 import { db } from "@/database/db";
 import { checkTestcaseAccess, checkPromptAccess } from "@/services/access/AccessService";
 import { system_prompt } from "@/ai/runner/system";
+import { runPrompt } from "@/ai/runner/run";
 import { TestcasesController } from "./testcase.controller";
 
 const PROJECT = 10;
@@ -218,5 +223,88 @@ describe("TestcasesController.updateTestcase", () => {
 		expect(db.testcases.setPlaceholderSelection).toHaveBeenCalledWith(5, [
 			{ placeholderId: 5, placeholderValueId: 9 },
 		]);
+	});
+});
+
+describe("TestcasesController.runTestcase", () => {
+	let controller: TestcasesController;
+
+	function makeTestcase(placeholderValues: unknown[]) {
+		return {
+			id: 5,
+			promptId: PROMPT,
+			input: "question",
+			expectedOutput: "expected",
+			memoryId: null,
+			files: [],
+			placeholderValues,
+			prompt: {
+				id: PROMPT,
+				projectId: PROJECT,
+				value: "do this",
+				assertionType: "MANUAL",
+				assertionValue: null,
+			},
+		} as never;
+	}
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		controller = new TestcasesController();
+		vi.mocked(db.testcases.updateTestcaseByID).mockResolvedValue({ id: 5 } as never);
+		vi.mocked(runPrompt).mockResolvedValue({
+			answer: "the answer",
+			chainOfThoughts: "",
+		} as never);
+	});
+
+	it("runs with the testcase's pinned selection when the request carries none", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTestcase([
+				{
+					placeholderId: 5,
+					placeholderValueId: 9,
+					placeholderValue: {
+						id: 9,
+						name: "true",
+						isDefault: false,
+						placeholder: { id: 5, key: "admin_role" },
+					},
+				},
+			]),
+		);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(runPrompt).toHaveBeenCalledWith(
+			expect.objectContaining({ placeholders: { admin_role: "true" } }),
+		);
+	});
+
+	it("lets an explicit request selection override the pinned one", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTestcase([
+				{
+					placeholderId: 5,
+					placeholderValueId: 9,
+					placeholderValue: {
+						id: 9,
+						name: "true",
+						isDefault: false,
+						placeholder: { id: 5, key: "admin_role" },
+					},
+				},
+			]),
+		);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq({ placeholders: { admin_role: "false" } }), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(runPrompt).toHaveBeenCalledWith(
+			expect.objectContaining({ placeholders: { admin_role: "false" } }),
+		);
 	});
 });

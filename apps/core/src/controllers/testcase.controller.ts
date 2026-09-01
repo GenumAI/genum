@@ -4,6 +4,7 @@ import {
 	type TestcasesCreateType,
 	TestcasesCreateWithoutNameSchema,
 	TestcasesUpdateSchema,
+	TestcaseRunSchema,
 	numberSchema,
 } from "@/services/validate";
 import { testcaseAssertionFormat, testcaseNamerFormat } from "@/ai/runner/formatter";
@@ -141,6 +142,7 @@ export class TestcasesController {
 		const metadata = req.genumMeta.ids;
 
 		const id = numberSchema.parse(req.params.id);
+		const { placeholders: requestPlaceholders } = TestcaseRunSchema.parse(req.body ?? {});
 
 		const testcase = await checkTestcaseAccess(id, metadata.projID);
 
@@ -157,6 +159,17 @@ export class TestcasesController {
 			fileObjects = await fileService.getFileObjectsByIds(filesToUse, metadata.projID);
 		}
 
+		// The testcase's pinned selection (Task 8) is what a run uses by default; an
+		// explicit selection in the request body (e.g. the playground chips) overrides
+		// it wholesale rather than merging key by key, since that's a deliberate,
+		// in-the-moment choice against a stored default.
+		const pinnedPlaceholders: Record<string, string> = {};
+		for (const pinned of testcase.placeholderValues) {
+			pinnedPlaceholders[pinned.placeholderValue.placeholder.key] =
+				pinned.placeholderValue.name;
+		}
+		const placeholders = requestPlaceholders ?? pinnedPlaceholders;
+
 		const run = await runPrompt({
 			prompt: testcase.prompt,
 			question: testcase.input,
@@ -167,6 +180,7 @@ export class TestcasesController {
 			user_id: metadata.userID,
 			testcase_id: testcase.id,
 			files: fileObjects,
+			placeholders,
 		});
 
 		const assertionType = testcase.prompt.assertionType;
