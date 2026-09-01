@@ -18,6 +18,15 @@ export default defineConfig({
 	server: {
 		port: 3000,
 	},
+	build: {
+		commonjsOptions: {
+			// Workspace packages (e.g. @genum/placeholders) are pnpm symlinks whose
+			// real path lives outside node_modules. Rollup's default CJS detection
+			// only looks inside node_modules, so a symlinked CJS workspace package's
+			// named exports otherwise fail to bundle.
+			include: [/node_modules/, /packages\//],
+		},
+	},
 	resolve: {
 		alias: {
 			"@": path.resolve(__dirname, "./src"),

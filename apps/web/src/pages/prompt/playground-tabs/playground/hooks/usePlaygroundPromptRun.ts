@@ -10,6 +10,7 @@ import type { FileMetadata } from "@/api/files";
 import { useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import { usePromptActions } from "@/stores/prompt.store";
+import usePlaygroundStore from "@/stores/playground.store";
 
 export function usePlaygroundPromptRun({
 	promptId,
@@ -45,6 +46,7 @@ export function usePlaygroundPromptRun({
 	const { toast } = useToast();
 	const { setRunLoading, setRunError, setLastRunResult } = usePromptActions();
 	const queryClient = useQueryClient();
+	const selectedPlaceholders = usePlaygroundStore((state) => state.selectedPlaceholders);
 
 	const handleRun = useCallback(async () => {
 		if (!promptId) return;
@@ -58,6 +60,7 @@ export function usePlaygroundPromptRun({
 				question: inputContent,
 				...(selectedMemoryId && { memoryId: Number(selectedMemoryId) }),
 				...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
+				placeholders: selectedPlaceholders,
 			};
 
 			if (!testcaseId) {
@@ -93,8 +96,7 @@ export function usePlaygroundPromptRun({
 				return;
 			}
 		} catch (err: unknown) {
-			const error =
-				err instanceof Error ? err : new Error("Failed to run prompt/testcase");
+			const error = err instanceof Error ? err : new Error("Failed to run prompt/testcase");
 			console.error("Failed to run prompt/testcase:", err);
 			setRunError(error.message);
 			toast({
@@ -117,6 +119,7 @@ export function usePlaygroundPromptRun({
 		promptId,
 		selectedMemoryId,
 		selectedFiles,
+		selectedPlaceholders,
 		setRunState,
 		setOutputContent,
 		testcaseId,

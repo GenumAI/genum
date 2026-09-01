@@ -33,6 +33,7 @@ export interface RunTestcaseData {
 	memoryId?: number;
 	question?: string;
 	files?: string[];
+	placeholders?: Record<string, string>;
 }
 
 export interface RunTestcaseResponse {

@@ -8,6 +8,8 @@ export type MemorySelectionState = {
 	selectedMemoryKeyName: string;
 };
 
+export type PlaceholderSelectionState = Record<string, string>;
+
 export type PageHeaderUiState = {
 	isEditing: boolean;
 	editableTitle: string;
@@ -38,6 +40,7 @@ interface PlaygroundDraftData {
 	sessionDrafts: Record<string, PlaygroundSessionDraft>;
 	memorySelectionDrafts: Record<string, MemorySelectionState>;
 	memoryValueDrafts: Record<string, string>;
+	selectedPlaceholders: PlaceholderSelectionState;
 	pageHeaderUi: PageHeaderUiState;
 }
 
@@ -91,7 +94,14 @@ interface PlaygroundDraftActions {
 		testcaseId: ScopeParam,
 		memoryId: ScopeParam,
 	) => string;
-	clearMemoryValueDraft: (promptId: ScopeParam, testcaseId: ScopeParam, memoryId: ScopeParam) => void;
+	clearMemoryValueDraft: (
+		promptId: ScopeParam,
+		testcaseId: ScopeParam,
+		memoryId: ScopeParam,
+	) => void;
+
+	setPlaceholderSelection: (key: string, valueName: string) => void;
+	clearPlaceholderSelection: (key: string) => void;
 
 	resetForTestcaseExit: (promptId: ScopeParam, prevTestcaseId: ScopeParam) => void;
 	resetAfterAddTestcase: (promptId: ScopeParam) => void;
@@ -130,6 +140,7 @@ const initialState: PlaygroundDraftData = {
 	sessionDrafts: {},
 	memorySelectionDrafts: {},
 	memoryValueDrafts: {},
+	selectedPlaceholders: {},
 	pageHeaderUi: DEFAULT_PAGE_HEADER_UI,
 };
 
@@ -296,6 +307,28 @@ const usePlaygroundStore = create<PlaygroundState>()(
 					},
 					false,
 					"clearMemoryValueDraft",
+				),
+
+			setPlaceholderSelection: (key, valueName) =>
+				set(
+					(state) => ({
+						selectedPlaceholders: {
+							...state.selectedPlaceholders,
+							[key]: valueName,
+						},
+					}),
+					false,
+					"setPlaceholderSelection",
+				),
+			clearPlaceholderSelection: (key) =>
+				set(
+					(state) => {
+						const next = { ...state.selectedPlaceholders };
+						delete next[key];
+						return { selectedPlaceholders: next };
+					},
+					false,
+					"clearPlaceholderSelection",
 				),
 
 			resetForTestcaseExit: (promptId, prevTestcaseId) =>
