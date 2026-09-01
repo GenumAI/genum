@@ -12,6 +12,8 @@ export const RunPromptSchema = z
 	.object({
 		id: z.coerce.number().int().positive(),
 		question: z.string(),
+		placeholders: z.record(z.string(), z.string()).optional(),
+		/** @deprecated use `placeholders: { memory_key: "..." }` */
 		memoryKey: z.string().optional(),
 		files: z.array(ApiRunPromptFileSchema).max(3).optional().default([]),
 		createTicket: z.coerce.boolean().optional().default(false), // todo remove this

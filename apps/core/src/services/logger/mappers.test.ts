@@ -72,4 +72,10 @@ describe("resolveLogPlaceholders", () => {
 	it("returns undefined when the row carries neither", () => {
 		expect(resolveLogPlaceholders({ placeholders: {}, memory_key: null })).toBeUndefined();
 	});
+
+	it("prefers a non-empty placeholders map over a legacy memory_key on the same row", () => {
+		expect(
+			resolveLogPlaceholders({ placeholders: { admin_role: "true" }, memory_key: "client_bmw" }),
+		).toEqual({ admin_role: "true" });
+	});
 });

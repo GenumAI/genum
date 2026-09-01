@@ -174,7 +174,7 @@ export class PromptService {
 	public async getPromptWithProductiveCommit<T extends ProductivePrompt>(
 		prompt: T,
 		options: { requireCommit?: boolean } = {},
-	): Promise<T | null> {
+	): Promise<(T & { placeholderDefinitions?: PlaceholderDefinition[] }) | null> {
 		const productiveCommit = await this.db.prompts.getProductiveCommit(prompt.id);
 
 		if (!productiveCommit) {

@@ -191,6 +191,8 @@ export async function logUsage(document: LogDocument): Promise<void> {
 					response_ms: document.response_ms,
 					in: document.in,
 					out: document.out,
+					// Frozen: readable for rows written before `placeholders` existed, never
+					// written again — see init.sql.
 					memory_key: null,
 					placeholders: document.placeholders ?? {},
 					stage: env.NODE_ENV,
