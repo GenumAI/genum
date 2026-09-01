@@ -21,12 +21,6 @@ export class TestcasesRepository {
 				},
 			},
 			include: {
-				memory: {
-					select: {
-						id: true,
-						key: true,
-					},
-				},
 				placeholderValues: {
 					include: { placeholderValue: { include: { placeholder: true } } },
 					orderBy: { placeholderId: "asc" },
@@ -43,7 +37,6 @@ export class TestcasesRepository {
 			where: { id },
 			include: {
 				prompt: true,
-				memory: true,
 				files: {
 					include: {
 						file: true,
@@ -144,12 +137,6 @@ export class TestcasesRepository {
 		return await this.prisma.testCase.findMany({
 			where: { promptId },
 			include: {
-				memory: {
-					select: {
-						id: true,
-						key: true,
-					},
-				},
 				files: {
 					include: {
 						file: true,

@@ -33,9 +33,6 @@ export interface Prompt {
 	createdAt: string;
 	testcaseStatuses: TestcaseStatuses;
 	commited?: boolean;
-	memories: {
-		length: number;
-	};
 	lastCommit: {
 		commitHash: string;
 		createdAt: string;
@@ -47,7 +44,6 @@ export interface Prompt {
 		};
 	} | null;
 	_count: {
-		memories: number;
 		testCases: number;
 	};
 }
@@ -67,31 +63,12 @@ export interface UpdatePromptData {
 
 export interface RunPromptData {
 	question?: string;
-	memoryId?: number;
 	files?: string[];
 	placeholders?: Record<string, string>;
 }
 
 export interface AuditResponse {
 	audit: any;
-}
-
-export interface Memory {
-	id: number;
-	key: string;
-	value: string;
-	promptId?: number;
-	updatedAt?: string;
-	createdAt?: string;
-}
-
-export interface CreateMemoryData {
-	key: string;
-	value: string;
-}
-
-export interface UpdateMemoryData {
-	value: string;
 }
 
 export interface Branch {
@@ -334,68 +311,6 @@ export const promptApi = {
 			config,
 		);
 		return response.data;
-	},
-
-	// ============================================================================
-	// Memories API
-	// ============================================================================
-
-	/**
-	 * Get all memories for a prompt
-	 */
-	getMemories: async (
-		promptId: number | string,
-		config?: ApiRequestConfig,
-	): Promise<{ memories: Memory[] }> => {
-		const response = await apiClient.get<{ memories: Memory[] }>(
-			`/prompts/${promptId}/memories`,
-			config,
-		);
-		return response.data;
-	},
-
-	/**
-	 * Create a new memory
-	 */
-	createMemory: async (
-		promptId: number | string,
-		data: CreateMemoryData,
-		config?: ApiRequestConfig,
-	): Promise<{ memory: Memory }> => {
-		const response = await apiClient.post<{ memory: Memory }>(
-			`/prompts/${promptId}/memories`,
-			data,
-			config,
-		);
-		return response.data;
-	},
-
-	/**
-	 * Update a memory
-	 */
-	updateMemory: async (
-		promptId: number | string,
-		memoryId: number | string,
-		data: UpdateMemoryData,
-		config?: ApiRequestConfig,
-	): Promise<{ memory: Memory }> => {
-		const response = await apiClient.put<{ memory: Memory }>(
-			`/prompts/${promptId}/memories/${memoryId}`,
-			data,
-			config,
-		);
-		return response.data;
-	},
-
-	/**
-	 * Delete a memory
-	 */
-	deleteMemory: async (
-		promptId: number | string,
-		memoryId: number | string,
-		config?: ApiRequestConfig,
-	): Promise<void> => {
-		await apiClient.delete(`/prompts/${promptId}/memories/${memoryId}`, config);
 	},
 
 	// ============================================================================

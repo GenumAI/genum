@@ -18,8 +18,6 @@ import {
 	PromptCreateSchema,
 	PromptRunSchema,
 	PromptUpdateSchema,
-	MemoryCreateSchema,
-	MemoryUpdateSchema,
 	PlaceholderCreateSchema,
 	PlaceholderUpdateSchema,
 	PlaceholderValueCreateSchema,
@@ -36,11 +34,7 @@ import {
 	mapStoredMessagesToChatMessages,
 	type StoredMessage,
 } from "@langchain/core/messages";
-import {
-	checkMemoryAccess,
-	checkPlaceholderAccess,
-	checkPromptAccess,
-} from "@/services/access/AccessService";
+import { checkPlaceholderAccess, checkPromptAccess } from "@/services/access/AccessService";
 import type { CanvasAgentMessage, CanvasAgentParams, CanvasMessage } from "@/ai/runner/types";
 import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
@@ -84,12 +78,7 @@ export class PromptsController {
 
 	public async runPrompt(req: Request, res: Response) {
 		const id = numberSchema.parse(req.params.id);
-		const {
-			question,
-			memoryId,
-			files: filesIds,
-			placeholders,
-		} = PromptRunSchema.parse(req.body);
+		const { question, files: filesIds, placeholders } = PromptRunSchema.parse(req.body);
 
 		const metadata = req.genumMeta.ids;
 		const files = await fileService.getFileObjectsByIds(filesIds, metadata.projID);
@@ -99,7 +88,6 @@ export class PromptsController {
 		const run = await runPrompt({
 			prompt: prompt,
 			question,
-			memoryId: memoryId ? memoryId : undefined,
 			source: SourceType.ui,
 			userProjectId: metadata.projID,
 			userOrgId: metadata.orgID,
@@ -317,87 +305,6 @@ export class PromptsController {
 			includePlaceholders: true,
 		});
 		res.status(200).json({ testcases });
-	}
-
-	public async getMemoriesByPromptId(req: Request, res: Response) {
-		const id = numberSchema.parse(req.params.id);
-		const metadata = req.genumMeta.ids;
-
-		await checkPromptAccess(id, metadata.projID);
-
-		const memories = await db.memories.getMemoriesByPromptID(id);
-		res.status(200).json({ memories });
-	}
-
-	public async createMemory(req: Request, res: Response) {
-		const metadata = req.genumMeta.ids;
-		const promptId = numberSchema.parse(req.params.id);
-		const data = MemoryCreateSchema.parse(req.body);
-
-		await checkPromptAccess(promptId, metadata.projID);
-
-		// check if memory key already exists
-		const existingMemory = await db.memories.getMemoryByKeyAndPromptId(data.key, promptId);
-		if (existingMemory) {
-			res.status(400).json({ error: "Memory key already exists. Key must be unique." });
-			return;
-		}
-
-		const memory = await db.memories.newPromptMemory(promptId, data);
-
-		res.status(200).json({ memory });
-	}
-
-	public async getMemoryById(req: Request, res: Response) {
-		const metadata = req.genumMeta.ids;
-		const promptId = numberSchema.parse(req.params.id);
-		const memoryId = numberSchema.parse(req.params.memoryId);
-
-		await checkPromptAccess(promptId, metadata.projID);
-
-		await checkMemoryAccess(memoryId, promptId);
-
-		const memory = await db.memories.getMemoryByIDAndPromptId(memoryId, promptId);
-		res.status(200).json({ memory });
-	}
-
-	public async updateMemory(req: Request, res: Response) {
-		const metadata = req.genumMeta.ids;
-		const promptId = numberSchema.parse(req.params.id);
-		const memoryId = numberSchema.parse(req.params.memoryId);
-		const data = MemoryUpdateSchema.parse(req.body);
-
-		await checkPromptAccess(promptId, metadata.projID);
-
-		await checkMemoryAccess(memoryId, promptId);
-
-		if (data.key) {
-			// if key is provided, check if memory key already exists
-			const existingMemory = await db.memories.getMemoryByKeyAndPromptId(data.key, promptId);
-			if (existingMemory) {
-				res.status(400).json({
-					error: "Memory key already exists. Key must be unique.",
-				});
-				return;
-			}
-		}
-
-		const memory = await db.memories.updateMemoryByID(memoryId, data);
-
-		res.status(200).json({ memory });
-	}
-
-	public async deleteMemory(req: Request, res: Response) {
-		const metadata = req.genumMeta.ids;
-		const promptId = numberSchema.parse(req.params.id);
-		const memoryId = numberSchema.parse(req.params.memoryId);
-
-		await checkPromptAccess(promptId, metadata.projID);
-
-		await checkMemoryAccess(memoryId, promptId);
-
-		await db.memories.deleteMemoryByID(memoryId);
-		res.status(200).json({ id: memoryId });
 	}
 
 	public async getPlaceholdersByPromptId(req: Request, res: Response) {
@@ -829,12 +736,6 @@ export class PromptsController {
 		});
 
 		res.status(200).json({ input: result.answer });
-	}
-
-	public async getAllMemories(req: Request, res: Response) {
-		const metadata = req.genumMeta.ids;
-		const memories = await db.memories.getMemoriesFromProject(metadata.projID);
-		res.status(200).json({ memories });
 	}
 
 	// public async editPrompt(req: Request, res: Response, next: NextFunction) {

@@ -7,7 +7,6 @@ export interface TestcasePayload {
 	expectedOutput: string;
 	lastOutput?: string;
 	name?: string;
-	memoryId?: number | null;
 	files?: string[];
 	placeholders?: Record<string, string>;
 }

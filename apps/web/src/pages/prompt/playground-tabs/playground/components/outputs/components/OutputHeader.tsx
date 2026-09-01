@@ -3,7 +3,6 @@ import { CornersOut } from "phosphor-react";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import MemoryKey from "../../../../memory/MemoryKey";
 import { AssertionPanel } from "./AssertionPanel";
 
 interface OutputHeaderProps {
@@ -39,8 +38,6 @@ export const OutputHeader: React.FC<OutputHeaderProps> = ({
 				<CardTitle className="text-sm font-medium">Output</CardTitle>
 			</div>
 			<div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
-				{promptId && <MemoryKey promptId={promptId} />}
-
 				<AssertionPanel
 					currentAssertionType={currentAssertionType}
 					assertionValue={assertionValue}

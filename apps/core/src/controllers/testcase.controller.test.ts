@@ -12,9 +12,6 @@ vi.mock("@/database/db", () => ({
 			newTestcase: vi.fn(),
 			setPlaceholderSelection: vi.fn(),
 		},
-		memories: {
-			getMemoryByIDAndPromptId: vi.fn(),
-		},
 		placeholders: {
 			resolveSelection: vi.fn(),
 		},
@@ -94,37 +91,13 @@ describe("TestcasesController.updateTestcase", () => {
 		vi.mocked(system_prompt.testcaseNamer).mockResolvedValue({ answer: "generated" } as never);
 	});
 
-	it("updates a testcase that carries no memory reference", async () => {
+	it("updates a testcase with a simple field change", async () => {
 		const { res, captured } = makeRes();
 
 		await controller.updateTestcase(makeReq({ name: "renamed" }), res);
 
 		expect(captured.statusCode).toBe(200);
 		expect(db.testcases.updateTestcaseByID).toHaveBeenCalled();
-	});
-
-	it("accepts a memory that belongs to the same prompt", async () => {
-		vi.mocked(db.memories.getMemoryByIDAndPromptId).mockResolvedValue({ id: 9 } as never);
-		const { res, captured } = makeRes();
-
-		await controller.updateTestcase(makeReq({ memoryId: 9 }), res);
-
-		expect(captured.statusCode).toBe(200);
-		expect(db.memories.getMemoryByIDAndPromptId).toHaveBeenCalledWith(9, PROMPT);
-	});
-
-	it("refuses a memory belonging to another prompt", async () => {
-		// The bug: memoryId was writable through TestcasesUpdateSchema and never
-		// validated here, unlike createTestcase, so another tenant's memory key
-		// could be pulled into the caller's testcase listing.
-		vi.mocked(db.memories.getMemoryByIDAndPromptId).mockResolvedValue(null as never);
-		const { res } = makeRes();
-
-		await expect(controller.updateTestcase(makeReq({ memoryId: 9001 }), res)).rejects.toThrow(
-			"Memory not found",
-		);
-
-		expect(db.testcases.updateTestcaseByID).not.toHaveBeenCalled();
 	});
 
 	it("pins the resolved values on the testcase", async () => {
@@ -152,8 +125,9 @@ describe("TestcasesController.updateTestcase", () => {
 	});
 
 	it("refuses a placeholder value belonging to another prompt", async () => {
-		// The guard `memoryId` used to carry: resolution is scoped to this prompt, so a
-		// value id from another tenant's prompt is simply not resolvable here.
+		// The guard the retired memory selector used to carry: resolution is scoped to
+		// this prompt, so a value id from another tenant's prompt is simply not
+		// resolvable here.
 		vi.mocked(db.placeholders.resolveSelection).mockResolvedValue({
 			rows: [],
 			unresolved: ["admin_role"],
@@ -260,7 +234,6 @@ describe("TestcasesController.runTestcase", () => {
 			promptId: PROMPT,
 			input: "question",
 			expectedOutput: "expected",
-			memoryId: null,
 			files: [],
 			placeholderValues,
 			prompt: {

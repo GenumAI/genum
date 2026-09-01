@@ -1,10 +1,5 @@
 export type TestStatus = "OK" | "NOK" | "NEED_RUN";
 
-export interface Memory {
-	id: number;
-	key: string;
-}
-
 export interface TestCaseFile {
 	id: number;
 	testcaseId: number;
@@ -46,7 +41,6 @@ export interface TestCase {
 	expectedChainOfThoughts: string;
 	lastOutput: string;
 	lastChainOfThoughts: string;
-	memoryId: number | null;
 	status: TestStatus;
 	assertionThoughts: string;
 	createdAt: string;

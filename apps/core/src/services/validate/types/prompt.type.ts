@@ -66,7 +66,6 @@ export type PromptUpdateLLMConfigType = z.infer<typeof PromptUpdateLLMConfigSche
 export const PromptRunSchema = z
 	.object({
 		question: z.string(),
-		memoryId: z.number().optional(),
 		files: z.array(z.string()).optional().default([]),
 		placeholders: z.record(z.string(), z.string()).optional(),
 	})

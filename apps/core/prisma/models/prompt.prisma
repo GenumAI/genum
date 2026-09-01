@@ -25,7 +25,6 @@ model Prompt {
 
     testCases    TestCase[]
     branches     Branch[]
-    memories     Memory[]
     placeholders Placeholder[]
     chat         PromptChat[]
     audit        Audit?
@@ -98,18 +97,4 @@ model PromptVersion {
     author   User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
     createdAt DateTime @default(now())
-}
-
-model Memory {
-    id        Int      @id @default(autoincrement())
-    key       String   @db.VarChar(255)
-    value     String
-    promptId  Int
-    prompt    Prompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
-    createdAt DateTime @default(now()) @db.Timestamp(6)
-    updatedAt DateTime @default(now()) @updatedAt @db.Timestamp(6)
-
-    testCases TestCase[]
-
-    @@unique([key, promptId])
 }

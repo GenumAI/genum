@@ -14,6 +14,7 @@
     "start": "node dist/server.js",
     "dev": "dotenv -e ../../.env tsx watch src/server.ts",
     "seed:dev": "tsx src/database/seed/seed.ts",
+    "report:placeholder-migration": "dotenv -e ../../.env tsx src/database/seed/report-placeholder-migration.ts",
     "seed:prod": "node dist/database/seed/seed.js",
     "close-account": "node dist/erasure/close-account.js",
     "close-account:dev": "dotenv -e ../../.env tsx src/erasure/close-account.ts",

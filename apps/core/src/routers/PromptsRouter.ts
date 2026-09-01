@@ -69,29 +69,6 @@ export function createPromptsRouter(): Router {
 	router.get("/", asyncHandler(promptsController.getProjectPrompts.bind(promptsController)));
 	router.post("/", asyncHandler(promptsController.createPrompt.bind(promptsController)));
 
-	// Memories endpoints
-	router.get("/memories", asyncHandler(promptsController.getAllMemories.bind(promptsController)));
-	router.get(
-		"/:id/memories",
-		asyncHandler(promptsController.getMemoriesByPromptId.bind(promptsController)),
-	);
-	router.post(
-		"/:id/memories",
-		asyncHandler(promptsController.createMemory.bind(promptsController)),
-	);
-	router.get(
-		"/:id/memories/:memoryId",
-		asyncHandler(promptsController.getMemoryById.bind(promptsController)),
-	);
-	router.put(
-		"/:id/memories/:memoryId",
-		asyncHandler(promptsController.updateMemory.bind(promptsController)),
-	);
-	router.delete(
-		"/:id/memories/:memoryId",
-		asyncHandler(promptsController.deleteMemory.bind(promptsController)),
-	);
-
 	// Placeholders endpoints
 	router.get(
 		"/:id/placeholders",

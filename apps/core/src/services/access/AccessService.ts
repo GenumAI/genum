@@ -16,17 +16,6 @@ export async function checkPromptAccess(promptId: number, projectId: number) {
 	}
 }
 
-export async function checkMemoryAccess(memoryId: number, promptId: number) {
-	const memory = await db.memories.getMemoryByIDAndPromptId(memoryId, promptId);
-	if (!memory) {
-		throw new HttpError(404, "Memory is not found");
-	} else if (memory.promptId === promptId) {
-		return memory;
-	} else {
-		throw new HttpError(404, "Memory is not found");
-	}
-}
-
 export async function checkPlaceholderAccess(placeholderId: number, promptId: number) {
 	const placeholder = await db.placeholders.getPlaceholderByIDAndPromptId(
 		placeholderId,

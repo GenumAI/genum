@@ -103,8 +103,13 @@ export class PlaceholdersRepository {
 
 	/**
 	 * Names -> ids, scoped to one prompt. Scoping is the guard: a value id belonging to
-	 * another prompt is unreachable rather than merely rejected, which is what
-	 * `checkMemoryAccess` had to do by hand for `memoryId`.
+	 * another prompt is unreachable rather than merely rejected, which is what the
+	 * deleted Memory feature's own access check had to do by hand for its foreign key.
+	 *
+	 * `content` rides along on each row so a caller that needs the resolved text (e.g.
+	 * the testcase namer's extra context, which used to read the retired Memory row's
+	 * value) doesn't have to re-fetch it -- it is simply ignored by callers that only
+	 * persist `placeholderId`/`placeholderValueId` (see `setPlaceholderSelection`).
 	 */
 	public async resolveSelection(promptId: number, selection: Record<string, string>) {
 		const keys = Object.keys(selection);
@@ -115,7 +120,7 @@ export class PlaceholdersRepository {
 			include: { values: true },
 		});
 
-		const rows: { placeholderId: number; placeholderValueId: number }[] = [];
+		const rows: { placeholderId: number; placeholderValueId: number; content: string }[] = [];
 		const unresolved: string[] = [];
 
 		for (const key of keys) {
@@ -125,7 +130,11 @@ export class PlaceholdersRepository {
 				unresolved.push(key);
 				continue;
 			}
-			rows.push({ placeholderId: placeholder.id, placeholderValueId: value.id });
+			rows.push({
+				placeholderId: placeholder.id,
+				placeholderValueId: value.id,
+				content: value.content,
+			});
 		}
 
 		return { rows, unresolved };

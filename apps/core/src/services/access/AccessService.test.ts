@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-	checkPromptAccess,
-	checkMemoryAccess,
-	checkTestcaseAccess,
-	getApiKeyByQuota,
-} from "./AccessService";
+import { checkPromptAccess, checkTestcaseAccess, getApiKeyByQuota } from "./AccessService";
 import { db } from "@/database/db";
 import { isCloudInstance } from "@/utils/env";
 import { AiVendor } from "@/prisma";
@@ -15,9 +10,6 @@ vi.mock("@/database/db", () => ({
 	db: {
 		prompts: {
 			getPromptById: vi.fn(),
-		},
-		memories: {
-			getMemoryByIDAndPromptId: vi.fn(),
 		},
 		testcases: {
 			getTestcaseByID: vi.fn(),
@@ -63,22 +55,6 @@ describe("AccessService", () => {
 		});
 	});
 
-	describe("checkMemoryAccess", () => {
-		it("should return memory if it exists and belongs to prompt", async () => {
-			const mockMemory = { id: 1, promptId: 100 };
-			vi.mocked(db.memories.getMemoryByIDAndPromptId).mockResolvedValue(mockMemory as any);
-
-			const result = await checkMemoryAccess(1, 100);
-			expect(result).toEqual(mockMemory);
-		});
-
-		it("should throw error if memory is not found", async () => {
-			vi.mocked(db.memories.getMemoryByIDAndPromptId).mockResolvedValue(null);
-
-			await expect(checkMemoryAccess(1, 100)).rejects.toThrow("Memory is not found");
-		});
-	});
-
 	describe("checkTestcaseAccess", () => {
 		it("should return testcase if it exists and belongs to project", async () => {
 			const mockTestcase = { id: 1, prompt: { projectId: 10 } };
@@ -116,12 +92,6 @@ describe("AccessService", () => {
 			vi.mocked(db.prompts.getPromptById).mockResolvedValue({ id: 1, projectId: 20 } as any);
 
 			await expect(checkPromptAccess(1, 10)).rejects.toBeInstanceOf(HttpError);
-		});
-
-		it("reports a missing memory as 404", async () => {
-			vi.mocked(db.memories.getMemoryByIDAndPromptId).mockResolvedValue(null);
-
-			await expect(checkMemoryAccess(1, 100)).rejects.toMatchObject({ statusCode: 404 });
 		});
 
 		it("reports a missing testcase as 404", async () => {

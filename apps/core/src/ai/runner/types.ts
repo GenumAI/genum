@@ -11,7 +11,6 @@ export type runPromptParams = {
 	userProjectId: number;
 	userOrgId: number;
 	question: string;
-	memoryId?: number;
 	source: SourceType;
 	user_id?: number;
 	testcase_id?: number;

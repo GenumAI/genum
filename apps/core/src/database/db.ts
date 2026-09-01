@@ -1,6 +1,5 @@
 import { PromptsRepository } from "./repositories/PromptsRepository";
 import { TestcasesRepository } from "./repositories/TestcasesRepository";
-import { MemoriesRepository } from "./repositories/MemoriesRepository";
 import { PlaceholdersRepository } from "./repositories/PlaceholdersRepository";
 import { UsersRepository } from "./repositories/UsersRepository";
 import { OrganizationRepository } from "./repositories/OrganizationRepository";
@@ -26,7 +25,6 @@ import { ErasureRepository } from "./repositories/ErasureRepository";
 class Database {
 	public readonly prompts: PromptsRepository;
 	public readonly testcases: TestcasesRepository;
-	public readonly memories: MemoriesRepository;
 	public readonly placeholders: PlaceholdersRepository;
 	public readonly users: UsersRepository;
 	public readonly organization: OrganizationRepository;
@@ -41,7 +39,6 @@ class Database {
 		this.system = new SystemRepository(prisma);
 		this.prompts = new PromptsRepository(prisma, this.system);
 		this.testcases = new TestcasesRepository(prisma);
-		this.memories = new MemoriesRepository(prisma);
 		this.placeholders = new PlaceholdersRepository(prisma);
 		this.users = new UsersRepository(prisma);
 		this.organization = new OrganizationRepository(prisma);

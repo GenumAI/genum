@@ -58,7 +58,6 @@ export interface PromptSettings {
 		};
 	} | null;
 	_count: {
-		memories: number;
 		testCases: number;
 	};
 }

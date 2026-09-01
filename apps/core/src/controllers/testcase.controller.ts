@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { type Memory, TestCaseStatus } from "@/prisma";
+import { TestCaseStatus } from "@/prisma";
 import {
 	type TestcasesCreateType,
 	TestcasesCreateWithoutNameSchema,
@@ -37,19 +37,6 @@ export class TestcasesController {
 
 		const prompt = await checkPromptAccess(data.promptId, metadata.projID);
 
-		let memory: Memory | undefined;
-		if (data.memoryId) {
-			const testcaseMemory = await db.memories.getMemoryByIDAndPromptId(
-				data.memoryId,
-				prompt.id,
-			);
-			if (!testcaseMemory) {
-				throw new Error(`Memory not found`);
-			} else {
-				memory = testcaseMemory;
-			}
-		}
-
 		// Validate files if provided
 		if (data.files && data.files.length > 0) {
 			// Verify all files belong to the project
@@ -61,9 +48,18 @@ export class TestcasesController {
 			}
 		}
 
+		// Resolved before naming (not just before persisting) so the namer gets the same
+		// extra context `memory?.value` used to supply -- the content of whatever the
+		// caller pinned, e.g. a client name a generic input alone wouldn't surface.
+		const { rows, unresolved } = await db.placeholders.resolveSelection(
+			prompt.id,
+			data.placeholders ?? {},
+		);
+		const extraContext = rows.map((row) => row.content).join("\n\n") || undefined;
+
 		const payload = testcaseNamerFormat({
 			do_not_execute_user_draft: prompt.value,
-			do_not_execute_user_draft_extraContext: memory?.value,
+			do_not_execute_user_draft_extraContext: extraContext,
 			do_not_execute_input: data.input,
 		});
 
@@ -81,11 +77,13 @@ export class TestcasesController {
 
 		const testcase = await db.testcases.newTestcase(testcaseData);
 
-		const { rows, unresolved } = await db.placeholders.resolveSelection(
-			prompt.id,
-			data.placeholders ?? {},
+		await db.testcases.setPlaceholderSelection(
+			testcase.id,
+			rows.map(({ placeholderId, placeholderValueId }) => ({
+				placeholderId,
+				placeholderValueId,
+			})),
 		);
-		await db.testcases.setPlaceholderSelection(testcase.id, rows);
 
 		res.status(200).json({ testcase, unresolvedPlaceholders: unresolved });
 	}
@@ -97,20 +95,8 @@ export class TestcasesController {
 
 		const existing = await checkTestcaseAccess(id, metadata.projID);
 
-		// memoryId is writable through the update schema, so it needs the same check
-		// createTestcase does -- otherwise another prompt's memory can be attached here.
-		if (data.memoryId) {
-			const memory = await db.memories.getMemoryByIDAndPromptId(
-				data.memoryId,
-				existing.promptId,
-			);
-			if (!memory) {
-				throw new Error("Memory not found");
-			}
-		}
-
-		// `placeholders` follows the file's existing `memoryId` convention: absent means
-		// leave it alone, an explicit `{}` means clear it. Resolving unconditionally would
+		// `placeholders` follows the same convention the retired memory selector used:
+		// absent means leave it alone, an explicit `{}` means clear it. Resolving unconditionally would
 		// wipe a testcase's pinned selection on every unrelated partial update (e.g. a
 		// rename), since `data.placeholders ?? {}` can't tell "not sent" from "sent empty".
 		//
@@ -124,7 +110,13 @@ export class TestcasesController {
 				data.placeholders,
 			);
 			unresolved = resolved.unresolved;
-			await db.testcases.setPlaceholderSelection(id, resolved.rows);
+			await db.testcases.setPlaceholderSelection(
+				id,
+				resolved.rows.map(({ placeholderId, placeholderValueId }) => ({
+					placeholderId,
+					placeholderValueId,
+				})),
+			);
 		}
 
 		const testcase = await db.testcases.updateTestcaseByID(id, data);
@@ -177,7 +169,6 @@ export class TestcasesController {
 		const run = await runPrompt({
 			prompt: testcase.prompt,
 			question: testcase.input,
-			memoryId: testcase.memoryId ?? undefined,
 			source: SourceType.testcase,
 			userProjectId: metadata.projID,
 			userOrgId: metadata.orgID,

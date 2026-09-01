@@ -143,7 +143,6 @@ export class PromptsRepository {
 				commited: true,
 				_count: {
 					select: {
-						memories: true,
 						testCases: true,
 					},
 				},

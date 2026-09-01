@@ -17,7 +17,6 @@ export function usePlaygroundPromptRun({
 	testcaseId,
 	testcase,
 	inputContent,
-	selectedMemoryId,
 	storeOutputContent,
 	wasRun,
 	currentAssertionType,
@@ -32,7 +31,6 @@ export function usePlaygroundPromptRun({
 	testcaseId: string | null;
 	testcase: TestCase | null;
 	inputContent: string;
-	selectedMemoryId: string;
 	storeOutputContent: PromptResponse | null;
 	wasRun: boolean;
 	currentAssertionType: string;
@@ -58,7 +56,6 @@ export function usePlaygroundPromptRun({
 		try {
 			const runParams = {
 				question: inputContent,
-				...(selectedMemoryId && { memoryId: Number(selectedMemoryId) }),
 				...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
 				placeholders: selectedPlaceholders,
 			};
@@ -117,7 +114,6 @@ export function usePlaygroundPromptRun({
 	}, [
 		inputContent,
 		promptId,
-		selectedMemoryId,
 		selectedFiles,
 		selectedPlaceholders,
 		setRunState,

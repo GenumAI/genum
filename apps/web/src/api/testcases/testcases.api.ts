@@ -16,7 +16,6 @@ export interface CreateTestcaseData {
 	expectedOutput: string;
 	lastOutput?: string;
 	name?: string;
-	memoryId?: number | null;
 	files?: string[];
 	placeholders?: Record<string, string>;
 }
@@ -26,12 +25,10 @@ export interface UpdateTestcaseData {
 	input?: string;
 	expectedOutput?: string;
 	expectedChainOfThoughts?: string;
-	memoryId?: number | null;
 	[key: string]: any;
 }
 
 export interface RunTestcaseData {
-	memoryId?: number;
 	question?: string;
 	files?: string[];
 	placeholders?: Record<string, string>;

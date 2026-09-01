@@ -9,9 +9,6 @@ export interface Prompt {
 	createdAt: string;
 	testcaseStatuses: TestcaseStatuses;
 	commited?: boolean;
-	memories: {
-		length: number;
-	};
 	lastCommit: {
 		commitHash: string;
 		createdAt: string;
@@ -24,7 +21,6 @@ export interface Prompt {
 		};
 	} | null;
 	_count: {
-		memories: number;
 		testCases: number;
 	};
 }

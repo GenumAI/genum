@@ -25,15 +25,6 @@ export interface LogsResponse {
 	total: number;
 }
 
-export interface MemoryRecord {
-	id: number;
-	key: string;
-}
-
-export interface MemoriesResponse {
-	memories: MemoryRecord[];
-}
-
 export interface PromptName {
 	id: number;
 	name: string;

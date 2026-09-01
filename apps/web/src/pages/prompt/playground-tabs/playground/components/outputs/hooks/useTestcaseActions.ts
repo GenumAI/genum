@@ -4,7 +4,7 @@ import { promptApi } from "@/api/prompt/prompt.api";
 import type { TestcasePayload } from "@/hooks/useCreateTestcase";
 import { useToast } from "@/hooks/useToast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
+import usePlaygroundStore from "@/stores/playground.store";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 interface UseTestcaseActionsProps {
@@ -13,10 +13,13 @@ interface UseTestcaseActionsProps {
 	selectedFiles?: Array<{ id: string }>;
 }
 
-export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }: UseTestcaseActionsProps) => {
+export const useTestcaseActions = ({
+	promptId,
+	onTestcaseAdded,
+	selectedFiles,
+}: UseTestcaseActionsProps) => {
 	const { toast } = useToast();
-	const { selection } = useMemorySelection(promptId, null);
-	const selectedMemoryId = selection.selectedMemoryId;
+	const selectedPlaceholders = usePlaygroundStore((state) => state.selectedPlaceholders);
 	const queryClient = useQueryClient();
 	const createTestcaseMutation = useMutation({
 		mutationKey: testcaseKeys.create(promptId),
@@ -56,8 +59,11 @@ export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }:
 				input: input || "",
 				expectedOutput: expectedOutput,
 				lastOutput: lastOutput || "",
-				memoryId: selectedMemoryId ? Number(selectedMemoryId) : undefined,
-				files: selectedFiles && selectedFiles.length > 0 ? selectedFiles.map((f) => f.id) : undefined,
+				placeholders: selectedPlaceholders,
+				files:
+					selectedFiles && selectedFiles.length > 0
+						? selectedFiles.map((f) => f.id)
+						: undefined,
 			};
 
 			let success = false;
@@ -80,7 +86,7 @@ export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }:
 
 			return { success };
 		},
-		[promptId, selectedMemoryId, selectedFiles, toast, createTestcaseMutation],
+		[promptId, selectedPlaceholders, selectedFiles, toast, createTestcaseMutation],
 	);
 
 	return {

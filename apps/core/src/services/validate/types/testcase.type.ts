@@ -17,7 +17,6 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 		assertionThoughts: z.string().optional(),
 		expectedChainOfThoughts: z.string().optional(),
 		lastChainOfThoughts: z.string().optional(),
-		memoryId: z.number().nullable().optional(),
 		placeholders: z.record(z.string(), z.string()).optional(),
 	})
 	.strict();
@@ -62,7 +61,6 @@ export type TestcasesUpdateType = z.infer<typeof TestcasesUpdateSchema>;
 export const TestcaseRunSchema = z
 	.object({
 		question: z.string().optional(),
-		memoryId: z.number().optional(),
 		files: z.array(z.string()).optional(),
 		placeholders: z.record(z.string(), z.string()).optional(),
 	})
