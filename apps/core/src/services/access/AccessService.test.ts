@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { checkPromptAccess, checkTestcaseAccess, getApiKeyByQuota } from "./AccessService";
+import {
+	checkPromptAccess,
+	checkPlaceholderAccess,
+	checkTestcaseAccess,
+	getApiKeyByQuota,
+} from "./AccessService";
 import { db } from "@/database/db";
 import { isCloudInstance } from "@/utils/env";
 import { AiVendor } from "@/prisma";
@@ -13,6 +18,9 @@ vi.mock("@/database/db", () => ({
 		},
 		testcases: {
 			getTestcaseByID: vi.fn(),
+		},
+		placeholders: {
+			getPlaceholderByIDAndPromptId: vi.fn(),
 		},
 		organization: {
 			getOrganizationApiKey: vi.fn(),
@@ -75,6 +83,30 @@ describe("AccessService", () => {
 			vi.mocked(db.testcases.getTestcaseByID).mockResolvedValue(mockTestcase as any);
 
 			await expect(checkTestcaseAccess(1, 10)).rejects.toThrow("Testcase is not found");
+		});
+	});
+
+	describe("checkPlaceholderAccess", () => {
+		it("should return the placeholder if it exists and belongs to the prompt", async () => {
+			const mockPlaceholder = { id: 1, promptId: 100 };
+			vi.mocked(db.placeholders.getPlaceholderByIDAndPromptId).mockResolvedValue(
+				mockPlaceholder as any,
+			);
+
+			const result = await checkPlaceholderAccess(1, 100);
+			expect(result).toEqual(mockPlaceholder);
+		});
+
+		it("should throw a 404 HttpError for a placeholder outside the prompt", async () => {
+			// `getPlaceholderByIDAndPromptId` scopes its own lookup to `promptId`, so a
+			// placeholder id from another prompt resolves to null here, same as a truly
+			// missing id -- both are reported identically rather than leaking which case it was.
+			vi.mocked(db.placeholders.getPlaceholderByIDAndPromptId).mockResolvedValue(null);
+
+			await expect(checkPlaceholderAccess(1, 100)).rejects.toMatchObject({
+				statusCode: 404,
+			});
+			await expect(checkPlaceholderAccess(1, 100)).rejects.toBeInstanceOf(HttpError);
 		});
 	});
 

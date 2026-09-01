@@ -60,14 +60,6 @@ type CanvasAgentMessageAction = {
 
 export type CanvasAgentMessage = CanvasAgentMessageText | CanvasAgentMessageAction;
 
-export type TestcaseNamerParams = {
-	user_prompt: string;
-	memory_value?: string;
-	input: string;
-	userOrgId: number;
-	userProjectId: number;
-};
-
 export type AssertionEditorParams = {
 	prompt: Prompt;
 	user_query: string;

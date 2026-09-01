@@ -11,11 +11,16 @@ SELECT p."id", m."key", m."value", FALSE, NOW(), NOW()
 FROM "Memory" m
 JOIN "Placeholder" p ON p."promptId" = m."promptId" AND p."key" = 'memory_key';
 
--- Testcase selections carry over by name.
+-- Testcase selections carry over by name -- but only within the same prompt. The old
+-- schema had no FK tying TestCase.memoryId to TestCase.promptId, and the update path
+-- went unguarded for a time, so a legacy row can point at another prompt's memory. That
+-- combination is not representable in the new schema (TestCasePlaceholderValue has no
+-- direct link to the testcase's prompt, so nothing downstream would ever catch it), so
+-- it is dropped here rather than carried forward.
 INSERT INTO "TestCasePlaceholderValue" ("testCaseId", "placeholderId", "placeholderValueId")
 SELECT t."id", pv."placeholderId", pv."id"
 FROM "TestCase" t
-JOIN "Memory" m ON m."id" = t."memoryId"
+JOIN "Memory" m ON m."id" = t."memoryId" AND m."promptId" = t."promptId"
 JOIN "Placeholder" p ON p."promptId" = m."promptId" AND p."key" = 'memory_key'
 JOIN "PlaceholderValue" pv ON pv."placeholderId" = p."id" AND pv."name" = m."key"
 WHERE t."memoryId" IS NOT NULL;

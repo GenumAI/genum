@@ -109,6 +109,12 @@ export class TestcasesRepository {
 		});
 	}
 
+	// Destructures rather than spreading `row` so a caller that passes richer rows (e.g.
+	// PlaceholdersRepository.resolveSelection's `content`, kept there for the testcase
+	// namer's extra context) cannot leak an extra column into `createMany` -- excess
+	// property checks don't fire on a variable, only on an object literal, so a `{
+	// ...row, testCaseId }` spread would have compiled fine and thrown at runtime the
+	// moment Prisma saw an argument `TestCasePlaceholderValue` doesn't have.
 	public async setPlaceholderSelection(
 		testCaseId: number,
 		rows: { placeholderId: number; placeholderValueId: number }[],
@@ -117,7 +123,11 @@ export class TestcasesRepository {
 			await tx.testCasePlaceholderValue.deleteMany({ where: { testCaseId } });
 			if (rows.length === 0) return;
 			await tx.testCasePlaceholderValue.createMany({
-				data: rows.map((row) => ({ ...row, testCaseId })),
+				data: rows.map(({ placeholderId, placeholderValueId }) => ({
+					placeholderId,
+					placeholderValueId,
+					testCaseId,
+				})),
 			});
 		});
 	}

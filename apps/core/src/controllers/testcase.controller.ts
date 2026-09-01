@@ -77,13 +77,7 @@ export class TestcasesController {
 
 		const testcase = await db.testcases.newTestcase(testcaseData);
 
-		await db.testcases.setPlaceholderSelection(
-			testcase.id,
-			rows.map(({ placeholderId, placeholderValueId }) => ({
-				placeholderId,
-				placeholderValueId,
-			})),
-		);
+		await db.testcases.setPlaceholderSelection(testcase.id, rows);
 
 		res.status(200).json({ testcase, unresolvedPlaceholders: unresolved });
 	}
@@ -110,13 +104,7 @@ export class TestcasesController {
 				data.placeholders,
 			);
 			unresolved = resolved.unresolved;
-			await db.testcases.setPlaceholderSelection(
-				id,
-				resolved.rows.map(({ placeholderId, placeholderValueId }) => ({
-					placeholderId,
-					placeholderValueId,
-				})),
-			);
+			await db.testcases.setPlaceholderSelection(id, resolved.rows);
 		}
 
 		const testcase = await db.testcases.updateTestcaseByID(id, data);

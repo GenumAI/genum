@@ -178,6 +178,32 @@ describe("TestcasesController.updateTestcase", () => {
 		expect(db.testcases.setPlaceholderSelection).toHaveBeenCalledWith(5, []);
 	});
 
+	it("pins nothing on update when the selection is unresolvable", async () => {
+		// The retired update-path bug: the old memory selector field was writable
+		// through `TestcasesUpdateSchema` and never checked against the testcase's own
+		// prompt, so another tenant's memory could be pinned via update even though
+		// createTestcase guarded the same field. `resolveSelection` is scoped to
+		// `existing.promptId`, so a value id from another prompt simply never resolves --
+		// prove the update path actually passes that scope through instead of trusting
+		// the create-path test alone.
+		vi.mocked(db.placeholders.resolveSelection).mockResolvedValue({
+			rows: [],
+			unresolved: ["admin_role"],
+		} as never);
+		const { res, captured } = makeRes();
+
+		await controller.updateTestcase(makeReq({ placeholders: { admin_role: "true" } }), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(db.placeholders.resolveSelection).toHaveBeenCalledWith(PROMPT, {
+			admin_role: "true",
+		});
+		expect(db.testcases.setPlaceholderSelection).toHaveBeenCalledWith(5, []);
+		expect(
+			(captured.body as { unresolvedPlaceholders: string[] }).unresolvedPlaceholders,
+		).toEqual(["admin_role"]);
+	});
+
 	it("pins a real selection on update, as before", async () => {
 		vi.mocked(db.placeholders.resolveSelection).mockResolvedValue({
 			rows: [{ placeholderId: 5, placeholderValueId: 9 }],
