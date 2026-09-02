@@ -248,7 +248,7 @@ export default function Placeholders() {
 						<div>
 							<p className="mb-2 text-xs font-medium text-muted-foreground">Key</p>
 							<Input
-								placeholder="e.g. admin_role"
+								placeholder="e.g. tone"
 								value={newKey}
 								onChange={(e) => setNewKey(e.target.value)}
 							/>
@@ -292,7 +292,7 @@ export default function Placeholders() {
 						<div>
 							<p className="mb-2 text-xs font-medium text-muted-foreground">Key</p>
 							<Input
-								placeholder="e.g. admin_role"
+								placeholder="e.g. tone"
 								value={editKey}
 								onChange={(e) => setEditKey(e.target.value)}
 							/>
@@ -342,7 +342,7 @@ export default function Placeholders() {
 						<div>
 							<p className="mb-2 text-xs font-medium text-muted-foreground">Name</p>
 							<Input
-								placeholder="e.g. admin"
+								placeholder="e.g. formal"
 								value={newValueName}
 								onChange={(e) => setNewValueName(e.target.value)}
 							/>
