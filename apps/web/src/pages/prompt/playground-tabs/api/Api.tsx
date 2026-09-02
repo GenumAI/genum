@@ -29,7 +29,9 @@ const REQUEST_BODY_EXAMPLE = `{
       "base64": "JVBERi0xLjQKJ..."      // Base64 content (raw or data URL)
     }
   ],
-  "placeholders": { "admin_role": "true" }, // Optional: one value per placeholder key
+  "placeholders": {                   // Optional: one value NAME per placeholder key
+    "tone": "formal"
+  },
   "productive": boolean               // Optional: use committed prompt. Default is true
 }`;
 
@@ -44,8 +46,8 @@ const RESPONSE_EXAMPLE = `{
   "chainOfThoughts": "Optional reasoning chain",
   "status": "Optional status (e.g. NOK: error message)",
   "placeholders": {
-    "resolved": { "admin_role": "true" },  // key -> the value name actually used
-    "ignored": ["unused_key"]              // keys you sent that were not applied: no such
+    "resolved": { "tone": "formal" },      // key -> the value name actually used
+    "ignored": ["language"]                // keys you sent that were not applied: no such
                                            // {{key}} in the text, or no value by that name
   }
 }`;
