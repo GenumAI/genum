@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import { detectPlaceholderKeys } from "@genum/placeholders";
+import { detectPlaceholderKeys, filterValidPlaceholderSelections } from "@genum/placeholders";
 import { useShallow } from "zustand/react/shallow";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,6 @@ import { getOrgId, getProjectId } from "@/api/client";
 import { usePromptPlaceholders } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePromptPlaceholders";
 import usePlaygroundStore from "@/stores/playground.store";
 import type { PromptPlaceholder } from "@/api/prompt/placeholder.api";
-import { filterValidPlaceholderSelections } from "@/pages/prompt/playground-tabs/playground/lib/validatePlaceholderSelection";
 
 const MAX_VISIBLE_CHIPS = 6;
 
@@ -177,11 +176,17 @@ export default function PlaceholderChips({ promptId, text }: PlaceholderChipsPro
 		return map;
 	}, [placeholders]);
 
-	// Shared with usePlaygroundPromptRun so what the chip shows and what the run
-	// body sends always agree — see filterValidPlaceholderSelections' own comment.
+	// Shared with usePlaygroundPromptRun (both import it from @genum/placeholders) so
+	// what the chip shows and what the run body sends always agree — see
+	// filterValidPlaceholderSelections' own comment for why `null` (unsettled) is
+	// passed while loading/erroring rather than the `[]` default.
 	const validSelection = useMemo(
-		() => filterValidPlaceholderSelections(selectedPlaceholders, placeholders),
-		[selectedPlaceholders, placeholders],
+		() =>
+			filterValidPlaceholderSelections(
+				selectedPlaceholders,
+				isLoading || isError ? null : placeholders,
+			),
+		[selectedPlaceholders, placeholders, isLoading, isError],
 	);
 
 	if (keys.length === 0) {

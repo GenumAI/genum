@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from "react";
+import { filterValidPlaceholderSelections } from "@genum/placeholders";
 import { promptApi } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
@@ -12,7 +13,6 @@ import { testcaseKeys } from "@/query-keys/testcases.keys";
 import { usePromptActions } from "@/stores/prompt.store";
 import usePlaygroundStore from "@/stores/playground.store";
 import { usePromptPlaceholders } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePromptPlaceholders";
-import { filterValidPlaceholderSelections } from "@/pages/prompt/playground-tabs/playground/lib/validatePlaceholderSelection";
 
 export function usePlaygroundPromptRun({
 	promptId,
@@ -48,19 +48,32 @@ export function usePlaygroundPromptRun({
 	const queryClient = useQueryClient();
 	const selectedPlaceholders = usePlaygroundStore((state) => state.selectedPlaceholders);
 	// Same source PlaceholderChips reads to validate the selection for display --
-	// see filterValidPlaceholderSelections' own comment for why both must agree.
-	const { data: placeholderDefinitions = [] } = usePromptPlaceholders(promptId);
+	// see filterValidPlaceholderSelections' own comment (in @genum/placeholders) for
+	// why both must agree.
+	const {
+		data: placeholderDefinitions = [],
+		isLoading: placeholdersLoading,
+		isError: placeholdersErrored,
+	} = usePromptPlaceholders(promptId);
+	// `null` here means "not yet known" (loading or errored), not "known to be empty"
+	// -- filterValidPlaceholderSelections treats those differently on purpose: an
+	// unsettled state must pass the selection through unfiltered rather than silently
+	// drop it, since that would send an empty run body with no `ignored` echo either.
+	const knownPlaceholderDefinitions =
+		placeholdersLoading || placeholdersErrored ? null : placeholderDefinitions;
 
 	// The chips are computed from the live draft, but the server renders the SAVED
 	// Prompt.value (the editor only saves on fieldset blur). A selection made after
 	// typing a new {{key}} but before that save lands in `ignored`, not the answer --
-	// silently, unless this names the keys back to the author.
+	// silently, unless this names the keys back to the author. `ignored` can also mean
+	// a value name that no longer resolves (stale cache, a renamed value), so the
+	// message states what happened, not why.
 	const warnAboutIgnoredPlaceholders = useCallback(
 		(ignored: string[] | undefined) => {
 			if (!ignored || ignored.length === 0) return;
 			toast({
-				title: "Some placeholder selections were ignored",
-				description: `These keys aren't in the saved prompt text yet, so they had no effect: ${ignored.join(", ")}.`,
+				title: "Some placeholder selections were not applied",
+				description: `These keys were not applied to this run: ${ignored.join(", ")}.`,
 				variant: "default",
 			});
 		},
@@ -80,7 +93,7 @@ export function usePlaygroundPromptRun({
 				...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
 				placeholders: filterValidPlaceholderSelections(
 					selectedPlaceholders,
-					placeholderDefinitions,
+					knownPlaceholderDefinitions,
 				),
 			};
 
@@ -142,7 +155,7 @@ export function usePlaygroundPromptRun({
 		promptId,
 		selectedFiles,
 		selectedPlaceholders,
-		placeholderDefinitions,
+		knownPlaceholderDefinitions,
 		setRunState,
 		setOutputContent,
 		testcaseId,

@@ -34,7 +34,11 @@ export default function Placeholders() {
 		[promptValue],
 	);
 
-	const { data: placeholders = [], isLoading } = usePromptPlaceholders(promptId, isActive);
+	const {
+		data: placeholders = [],
+		isLoading,
+		isError,
+	} = usePromptPlaceholders(promptId, isActive);
 	const {
 		createPlaceholder,
 		updatePlaceholder,
@@ -146,7 +150,14 @@ export default function Placeholders() {
 				</Button>
 			</div>
 
-			{!isLoading && placeholders.length === 0 ? (
+			{isError ? (
+				// A failed load is not the same fact as genuine emptiness -- W1 fixed this
+				// one screen over (the chips); this is the tab's own copy of that defect.
+				<EmptyState
+					title="Couldn't load placeholders"
+					description="Something went wrong loading this prompt's placeholders. Try reloading the page."
+				/>
+			) : !isLoading && placeholders.length === 0 ? (
 				<EmptyState
 					title="No data"
 					description="No placeholders found. Create one to begin."

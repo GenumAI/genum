@@ -71,7 +71,28 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 			if (!promptId) throw new Error("No prompt id");
 			return placeholderApi.updatePlaceholder(promptId, placeholderId, data);
 		},
-		onSuccess: () => invalidate(),
+		onSuccess: ({ placeholder }, { placeholderId }) => {
+			// Seed key/description synchronously, ahead of `invalidate()`'s refetch --
+			// createPlaceholder and updateValue both already do this for the same reason:
+			// without it, the edited row in the list keeps showing the OLD key/description
+			// until the refetch resolves. Only these two fields are merged in (not
+			// `values`), since this response's values lack the `_count` the list's own
+			// query includes -- overwriting wholesale would drop it until the refetch too.
+			queryClient.setQueryData<PromptPlaceholder[]>(
+				promptPlaceholdersQueryKey(promptId),
+				(prev) =>
+					prev?.map((existing) =>
+						existing.id === placeholderId
+							? {
+									...existing,
+									key: placeholder.key,
+									description: placeholder.description,
+								}
+							: existing,
+					),
+			);
+			invalidate();
+		},
 		onError: (error) => {
 			toast({
 				title: serverErrorMessage(error, "Could not update placeholder"),
