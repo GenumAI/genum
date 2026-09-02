@@ -118,7 +118,7 @@ function LayoutContent({ user }: { user: UserType }) {
 		{ label: "Playground", path: "playground" },
 		{ label: "Testcases", path: "testcases" },
 		{ label: "Versions", path: "versions" },
-		{ label: "Memory", path: "memory" },
+		{ label: "Placeholders", path: "placeholders" },
 		{ label: "Logs", path: "logs" },
 		{ label: "API", path: "api" },
 	].map((item) => {

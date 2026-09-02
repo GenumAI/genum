@@ -29,10 +29,7 @@ const hasVisibleMetrics = (value?: PromptResponse | null) =>
 	(value?.cost?.total ?? 0) > 0 ||
 	(value?.response_time_ms ?? 0) > 0;
 
-const isSameOutputSnapshot = (
-	first?: PromptResponse | null,
-	second?: PromptResponse | null,
-) => {
+const isSameOutputSnapshot = (first?: PromptResponse | null, second?: PromptResponse | null) => {
 	return (
 		(first?.answer ?? "") === (second?.answer ?? "") &&
 		(first?.tokens?.total ?? 0) === (second?.tokens?.total ?? 0) &&
@@ -46,6 +43,7 @@ export function usePlaygroundTestcaseController({
 	promptId,
 	testcaseId,
 	testcases,
+	isTestcasesLoading,
 	storeOutputContent,
 	currentExpectedOutput,
 	currentExpectedThoughts,
@@ -60,6 +58,7 @@ export function usePlaygroundTestcaseController({
 	promptId: number | undefined;
 	testcaseId: string | null;
 	testcases: TestCase[];
+	isTestcasesLoading: boolean;
 	storeOutputContent: PromptResponse | null;
 	currentExpectedOutput: PromptResponse | null;
 	currentExpectedThoughts: string;
@@ -135,7 +134,8 @@ export function usePlaygroundTestcaseController({
 				queryClient.setQueryData(
 					testcaseKeys.promptTestcases(promptId),
 					(prev: TestCase[] | undefined) =>
-						prev?.map((tc) => (tc.id === updatedTestcase.id ? updatedTestcase : tc)) ?? prev,
+						prev?.map((tc) => (tc.id === updatedTestcase.id ? updatedTestcase : tc)) ??
+						prev,
 				);
 			}
 		},
@@ -145,6 +145,61 @@ export function usePlaygroundTestcaseController({
 		if (!testcaseId || !testcases.length) return null;
 		return testcases.find((tc) => tc.id === Number(testcaseId)) || null;
 	}, [testcases, testcaseId]);
+
+	// The playground's placeholder chips are seeded from the selected testcase's pinned
+	// selection (Task 8) so the chips show -- and the run sends -- what will actually be
+	// used. `pinnedPlaceholders` is recomputed whenever `testcase` changes, but its
+	// *reference* is only rebuilt below when the pin's actual content changes: an
+	// unrelated testcase mutation (saving the input, saving an expected output) hands
+	// back a brand-new testcase object, and often a brand-new placeholderValues array,
+	// carrying the same pinned content. Reacting to that by reference would replay the
+	// seed on every such save and silently discard a manual chip choice the user made
+	// for this run only.
+	const pinnedPlaceholders = useMemo(() => {
+		const result: Record<string, string> = {};
+		for (const pinned of testcase?.placeholderValues ?? []) {
+			result[pinned.placeholderValue.placeholder.key] = pinned.placeholderValue.name;
+		}
+		return result;
+	}, [testcase]);
+	// A pending testcaseId whose data has not loaded yet must produce a key distinct
+	// from "no pin" ({}), or the transition from "waiting" to "loaded with no pin" (both
+	// serialize to the same "{}") would never register as a dependency change below, and
+	// the seed would never actually run for that testcase. `isTestcasesLoading` (not just
+	// `!testcase`) is what tells "still fetching" apart from "fetched, and this id simply
+	// doesn't belong to the current prompt" (e.g. a stale testcaseId left over from a
+	// prompt switch) -- the latter must clear the selection, not wait forever.
+	const isTestcaseUnresolved = Boolean(testcaseId) && !testcase && isTestcasesLoading;
+	const pinnedPlaceholdersKey = useMemo(() => {
+		if (isTestcaseUnresolved) return "__pending__";
+		// Sort keys before stringifying: the server include has no guaranteed row
+		// order across requests (Postgres does not promise one without ORDER BY, and
+		// even with a deterministic ORDER BY a refetch is still a fresh query), so two
+		// fetches of the identical pin content could otherwise serialize differently
+		// and register as a "real" change, re-running the seed and discarding a
+		// manual chip choice made for this run only.
+		return JSON.stringify(
+			Object.keys(pinnedPlaceholders)
+				.sort()
+				.map((key) => [key, pinnedPlaceholders[key]]),
+		);
+	}, [isTestcaseUnresolved, pinnedPlaceholders]);
+
+	// This effect intentionally depends on pinnedPlaceholdersKey (a content-derived
+	// proxy), not on pinnedPlaceholders/testcase directly -- see the comment above
+	// pinnedPlaceholders. Depending on those by reference would re-seed on every
+	// unrelated testcase object reference churn, not only on a real prompt/testcase/pin
+	// change, silently discarding a manual chip choice made for this run only.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: deliberate, see above
+	useEffect(() => {
+		// A testcaseId can be present before its data has loaded into `testcases` yet;
+		// there is nothing to seed from in that instant, so wait rather than
+		// transiently clearing a selection the user may already be looking at. Once the
+		// list has loaded, proceed regardless of whether `testcase` resolved -- a
+		// not-found id (stale from a prompt switch) must still clear the selection.
+		if (testcaseId && !testcase && isTestcasesLoading) return;
+		usePlaygroundStore.getState().replacePlaceholderSelections(pinnedPlaceholders);
+	}, [promptId, testcaseId, pinnedPlaceholdersKey]);
 
 	useEffect(() => {
 		const prevTestcaseId = prevTestcaseIdRef.current;
@@ -158,11 +213,7 @@ export function usePlaygroundTestcaseController({
 		}
 
 		prevTestcaseIdRef.current = currentTestcaseId;
-	}, [
-		testcaseId,
-		resetPlaygroundState,
-		promptId,
-	]);
+	}, [testcaseId, resetPlaygroundState, promptId]);
 
 	// Load testcase data into playground query state
 	useEffect(() => {
@@ -217,7 +268,7 @@ export function usePlaygroundTestcaseController({
 							}
 						: formattedLastOutput;
 
-					const isUnchanged = isSameOutputSnapshot(storeOutputContent, mergedLastOutput);
+				const isUnchanged = isSameOutputSnapshot(storeOutputContent, mergedLastOutput);
 
 				if (!isUnchanged) {
 					setOutputContent(mergedLastOutput);
@@ -247,13 +298,12 @@ export function usePlaygroundTestcaseController({
 		usePlaygroundStore.getState().resetAfterAddTestcase(promptId);
 		clearExpectedOutputRef.current?.();
 		window.dispatchEvent(new CustomEvent("testcaseUpdated"));
-	}, [
-		promptId,
-	]);
+	}, [promptId]);
 
 	const handleSaveAsExpected = useCallback(
 		async (newExpectedContent: UpdateExpected) => {
-			const metricsSource = newExpectedContent.metrics ?? storeOutputContent ?? emptyPromptResponse;
+			const metricsSource =
+				newExpectedContent.metrics ?? storeOutputContent ?? emptyPromptResponse;
 			const expectedOutputData: PromptResponse = {
 				answer: newExpectedContent.answer,
 				tokens: metricsSource.tokens,

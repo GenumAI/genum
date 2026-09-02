@@ -1,6 +1,6 @@
 export * from "./types/organization.type";
 export * from "./types/prompt.type";
-export * from "./types/memory.type";
+export * from "./types/placeholder.type";
 export * from "./types/helper.type";
 export * from "./types/testcase.type";
 export * from "./types/generic.type";

@@ -16,8 +16,8 @@ export interface CreateTestcaseData {
 	expectedOutput: string;
 	lastOutput?: string;
 	name?: string;
-	memoryId?: number | null;
 	files?: string[];
+	placeholders?: Record<string, string>;
 }
 
 export interface UpdateTestcaseData {
@@ -25,14 +25,13 @@ export interface UpdateTestcaseData {
 	input?: string;
 	expectedOutput?: string;
 	expectedChainOfThoughts?: string;
-	memoryId?: number | null;
 	[key: string]: any;
 }
 
 export interface RunTestcaseData {
-	memoryId?: number;
 	question?: string;
 	files?: string[];
+	placeholders?: Record<string, string>;
 }
 
 export interface RunTestcaseResponse {
@@ -81,8 +80,11 @@ export const testcasesApi = {
 	createTestcase: async (
 		data: CreateTestcaseData,
 		config?: ApiRequestConfig,
-	): Promise<{ testcase: TestCase }> => {
-		const response = await apiClient.post<{ testcase: TestCase }>("/testcases", data, config);
+	): Promise<{ testcase: TestCase; unresolvedPlaceholders?: string[] }> => {
+		const response = await apiClient.post<{
+			testcase: TestCase;
+			unresolvedPlaceholders?: string[];
+		}>("/testcases", data, config);
 		return response.data;
 	},
 

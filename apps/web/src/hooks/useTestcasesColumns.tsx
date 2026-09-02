@@ -97,17 +97,28 @@ export const useTestcasesColumns = ({
 		},
 		...(!hidePromptColumn ? [promptColumn] : []),
 		{
-			id: "memoryKey",
+			id: "placeholders",
+			// `placeholderValues` is `undefined` when the caller's list endpoint didn't
+			// include the relation, and `[]` when it did and the testcase pins nothing.
+			// Those are different facts -- "we don't know" vs "we know it's empty" -- and
+			// collapsing them into the same "-" would silently misreport a testcase that
+			// actually pins values as unpinned on any surface that doesn't opt in.
 			accessorFn: (row) => {
-				const testcaseWithMemory = row as TestCase & {
-					memory?: { key?: string | null } | null;
-				};
-				return testcaseWithMemory.memory?.key ?? null;
+				if (row.placeholderValues === undefined) return null;
+				return row.placeholderValues
+					.map(
+						(pin) =>
+							`${pin.placeholderValue.placeholder.key}: ${pin.placeholderValue.name}`,
+					)
+					.join(" · ");
 			},
-			header: ({ column }) => <TableSortButton column={column} headerText="Memory Key" />,
+			header: ({ column }) => <TableSortButton column={column} headerText="Placeholders" />,
 			cell: ({ row }) => {
-				const memoryKey = row.getValue("memoryKey") as string | null;
-				return <span className="font-medium">{memoryKey || "-"}</span>;
+				const placeholders = row.getValue("placeholders") as string | null;
+				if (placeholders === null) {
+					return <span className="text-muted-foreground">—</span>;
+				}
+				return <span className="font-medium">{placeholders || "-"}</span>;
 			},
 			enableSorting: true,
 		},

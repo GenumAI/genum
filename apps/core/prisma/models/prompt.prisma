@@ -23,11 +23,11 @@ model Prompt {
     createdAt DateTime @default(now()) @db.Timestamp(6)
     updatedAt DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
-    testCases TestCase[]
-    branches  Branch[]
-    memories  Memory[]
-    chat      PromptChat[]
-    audit     Audit?
+    testCases    TestCase[]
+    branches     Branch[]
+    placeholders Placeholder[]
+    chat         PromptChat[]
+    audit        Audit?
 }
 
 model PromptChat {
@@ -90,24 +90,11 @@ model PromptVersion {
     languageModel       LanguageModel @relation(fields: [languageModelId], references: [id])
     languageModelConfig Json          @default("{}")
 
-    audit Json?
+    audit        Json?
+    placeholders Json?
 
     authorId Int?
     author   User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
     createdAt DateTime @default(now())
-}
-
-model Memory {
-    id        Int      @id @default(autoincrement())
-    key       String   @db.VarChar(255)
-    value     String
-    promptId  Int
-    prompt    Prompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
-    createdAt DateTime @default(now()) @db.Timestamp(6)
-    updatedAt DateTime @default(now()) @updatedAt @db.Timestamp(6)
-
-    testCases TestCase[]
-
-    @@unique([key, promptId])
 }

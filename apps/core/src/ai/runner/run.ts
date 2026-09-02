@@ -2,6 +2,8 @@ import { db } from "@/database/db";
 import { logUsage } from "../../services/logger/logger";
 import { AiVendor } from "@/prisma";
 import { mdToXml } from "@/utils/xml";
+import { renderPlaceholders } from "@genum/placeholders";
+import { toPlaceholderDefinitions } from "../placeholders/definitions";
 import {
 	calculateCost,
 	generateDeepSeek,
@@ -17,6 +19,7 @@ import { transcribeOpenAI } from "../providers/openai/speech";
 import type { runPromptParams, SystemPrompt } from "./types";
 import { getSystemPrompt, SYSTEM_PROMPTS } from "./system";
 import { LogLevel, LogType, SourceType } from "@/services/logger";
+import { toLogPlaceholders } from "@/services/logger/mappers";
 import { HttpError } from "@/utils/errors";
 
 let systemPromptsConfig: SystemPrompt;
@@ -150,17 +153,16 @@ export async function runPrompt(data: runPromptParams) {
 		quotaUsed = result.quotaUsed;
 	}
 
-	// handle memory
-	let memoryKey: string | undefined;
-	if (data.memoryId !== undefined) {
-		const memory = await db.memories.getMemoryByIDAndPromptId(data.memoryId, prompt.id);
-		if (memory === null) {
-			throw new Error(`Memory not found`);
-		} else {
-			instruction += memory.value; // add memory value to prompt
-			memoryKey = memory.key;
-		}
-	}
+	// Placeholders. Definitions come from the same object the text came from: for a
+	// productive run that is the commit snapshot (see getPromptWithProductiveCommit),
+	// otherwise the live tables. Reading them from different places is exactly the
+	// drift this feature exists to remove.
+	const definitions = data.placeholderDefinitions
+		? data.placeholderDefinitions
+		: toPlaceholderDefinitions(await db.placeholders.getPlaceholdersByPromptID(prompt.id));
+
+	const render = renderPlaceholders(instruction, definitions, data.placeholders ?? {});
+	instruction = render.text;
 
 	try {
 		// run prompt
@@ -209,7 +211,7 @@ export async function runPrompt(data: runPromptParams) {
 			response_ms: completion.response_time_ms,
 			in: data.question,
 			out: completion.answer,
-			memory_key: memoryKey, // todo: refactor? we use name instead of ID
+			placeholders: toLogPlaceholders(render.resolved),
 			testcase_id: data.testcase_id ? data.testcase_id : undefined,
 			api_key_id: data.api_key_id ? data.api_key_id : undefined,
 		});
@@ -217,6 +219,11 @@ export async function runPrompt(data: runPromptParams) {
 		return {
 			...completion,
 			cost,
+			placeholders: {
+				resolved: render.resolved,
+				ignored: render.ignored,
+				undefinedKeys: render.undefinedKeys,
+			},
 		};
 	} catch (error) {
 		console.error(error);
@@ -237,7 +244,7 @@ export async function runPrompt(data: runPromptParams) {
 			response_ms: 0,
 			in: data.question,
 			out: "",
-			memory_key: memoryKey,
+			placeholders: toLogPlaceholders(render.resolved),
 			description: error instanceof Error ? error.message : "Error occurred",
 			user_id: runUserId,
 			testcase_id: data.testcase_id ? data.testcase_id : undefined,

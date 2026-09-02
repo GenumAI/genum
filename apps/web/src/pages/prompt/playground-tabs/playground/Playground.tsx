@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import TextEditor from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/TextEditor";
+import PlaceholderChips from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/components/PlaceholderChips";
 import OutputBlock from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
 import { Button } from "@/components/ui/button";
 import SettingsBar from "./components/settings-block/models-settings/SettingsBar";
@@ -51,13 +52,19 @@ export default function Playground() {
 		minVisibleMs: 350,
 	});
 
-	const handleTextEditorReadyStateChange = useCallback((isReady: boolean) => {
-		setTextEditorReadyPromptId(isReady ? promptId : undefined);
-	}, [promptId]);
+	const handleTextEditorReadyStateChange = useCallback(
+		(isReady: boolean) => {
+			setTextEditorReadyPromptId(isReady ? promptId : undefined);
+		},
+		[promptId],
+	);
 
-	const handleSettingsBarReadyStateChange = useCallback((isReady: boolean) => {
-		setSettingsBarReadyPromptId(isReady ? promptId : undefined);
-	}, [promptId]);
+	const handleSettingsBarReadyStateChange = useCallback(
+		(isReady: boolean) => {
+			setSettingsBarReadyPromptId(isReady ? promptId : undefined);
+		},
+		[promptId],
+	);
 
 	return (
 		<div className="relative h-full w-full min-w-0 max-w-[1470px] overflow-x-hidden px-3 pt-8 text-foreground lg:pr-6">
@@ -79,6 +86,12 @@ export default function Playground() {
 							canAudit={!!prompt.content}
 							auditRate={ui.modals.audit.rate}
 							onReadyStateChange={handleTextEditorReadyStateChange}
+						/>
+
+						<PlaceholderChips
+							key={promptId}
+							promptId={promptId}
+							text={prompt.content}
 						/>
 
 						<div>

@@ -300,56 +300,8 @@ function VersionsBranchesSkeleton() {
 	);
 }
 
-function MemoryTableSkeleton() {
-	const rowSkeletonKeys = [
-		"memory-row-1",
-		"memory-row-2",
-		"memory-row-3",
-		"memory-row-4",
-		"memory-row-5",
-		"memory-row-6",
-	];
-
-	return (
-		<div className="overflow-hidden rounded-md">
-			<div className="grid h-[54px] grid-cols-[1.3fr_2.2fr_1fr_1fr_0.7fr] items-center gap-4 bg-muted px-[14px] text-sm font-medium leading-5 text-muted-foreground">
-				<Skeleton className="h-4 w-8" />
-				<Skeleton className="h-4 w-10" />
-				<Skeleton className="h-4 w-14" />
-				<Skeleton className="h-4 w-14" />
-				<Skeleton className="h-4 w-12 justify-self-center" />
-			</div>
-
-			<div className="divide-y">
-				{rowSkeletonKeys.map((rowKey) => (
-					<div
-						key={rowKey}
-						className="grid grid-cols-[1.3fr_2.2fr_1fr_1fr_0.7fr] gap-4 px-[14px] py-4"
-					>
-						<Skeleton className="h-4 w-[68%] self-center" />
-						<Skeleton className="h-4 w-[84%] self-center" />
-						<Skeleton className="h-4 w-20 self-center" />
-						<Skeleton className="h-4 w-20 self-center" />
-						<Skeleton className="h-8 w-8 justify-self-center rounded-md" />
-					</div>
-				))}
-			</div>
-		</div>
-	);
-}
-
 function LogsTableSkeleton() {
-	const headerWidths = [
-		"w-8",
-		"w-24",
-		"w-12",
-		"w-12",
-		"w-20",
-		"w-16",
-		"w-14",
-		"w-16",
-		"w-16",
-	];
+	const headerWidths = ["w-8", "w-24", "w-12", "w-12", "w-20", "w-16", "w-14", "w-16", "w-16"];
 	const headerSkeletonKeys = [
 		"logs-header-select",
 		"logs-header-time",
@@ -409,6 +361,5 @@ export {
 	ModelsSettingsControlsSkeleton,
 	TestcasesTableSkeleton,
 	VersionsBranchesSkeleton,
-	MemoryTableSkeleton,
 	LogsTableSkeleton,
 };

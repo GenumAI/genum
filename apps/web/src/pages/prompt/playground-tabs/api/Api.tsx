@@ -29,7 +29,7 @@ const REQUEST_BODY_EXAMPLE = `{
       "base64": "JVBERi0xLjQKJ..."      // Base64 content (raw or data URL)
     }
   ],
-  "memoryKey": "optional-memory-key", // Optional: Key for memory context
+  "placeholders": { "admin_role": "true" }, // Optional: one value per placeholder key
   "productive": boolean               // Optional: use committed prompt. Default is true
 }`;
 
@@ -42,7 +42,11 @@ const RESPONSE_EXAMPLE = `{
   },
   "response_time_ms": 500,
   "chainOfThoughts": "Optional reasoning chain",
-  "status": "Optional status (e.g. NOK: error message)"
+  "status": "Optional status (e.g. NOK: error message)",
+  "placeholders": {
+    "resolved": { "admin_role": "true" },  // key -> the value name actually used
+    "ignored": ["unused_key"]              // keys you sent that the prompt text doesn't reference
+  }
 }`;
 
 const ERROR_EXAMPLE = `{
@@ -70,12 +74,7 @@ function ReadOnlyCopyField({
 		<div className="space-y-2">
 			{label ? <Label className="text-foreground">{label}</Label> : null}
 			<div className="relative w-full">
-				<Input
-					readOnly
-					value={value}
-					spellCheck={false}
-					className={COPY_INPUT_CLASSNAME}
-				/>
+				<Input readOnly value={value} spellCheck={false} className={COPY_INPUT_CLASSNAME} />
 				<Button
 					size="sm"
 					disabled={disabled || copied}
@@ -114,8 +113,7 @@ function JsonSection({ title, content }: JsonSectionProps) {
 }
 
 export default function ApiEndpoint() {
-	const { promptId, apiUrl, copiedId, copiedURL, handleCopyId, handleCopyURL } =
-		useApiEndpoint();
+	const { promptId, apiUrl, copiedId, copiedURL, handleCopyId, handleCopyURL } = useApiEndpoint();
 	const promptIdValue = promptId?.toString() ?? "";
 
 	return (

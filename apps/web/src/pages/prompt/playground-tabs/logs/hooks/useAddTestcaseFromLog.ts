@@ -6,19 +6,13 @@ import { useCreateTestcase } from "@/hooks/useCreateTestcase";
 import { promptApi } from "@/api/prompt/prompt.api";
 import type { Log } from "@/types/logs";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
-import type { Memory } from "@/api/prompt/prompt.api";
 
 interface UseAddTestcaseFromLogParams {
 	promptId?: number;
 	selectedLog: Log | null;
-	memoriesData?: Memory[];
 }
 
-export function useAddTestcaseFromLog({
-	promptId,
-	selectedLog,
-	memoriesData,
-}: UseAddTestcaseFromLogParams) {
+export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseFromLogParams) {
 	const { toast } = useToast();
 	const { createTestcase, loading: creatingTestcase } = useCreateTestcase();
 	const queryClient = useQueryClient();
@@ -30,26 +24,31 @@ export function useAddTestcaseFromLog({
 		if (!targetPromptId) return;
 
 		try {
-			let memoryId: number | null = null;
-			if (selectedLog.memory_key && memoriesData?.length) {
-				const memory = memoriesData.find((item) => item.key === selectedLog.memory_key);
-				if (memory) memoryId = memory.id;
-			}
-
-			const ok = await createTestcase({
+			const { ok, unresolvedPlaceholders } = await createTestcase({
 				promptId: targetPromptId,
 				input: selectedLog.in || "",
 				expectedOutput: selectedLog.out || "",
 				lastOutput: selectedLog.out || "",
-				memoryId,
+				placeholders: selectedLog.placeholders ?? {},
 			});
 
 			if (ok) {
-				toast({
-					title: "Testcase added",
-					description: "Testcase was created from log.",
-					variant: "default",
-				});
+				if (unresolvedPlaceholders.length > 0) {
+					// A value that has since been renamed or deleted cannot transfer --
+					// saying so here is the difference between a partial transfer and a
+					// silent one.
+					toast({
+						title: "Testcase added",
+						description: `Testcase was created from log, but these placeholders could not transfer: ${unresolvedPlaceholders.join(", ")}.`,
+						variant: "default",
+					});
+				} else {
+					toast({
+						title: "Testcase added",
+						description: "Testcase was created from log.",
+						variant: "default",
+					});
+				}
 
 				try {
 					await queryClient.fetchQuery({
@@ -60,7 +59,10 @@ export function useAddTestcaseFromLog({
 						},
 					});
 				} catch (error) {
-					console.error("Failed to refresh prompt testcases after create from log:", error);
+					console.error(
+						"Failed to refresh prompt testcases after create from log:",
+						error,
+					);
 				}
 				return;
 			}
@@ -78,7 +80,7 @@ export function useAddTestcaseFromLog({
 				variant: "destructive",
 			});
 		}
-	}, [createTestcase, memoriesData, promptId, queryClient, selectedLog, toast]);
+	}, [createTestcase, promptId, queryClient, selectedLog, toast]);
 
 	return {
 		handleAddTestcaseFromLog,

@@ -53,6 +53,7 @@ export interface LogDocument {
 	in: string;
 	out: string;
 	memory_key?: string;
+	placeholders?: Record<string, string>;
 }
 
 export interface LogSearchResult {
@@ -196,6 +197,7 @@ export interface ClickHouseLogRow {
 	in: string;
 	out: string;
 	memory_key: string | null;
+	placeholders: Record<string, string>;
 	stage?: string;
 }
 

@@ -69,27 +69,38 @@ export function createPromptsRouter(): Router {
 	router.get("/", asyncHandler(promptsController.getProjectPrompts.bind(promptsController)));
 	router.post("/", asyncHandler(promptsController.createPrompt.bind(promptsController)));
 
-	// Memories endpoints
-	router.get("/memories", asyncHandler(promptsController.getAllMemories.bind(promptsController)));
+	// Placeholders endpoints
 	router.get(
-		"/:id/memories",
-		asyncHandler(promptsController.getMemoriesByPromptId.bind(promptsController)),
+		"/:id/placeholders",
+		asyncHandler(promptsController.getPlaceholdersByPromptId.bind(promptsController)),
 	);
 	router.post(
-		"/:id/memories",
-		asyncHandler(promptsController.createMemory.bind(promptsController)),
+		"/:id/placeholders",
+		asyncHandler(promptsController.createPlaceholder.bind(promptsController)),
 	);
 	router.get(
-		"/:id/memories/:memoryId",
-		asyncHandler(promptsController.getMemoryById.bind(promptsController)),
+		"/:id/placeholders/:placeholderId",
+		asyncHandler(promptsController.getPlaceholderById.bind(promptsController)),
 	);
 	router.put(
-		"/:id/memories/:memoryId",
-		asyncHandler(promptsController.updateMemory.bind(promptsController)),
+		"/:id/placeholders/:placeholderId",
+		asyncHandler(promptsController.updatePlaceholder.bind(promptsController)),
 	);
 	router.delete(
-		"/:id/memories/:memoryId",
-		asyncHandler(promptsController.deleteMemory.bind(promptsController)),
+		"/:id/placeholders/:placeholderId",
+		asyncHandler(promptsController.deletePlaceholder.bind(promptsController)),
+	);
+	router.post(
+		"/:id/placeholders/:placeholderId/values",
+		asyncHandler(promptsController.createPlaceholderValue.bind(promptsController)),
+	);
+	router.put(
+		"/:id/placeholders/:placeholderId/values/:valueId",
+		asyncHandler(promptsController.updatePlaceholderValue.bind(promptsController)),
+	);
+	router.delete(
+		"/:id/placeholders/:placeholderId/values/:valueId",
+		asyncHandler(promptsController.deletePlaceholderValue.bind(promptsController)),
 	);
 
 	// Execution endpoints

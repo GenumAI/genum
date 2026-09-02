@@ -12,6 +12,7 @@ import type { SystemRepository } from "./SystemRepository";
 import type { ModelConfigParameters } from "@/ai/models/types";
 import type { InputJsonValue } from "@prisma/client/runtime/client";
 import type { PromptAuditResponse } from "@/ai/runner/types";
+import { toPlaceholderDefinitions } from "@/ai/placeholders/definitions";
 
 type DefaultLanguageModel = {
 	id: number;
@@ -142,7 +143,6 @@ export class PromptsRepository {
 				commited: true,
 				_count: {
 					select: {
-						memories: true,
 						testCases: true,
 					},
 				},
@@ -433,7 +433,17 @@ export class PromptsRepository {
 		});
 	}
 
-	public async commit(promptId: number, commitMessage: string, userId: number) {
+	public async commit(
+		promptId: number,
+		commitMessage: string,
+		userId: number,
+		// Rollback's escape hatch: it must reproduce an old commit's own placeholder
+		// snapshot, not re-snapshot the live tables commit() would otherwise take.
+		// undefined (the normal path) means "snapshot the live tables"; an explicit
+		// null means "this old version had no snapshot" and is stored as JSON null,
+		// not dropped -- the same convention `languageModelConfig` already uses below.
+		placeholderSnapshot?: Prisma.JsonValue,
+	) {
 		// to master
 		const masterBranch = await this.getBranchByName(promptId, "master");
 		if (!masterBranch) {
@@ -446,6 +456,17 @@ export class PromptsRepository {
 		}
 
 		const generations = await this.getPromptCommitCount(promptId);
+
+		const placeholders =
+			placeholderSnapshot !== undefined
+				? placeholderSnapshot
+				: toPlaceholderDefinitions(
+						await this.prisma.placeholder.findMany({
+							where: { promptId },
+							include: { values: { orderBy: { id: "asc" } } },
+							orderBy: { id: "asc" },
+						}),
+					);
 
 		// create version
 		const version = await this.prisma.promptVersion.create({
@@ -467,6 +488,10 @@ export class PromptsRepository {
 					prompt.languageModelConfig === null
 						? Prisma.JsonNull
 						: prompt.languageModelConfig,
+				placeholders:
+					placeholders === null
+						? Prisma.JsonNull
+						: (placeholders as unknown as Prisma.InputJsonValue),
 				audit: prompt.audit?.data || undefined,
 				author: {
 					connect: {

@@ -14,7 +14,7 @@ export interface Log {
 	out?: string;
 	log_type?: string;
 	user_name?: string;
-	memory_key?: string;
+	placeholders?: Record<string, string>;
 	api?: string;
 	prompt_id?: number;
 }
@@ -22,15 +22,6 @@ export interface Log {
 export interface LogsResponse {
 	logs: Log[];
 	total: number;
-}
-
-export interface MemoryRecord {
-	id: number;
-	key: string;
-}
-
-export interface MemoriesResponse {
-	memories: MemoryRecord[];
 }
 
 export interface PromptName {

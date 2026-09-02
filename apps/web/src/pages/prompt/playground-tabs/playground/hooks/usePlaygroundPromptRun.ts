@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from "react";
+import { filterValidPlaceholderSelections } from "@genum/placeholders";
 import { promptApi } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
@@ -10,13 +11,14 @@ import type { FileMetadata } from "@/api/files";
 import { useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import { usePromptActions } from "@/stores/prompt.store";
+import usePlaygroundStore from "@/stores/playground.store";
+import { usePromptPlaceholders } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePromptPlaceholders";
 
 export function usePlaygroundPromptRun({
 	promptId,
 	testcaseId,
 	testcase,
 	inputContent,
-	selectedMemoryId,
 	storeOutputContent,
 	wasRun,
 	currentAssertionType,
@@ -31,7 +33,6 @@ export function usePlaygroundPromptRun({
 	testcaseId: string | null;
 	testcase: TestCase | null;
 	inputContent: string;
-	selectedMemoryId: string;
 	storeOutputContent: PromptResponse | null;
 	wasRun: boolean;
 	currentAssertionType: string;
@@ -45,6 +46,39 @@ export function usePlaygroundPromptRun({
 	const { toast } = useToast();
 	const { setRunLoading, setRunError, setLastRunResult } = usePromptActions();
 	const queryClient = useQueryClient();
+	const selectedPlaceholders = usePlaygroundStore((state) => state.selectedPlaceholders);
+	// Same source PlaceholderChips reads to validate the selection for display --
+	// see filterValidPlaceholderSelections' own comment (in @genum/placeholders) for
+	// why both must agree.
+	const {
+		data: placeholderDefinitions = [],
+		isLoading: placeholdersLoading,
+		isError: placeholdersErrored,
+	} = usePromptPlaceholders(promptId);
+	// `null` here means "not yet known" (loading or errored), not "known to be empty"
+	// -- filterValidPlaceholderSelections treats those differently on purpose: an
+	// unsettled state must pass the selection through unfiltered rather than silently
+	// drop it, since that would send an empty run body with no `ignored` echo either.
+	const knownPlaceholderDefinitions =
+		placeholdersLoading || placeholdersErrored ? null : placeholderDefinitions;
+
+	// The chips are computed from the live draft, but the server renders the SAVED
+	// Prompt.value (the editor only saves on fieldset blur). A selection made after
+	// typing a new {{key}} but before that save lands in `ignored`, not the answer --
+	// silently, unless this names the keys back to the author. `ignored` can also mean
+	// a value name that no longer resolves (stale cache, a renamed value), so the
+	// message states what happened, not why.
+	const warnAboutIgnoredPlaceholders = useCallback(
+		(ignored: string[] | undefined) => {
+			if (!ignored || ignored.length === 0) return;
+			toast({
+				title: "Some placeholder selections were not applied",
+				description: `These keys were not applied to this run: ${ignored.join(", ")}.`,
+				variant: "default",
+			});
+		},
+		[toast],
+	);
 
 	const handleRun = useCallback(async () => {
 		if (!promptId) return;
@@ -56,8 +90,11 @@ export function usePlaygroundPromptRun({
 		try {
 			const runParams = {
 				question: inputContent,
-				...(selectedMemoryId && { memoryId: Number(selectedMemoryId) }),
 				...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
+				placeholders: filterValidPlaceholderSelections(
+					selectedPlaceholders,
+					knownPlaceholderDefinitions,
+				),
 			};
 
 			if (!testcaseId) {
@@ -65,6 +102,7 @@ export function usePlaygroundPromptRun({
 				if (result) {
 					setLastRunResult(result);
 					setOutputContent(result);
+					warnAboutIgnoredPlaceholders(result.placeholders?.ignored);
 				}
 				return;
 			}
@@ -89,12 +127,12 @@ export function usePlaygroundPromptRun({
 			if (result) {
 				setLastRunResult(result);
 				setOutputContent(result);
+				warnAboutIgnoredPlaceholders(result.placeholders?.ignored);
 				setRunState({ loading: false, wasRun: true });
 				return;
 			}
 		} catch (err: unknown) {
-			const error =
-				err instanceof Error ? err : new Error("Failed to run prompt/testcase");
+			const error = err instanceof Error ? err : new Error("Failed to run prompt/testcase");
 			console.error("Failed to run prompt/testcase:", err);
 			setRunError(error.message);
 			toast({
@@ -115,8 +153,9 @@ export function usePlaygroundPromptRun({
 	}, [
 		inputContent,
 		promptId,
-		selectedMemoryId,
 		selectedFiles,
+		selectedPlaceholders,
+		knownPlaceholderDefinitions,
 		setRunState,
 		setOutputContent,
 		testcaseId,
@@ -125,6 +164,7 @@ export function usePlaygroundPromptRun({
 		setRunError,
 		setLastRunResult,
 		toast,
+		warnAboutIgnoredPlaceholders,
 	]);
 
 	useEffect(() => {

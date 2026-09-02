@@ -18,8 +18,10 @@ import {
 	PromptCreateSchema,
 	PromptRunSchema,
 	PromptUpdateSchema,
-	MemoryCreateSchema,
-	MemoryUpdateSchema,
+	PlaceholderCreateSchema,
+	PlaceholderUpdateSchema,
+	PlaceholderValueCreateSchema,
+	PlaceholderValueUpdateSchema,
 	numberSchema,
 	stringSchema,
 } from "@/services/validate";
@@ -32,7 +34,7 @@ import {
 	mapStoredMessagesToChatMessages,
 	type StoredMessage,
 } from "@langchain/core/messages";
-import { checkMemoryAccess, checkPromptAccess } from "@/services/access/AccessService";
+import { checkPlaceholderAccess, checkPromptAccess } from "@/services/access/AccessService";
 import type { CanvasAgentMessage, CanvasAgentParams, CanvasMessage } from "@/ai/runner/types";
 import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
@@ -76,7 +78,7 @@ export class PromptsController {
 
 	public async runPrompt(req: Request, res: Response) {
 		const id = numberSchema.parse(req.params.id);
-		const { question, memoryId, files: filesIds } = PromptRunSchema.parse(req.body);
+		const { question, files: filesIds, placeholders } = PromptRunSchema.parse(req.body);
 
 		const metadata = req.genumMeta.ids;
 		const files = await fileService.getFileObjectsByIds(filesIds, metadata.projID);
@@ -86,12 +88,12 @@ export class PromptsController {
 		const run = await runPrompt({
 			prompt: prompt,
 			question,
-			memoryId: memoryId ? memoryId : undefined,
 			source: SourceType.ui,
 			userProjectId: metadata.projID,
 			userOrgId: metadata.orgID,
 			user_id: metadata.userID,
 			files: files,
+			placeholders: placeholders ?? {},
 		});
 
 		res.status(200).json({ ...run });
@@ -209,10 +211,16 @@ export class PromptsController {
 
 		const updatedPrompt = await db.prompts.rollbackPrompt(id, version, updateAudit);
 
+		// Carry the rolled-back version's own placeholder snapshot forward instead of
+		// letting commit() re-snapshot the live tables: the old text and the old
+		// definitions must land in the new commit together, or a renamed/deleted key
+		// pairs old text with today's definitions -- the exact drift this feature
+		// exists to remove.
 		const rollbackVersion = await db.prompts.commit(
 			id,
 			`Rollback to ${version.commitHash.slice(0, 8)}`,
 			metadata.userID,
+			version.placeholders,
 		);
 
 		await this.promptService.updateCommitedStatus(updatedPrompt);
@@ -294,89 +302,141 @@ export class PromptsController {
 
 		await checkPromptAccess(id, metadata.projID);
 
-		const testcases = await db.testcases.getTestcasesByPromptId(id);
+		// This is the one call site that opts into placeholderValues: it backs the
+		// playground's testcase list, which seeds the placeholder chips from each
+		// testcase's pin (Task 9 fix round 2). Every other caller of
+		// getTestcasesByPromptId only reads status/summary fields and leaves the
+		// default (off).
+		const testcases = await db.testcases.getTestcasesByPromptId(id, {
+			includePlaceholders: true,
+		});
 		res.status(200).json({ testcases });
 	}
 
-	public async getMemoriesByPromptId(req: Request, res: Response) {
-		const id = numberSchema.parse(req.params.id);
+	public async getPlaceholdersByPromptId(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
-
+		const id = numberSchema.parse(req.params.id);
 		await checkPromptAccess(id, metadata.projID);
 
-		const memories = await db.memories.getMemoriesByPromptID(id);
-		res.status(200).json({ memories });
+		const placeholders = await db.placeholders.getPlaceholdersByPromptID(id);
+		res.status(200).json({ placeholders });
 	}
 
-	public async createMemory(req: Request, res: Response) {
+	public async createPlaceholder(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 		const promptId = numberSchema.parse(req.params.id);
-		const data = MemoryCreateSchema.parse(req.body);
-
+		const data = PlaceholderCreateSchema.parse(req.body);
 		await checkPromptAccess(promptId, metadata.projID);
 
-		// check if memory key already exists
-		const existingMemory = await db.memories.getMemoryByKeyAndPromptId(data.key, promptId);
-		if (existingMemory) {
-			res.status(400).json({ error: "Memory key already exists. Key must be unique." });
+		const existing = await db.placeholders.getPlaceholderByKeyAndPromptId(data.key, promptId);
+		if (existing) {
+			res.status(400).json({ error: "Placeholder key already exists. Key must be unique." });
 			return;
 		}
 
-		const memory = await db.memories.newPromptMemory(promptId, data);
-
-		res.status(200).json({ memory });
+		const placeholder = await db.placeholders.createPlaceholder(promptId, data);
+		res.status(200).json({ placeholder });
 	}
 
-	public async getMemoryById(req: Request, res: Response) {
+	public async getPlaceholderById(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 		const promptId = numberSchema.parse(req.params.id);
-		const memoryId = numberSchema.parse(req.params.memoryId);
+		const placeholderId = numberSchema.parse(req.params.placeholderId);
 
 		await checkPromptAccess(promptId, metadata.projID);
+		const placeholder = await checkPlaceholderAccess(placeholderId, promptId);
 
-		await checkMemoryAccess(memoryId, promptId);
-
-		const memory = await db.memories.getMemoryByIDAndPromptId(memoryId, promptId);
-		res.status(200).json({ memory });
+		res.status(200).json({ placeholder });
 	}
 
-	public async updateMemory(req: Request, res: Response) {
+	public async updatePlaceholder(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 		const promptId = numberSchema.parse(req.params.id);
-		const memoryId = numberSchema.parse(req.params.memoryId);
-		const data = MemoryUpdateSchema.parse(req.body);
+		const placeholderId = numberSchema.parse(req.params.placeholderId);
+		const data = PlaceholderUpdateSchema.parse(req.body);
 
 		await checkPromptAccess(promptId, metadata.projID);
-
-		await checkMemoryAccess(memoryId, promptId);
+		await checkPlaceholderAccess(placeholderId, promptId);
 
 		if (data.key) {
-			// if key is provided, check if memory key already exists
-			const existingMemory = await db.memories.getMemoryByKeyAndPromptId(data.key, promptId);
-			if (existingMemory) {
+			const existing = await db.placeholders.getPlaceholderByKeyAndPromptId(
+				data.key,
+				promptId,
+			);
+			if (existing && existing.id !== placeholderId) {
 				res.status(400).json({
-					error: "Memory key already exists. Key must be unique.",
+					error: "Placeholder key already exists. Key must be unique.",
 				});
 				return;
 			}
 		}
 
-		const memory = await db.memories.updateMemoryByID(memoryId, data);
-
-		res.status(200).json({ memory });
+		const placeholder = await db.placeholders.updatePlaceholderByID(placeholderId, data);
+		res.status(200).json({ placeholder });
 	}
 
-	public async deleteMemory(req: Request, res: Response) {
+	public async deletePlaceholder(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 		const promptId = numberSchema.parse(req.params.id);
-		const memoryId = numberSchema.parse(req.params.memoryId);
+		const placeholderId = numberSchema.parse(req.params.placeholderId);
 
 		await checkPromptAccess(promptId, metadata.projID);
+		await checkPlaceholderAccess(placeholderId, promptId);
 
-		await checkMemoryAccess(memoryId, promptId);
+		await db.placeholders.deletePlaceholderByID(placeholderId);
+		res.status(200).json({ ok: true });
+	}
 
-		await db.memories.deleteMemoryByID(memoryId);
-		res.status(200).json({ id: memoryId });
+	public async createPlaceholderValue(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const promptId = numberSchema.parse(req.params.id);
+		const placeholderId = numberSchema.parse(req.params.placeholderId);
+		const data = PlaceholderValueCreateSchema.parse(req.body);
+
+		await checkPromptAccess(promptId, metadata.projID);
+		await checkPlaceholderAccess(placeholderId, promptId);
+
+		const value = await db.placeholders.createValue(placeholderId, data);
+		res.status(200).json({ value });
+	}
+
+	public async updatePlaceholderValue(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const promptId = numberSchema.parse(req.params.id);
+		const placeholderId = numberSchema.parse(req.params.placeholderId);
+		const valueId = numberSchema.parse(req.params.valueId);
+		const data = PlaceholderValueUpdateSchema.parse(req.body);
+
+		await checkPromptAccess(promptId, metadata.projID);
+		await checkPlaceholderAccess(placeholderId, promptId);
+
+		const existing = await db.placeholders.getValueByIDAndPlaceholderId(valueId, placeholderId);
+		if (!existing) {
+			res.status(404).json({ error: "Placeholder value is not found" });
+			return;
+		}
+
+		const value = await db.placeholders.updateValueByID(valueId, data);
+		res.status(200).json({ value });
+	}
+
+	public async deletePlaceholderValue(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const promptId = numberSchema.parse(req.params.id);
+		const placeholderId = numberSchema.parse(req.params.placeholderId);
+		const valueId = numberSchema.parse(req.params.valueId);
+
+		await checkPromptAccess(promptId, metadata.projID);
+		await checkPlaceholderAccess(placeholderId, promptId);
+
+		const existing = await db.placeholders.getValueByIDAndPlaceholderId(valueId, placeholderId);
+		if (!existing) {
+			res.status(404).json({ error: "Placeholder value is not found" });
+			return;
+		}
+
+		await db.placeholders.deleteValueByID(valueId);
+		res.status(200).json({ ok: true });
 	}
 
 	public async getPromptLogs(req: Request, res: Response) {
@@ -682,12 +742,6 @@ export class PromptsController {
 		});
 
 		res.status(200).json({ input: result.answer });
-	}
-
-	public async getAllMemories(req: Request, res: Response) {
-		const metadata = req.genumMeta.ids;
-		const memories = await db.memories.getMemoriesFromProject(metadata.projID);
-		res.status(200).json({ memories });
 	}
 
 	// public async editPrompt(req: Request, res: Response, next: NextFunction) {

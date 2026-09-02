@@ -1,9 +1,10 @@
 import type { Request, Response } from "express";
-import { type Memory, TestCaseStatus } from "@/prisma";
+import { TestCaseStatus } from "@/prisma";
 import {
 	type TestcasesCreateType,
 	TestcasesCreateWithoutNameSchema,
 	TestcasesUpdateSchema,
+	TestcaseRunSchema,
 	numberSchema,
 } from "@/services/validate";
 import { testcaseAssertionFormat, testcaseNamerFormat } from "@/ai/runner/formatter";
@@ -36,19 +37,6 @@ export class TestcasesController {
 
 		const prompt = await checkPromptAccess(data.promptId, metadata.projID);
 
-		let memory: Memory | undefined;
-		if (data.memoryId) {
-			const testcaseMemory = await db.memories.getMemoryByIDAndPromptId(
-				data.memoryId,
-				prompt.id,
-			);
-			if (!testcaseMemory) {
-				throw new Error(`Memory not found`);
-			} else {
-				memory = testcaseMemory;
-			}
-		}
-
 		// Validate files if provided
 		if (data.files && data.files.length > 0) {
 			// Verify all files belong to the project
@@ -60,9 +48,18 @@ export class TestcasesController {
 			}
 		}
 
+		// Resolved before naming (not just before persisting) so the namer gets the same
+		// extra context `memory?.value` used to supply -- the content of whatever the
+		// caller pinned, e.g. a client name a generic input alone wouldn't surface.
+		const { rows, unresolved } = await db.placeholders.resolveSelection(
+			prompt.id,
+			data.placeholders ?? {},
+		);
+		const extraContext = rows.map((row) => row.content).join("\n\n") || undefined;
+
 		const payload = testcaseNamerFormat({
 			do_not_execute_user_draft: prompt.value,
-			do_not_execute_user_draft_extraContext: memory?.value,
+			do_not_execute_user_draft_extraContext: extraContext,
 			do_not_execute_input: data.input,
 		});
 
@@ -79,7 +76,10 @@ export class TestcasesController {
 		};
 
 		const testcase = await db.testcases.newTestcase(testcaseData);
-		res.status(200).json({ testcase });
+
+		await db.testcases.setPlaceholderSelection(testcase.id, rows);
+
+		res.status(200).json({ testcase, unresolvedPlaceholders: unresolved });
 	}
 
 	async updateTestcase(req: Request, res: Response) {
@@ -89,21 +89,27 @@ export class TestcasesController {
 
 		const existing = await checkTestcaseAccess(id, metadata.projID);
 
-		// memoryId is writable through the update schema, so it needs the same check
-		// createTestcase does -- otherwise another prompt's memory can be attached here.
-		if (data.memoryId) {
-			const memory = await db.memories.getMemoryByIDAndPromptId(
-				data.memoryId,
+		// `placeholders` follows the same convention the retired memory selector used:
+		// absent means leave it alone, an explicit `{}` means clear it. Resolving unconditionally would
+		// wipe a testcase's pinned selection on every unrelated partial update (e.g. a
+		// rename), since `data.placeholders ?? {}` can't tell "not sent" from "sent empty".
+		//
+		// This must run BEFORE updateTestcaseByID: that call's response carries the
+		// placeholderValues include, so writing the new pin after building the response
+		// would answer a PUT with the pre-update selection.
+		let unresolved: string[] = [];
+		if (data.placeholders !== undefined) {
+			const resolved = await db.placeholders.resolveSelection(
 				existing.promptId,
+				data.placeholders,
 			);
-			if (!memory) {
-				throw new Error("Memory not found");
-			}
+			unresolved = resolved.unresolved;
+			await db.testcases.setPlaceholderSelection(id, resolved.rows);
 		}
 
 		const testcase = await db.testcases.updateTestcaseByID(id, data);
 
-		res.status(200).json({ testcase });
+		res.status(200).json({ testcase, unresolvedPlaceholders: unresolved });
 	}
 
 	async deleteTestcase(req: Request, res: Response) {
@@ -120,6 +126,7 @@ export class TestcasesController {
 		const metadata = req.genumMeta.ids;
 
 		const id = numberSchema.parse(req.params.id);
+		const { placeholders: requestPlaceholders } = TestcaseRunSchema.parse(req.body ?? {});
 
 		const testcase = await checkTestcaseAccess(id, metadata.projID);
 
@@ -136,16 +143,27 @@ export class TestcasesController {
 			fileObjects = await fileService.getFileObjectsByIds(filesToUse, metadata.projID);
 		}
 
+		// The testcase's pinned selection (Task 8) is what a run uses by default; an
+		// explicit selection in the request body (e.g. the playground chips) overrides
+		// it wholesale rather than merging key by key, since that's a deliberate,
+		// in-the-moment choice against a stored default.
+		const pinnedPlaceholders: Record<string, string> = {};
+		for (const pinned of testcase.placeholderValues) {
+			pinnedPlaceholders[pinned.placeholderValue.placeholder.key] =
+				pinned.placeholderValue.name;
+		}
+		const placeholders = requestPlaceholders ?? pinnedPlaceholders;
+
 		const run = await runPrompt({
 			prompt: testcase.prompt,
 			question: testcase.input,
-			memoryId: testcase.memoryId ?? undefined,
 			source: SourceType.testcase,
 			userProjectId: metadata.projID,
 			userOrgId: metadata.orgID,
 			user_id: metadata.userID,
 			testcase_id: testcase.id,
 			files: fileObjects,
+			placeholders,
 		});
 
 		const assertionType = testcase.prompt.assertionType;

@@ -14,7 +14,6 @@ import { usePlaygroundAssertion } from "@/pages/prompt/playground-tabs/playgroun
 import { usePlaygroundSession } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundSession";
 import type { PlaygroundControllerReturn } from "@/pages/prompt/playground-tabs/playground/hooks/types";
 import { usePromptTestcases } from "@/hooks/usePromptTestcases";
-import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
 
 import type { FileMetadata } from "@/api/files";
 
@@ -32,9 +31,7 @@ export function usePlaygroundController({
 	selectedFiles?: FileMetadata[];
 }) {
 	const { resetForPromptExit } = usePlaygroundActions();
-	const {
-		isAssertionModalOpen,
-	} = useAssertionUI();
+	const { isAssertionModalOpen } = useAssertionUI();
 	const {
 		openAssertionModal,
 		closeAssertionModal,
@@ -58,8 +55,6 @@ export function usePlaygroundController({
 		promptId,
 		testcaseId,
 	});
-	const { selection } = useMemorySelection(promptId, testcaseId);
-	const selectedMemoryId = selection.selectedMemoryId;
 	const [isPromptChangedAfterAudit, setIsPromptChangedAfterAudit] = useState(false);
 	const {
 		status,
@@ -139,6 +134,7 @@ export function usePlaygroundController({
 		promptId,
 		testcaseId,
 		testcases,
+		isTestcasesLoading,
 		storeOutputContent,
 		currentExpectedOutput,
 		currentExpectedThoughts,
@@ -156,7 +152,6 @@ export function usePlaygroundController({
 		testcaseId,
 		testcase,
 		inputContent,
-		selectedMemoryId,
 		storeOutputContent,
 		wasRun,
 		currentAssertionType,

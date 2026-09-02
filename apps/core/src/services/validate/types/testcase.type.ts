@@ -17,7 +17,7 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 		assertionThoughts: z.string().optional(),
 		expectedChainOfThoughts: z.string().optional(),
 		lastChainOfThoughts: z.string().optional(),
-		memoryId: z.number().nullable().optional(),
+		placeholders: z.record(z.string(), z.string()).optional(),
 	})
 	.strict();
 
@@ -41,8 +41,29 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 })
 	.extend({
 		status: TestCaseStatusSchema.optional(),
+		placeholders: z.record(z.string(), z.string()).optional(),
 	})
 	.partial()
 	.strict();
 
 export type TestcasesUpdateType = z.infer<typeof TestcasesUpdateSchema>;
+
+// Mirrors what the client actually sends (RunTestcaseData in testcases.api.ts): the
+// full run-params shape shared with the direct-prompt run path, not just the one field
+// this controller happens to act on. `.strict()` means every field the client can send
+// must be declared here even when the controller ignores it (question/files -- this
+// endpoint uses the testcase's own input and files) -- a schema that declares only
+// `placeholders` rejects the real request body with a 400, which is exactly the
+// regression this comment is here to keep from recurring.
+//
+// An explicit selection in the run request beats the testcase's pinned one (Task 8) --
+// see TestcasesController.runTestcase. Absent (not an empty object) means "use the pin".
+export const TestcaseRunSchema = z
+	.object({
+		question: z.string().optional(),
+		files: z.array(z.string()).optional(),
+		placeholders: z.record(z.string(), z.string()).optional(),
+	})
+	.strict();
+
+export type TestcaseRunType = z.infer<typeof TestcaseRunSchema>;

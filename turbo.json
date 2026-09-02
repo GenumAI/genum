@@ -5,7 +5,7 @@
 		"dev": {
 			"cache": false,
 			"persistent": true,
-			"dependsOn": ["dev:db-init"]
+			"dependsOn": ["^build", "dev:db-init"]
 		},
 		"dev:db-init": {
 			"cache": false,

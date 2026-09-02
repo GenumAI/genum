@@ -8,6 +8,11 @@ export class TestcasesRepository {
 		this.prisma = prisma;
 	}
 
+	// `placeholderValues` is included here too, not just in getTestcasesByPromptId's
+	// opt-in: this backs GET /testcases, the project-wide Testcases page's only data
+	// source, which has no promptId to route through the opt-in call. Leaving it out
+	// would silently misreport every pinned testcase on that page as unpinned -- the
+	// UI would state "pins nothing" while the database holds a pin.
 	public async getProjectTestcases(projectId: number) {
 		return await this.prisma.testCase.findMany({
 			where: {
@@ -16,11 +21,9 @@ export class TestcasesRepository {
 				},
 			},
 			include: {
-				memory: {
-					select: {
-						id: true,
-						key: true,
-					},
+				placeholderValues: {
+					include: { placeholderValue: { include: { placeholder: true } } },
+					orderBy: { placeholderId: "asc" },
 				},
 			},
 			orderBy: {
@@ -34,11 +37,14 @@ export class TestcasesRepository {
 			where: { id },
 			include: {
 				prompt: true,
-				memory: true,
 				files: {
 					include: {
 						file: true,
 					},
+				},
+				placeholderValues: {
+					include: { placeholderValue: { include: { placeholder: true } } },
+					orderBy: { placeholderId: "asc" },
 				},
 			},
 		});
@@ -59,7 +65,7 @@ export class TestcasesRepository {
 	}
 
 	public async newTestcase(data: TestcasesCreateType & { files?: string[] }) {
-		const { files, ...testcaseData } = data;
+		const { files, placeholders: _placeholders, ...testcaseData } = data;
 
 		const testcase = await this.prisma.testCase.create({
 			data: testcaseData,
@@ -84,25 +90,76 @@ export class TestcasesRepository {
 		});
 	}
 
+	// Callers (runTestcase, updateTestcase) write this response straight into the
+	// prompt-testcases list cache as a wholesale replacement of the cached entry, so it
+	// must carry the same placeholderValues shape as that list -- an update response
+	// missing the relation would read in the cache as "no pin", clearing the chips even
+	// though nothing about the pin changed.
 	public async updateTestcaseByID(id: number, data: TestcasesUpdateType) {
-		return await this.prisma.testCase.update({ where: { id }, data });
+		const { placeholders: _placeholders, ...testcaseData } = data;
+		return await this.prisma.testCase.update({
+			where: { id },
+			data: testcaseData,
+			include: {
+				placeholderValues: {
+					include: { placeholderValue: { include: { placeholder: true } } },
+					orderBy: { placeholderId: "asc" },
+				},
+			},
+		});
 	}
 
-	public async getTestcasesByPromptId(promptId: number) {
+	// Destructures rather than spreading `row` so a caller that passes richer rows (e.g.
+	// PlaceholdersRepository.resolveSelection's `content`, kept there for the testcase
+	// namer's extra context) cannot leak an extra column into `createMany` -- excess
+	// property checks don't fire on a variable, only on an object literal, so a `{
+	// ...row, testCaseId }` spread would have compiled fine and thrown at runtime the
+	// moment Prisma saw an argument `TestCasePlaceholderValue` doesn't have.
+	public async setPlaceholderSelection(
+		testCaseId: number,
+		rows: { placeholderId: number; placeholderValueId: number }[],
+	) {
+		return await this.prisma.$transaction(async (tx) => {
+			await tx.testCasePlaceholderValue.deleteMany({ where: { testCaseId } });
+			if (rows.length === 0) return;
+			await tx.testCasePlaceholderValue.createMany({
+				data: rows.map(({ placeholderId, placeholderValueId }) => ({
+					placeholderId,
+					placeholderValueId,
+					testCaseId,
+				})),
+			});
+		});
+	}
+
+	// `includePlaceholders` is opt-in and defaults to off. getTestcasesByPromptId is
+	// called from several places that only read status/summary fields (getProjectPrompts
+	// and getPromptById's status-count reducers, the prompt-auditor and assertion-editor
+	// context builders in ai/runner/system.ts) -- none of them touch placeholderValues,
+	// and the nested join isn't free. It is turned on in exactly one place:
+	// PromptsController.getTestcasesByPromptId (the `GET /prompts/:id/testcases` route),
+	// which backs the playground's testcase list and is what the placeholder chips seed
+	// their pin from (Task 9 fix round 2).
+	public async getTestcasesByPromptId(
+		promptId: number,
+		options?: { includePlaceholders?: boolean },
+	) {
 		return await this.prisma.testCase.findMany({
 			where: { promptId },
 			include: {
-				memory: {
-					select: {
-						id: true,
-						key: true,
-					},
-				},
 				files: {
 					include: {
 						file: true,
 					},
 				},
+				...(options?.includePlaceholders
+					? {
+							placeholderValues: {
+								include: { placeholderValue: { include: { placeholder: true } } },
+								orderBy: { placeholderId: "asc" as const },
+							},
+						}
+					: {}),
 			},
 			orderBy: {
 				createdAt: "desc",

@@ -21,3 +21,5 @@ packages/**/.turbo
 # makes `biome check .` fail with "Found a nested root configuration".
 .claude/worktrees/
 .claude/settings.local.json
+# SDD scratch: ledger, briefs and review packages for an in-flight plan.
+.superpowers/

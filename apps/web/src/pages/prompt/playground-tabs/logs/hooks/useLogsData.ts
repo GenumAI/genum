@@ -5,15 +5,12 @@ import { promptApi } from "@/api/prompt";
 import type { LogsFilterState } from "@/pages/logs/components/LogsFilter";
 import type { LogsResponse } from "@/types/logs";
 import { logsKeys } from "@/query-keys/logs.keys";
-import { memoryKeys } from "@/query-keys/memory.keys";
-import type { Memory } from "@/api/prompt/prompt.api";
 
 interface UseLogsDataParams {
 	promptId?: number;
 	page: number;
 	pageSize: number;
 	logsFilter: LogsFilterState;
-	shouldFetchMemories?: boolean;
 	isActive?: boolean;
 }
 
@@ -22,7 +19,6 @@ export function useLogsData({
 	page,
 	pageSize,
 	logsFilter,
-	shouldFetchMemories = false,
 	isActive = true,
 }: UseLogsDataParams) {
 	const fromDate = logsFilter.dateRange?.from?.toISOString();
@@ -60,15 +56,6 @@ export function useLogsData({
 		},
 	});
 
-	const memoriesQuery = useQuery<Memory[]>({
-		queryKey: memoryKeys.promptMemories(promptId),
-		enabled: Boolean(promptId && shouldFetchMemories && isActive),
-		queryFn: async () => {
-			const response = await promptApi.getMemories(promptId as number);
-			return response.memories || [];
-		},
-	});
-
 	const logs = useMemo(() => logsQuery.data?.logs ?? [], [logsQuery.data]);
 	const total = logsQuery.data?.total ?? 0;
 	const isInitialLoadingLogs = logsQuery.isPending && !logsQuery.data;
@@ -77,13 +64,10 @@ export function useLogsData({
 		logs,
 		total,
 		logsData: logsQuery.data,
-		memoriesData: memoriesQuery.data ?? [],
 		isFetchingLogs: logsQuery.isFetching,
 		isInitialLoadingLogs,
 		logsError: logsQuery.error,
 		isLogsError: logsQuery.isError,
-		isFetchingMemories: memoriesQuery.isFetching,
 		refetchLogs: logsQuery.refetch,
-		refetchMemories: memoriesQuery.refetch,
 	};
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PromptService } from "./prompt.service";
+import { PromptService, type ProductivePrompt } from "./prompt.service";
 import type { Database } from "@/database/db";
 import { AiVendor } from "@/prisma";
 
@@ -114,5 +114,77 @@ describe("PromptService.resolvePromptModelOverride", () => {
 				},
 			},
 		});
+	});
+});
+
+const db = {
+	prompts: { getProductiveCommit: vi.fn() },
+} as never;
+
+describe("getPromptWithProductiveCommit", () => {
+	let service: PromptService;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		service = new PromptService(db);
+	});
+
+	it("takes the definitions from the same commit as the text", async () => {
+		vi.mocked((db as never as { prompts: { getProductiveCommit: ReturnType<typeof vi.fn> } })
+			.prompts.getProductiveCommit).mockResolvedValue({
+			value: "committed text {{k}}",
+			languageModelConfig: {},
+			languageModelId: 2,
+			placeholders: [{ key: "k", values: [{ name: "v", content: "c", isDefault: true }] }],
+		} as never);
+
+		const result = await service.getPromptWithProductiveCommit({
+			id: 1,
+			value: "live text",
+			languageModelConfig: {},
+			languageModelId: 1,
+		} as unknown as ProductivePrompt);
+
+		expect(result?.value).toBe("committed text {{k}}");
+		expect(result?.placeholderDefinitions).toEqual([
+			{ key: "k", values: [{ name: "v", content: "c", isDefault: true }] },
+		]);
+	});
+
+	it("gives a pre-feature commit no definitions rather than the live ones", async () => {
+		vi.mocked((db as never as { prompts: { getProductiveCommit: ReturnType<typeof vi.fn> } })
+			.prompts.getProductiveCommit).mockResolvedValue({
+			value: "old text",
+			languageModelConfig: {},
+			languageModelId: 2,
+			placeholders: null,
+		} as never);
+
+		const result = await service.getPromptWithProductiveCommit({
+			id: 1,
+		} as unknown as ProductivePrompt);
+
+		expect(result?.placeholderDefinitions).toEqual([]);
+	});
+
+	// AMENDMENT (task-5): with no productive commit and requireCommit unset, the
+	// live prompt is returned untouched. Returning `placeholderDefinitions: []`
+	// here would be WRONG: run.ts treats an empty array as "use these definitions"
+	// (an empty array is truthy), so it would never fall through to the live
+	// placeholder tables and every {{hole}} would silently render as itself on
+	// real runs. Do not "fix" this by adding a `[]` default.
+	it("gives a live (uncommitted) prompt no placeholderDefinitions field at all, so the runner falls through to live tables", async () => {
+		vi.mocked((db as never as { prompts: { getProductiveCommit: ReturnType<typeof vi.fn> } })
+			.prompts.getProductiveCommit).mockResolvedValue(null as never);
+
+		const result = await service.getPromptWithProductiveCommit({
+			id: 1,
+			value: "live text",
+			languageModelConfig: {},
+			languageModelId: 1,
+		} as unknown as ProductivePrompt);
+
+		expect(result).not.toBeNull();
+		expect(result?.placeholderDefinitions).toBeUndefined();
 	});
 });

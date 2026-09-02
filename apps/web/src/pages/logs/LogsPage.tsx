@@ -33,20 +33,16 @@ export function LogsPage() {
 		[selectedLog?.prompt_id, logsFilter.promptId],
 	);
 
-	const { logs, total, memoriesData, isFetchingLogs, isLogsError, refetchLogs } =
-		useProjectLogsData({
-			page,
-			pageSize,
-			logsFilter,
-			selectedPromptId,
-			shouldFetchMemories: isLogDetailsOpen,
-		});
+	const { logs, total, isFetchingLogs, isLogsError, refetchLogs } = useProjectLogsData({
+		page,
+		pageSize,
+		logsFilter,
+	});
 	const { promptNames, refetchPromptNames } = useProjectPromptNames();
 
 	const { handleAddTestcaseFromLog, creatingTestcase } = useAddTestcaseFromLog({
 		promptId: selectedPromptId,
 		selectedLog,
-		memoriesData,
 	});
 
 	useEffect(() => {

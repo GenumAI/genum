@@ -35,3 +35,8 @@ ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY (orgId, project_id, timestamp)
 SETTINGS index_granularity = 8192;
+
+-- Added 2026-09-01 with prompt placeholders. `memory_key` above is frozen: it stays
+-- readable for rows written before this column existed and is never written again.
+ALTER TABLE {{DB_NAME}}.logs
+    ADD COLUMN IF NOT EXISTS placeholders Map(LowCardinality(String), LowCardinality(String));

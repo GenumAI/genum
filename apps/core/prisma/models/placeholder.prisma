@@ -1,0 +1,59 @@
+model Placeholder {
+    id          Int     @id @default(autoincrement())
+    key         String  @db.VarChar(255)
+    description String?
+
+    promptId Int
+    prompt   Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+    values PlaceholderValue[]
+
+    createdAt DateTime @default(now()) @db.Timestamp(6)
+    updatedAt DateTime @default(now()) @updatedAt @db.Timestamp(6)
+
+    @@unique([key, promptId])
+}
+
+model PlaceholderValue {
+    id            Int         @id @default(autoincrement())
+    placeholderId Int
+    placeholder   Placeholder @relation(fields: [placeholderId], references: [id], onDelete: Cascade)
+
+    name      String  @db.VarChar(255)
+    content   String
+    isDefault Boolean @default(false)
+
+    createdAt DateTime @default(now()) @db.Timestamp(6)
+    updatedAt DateTime @default(now()) @updatedAt @db.Timestamp(6)
+
+    testCases TestCasePlaceholderValue[]
+
+    @@unique([placeholderId, name])
+    @@unique([id, placeholderId])
+}
+
+// `placeholderId` is denormalised so that @@unique([testCaseId, placeholderId]) can
+// exist. Without it, "one key, one value" is not expressible in the database and a
+// testcase holding both admin_role=true and admin_role=false becomes representable.
+// The composite FK on placeholderValue (placeholderValueId, placeholderId) ->
+// PlaceholderValue(id, placeholderId) is what keeps this denormalised key honest: it
+// forces placeholderId to match the placeholder that actually owns placeholderValueId,
+// not just any existing Placeholder row. Existence of the Placeholder itself is then
+// guaranteed transitively via PlaceholderValue.placeholderId's own FK, so no separate
+// plain FK on placeholderId is added here.
+model TestCasePlaceholderValue {
+    testCaseId         Int
+    placeholderId      Int
+    placeholderValueId Int
+
+    testCase         TestCase         @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+    placeholderValue PlaceholderValue @relation(fields: [placeholderValueId, placeholderId], references: [id, placeholderId], onDelete: Cascade)
+
+    @@id([testCaseId, placeholderValueId])
+    @@unique([testCaseId, placeholderId])
+    // Both the PK and the unique above lead with testCaseId, so PlaceholderValue's
+    // ON DELETE CASCADE and getPlaceholdersByPromptID's `_count: { testCases }` both
+    // scan the whole table without one of these.
+    @@index([placeholderValueId])
+    @@index([placeholderId])
+}

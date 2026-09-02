@@ -3,10 +3,7 @@ import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import type { PromptResponse } from "@/api/prompt";
 
-export type MemorySelectionState = {
-	selectedMemoryId: string;
-	selectedMemoryKeyName: string;
-};
+export type PlaceholderSelectionState = Record<string, string>;
 
 export type PageHeaderUiState = {
 	isEditing: boolean;
@@ -20,8 +17,6 @@ type ScopeParam = string | number | undefined | null;
 const toKeyPart = (value: ScopeParam) => (value == null ? "" : String(value));
 const draftScopeKey = (promptId: ScopeParam, testcaseId: ScopeParam) =>
 	`${toKeyPart(promptId)}::${toKeyPart(testcaseId)}`;
-const memoryValueScopeKey = (promptId: ScopeParam, testcaseId: ScopeParam, memoryId: ScopeParam) =>
-	`${toKeyPart(promptId)}::${toKeyPart(testcaseId)}::${toKeyPart(memoryId)}`;
 
 type PlaygroundSessionDraft = {
 	runLoading: boolean;
@@ -36,8 +31,7 @@ interface PlaygroundDraftData {
 	expectedOutputDrafts: Record<string, PromptResponse | null>;
 	expectedThoughtsDrafts: Record<string, string>;
 	sessionDrafts: Record<string, PlaygroundSessionDraft>;
-	memorySelectionDrafts: Record<string, MemorySelectionState>;
-	memoryValueDrafts: Record<string, string>;
+	selectedPlaceholders: PlaceholderSelectionState;
 	pageHeaderUi: PageHeaderUiState;
 }
 
@@ -73,25 +67,12 @@ interface PlaygroundDraftActions {
 	getSessionDraft: (promptId: ScopeParam, testcaseId: ScopeParam) => PlaygroundSessionDraft;
 	clearSessionDraft: (promptId: ScopeParam, testcaseId: ScopeParam) => void;
 
-	setMemorySelectionDraft: (
-		promptId: ScopeParam,
-		testcaseId: ScopeParam,
-		value: Partial<MemorySelectionState>,
-	) => void;
-	getMemorySelectionDraft: (promptId: ScopeParam, testcaseId: ScopeParam) => MemorySelectionState;
-
-	setMemoryValueDraft: (
-		promptId: ScopeParam,
-		testcaseId: ScopeParam,
-		memoryId: ScopeParam,
-		value: string,
-	) => void;
-	getMemoryValueDraft: (
-		promptId: ScopeParam,
-		testcaseId: ScopeParam,
-		memoryId: ScopeParam,
-	) => string;
-	clearMemoryValueDraft: (promptId: ScopeParam, testcaseId: ScopeParam, memoryId: ScopeParam) => void;
+	setPlaceholderSelection: (key: string, valueName: string) => void;
+	clearPlaceholderSelection: (key: string) => void;
+	// Wholesale replace, not a merge -- the one write a testcase-pin-seeding effect needs
+	// so a prompt/testcase switch cannot leave a stale key from the previous selection
+	// mixed in with the newly seeded one.
+	replacePlaceholderSelections: (next: PlaceholderSelectionState) => void;
 
 	resetForTestcaseExit: (promptId: ScopeParam, prevTestcaseId: ScopeParam) => void;
 	resetAfterAddTestcase: (promptId: ScopeParam) => void;
@@ -102,11 +83,6 @@ interface PlaygroundDraftActions {
 }
 
 type PlaygroundState = PlaygroundDraftData & PlaygroundDraftActions;
-
-const DEFAULT_MEMORY_SELECTION: MemorySelectionState = {
-	selectedMemoryId: "",
-	selectedMemoryKeyName: "",
-};
 
 const DEFAULT_SESSION_DRAFT: PlaygroundSessionDraft = {
 	runLoading: false,
@@ -128,8 +104,7 @@ const initialState: PlaygroundDraftData = {
 	expectedOutputDrafts: {},
 	expectedThoughtsDrafts: {},
 	sessionDrafts: {},
-	memorySelectionDrafts: {},
-	memoryValueDrafts: {},
+	selectedPlaceholders: {},
 	pageHeaderUi: DEFAULT_PAGE_HEADER_UI,
 };
 
@@ -254,49 +229,29 @@ const usePlaygroundStore = create<PlaygroundState>()(
 					"clearSessionDraft",
 				),
 
-			setMemorySelectionDraft: (promptId, testcaseId, value) =>
-				set(
-					(state) => {
-						const key = draftScopeKey(promptId, testcaseId);
-						const prev = state.memorySelectionDrafts[key] ?? DEFAULT_MEMORY_SELECTION;
-						return {
-							memorySelectionDrafts: {
-								...state.memorySelectionDrafts,
-								[key]: { ...prev, ...value },
-							},
-						};
-					},
-					false,
-					"setMemorySelectionDraft",
-				),
-			getMemorySelectionDraft: (promptId, testcaseId) =>
-				get().memorySelectionDrafts[draftScopeKey(promptId, testcaseId)] ??
-				DEFAULT_MEMORY_SELECTION,
-
-			setMemoryValueDraft: (promptId, testcaseId, memoryId, value) =>
+			setPlaceholderSelection: (key, valueName) =>
 				set(
 					(state) => ({
-						memoryValueDrafts: {
-							...state.memoryValueDrafts,
-							[memoryValueScopeKey(promptId, testcaseId, memoryId)]: value,
+						selectedPlaceholders: {
+							...state.selectedPlaceholders,
+							[key]: valueName,
 						},
 					}),
 					false,
-					"setMemoryValueDraft",
+					"setPlaceholderSelection",
 				),
-			getMemoryValueDraft: (promptId, testcaseId, memoryId) =>
-				get().memoryValueDrafts[memoryValueScopeKey(promptId, testcaseId, memoryId)] ?? "",
-			clearMemoryValueDraft: (promptId, testcaseId, memoryId) =>
+			clearPlaceholderSelection: (key) =>
 				set(
 					(state) => {
-						const key = memoryValueScopeKey(promptId, testcaseId, memoryId);
-						const next = { ...state.memoryValueDrafts };
+						const next = { ...state.selectedPlaceholders };
 						delete next[key];
-						return { memoryValueDrafts: next };
+						return { selectedPlaceholders: next };
 					},
 					false,
-					"clearMemoryValueDraft",
+					"clearPlaceholderSelection",
 				),
+			replacePlaceholderSelections: (next) =>
+				set({ selectedPlaceholders: next }, false, "replacePlaceholderSelections"),
 
 			resetForTestcaseExit: (promptId, prevTestcaseId) =>
 				set(
@@ -340,7 +295,6 @@ const usePlaygroundStore = create<PlaygroundState>()(
 					(state) => {
 						const promptScope = draftScopeKey(promptId, null);
 						const sessionPromptScope = draftScopeKey(promptId, null);
-						const memorySelectionScope = draftScopeKey(promptId, null);
 
 						const inputDrafts = { ...state.inputDrafts };
 						delete inputDrafts[promptScope];
@@ -357,20 +311,12 @@ const usePlaygroundStore = create<PlaygroundState>()(
 						const sessionDrafts = { ...state.sessionDrafts };
 						delete sessionDrafts[sessionPromptScope];
 
-						const memorySelectionDrafts = { ...state.memorySelectionDrafts };
-						memorySelectionDrafts[memorySelectionScope] = DEFAULT_MEMORY_SELECTION;
-
-						const memoryValueDrafts = { ...state.memoryValueDrafts };
-						delete memoryValueDrafts[memoryValueScopeKey(promptId, null, null)];
-
 						return {
 							inputDrafts,
 							outputDrafts,
 							expectedOutputDrafts,
 							expectedThoughtsDrafts,
 							sessionDrafts,
-							memorySelectionDrafts,
-							memoryValueDrafts,
 						};
 					},
 					false,
@@ -381,7 +327,6 @@ const usePlaygroundStore = create<PlaygroundState>()(
 				set(
 					(state) => {
 						const scopeKey = draftScopeKey(promptId, testcaseId);
-						const memorySelectionScope = draftScopeKey(promptId, testcaseId);
 
 						const inputDrafts = { ...state.inputDrafts };
 						delete inputDrafts[scopeKey];
@@ -398,16 +343,17 @@ const usePlaygroundStore = create<PlaygroundState>()(
 						const sessionDrafts = { ...state.sessionDrafts };
 						delete sessionDrafts[scopeKey];
 
-						const memorySelectionDrafts = { ...state.memorySelectionDrafts };
-						delete memorySelectionDrafts[memorySelectionScope];
-
 						return {
 							inputDrafts,
 							outputDrafts,
 							expectedOutputDrafts,
 							expectedThoughtsDrafts,
 							sessionDrafts,
-							memorySelectionDrafts,
+							// selectedPlaceholders is a flat, unscoped map (see its declaration
+							// above), so there is no per-prompt key to delete here — leaving a
+							// prompt clears the whole thing rather than let a stale key from
+							// this prompt keep shipping in another prompt's run body.
+							selectedPlaceholders: {},
 						};
 					},
 					false,

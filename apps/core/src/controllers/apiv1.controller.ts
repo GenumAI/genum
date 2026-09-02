@@ -7,12 +7,14 @@ import {
 } from "@/services/validate";
 import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
+import { mergePlaceholderInput } from "@/ai/placeholders/merge-input";
 import { SourceType } from "@/services/logger";
 import { PromptService } from "@/services/prompt.service";
 import type { FileInput } from "@/services/file.service";
 import { extractBearerToken } from "@/utils/http";
 import { env } from "@/env";
 import { HttpError } from "@/utils/errors";
+import type { PlaceholderDefinition } from "@genum/placeholders";
 
 export class ApiV1Controller {
 	private readonly promptService: PromptService;
@@ -97,7 +99,10 @@ export class ApiV1Controller {
 
 	async runPrompt(req: Request, res: Response) {
 		const { project, key } = await this.verifyRequest(req);
-		const { id, question, memoryKey, productive, files } = RunPromptSchema.parse(req.body);
+		const { id, question, memoryKey, placeholders, productive, files } = RunPromptSchema.parse(
+			req.body,
+		);
+		const selection = mergePlaceholderInput({ placeholders, memoryKey });
 
 		const organization = await db.organization.getOrganizationById(project.organizationId);
 		if (!organization) {
@@ -115,18 +120,15 @@ export class ApiV1Controller {
 			return res.status(401).json({ error: "Unauthorized" });
 		}
 
-		let memoryId: number | undefined;
-		if (memoryKey) {
-			const memory = await db.memories.getMemoryByKeyAndPromptId(memoryKey, prompt.id);
-			if (!memory) {
-				// memory not found
-			} else {
-				memoryId = memory.id;
-			}
-		}
-
 		// update last used date
 		await db.project.updateProjectApiKeyLastUsed(key.id);
+
+		// Definitions come from the same object the productive commit's text came
+		// from, so a productive run's text and its placeholder definitions provably
+		// originate together. Left `undefined` for a non-productive run so run.ts
+		// falls through and reads the live placeholder tables — an empty array here
+		// would silently disable placeholder rendering instead.
+		let placeholderDefinitions: PlaceholderDefinition[] | undefined;
 
 		if (productive) {
 			const promptWithCommit = await this.promptService.getPromptWithProductiveCommit(
@@ -139,6 +141,7 @@ export class ApiV1Controller {
 				return res.status(404).json({ error: "Productive commit not found." });
 			}
 			prompt = promptWithCommit;
+			placeholderDefinitions = promptWithCommit.placeholderDefinitions;
 		}
 
 		let fileInputs: FileInput[] = [];
@@ -152,17 +155,22 @@ export class ApiV1Controller {
 		const run = await runPrompt({
 			prompt: prompt,
 			question,
-			memoryId: memoryId,
 			source: SourceType.api,
 			userProjectId: project.id,
 			userOrgId: organization.id,
 			user_id: key.authorId,
 			api_key_id: key.id,
 			files: fileInputs,
+			placeholders: selection,
+			placeholderDefinitions,
 		});
 
 		res.status(200).json({
 			...run,
+			placeholders: {
+				resolved: run.placeholders.resolved,
+				ignored: run.placeholders.ignored,
+			},
 		});
 	}
 

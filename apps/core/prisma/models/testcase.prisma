@@ -15,8 +15,6 @@ model TestCase {
     expectedChainOfThoughts String?
     lastOutput              String
     lastChainOfThoughts     String?
-    memoryId                Int?
-    memory                  Memory?        @relation(fields: [memoryId], references: [id], onDelete: SetNull)
     status                  TestCaseStatus @default(NEED_RUN)
     assertionThoughts       String?        @default("")
     createdAt               DateTime       @default(now()) @db.Timestamp(6)
@@ -24,4 +22,5 @@ model TestCase {
 
     prompt Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
 	files TestcaseFile[]
+	placeholderValues TestCasePlaceholderValue[]
 }

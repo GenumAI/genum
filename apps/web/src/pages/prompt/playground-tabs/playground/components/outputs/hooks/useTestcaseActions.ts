@@ -4,7 +4,7 @@ import { promptApi } from "@/api/prompt/prompt.api";
 import type { TestcasePayload } from "@/hooks/useCreateTestcase";
 import { useToast } from "@/hooks/useToast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemorySelection } from "@/pages/prompt/playground-tabs/memory/hooks/useMemorySelection";
+import usePlaygroundStore from "@/stores/playground.store";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 interface UseTestcaseActionsProps {
@@ -13,10 +13,13 @@ interface UseTestcaseActionsProps {
 	selectedFiles?: Array<{ id: string }>;
 }
 
-export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }: UseTestcaseActionsProps) => {
+export const useTestcaseActions = ({
+	promptId,
+	onTestcaseAdded,
+	selectedFiles,
+}: UseTestcaseActionsProps) => {
 	const { toast } = useToast();
-	const { selection } = useMemorySelection(promptId, null);
-	const selectedMemoryId = selection.selectedMemoryId;
+	const selectedPlaceholders = usePlaygroundStore((state) => state.selectedPlaceholders);
 	const queryClient = useQueryClient();
 	const createTestcaseMutation = useMutation({
 		mutationKey: testcaseKeys.create(promptId),
@@ -56,31 +59,47 @@ export const useTestcaseActions = ({ promptId, onTestcaseAdded, selectedFiles }:
 				input: input || "",
 				expectedOutput: expectedOutput,
 				lastOutput: lastOutput || "",
-				memoryId: selectedMemoryId ? Number(selectedMemoryId) : undefined,
-				files: selectedFiles && selectedFiles.length > 0 ? selectedFiles.map((f) => f.id) : undefined,
+				placeholders: selectedPlaceholders,
+				files:
+					selectedFiles && selectedFiles.length > 0
+						? selectedFiles.map((f) => f.id)
+						: undefined,
 			};
 
 			let success = false;
+			let unresolvedPlaceholders: string[] = [];
 
 			try {
-				await createTestcaseMutation.mutateAsync(createPayload);
+				const response = await createTestcaseMutation.mutateAsync(createPayload);
+				unresolvedPlaceholders = response.unresolvedPlaceholders ?? [];
 				success = true;
 			} catch (err) {
 				console.error("Create testcase error:", err);
 				success = false;
 			} finally {
-				toast({
-					title: success ? "Test case added" : "Failed to add test case",
-					description: success
-						? "Your test case was saved successfully."
-						: "Unknown error, try again.",
-					variant: success ? "default" : "destructive",
-				});
+				if (success && unresolvedPlaceholders.length > 0) {
+					// A value that has since been renamed or deleted cannot transfer --
+					// saying so here is the difference between a partial transfer and a
+					// silent one. Matches useAddTestcaseFromLog's wording for the same case.
+					toast({
+						title: "Test case added",
+						description: `Your test case was saved, but these placeholders could not transfer: ${unresolvedPlaceholders.join(", ")}.`,
+						variant: "default",
+					});
+				} else {
+					toast({
+						title: success ? "Test case added" : "Failed to add test case",
+						description: success
+							? "Your test case was saved successfully."
+							: "Unknown error, try again.",
+						variant: success ? "default" : "destructive",
+					});
+				}
 			}
 
 			return { success };
 		},
-		[promptId, selectedMemoryId, selectedFiles, toast, createTestcaseMutation],
+		[promptId, selectedPlaceholders, selectedFiles, toast, createTestcaseMutation],
 	);
 
 	return {

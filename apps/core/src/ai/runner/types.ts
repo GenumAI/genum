@@ -4,13 +4,13 @@ import type { SourceType } from "@/services/logger";
 import type { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "langchain";
 import type OpenAI from "openai";
 import type { FileInput } from "@/services/file.service";
+import type { PlaceholderDefinition, PlaceholderSelection } from "@genum/placeholders";
 
 export type runPromptParams = {
 	prompt: Prompt;
 	userProjectId: number;
 	userOrgId: number;
 	question: string;
-	memoryId?: number;
 	source: SourceType;
 	user_id?: number;
 	testcase_id?: number;
@@ -18,6 +18,9 @@ export type runPromptParams = {
 	system_instructions?: string;
 	systemPrompt?: boolean;
 	files?: FileInput[];
+	placeholders?: PlaceholderSelection;
+	/** Committed definitions, when the caller resolved a productive commit. */
+	placeholderDefinitions?: PlaceholderDefinition[];
 };
 
 export type testcaseAssertion = {
@@ -56,14 +59,6 @@ type CanvasAgentMessageAction = {
 };
 
 export type CanvasAgentMessage = CanvasAgentMessageText | CanvasAgentMessageAction;
-
-export type TestcaseNamerParams = {
-	user_prompt: string;
-	memory_value?: string;
-	input: string;
-	userOrgId: number;
-	userProjectId: number;
-};
 
 export type AssertionEditorParams = {
 	prompt: Prompt;

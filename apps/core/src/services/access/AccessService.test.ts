@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
 	checkPromptAccess,
-	checkMemoryAccess,
+	checkPlaceholderAccess,
 	checkTestcaseAccess,
 	getApiKeyByQuota,
 } from "./AccessService";
@@ -16,11 +16,11 @@ vi.mock("@/database/db", () => ({
 		prompts: {
 			getPromptById: vi.fn(),
 		},
-		memories: {
-			getMemoryByIDAndPromptId: vi.fn(),
-		},
 		testcases: {
 			getTestcaseByID: vi.fn(),
+		},
+		placeholders: {
+			getPlaceholderByIDAndPromptId: vi.fn(),
 		},
 		organization: {
 			getOrganizationApiKey: vi.fn(),
@@ -63,22 +63,6 @@ describe("AccessService", () => {
 		});
 	});
 
-	describe("checkMemoryAccess", () => {
-		it("should return memory if it exists and belongs to prompt", async () => {
-			const mockMemory = { id: 1, promptId: 100 };
-			vi.mocked(db.memories.getMemoryByIDAndPromptId).mockResolvedValue(mockMemory as any);
-
-			const result = await checkMemoryAccess(1, 100);
-			expect(result).toEqual(mockMemory);
-		});
-
-		it("should throw error if memory is not found", async () => {
-			vi.mocked(db.memories.getMemoryByIDAndPromptId).mockResolvedValue(null);
-
-			await expect(checkMemoryAccess(1, 100)).rejects.toThrow("Memory is not found");
-		});
-	});
-
 	describe("checkTestcaseAccess", () => {
 		it("should return testcase if it exists and belongs to project", async () => {
 			const mockTestcase = { id: 1, prompt: { projectId: 10 } };
@@ -102,6 +86,30 @@ describe("AccessService", () => {
 		});
 	});
 
+	describe("checkPlaceholderAccess", () => {
+		it("should return the placeholder if it exists and belongs to the prompt", async () => {
+			const mockPlaceholder = { id: 1, promptId: 100 };
+			vi.mocked(db.placeholders.getPlaceholderByIDAndPromptId).mockResolvedValue(
+				mockPlaceholder as any,
+			);
+
+			const result = await checkPlaceholderAccess(1, 100);
+			expect(result).toEqual(mockPlaceholder);
+		});
+
+		it("should throw a 404 HttpError for a placeholder outside the prompt", async () => {
+			// `getPlaceholderByIDAndPromptId` scopes its own lookup to `promptId`, so a
+			// placeholder id from another prompt resolves to null here, same as a truly
+			// missing id -- both are reported identically rather than leaking which case it was.
+			vi.mocked(db.placeholders.getPlaceholderByIDAndPromptId).mockResolvedValue(null);
+
+			await expect(checkPlaceholderAccess(1, 100)).rejects.toMatchObject({
+				statusCode: 404,
+			});
+			await expect(checkPlaceholderAccess(1, 100)).rejects.toBeInstanceOf(HttpError);
+		});
+	});
+
 	describe("status codes", () => {
 		// These used to throw a bare Error, which the global handler turned into a 500
 		// with a Sentry event -- so every probe for someone else's prompt id looked
@@ -116,12 +124,6 @@ describe("AccessService", () => {
 			vi.mocked(db.prompts.getPromptById).mockResolvedValue({ id: 1, projectId: 20 } as any);
 
 			await expect(checkPromptAccess(1, 10)).rejects.toBeInstanceOf(HttpError);
-		});
-
-		it("reports a missing memory as 404", async () => {
-			vi.mocked(db.memories.getMemoryByIDAndPromptId).mockResolvedValue(null);
-
-			await expect(checkMemoryAccess(1, 100)).rejects.toMatchObject({ statusCode: 404 });
 		});
 
 		it("reports a missing testcase as 404", async () => {

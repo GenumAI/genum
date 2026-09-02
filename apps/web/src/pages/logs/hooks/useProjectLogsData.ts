@@ -1,28 +1,17 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { projectApi } from "@/api/project";
-import { promptApi } from "@/api/prompt";
 import type { LogsFilterState } from "@/pages/logs/components/LogsFilter";
 import type { LogsResponse } from "@/types/logs";
 import { logsKeys } from "@/query-keys/logs.keys";
-import { memoryKeys } from "@/query-keys/memory.keys";
-import type { Memory } from "@/api/prompt/prompt.api";
 
 interface UseProjectLogsDataParams {
 	page: number;
 	pageSize: number;
 	logsFilter: LogsFilterState;
-	selectedPromptId?: number;
-	shouldFetchMemories?: boolean;
 }
 
-export function useProjectLogsData({
-	page,
-	pageSize,
-	logsFilter,
-	selectedPromptId,
-	shouldFetchMemories = false,
-}: UseProjectLogsDataParams) {
+export function useProjectLogsData({ page, pageSize, logsFilter }: UseProjectLogsDataParams) {
 	const fromDate = logsFilter.dateRange?.from?.toISOString();
 	const toDate = logsFilter.dateRange?.to?.toISOString();
 	const logLevel =
@@ -61,27 +50,15 @@ export function useProjectLogsData({
 		},
 	});
 
-	const memoriesQuery = useQuery<Memory[]>({
-		queryKey: memoryKeys.promptMemories(selectedPromptId),
-		enabled: Boolean(selectedPromptId && shouldFetchMemories),
-		refetchOnMount: "always",
-		queryFn: async () => {
-			const response = await promptApi.getMemories(selectedPromptId as number);
-			return response.memories || [];
-		},
-	});
-
 	const isInitialLoadingLogs = logsQuery.isPending && !logsQuery.data;
 
 	return {
 		logs: logsQuery.data?.logs ?? [],
 		total: logsQuery.data?.total ?? 0,
-		memoriesData: memoriesQuery.data ?? [],
 		isFetchingLogs: logsQuery.isFetching,
 		isInitialLoadingLogs,
 		logsError: logsQuery.error,
 		isLogsError: logsQuery.isError,
 		refetchLogs: logsQuery.refetch,
-		refetchMemories: memoriesQuery.refetch,
 	};
 }
