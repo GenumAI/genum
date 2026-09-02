@@ -82,7 +82,11 @@ export default function VersionDetails() {
 
 						<VersionPromptContent content={data.version.value} />
 
-						<VersionPlaceholders snapshot={data.version.placeholders} />
+						<VersionPlaceholders
+							snapshot={data.version.placeholders}
+							promptText={data.version.value}
+							promptId={id ? Number(id) : undefined}
+						/>
 					</div>
 
 					{auditData && (

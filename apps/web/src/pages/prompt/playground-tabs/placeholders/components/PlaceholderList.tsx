@@ -9,9 +9,16 @@ interface PlaceholderListProps {
 	keysInPromptText: Set<string>;
 	selectedId: number | undefined;
 	isLoading?: boolean;
+	/**
+	 * Read-only reuse: the commit page shows the definitions a commit froze, which
+	 * cannot be edited -- history is not editable. Same list, same selection, same
+	 * "used in the prompt text" marker; only the row actions are dropped.
+	 */
+	readOnly?: boolean;
 	onSelect: (id: number) => void;
-	onRequestDelete: (placeholder: PromptPlaceholder) => void;
-	onRequestEdit: (placeholder: PromptPlaceholder) => void;
+	onRequestDelete?: (placeholder: PromptPlaceholder) => void;
+	onRequestEdit?: (placeholder: PromptPlaceholder) => void;
+	emptyLabel?: string;
 }
 
 export default function PlaceholderList({
@@ -19,9 +26,11 @@ export default function PlaceholderList({
 	keysInPromptText,
 	selectedId,
 	isLoading = false,
+	readOnly = false,
 	onSelect,
 	onRequestDelete,
 	onRequestEdit,
+	emptyLabel = "No placeholders yet.",
 }: PlaceholderListProps) {
 	if (placeholders.length === 0) {
 		// While the query is still in flight, `placeholders` is `[]` by default just
@@ -36,7 +45,7 @@ export default function PlaceholderList({
 		}
 		return (
 			<div className="flex min-h-[200px] items-center justify-center rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-				No placeholders yet.
+				{emptyLabel}
 			</div>
 		);
 	}
@@ -83,26 +92,30 @@ export default function PlaceholderList({
 								{placeholder.values.length === 1 ? "" : "s"}
 							</span>
 						</button>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							className="h-7 w-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
-							onClick={() => onRequestEdit(placeholder)}
-							aria-label={`Edit ${placeholder.key}`}
-						>
-							<PencilSimpleIcon className="h-4 w-4" />
-						</Button>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							className="h-7 w-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
-							onClick={() => onRequestDelete(placeholder)}
-							aria-label={`Delete ${placeholder.key}`}
-						>
-							<TrashIcon className="h-4 w-4" />
-						</Button>
+						{!readOnly && (
+							<>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									className="h-7 w-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
+									onClick={() => onRequestEdit?.(placeholder)}
+									aria-label={`Edit ${placeholder.key}`}
+								>
+									<PencilSimpleIcon className="h-4 w-4" />
+								</Button>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									className="h-7 w-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
+									onClick={() => onRequestDelete?.(placeholder)}
+									aria-label={`Delete ${placeholder.key}`}
+								>
+									<TrashIcon className="h-4 w-4" />
+								</Button>
+							</>
+						)}
 					</div>
 				);
 			})}

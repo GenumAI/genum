@@ -11,12 +11,20 @@ interface PlaceholderValueEditorProps {
 	promptId: number;
 	placeholder: PromptPlaceholder;
 	value: PromptPlaceholderValue;
+	/**
+	 * Read-only reuse: the commit page shows the definitions a commit froze, and a
+	 * commit is not editable. Deliberately the SAME component rather than a preview of
+	 * its own -- a separate read-only rendering is how the two drift until the preview
+	 * stops resembling what the author actually edits.
+	 */
+	readOnly?: boolean;
 }
 
 export default function PlaceholderValueEditor({
 	promptId,
 	placeholder,
 	value,
+	readOnly = false,
 }: PlaceholderValueEditorProps) {
 	const { updateValue, deleteValue, isMutatingValue } = usePlaceholderMutations(promptId);
 
@@ -93,52 +101,61 @@ export default function PlaceholderValueEditor({
 							Default
 						</Badge>
 					) : (
+						!readOnly && (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={handleMakeDefault}
+								disabled={isMutatingValue}
+							>
+								Make default
+							</Button>
+						)
+					)}
+					{!readOnly && (
 						<Button
 							type="button"
-							variant="outline"
-							size="sm"
-							onClick={handleMakeDefault}
-							disabled={isMutatingValue}
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8"
+							onClick={() => setValuePendingDelete(value)}
+							aria-label={`Delete ${value.name}`}
 						>
-							Make default
+							<TrashIcon className="h-4 w-4" />
 						</Button>
 					)}
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						className="h-8 w-8"
-						onClick={() => setValuePendingDelete(value)}
-						aria-label={`Delete ${value.name}`}
-					>
-						<TrashIcon className="h-4 w-4" />
-					</Button>
 				</div>
 			</div>
 
 			<Textarea
 				key={value.id}
-				value={contentFor(value)}
-				onChange={(e) => handleContentChange(value.id, e.target.value)}
-				onBlur={() => handleBlur(value)}
+				value={readOnly ? value.content : contentFor(value)}
+				onChange={
+					readOnly ? undefined : (e) => handleContentChange(value.id, e.target.value)
+				}
+				onBlur={readOnly ? undefined : () => handleBlur(value)}
+				readOnly={readOnly}
 				className="min-h-[360px] w-full flex-1 resize-none"
-				placeholder="Enter value content"
+				placeholder={readOnly ? "This value is empty." : "Enter value content"}
 			/>
 
-			<DeleteConfirmDialog
-				open={!!valuePendingDelete}
-				onOpenChange={(open) => {
-					if (!open) setValuePendingDelete(null);
-				}}
-				onConfirm={handleConfirmDelete}
-				title={`Delete "${valuePendingDelete?.name ?? ""}"?`}
-				description={
-					pinnedCount > 0
-						? `${pinnedCount} testcase${pinnedCount === 1 ? "" : "s"} pin this value. Deleting it will clear ${pinnedCount === 1 ? "that pin" : "those pins"}.`
-						: "No testcase pins this value."
-				}
-				isDeleting={isMutatingValue}
-			/>
+			{!readOnly && (
+				<DeleteConfirmDialog
+					open={!!valuePendingDelete}
+					onOpenChange={(open) => {
+						if (!open) setValuePendingDelete(null);
+					}}
+					onConfirm={handleConfirmDelete}
+					title={`Delete "${valuePendingDelete?.name ?? ""}"?`}
+					description={
+						pinnedCount > 0
+							? `${pinnedCount} testcase${pinnedCount === 1 ? "" : "s"} pin this value. Deleting it will clear ${pinnedCount === 1 ? "that pin" : "those pins"}.`
+							: "No testcase pins this value."
+					}
+					isDeleting={isMutatingValue}
+				/>
+			)}
 		</div>
 	);
 }

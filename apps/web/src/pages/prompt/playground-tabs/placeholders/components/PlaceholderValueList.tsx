@@ -9,8 +9,12 @@ interface PlaceholderValueListProps {
 	hasSelectedPlaceholder: boolean;
 	selectedValueId: number | undefined;
 	isLoading?: boolean;
+	/** Read-only reuse on the commit page -- see PlaceholderList's own note. */
+	readOnly?: boolean;
 	onSelect: (id: number) => void;
-	onRequestNew: () => void;
+	onRequestNew?: () => void;
+	emptyLabel?: string;
+	noSelectionLabel?: string;
 }
 
 export default function PlaceholderValueList({
@@ -18,8 +22,11 @@ export default function PlaceholderValueList({
 	hasSelectedPlaceholder,
 	selectedValueId,
 	isLoading = false,
+	readOnly = false,
 	onSelect,
 	onRequestNew,
+	emptyLabel = "No values yet.",
+	noSelectionLabel = "Select a placeholder to see its values.",
 }: PlaceholderValueListProps) {
 	return (
 		<div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border p-3">
@@ -27,22 +34,24 @@ export default function PlaceholderValueList({
 				<h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 					Values
 				</h3>
-				<Button
-					type="button"
-					size="sm"
-					variant="ghost"
-					className="h-7 px-2 text-xs"
-					onClick={onRequestNew}
-					disabled={!hasSelectedPlaceholder}
-				>
-					<PlusCircleIcon className="mr-1 h-4 w-4" />
-					New value
-				</Button>
+				{!readOnly && (
+					<Button
+						type="button"
+						size="sm"
+						variant="ghost"
+						className="h-7 px-2 text-xs"
+						onClick={onRequestNew}
+						disabled={!hasSelectedPlaceholder}
+					>
+						<PlusCircleIcon className="mr-1 h-4 w-4" />
+						New value
+					</Button>
+				)}
 			</div>
 
 			{!hasSelectedPlaceholder ? (
 				<div className="flex min-h-[160px] items-center justify-center text-center text-xs text-muted-foreground">
-					Select a placeholder to see its values.
+					{noSelectionLabel}
 				</div>
 			) : isLoading ? (
 				// Loading is not emptiness -- the placeholders query still being in flight
@@ -53,7 +62,7 @@ export default function PlaceholderValueList({
 				</div>
 			) : values.length === 0 ? (
 				<div className="flex min-h-[160px] items-center justify-center text-center text-xs text-muted-foreground">
-					No values yet.
+					{emptyLabel}
 				</div>
 			) : (
 				<div className="flex flex-col gap-1">
