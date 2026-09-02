@@ -25,14 +25,12 @@ async function main() {
 					`file is now ${entry.actual.slice(0, 12)}`,
 			);
 		}
-		console.error("An applied migration was edited. Add a new migration instead.");
-		process.exit(1);
+		throw new MigrationError("An applied migration was edited. Add a new migration instead.");
 	}
 
 	if (plan.missing.length > 0) {
 		for (const name of plan.missing) console.error(`MISSING ${name}: applied, but no file`);
-		console.error("Recorded history has no file on disk. This needs a human.");
-		process.exit(1);
+		throw new MigrationError("Recorded history has no file on disk. This needs a human.");
 	}
 
 	if (plan.pending.length === 0) {
@@ -46,7 +44,6 @@ async function main() {
 }
 
 main()
-	.then(() => process.exit(0))
 	.catch((error) => {
 		// Loud on purpose. The script this replaces swallowed every statement error and
 		// exited 0, so a fresh environment silently got no schema at all.
@@ -55,5 +52,9 @@ main()
 				? `ClickHouse migration failed:\n${error.message}`
 				: error,
 		);
-		process.exit(1);
-	});
+		process.exitCode = 1;
+	})
+	// Setting exitCode and closing the client, rather than calling process.exit(), so the
+	// failure message is fully flushed first: ClickHouse's syntax errors run to kilobytes
+	// and a hard exit can truncate exactly the output this command exists to produce.
+	.finally(() => clickhouseClient.close());

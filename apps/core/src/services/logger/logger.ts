@@ -209,7 +209,7 @@ export async function logUsage(document: LogDocument): Promise<void> {
 					in: document.in,
 					out: document.out,
 					// Frozen: readable for rows written before `placeholders` existed, never
-					// written again — see init.sql.
+					// written again — see clickhouse/migrations/.
 					memory_key: null,
 					placeholders: document.placeholders ?? {},
 					stage: env.NODE_ENV,

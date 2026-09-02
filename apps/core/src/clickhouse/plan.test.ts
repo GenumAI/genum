@@ -12,13 +12,10 @@ describe("migrationChecksum", () => {
 		expect(migrationChecksum("SELECT 1")).not.toBe(migrationChecksum("SELECT 2"));
 	});
 
-	// The whole scheme rests on this: the checksum is taken from the file as written,
-	// so one migration has ONE checksum across environments whose database names differ.
-	// Checksumming after substitution would make every environment look like drift.
-	it("hashes a string containing the {{DB_NAME}} marker differently from one where it was replaced", () => {
-		const raw = "CREATE TABLE {{DB_NAME}}.logs (a UInt8) ENGINE = Memory";
-		expect(migrationChecksum(raw)).not.toBe(migrationChecksum(raw.replace("{{DB_NAME}}", "a")));
-	});
+	// The invariant this scheme rests on -- one migration keeps ONE checksum across
+	// environments whose database names differ -- cannot be pinned here: `planMigrations`
+	// never substitutes. It is pinned where the choice is actually made, in
+	// `prepareMigration`; see migrate.test.ts.
 });
 
 describe("planMigrations", () => {

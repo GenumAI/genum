@@ -30,7 +30,9 @@ export function planMigrations(files: MigrationFile[], applied: AppliedMigration
 	const recordedByName = new Map(applied.map((row) => [row.name, row.checksum]));
 	const namesOnDisk = new Set(files.map((file) => file.name));
 
-	const ordered = [...files].sort((a, b) => a.name.localeCompare(b.name));
+	// Code-unit order, matching `readMigrationFiles`'s plain `.sort()`. `localeCompare`
+	// would be a second, subtly different ordering for one stated rule.
+	const ordered = [...files].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
 	const pending: MigrationFile[] = [];
 	const drifted: MigrationPlan["drifted"] = [];
