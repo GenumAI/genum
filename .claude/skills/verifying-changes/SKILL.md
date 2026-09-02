@@ -17,7 +17,7 @@ Measured on a clean `main` (2026-07-24, macOS, warm `node_modules`):
 
 | Command | Result | Time |
 |---|---|---|
-| `pnpm --filter core type-check` | exit 0 — `tsc --noEmit` | ~3 s |
+| `pnpm turbo run type-check --filter=core` | exit 0 — `tsc --noEmit` | ~3 s |
 | `pnpm --filter core test:run` | 9 files / 109 tests pass — vitest, unit-only, **no DB or `.env` needed** | ~1 s |
 | `pnpm --filter web build` | exit 0 — `tsc -b && vite build` | ~37 s |
 | `pnpm exec biome check <paths>` | formatter/linter on the paths you name | <1 s |
@@ -75,7 +75,7 @@ If `type-check` reports missing or stale members on Prisma types, you are type-c
 
 ## Minimum bar before opening a PR
 
-- Touched `apps/core` → `pnpm --filter core type-check` **and** `pnpm --filter core test:run`.
+- Touched `apps/core` → `pnpm turbo run type-check --filter=core` **and** `pnpm turbo run test:run --filter=core`. Go through turbo: both resolve `@genum/placeholders` through its `dist/`, which a never-built tree lacks.
 - Touched `apps/web` → `pnpm --filter web build`.
 - Always → `biome check` and `eslint` on your changed files only.
 - Behaviour a command cannot prove (UI, provider calls, ClickHouse data) → say so under **## Not verified** in the PR. **REQUIRED SUB-SKILL:** `creating-pull-requests`.

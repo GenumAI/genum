@@ -19,6 +19,14 @@
 			"dependsOn": ["build"],
 			"outputs": []
 		},
+		"test:run": {
+			"dependsOn": ["^build"],
+			"outputs": []
+		},
+		"type-check": {
+			"dependsOn": ["^build"],
+			"outputs": []
+		},
 		"lint": {
 			"cache": true
 		},

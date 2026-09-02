@@ -61,7 +61,7 @@ gh pr create --base main \
 - `apps/web/src/app/router/router.tsx` — ... (short snippet of the key change)
 
 ## Verification
-- `pnpm --filter core type-check` — clean (exit 0)
+- `pnpm turbo run type-check --filter=core` — clean (exit 0)
 - `pnpm --filter core test:run` — 109/109 pass
 - `pnpm lint` — 35 problems in core, exactly the `main` baseline; changed files add none
 

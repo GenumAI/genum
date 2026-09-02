@@ -63,8 +63,12 @@ jobs:
       - name: Run Biome linter (core)
         run: pnpm biome check apps/core
 
+      # Through turbo, not `pnpm --filter core test:run`: every entry point of
+      # @genum/placeholders resolves into its dist/, which a clean checkout does not
+      # have. Calling vitest directly skips the task graph, so vite cannot resolve the
+      # package and three suites error out. That is how v1.10.0 shipped with no images.
       - name: Run unit tests (core)
-        run: pnpm --filter core test:run
+        run: pnpm turbo run test:run --filter=core
 
       - name: Extract release version
         id: release_version
