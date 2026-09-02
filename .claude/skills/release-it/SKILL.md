@@ -52,11 +52,20 @@ Then the gates the release workflow only runs afterwards:
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm --filter core type-check      # must exit 0
-pnpm --filter core test:run        # all green
-pnpm biome check apps/core         # this is what test-and-lint runs
-pnpm --filter web build            # the only type-check web has
+rm -rf packages/*/dist                    # see below — this is not optional
+pnpm turbo run type-check --filter=core   # must exit 0
+pnpm turbo run test:run --filter=core     # all green
+pnpm biome check apps/core                # this is what test-and-lint runs
+pnpm --filter web build                   # the only type-check web has
 ```
+
+**Run the gates against a tree with no built workspace packages.** Every entry point of
+`@genum/placeholders` resolves into its `dist/`, and CI checks out clean and never builds
+it. A developer's tree almost always has a warm `dist/` from an earlier `pnpm build`, so
+the gates pass locally and the same commit fails in CI. This is not hypothetical: v1.10.0
+was published this way, three suites failed in `test-and-lint`, and no images were built.
+Delete `packages/*/dist` first, and go through turbo so the build actually happens —
+`pnpm --filter core test:run` calls vitest directly and skips the task graph.
 
 `pnpm lint` is red on `main` by long-standing baseline — do not treat it as a release blocker. See the `verifying-changes` skill for the numbers.
 

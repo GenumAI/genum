@@ -39,7 +39,7 @@ docker-compose down -v         # remove all data (destructive)
 ### Build & Type Check
 ```bash
 pnpm build                     # turbo build (both apps)
-pnpm --filter core type-check  # tsc --noEmit for core
+pnpm turbo run type-check --filter=core  # tsc --noEmit for core (turbo builds packages/* first)
 ```
 
 ### Lint & Format
@@ -52,10 +52,12 @@ pnpm format:check              # biome check (no write)
 
 ### Testing
 ```bash
-pnpm test                      # turbo test (runs build first)
-pnpm --filter core test:run    # core tests only — no watch, no DB needed
+pnpm test                            # turbo test (runs build first)
+pnpm turbo run test:run --filter=core # core tests only — no watch, no DB needed
 pnpm --filter core test:coverage
-# NB: root `pnpm test:run` does NOT work — turbo has no `test:run` task.
+# Go through turbo, NOT `pnpm --filter core test:run`. Every entry point of
+# @genum/placeholders resolves into its dist/, so on a tree that has never been built
+# vitest fails to resolve the package and three suites error out. Turbo builds it first.
 # `web` has no tests and no type-check; `pnpm --filter web build` type-checks it.
 ```
 
