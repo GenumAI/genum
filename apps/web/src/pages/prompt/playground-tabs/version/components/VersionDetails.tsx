@@ -11,6 +11,7 @@ import { ModelConfigCard } from "./ModelConfigCard";
 import { VersionJsonViewer } from "./VersionJsonViewer";
 import { AuditSection } from "./AuditSection";
 import { VersionPromptContent } from "./VersionPromptContent";
+import { VersionPlaceholders } from "./VersionPlaceholders";
 
 import { useVersionDetails } from "../hooks/useVersionDetails";
 
@@ -19,14 +20,8 @@ export default function VersionDetails() {
 	const { id, versionId } = useParams<{ id: string; versionId: string }>();
 	const [showAuditModal, setShowAuditModal] = useState(false);
 
-	const {
-		data,
-		isLoading,
-		parsedSchema,
-		parsedTools,
-		auditData,
-		modelConfigParams,
-	} = useVersionDetails(id, versionId);
+	const { data, isLoading, parsedSchema, parsedTools, auditData, modelConfigParams } =
+		useVersionDetails(id, versionId);
 
 	const backHandler = () => {
 		navigate(-1);
@@ -47,7 +42,11 @@ export default function VersionDetails() {
 	return (
 		<div className="px-8 py-10 space-y-6 w-full max-w-[936px] min-h-screen bg-background text-foreground">
 			<div className="flex items-center justify-between">
-				<Button variant="outline" className="flex items-center text-sm" onClick={backHandler}>
+				<Button
+					variant="outline"
+					className="flex items-center text-sm"
+					onClick={backHandler}
+				>
 					<ChevronLeft className="h-4 w-4" />
 					<span>Back</span>
 				</Button>
@@ -82,6 +81,12 @@ export default function VersionDetails() {
 						)}
 
 						<VersionPromptContent content={data.version.value} />
+
+						<VersionPlaceholders
+							snapshot={data.version.placeholders}
+							promptText={data.version.value}
+							promptId={id ? Number(id) : undefined}
+						/>
 					</div>
 
 					{auditData && (

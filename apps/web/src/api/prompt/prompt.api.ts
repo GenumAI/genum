@@ -106,6 +106,12 @@ export interface PromptVersion {
 		json_schema?: string | object;
 	};
 	audit?: any;
+	/**
+	 * The placeholder definitions this commit froze. `null` on commits made before
+	 * placeholders existed — distinct from `[]`, which is a commit that had none.
+	 * Typed as unknown because it is a Json column; the view narrows it.
+	 */
+	placeholders?: unknown;
 	createdAt: string;
 	author?: {
 		id: number;

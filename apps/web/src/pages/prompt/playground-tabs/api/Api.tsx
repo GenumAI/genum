@@ -45,7 +45,8 @@ const RESPONSE_EXAMPLE = `{
   "status": "Optional status (e.g. NOK: error message)",
   "placeholders": {
     "resolved": { "admin_role": "true" },  // key -> the value name actually used
-    "ignored": ["unused_key"]              // keys you sent that the prompt text doesn't reference
+    "ignored": ["unused_key"]              // keys you sent that were not applied: no such
+                                           // {{key}} in the text, or no value by that name
   }
 }`;
 
