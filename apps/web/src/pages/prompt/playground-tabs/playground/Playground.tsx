@@ -71,28 +71,30 @@ export default function Playground() {
 			<div className={shouldShowTransitionSkeleton ? "invisible h-0 overflow-hidden" : ""}>
 				<div className="flex w-full min-w-0 flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-start">
 					<div className="flex w-full min-w-0 flex-col gap-8 overflow-hidden rounded-[12px] border border-border bg-card px-4 pb-4 pt-3 text-card-foreground lg:flex-1">
-						<TextEditor
-							title="System Instructions"
-							main={true}
-							content={prompt.content}
-							onUpdatePrompt={actions.prompt.update}
-							onLivePromptChange={actions.prompt.setLiveValue}
-							metrics={metrics}
-							testcaseInput={testcase.data?.input}
-							expectedContent={testcase.expectedContent}
-							onAuditPrompt={actions.audit.run}
-							onOpenAuditModal={actions.audit.openModal}
-							isAuditLoading={ui.loading.audit}
-							canAudit={!!prompt.content}
-							auditRate={ui.modals.audit.rate}
-							onReadyStateChange={handleTextEditorReadyStateChange}
-						/>
+						<div className="flex flex-col gap-3">
+							<TextEditor
+								title="System Instructions"
+								main={true}
+								content={prompt.content}
+								onUpdatePrompt={actions.prompt.update}
+								onLivePromptChange={actions.prompt.setLiveValue}
+								metrics={metrics}
+								testcaseInput={testcase.data?.input}
+								expectedContent={testcase.expectedContent}
+								onAuditPrompt={actions.audit.run}
+								onOpenAuditModal={actions.audit.openModal}
+								isAuditLoading={ui.loading.audit}
+								canAudit={!!prompt.content}
+								auditRate={ui.modals.audit.rate}
+								onReadyStateChange={handleTextEditorReadyStateChange}
+							/>
 
-						<PlaceholderChips
-							key={promptId}
-							promptId={promptId}
-							text={prompt.content}
-						/>
+							<PlaceholderChips
+								key={promptId}
+								promptId={promptId}
+								text={prompt.content}
+							/>
+						</div>
 
 						<div>
 							<InputTextArea
