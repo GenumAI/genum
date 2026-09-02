@@ -90,6 +90,23 @@ export const clickhouseClient = createClient({
 	password: clickhousePassword,
 });
 
+/**
+ * A client bound to NO database, for the one statement that cannot assume one exists:
+ * CREATE DATABASE.
+ *
+ * `clickhouseClient` above sends its session database with every request, so using it to
+ * bootstrap answers `Database <name> does not exist.` -- and the init script this
+ * replaces classified that message as benign, which is how a fresh environment came to be
+ * "initialised successfully" into nothing.
+ */
+export function createAdminClickhouseClient() {
+	return createClient({
+		url: clickhouseUrl,
+		username: clickhouseUsername,
+		password: clickhousePassword,
+	});
+}
+
 // Helper function to build WHERE conditions using WhereBuilder
 function buildWhereConditions(
 	orgId: number,
@@ -192,7 +209,7 @@ export async function logUsage(document: LogDocument): Promise<void> {
 					in: document.in,
 					out: document.out,
 					// Frozen: readable for rows written before `placeholders` existed, never
-					// written again — see init.sql.
+					// written again — see clickhouse/migrations/.
 					memory_key: null,
 					placeholders: document.placeholders ?? {},
 					stage: env.NODE_ENV,
