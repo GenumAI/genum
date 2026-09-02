@@ -1,6 +1,10 @@
 import { ModelConfigService } from "@/ai/models/modelConfigService";
 import type { ModelConfigParameters } from "@/ai/models/types";
-import { parsePlaceholderSnapshot } from "@/ai/placeholders/definitions";
+import {
+	parsePlaceholderSnapshot,
+	placeholderFingerprint,
+	toPlaceholderDefinitions,
+} from "@/ai/placeholders/definitions";
 import type { Database } from "@/database/db";
 import type { NewPromptModelOverride } from "@/database/repositories/PromptsRepository";
 import type { AiVendor, Prompt } from "@/prisma";
@@ -94,7 +98,16 @@ export class PromptService {
 
 	public async updateCommitedStatus(prompt: Prompt): Promise<Prompt> {
 		const generations = await this.db.prompts.getPromptCommitCount(prompt.id);
-		const hash = commitHash(prompt, generations);
+		// Placeholders are committed logic, so a rename, a content edit or a change of
+		// default has to make the prompt uncommitted the same way editing its text does.
+		// Read live here and compare against the fingerprint the productive commit was
+		// hashed with; every placeholder mutation routes through this.
+		const fingerprint = placeholderFingerprint(
+			toPlaceholderDefinitions(
+				await this.db.placeholders.getPlaceholdersByPromptID(prompt.id),
+			),
+		);
+		const hash = commitHash(prompt, generations, fingerprint);
 
 		const lastCommit = await this.db.prompts.getProductiveCommit(prompt.id);
 		if (!lastCommit) {

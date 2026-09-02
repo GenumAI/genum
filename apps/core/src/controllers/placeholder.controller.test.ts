@@ -19,13 +19,19 @@ vi.mock("@/database/db", () => ({
 			deleteValueByID: vi.fn(),
 			getValueByIDAndPlaceholderId: vi.fn(),
 		},
-		prompts: { getPromptById: vi.fn() },
+		prompts: {
+			getPromptById: vi.fn(),
+			updatePromptById: vi.fn(),
+			getPromptCommitCount: vi.fn(),
+			getProductiveCommit: vi.fn(),
+			changePromptCommitStatus: vi.fn(),
+		},
 	},
 }));
 
 vi.mock("@/services/access/AccessService", () => ({
-	checkPromptAccess: vi.fn(async () => ({ id: 1, projectId: 7 })),
-	checkPlaceholderAccess: vi.fn(async () => ({ id: 5, promptId: 1 })),
+	checkPromptAccess: vi.fn(async () => ({ id: 1, projectId: 7, value: "You are {{role}}." })),
+	checkPlaceholderAccess: vi.fn(async () => ({ id: 5, promptId: 1, key: "role" })),
 }));
 
 import { db } from "@/database/db";
@@ -65,6 +71,32 @@ describe("placeholder endpoints", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		controller = new PromptsController();
+		// vi.clearAllMocks() clears calls but keeps implementations, so a mockResolvedValue
+		// set by one test leaks into every later one. Re-stating the defaults here keeps
+		// the tests order-independent -- without it, a guard mocked without `key` in an
+		// earlier test silently turns a rename into a no-op here.
+		vi.mocked(checkPromptAccess).mockResolvedValue({
+			id: PROMPT,
+			projectId: PROJECT,
+			value: "You are {{role}}.",
+		} as never);
+		vi.mocked(checkPlaceholderAccess).mockResolvedValue({
+			id: PLACEHOLDER,
+			promptId: PROMPT,
+			key: "role",
+		} as never);
+		// Every placeholder mutation now re-evaluates the commit status, which reads the
+		// prompt back. Default these so each test only has to state what it is about.
+		vi.mocked(db.prompts.getPromptById).mockResolvedValue({
+			id: PROMPT,
+			value: "You are {{role}}.",
+			languageModelId: 4,
+			languageModelConfig: null,
+			commited: true,
+		} as never);
+		vi.mocked(db.prompts.getPromptCommitCount).mockResolvedValue(1 as never);
+		vi.mocked(db.prompts.getProductiveCommit).mockResolvedValue(null as never);
+		vi.mocked(db.placeholders.getPlaceholdersByPromptID).mockResolvedValue([] as never);
 	});
 
 	describe("createPlaceholder", () => {
@@ -136,6 +168,75 @@ describe("placeholder endpoints", () => {
 	});
 
 	describe("updatePlaceholder", () => {
+		it("rewrites the prompt text when the key is renamed", async () => {
+			vi.mocked(db.placeholders.getPlaceholderByKeyAndPromptId).mockResolvedValue(
+				null as never,
+			);
+			vi.mocked(db.placeholders.updatePlaceholderByID).mockResolvedValue({
+				id: PLACEHOLDER,
+			} as never);
+			const { res, captured } = makeRes();
+
+			await controller.updatePlaceholder(
+				makeReq(
+					{ key: "admin_role" },
+					{ id: String(PROMPT), placeholderId: String(PLACEHOLDER) },
+				),
+				res,
+			);
+
+			// Without this the draft keeps saying {{role}} while the definition is called
+			// admin_role, so the hole renders verbatim and the chip calls a placeholder the
+			// author only renamed "not defined".
+			expect(db.prompts.updatePromptById).toHaveBeenCalledWith(PROMPT, {
+				value: "You are {{admin_role}}.",
+			});
+			expect((captured.body as { renamedOccurrences: number }).renamedOccurrences).toBe(1);
+		});
+
+		it("does not write the prompt when the key does not occur in the text", async () => {
+			vi.mocked(checkPromptAccess).mockResolvedValue({
+				id: PROMPT,
+				projectId: PROJECT,
+				value: "no holes here",
+			} as never);
+			vi.mocked(db.placeholders.getPlaceholderByKeyAndPromptId).mockResolvedValue(
+				null as never,
+			);
+			vi.mocked(db.placeholders.updatePlaceholderByID).mockResolvedValue({
+				id: PLACEHOLDER,
+			} as never);
+			const { res, captured } = makeRes();
+
+			await controller.updatePlaceholder(
+				makeReq(
+					{ key: "admin_role" },
+					{ id: String(PROMPT), placeholderId: String(PLACEHOLDER) },
+				),
+				res,
+			);
+
+			expect(db.prompts.updatePromptById).not.toHaveBeenCalled();
+			expect((captured.body as { renamedOccurrences: number }).renamedOccurrences).toBe(0);
+		});
+
+		it("leaves the text alone when only the description changes", async () => {
+			vi.mocked(db.placeholders.updatePlaceholderByID).mockResolvedValue({
+				id: PLACEHOLDER,
+			} as never);
+			const { res } = makeRes();
+
+			await controller.updatePlaceholder(
+				makeReq(
+					{ description: "who the model is" },
+					{ id: String(PROMPT), placeholderId: String(PLACEHOLDER) },
+				),
+				res,
+			);
+
+			expect(db.prompts.updatePromptById).not.toHaveBeenCalled();
+		});
+
 		it("checks both guards in order and delegates the write to the repository", async () => {
 			vi.mocked(db.placeholders.getPlaceholderByKeyAndPromptId).mockResolvedValue(
 				null as never,
@@ -340,4 +441,94 @@ describe("placeholder endpoints", () => {
 			expect(captured.statusCode).toBe(200);
 		});
 	});
+});
+
+// Placeholders are committed logic. Before this, none of the six mutations touched the
+// commit status, so a rename or a content edit left the prompt reading "committed" while
+// the productive commit kept serving the old snapshot. Each handler is listed by hand:
+// the point is that adding a seventh mutation and forgetting the call shows up here.
+describe("placeholder mutations re-evaluate the commit status", () => {
+	let controller: PromptsController;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		controller = new PromptsController();
+		vi.mocked(checkPromptAccess).mockResolvedValue({
+			id: PROMPT,
+			projectId: PROJECT,
+			value: "You are {{role}}.",
+		} as never);
+		vi.mocked(checkPlaceholderAccess).mockResolvedValue({
+			id: PLACEHOLDER,
+			promptId: PROMPT,
+			key: "role",
+		} as never);
+		vi.mocked(db.prompts.getPromptById).mockResolvedValue({
+			id: PROMPT,
+			value: "You are {{role}}.",
+			languageModelId: 4,
+			languageModelConfig: null,
+			commited: true,
+		} as never);
+		vi.mocked(db.prompts.getPromptCommitCount).mockResolvedValue(1 as never);
+		// A productive commit whose hash cannot match the live state, so a handler that
+		// refreshes the status must flip the prompt to uncommitted.
+		vi.mocked(db.prompts.getProductiveCommit).mockResolvedValue({
+			commitHash: "a-hash-from-before-the-edit",
+		} as never);
+		vi.mocked(db.placeholders.getPlaceholdersByPromptID).mockResolvedValue([] as never);
+		vi.mocked(db.placeholders.getPlaceholderByKeyAndPromptId).mockResolvedValue(null as never);
+		vi.mocked(db.placeholders.createPlaceholder).mockResolvedValue({
+			id: PLACEHOLDER,
+		} as never);
+		vi.mocked(db.placeholders.updatePlaceholderByID).mockResolvedValue({
+			id: PLACEHOLDER,
+		} as never);
+		vi.mocked(db.placeholders.createValue).mockResolvedValue({ id: 9 } as never);
+		vi.mocked(db.placeholders.updateValueByID).mockResolvedValue({ id: 9 } as never);
+		vi.mocked(db.placeholders.getValueByIDAndPlaceholderId).mockResolvedValue({
+			id: 9,
+			placeholderId: PLACEHOLDER,
+		} as never);
+	});
+
+	const ids = { id: String(PROMPT), placeholderId: String(PLACEHOLDER), valueId: "9" };
+
+	const mutations: [string, () => Promise<unknown>][] = [
+		[
+			"createPlaceholder",
+			() => controller.createPlaceholder(makeReq({ key: "tone" }, ids), makeRes().res),
+		],
+		[
+			"updatePlaceholder",
+			() => controller.updatePlaceholder(makeReq({ description: "who" }, ids), makeRes().res),
+		],
+		[
+			"deletePlaceholder",
+			() => controller.deletePlaceholder(makeReq(undefined, ids), makeRes().res),
+		],
+		[
+			"createPlaceholderValue",
+			() =>
+				controller.createPlaceholderValue(
+					makeReq({ name: "admin", content: "x" }, ids),
+					makeRes().res,
+				),
+		],
+		[
+			"updatePlaceholderValue",
+			() => controller.updatePlaceholderValue(makeReq({ content: "y" }, ids), makeRes().res),
+		],
+		[
+			"deletePlaceholderValue",
+			() => controller.deletePlaceholderValue(makeReq(undefined, ids), makeRes().res),
+		],
+	];
+
+	for (const [name, run] of mutations) {
+		it(`${name} marks the prompt uncommitted`, async () => {
+			await run();
+			expect(db.prompts.changePromptCommitStatus).toHaveBeenCalledWith(PROMPT, false);
+		});
+	}
 });

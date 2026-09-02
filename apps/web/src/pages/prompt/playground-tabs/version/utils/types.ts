@@ -13,6 +13,12 @@ export interface PromptVersion {
 	createdAt: string;
 	author: Author;
 	branchName?: string;
+	/**
+	 * The placeholder definitions this commit froze. `null` on commits made before
+	 * placeholders existed — distinct from `[]`, which is a commit that had none. Typed
+	 * as unknown because it is a Json column: CommitPlaceholders does the narrowing.
+	 */
+	placeholders?: unknown;
 }
 
 export interface Branch {

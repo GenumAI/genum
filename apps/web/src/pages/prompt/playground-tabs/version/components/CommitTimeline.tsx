@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { isCloudAuth } from "@/lib/auth";
 import { getAvatarColor, getAvatarInitial } from "@/lib/avatarUtils";
 import { CommitAuthorAvatar } from "@/pages/prompt/utils/CommitAuthorAvatar";
+import { CommitPlaceholders } from "./CommitPlaceholders";
 import type { Branch, PromptVersion } from "../utils/types";
 
 interface GroupedCommits {
@@ -171,6 +172,9 @@ export default function CommitTimeline({ branches }: CommitTimelineProps) {
 														{version.author.name} authored{" "}
 														{formatTimeAgo(version.createdAt)}
 													</p>
+													<CommitPlaceholders
+														snapshot={version.placeholders}
+													/>
 												</Link>
 
 												<div className="flex items-center gap-2">

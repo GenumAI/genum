@@ -40,6 +40,7 @@ import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
 import type { ModelConfigParameters } from "@/ai/models/types";
 import { SourceType } from "@/services/logger";
+import { renamePlaceholderKey } from "@genum/placeholders";
 import { fileService } from "@/services/file.service";
 
 export class PromptsController {
@@ -313,6 +314,21 @@ export class PromptsController {
 		res.status(200).json({ testcases });
 	}
 
+	/**
+	 * Placeholders are committed logic, so every mutation of one has to re-evaluate the
+	 * commit status -- otherwise a renamed key or an edited value leaves the prompt
+	 * reading "committed" while the productive commit serves a different snapshot.
+	 *
+	 * Re-reads the prompt rather than taking the caller's copy: a rename rewrites
+	 * `Prompt.value` first, and hashing the pre-rewrite row would compare the new
+	 * definitions against the old text.
+	 */
+	private async refreshCommitStatus(promptId: number) {
+		const prompt = await db.prompts.getPromptById(promptId);
+		if (!prompt) return;
+		await this.promptService.updateCommitedStatus(prompt);
+	}
+
 	public async getPlaceholdersByPromptId(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 		const id = numberSchema.parse(req.params.id);
@@ -335,6 +351,7 @@ export class PromptsController {
 		}
 
 		const placeholder = await db.placeholders.createPlaceholder(promptId, data);
+		await this.refreshCommitStatus(promptId);
 		res.status(200).json({ placeholder });
 	}
 
@@ -355,8 +372,8 @@ export class PromptsController {
 		const placeholderId = numberSchema.parse(req.params.placeholderId);
 		const data = PlaceholderUpdateSchema.parse(req.body);
 
-		await checkPromptAccess(promptId, metadata.projID);
-		await checkPlaceholderAccess(placeholderId, promptId);
+		const prompt = await checkPromptAccess(promptId, metadata.projID);
+		const current = await checkPlaceholderAccess(placeholderId, promptId);
 
 		if (data.key) {
 			const existing = await db.placeholders.getPlaceholderByKeyAndPromptId(
@@ -372,7 +389,23 @@ export class PromptsController {
 		}
 
 		const placeholder = await db.placeholders.updatePlaceholderByID(placeholderId, data);
-		res.status(200).json({ placeholder });
+
+		// A rename renames a definition; the prompt text still points at the old key, so
+		// without this the hole renders verbatim and the author is told a placeholder they
+		// merely renamed is "not defined". Rewriting the draft is what makes the two names
+		// one name. Committed versions are never touched -- that would forge history --
+		// so the prompt goes uncommitted below and its author decides when to publish.
+		let renamedOccurrences = 0;
+		if (data.key && data.key !== current.key) {
+			const rewritten = renamePlaceholderKey(prompt.value, current.key, data.key);
+			renamedOccurrences = rewritten.occurrences;
+			if (renamedOccurrences > 0) {
+				await db.prompts.updatePromptById(promptId, { value: rewritten.text });
+			}
+		}
+
+		await this.refreshCommitStatus(promptId);
+		res.status(200).json({ placeholder, renamedOccurrences });
 	}
 
 	public async deletePlaceholder(req: Request, res: Response) {
@@ -384,6 +417,7 @@ export class PromptsController {
 		await checkPlaceholderAccess(placeholderId, promptId);
 
 		await db.placeholders.deletePlaceholderByID(placeholderId);
+		await this.refreshCommitStatus(promptId);
 		res.status(200).json({ ok: true });
 	}
 
@@ -397,6 +431,7 @@ export class PromptsController {
 		await checkPlaceholderAccess(placeholderId, promptId);
 
 		const value = await db.placeholders.createValue(placeholderId, data);
+		await this.refreshCommitStatus(promptId);
 		res.status(200).json({ value });
 	}
 
@@ -417,6 +452,7 @@ export class PromptsController {
 		}
 
 		const value = await db.placeholders.updateValueByID(valueId, data);
+		await this.refreshCommitStatus(promptId);
 		res.status(200).json({ value });
 	}
 
@@ -436,6 +472,7 @@ export class PromptsController {
 		}
 
 		await db.placeholders.deleteValueByID(valueId);
+		await this.refreshCommitStatus(promptId);
 		res.status(200).json({ ok: true });
 	}
 

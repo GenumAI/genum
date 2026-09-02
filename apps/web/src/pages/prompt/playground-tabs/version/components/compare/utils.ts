@@ -7,6 +7,9 @@ export const AccordionKeys = {
 	Model_Config: "languageModelConfig",
 	Json_Schema: "languageModelConfig.json_schema",
 	Tools: "languageModelConfig.tools",
+	// Placeholders are committed logic, so a diff that omits them can call two commits
+	// identical while they send the model different instructions.
+	Placeholders: "placeholders",
 } as const;
 
 export type AccordionKey = (typeof AccordionKeys)[keyof typeof AccordionKeys];
@@ -58,6 +61,25 @@ export const formatCompareValue = (key: string, value: any): string => {
 			const { json_schema: _js, tools: _ts, ...rest } = value;
 			processedValue = rest;
 		}
+	}
+
+	// Rendered as key/value pairs rather than raw JSON: the line diff is read by a human
+	// deciding whether the logic changed, and `isDefault` flags and value ids buried in
+	// an object dump do not answer that.
+	if (key === "placeholders") {
+		if (!Array.isArray(value)) return "";
+		return value
+			.map((definition) => {
+				const values = Array.isArray(definition?.values) ? definition.values : [];
+				const lines = values.map(
+					(entry: { name?: string; content?: string; isDefault?: boolean }) =>
+						`  ${entry?.name ?? ""}${entry?.isDefault ? " (default)" : ""}: ${
+							entry?.content ?? ""
+						}`,
+				);
+				return [`{{${definition?.key ?? ""}}}`, ...lines].join("\n");
+			})
+			.join("\n\n");
 	}
 
 	if (key === "languageModelConfig.json_schema") {

@@ -85,12 +85,14 @@ export const placeholderApi = {
 		placeholderId: number | string,
 		data: UpdatePlaceholderData,
 		config?: ApiRequestConfig,
-	): Promise<{ placeholder: PromptPlaceholder }> => {
-		const response = await apiClient.put<{ placeholder: PromptPlaceholder }>(
-			`/prompts/${promptId}/placeholders/${placeholderId}`,
-			data,
-			config,
-		);
+		// `renamedOccurrences` is how many `{{key}}` holes the server rewrote in the
+		// prompt draft. Zero on a plain description edit, and on a rename of a key the
+		// author never wrote into the prompt.
+	): Promise<{ placeholder: PromptPlaceholder; renamedOccurrences?: number }> => {
+		const response = await apiClient.put<{
+			placeholder: PromptPlaceholder;
+			renamedOccurrences?: number;
+		}>(`/prompts/${promptId}/placeholders/${placeholderId}`, data, config);
 		return response.data;
 	},
 

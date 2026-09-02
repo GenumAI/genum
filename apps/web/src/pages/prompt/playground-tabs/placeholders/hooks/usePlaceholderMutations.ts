@@ -12,6 +12,10 @@ import { getOrgId, getProjectId } from "@/api/client";
 import { toast } from "@/hooks/useToast";
 import { promptPlaceholdersQueryKey } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePromptPlaceholders";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
+import { promptKeys } from "@/query-keys/prompt.keys";
+import usePlaygroundStore from "@/stores/playground.store";
+import usePromptStore from "@/stores/prompt.store";
+import { renamePlaceholderKey } from "@genum/placeholders";
 
 function serverErrorMessage(error: unknown, fallback: string): string {
 	if (isAxiosError(error)) {
@@ -71,7 +75,16 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 			if (!promptId) throw new Error("No prompt id");
 			return placeholderApi.updatePlaceholder(promptId, placeholderId, data);
 		},
-		onSuccess: ({ placeholder }, { placeholderId }) => {
+		// The old key is only knowable before the write lands, and the rename has to move
+		// the author's selection from it. Captured here rather than derived afterwards:
+		// after the fact there is nothing in the response that says what it used to be.
+		onMutate: ({ placeholderId }) => {
+			const cached = queryClient.getQueryData<PromptPlaceholder[]>(
+				promptPlaceholdersQueryKey(promptId),
+			);
+			return { previousKey: cached?.find((entry) => entry.id === placeholderId)?.key };
+		},
+		onSuccess: ({ placeholder, renamedOccurrences }, { placeholderId, data }, context) => {
 			// Seed key/description synchronously, ahead of `invalidate()`'s refetch --
 			// createPlaceholder and updateValue both already do this for the same reason:
 			// without it, the edited row in the list keeps showing the OLD key/description
@@ -92,6 +105,54 @@ export function usePlaceholderMutations(promptId: number | undefined) {
 					),
 			);
 			invalidate();
+
+			// A rename rewrites `{{old}}` to `{{new}}` in the prompt draft server-side, so
+			// the editor is now showing text the server no longer has. Refetch rather than
+			// patch: the rewrite is the server's, and guessing at it here is how the editor
+			// and the stored prompt start disagreeing about what will actually run.
+			if (data.key && renamedOccurrences && renamedOccurrences > 0) {
+				queryClient.invalidateQueries({ queryKey: promptKeys.byId(promptId) });
+				toast({
+					title: "Placeholder renamed",
+					description: `Updated ${renamedOccurrences} ${
+						renamedOccurrences === 1 ? "occurrence" : "occurrences"
+					} in the prompt. Commit to publish the change.`,
+				});
+			}
+
+			// The editor reads `draft ?? serverValue`, so an unsaved draft masks the value
+			// the server just rewrote and the editor would keep showing the old key while
+			// the stored prompt has the new one. Apply the same pure rename to the draft
+			// instead of clearing it: clearing would throw away the author's unsaved edits,
+			// and re-deriving the rewrite here cannot drift -- it is the same function the
+			// server ran.
+			if (context?.previousKey && placeholder.key !== context.previousKey) {
+				const draft = usePromptStore.getState().getPromptDraft(promptId);
+				if (draft) {
+					const rewritten = renamePlaceholderKey(
+						draft,
+						context.previousKey,
+						placeholder.key,
+					);
+					if (rewritten.occurrences > 0) {
+						usePromptStore.getState().setPromptDraft(promptId, rewritten.text);
+					}
+				}
+			}
+
+			// Carry the author's current pick to the new name. The selection is keyed by
+			// placeholder key, so without this it is pruned as stale the moment the
+			// definitions refetch and the rename silently costs them the value they chose.
+			// Read at call time, not at render time: a render-time snapshot of the store can
+			// already be a mutation behind by the time this callback runs.
+			const previousKey = context?.previousKey;
+			const selection = usePlaygroundStore.getState().selectedPlaceholders;
+			if (previousKey && placeholder.key !== previousKey && previousKey in selection) {
+				const next = { ...selection };
+				next[placeholder.key] = next[previousKey];
+				delete next[previousKey];
+				usePlaygroundStore.getState().replacePlaceholderSelections(next);
+			}
 		},
 		onError: (error) => {
 			toast({

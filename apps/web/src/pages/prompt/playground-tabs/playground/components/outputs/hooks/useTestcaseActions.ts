@@ -4,7 +4,7 @@ import { promptApi } from "@/api/prompt/prompt.api";
 import type { TestcasePayload } from "@/hooks/useCreateTestcase";
 import { useToast } from "@/hooks/useToast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import usePlaygroundStore from "@/stores/playground.store";
+import { usePlaceholderSelection } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaceholderSelection";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 interface UseTestcaseActionsProps {
@@ -19,7 +19,10 @@ export const useTestcaseActions = ({
 	selectedFiles,
 }: UseTestcaseActionsProps) => {
 	const { toast } = useToast();
-	const selectedPlaceholders = usePlaygroundStore((state) => state.selectedPlaceholders);
+	// The same reading the run uses. Posting the raw store here is what reported a key
+	// as "could not transfer" that the run had already dropped without a word -- the
+	// selection was dead either way, and only one of the two surfaces said so.
+	const { selection: placeholderSelection } = usePlaceholderSelection(promptId);
 	const queryClient = useQueryClient();
 	const createTestcaseMutation = useMutation({
 		mutationKey: testcaseKeys.create(promptId),
@@ -59,7 +62,7 @@ export const useTestcaseActions = ({
 				input: input || "",
 				expectedOutput: expectedOutput,
 				lastOutput: lastOutput || "",
-				placeholders: selectedPlaceholders,
+				placeholders: placeholderSelection,
 				files:
 					selectedFiles && selectedFiles.length > 0
 						? selectedFiles.map((f) => f.id)
@@ -99,7 +102,7 @@ export const useTestcaseActions = ({
 
 			return { success };
 		},
-		[promptId, selectedPlaceholders, selectedFiles, toast, createTestcaseMutation],
+		[promptId, placeholderSelection, selectedFiles, toast, createTestcaseMutation],
 	);
 
 	return {
