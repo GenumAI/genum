@@ -19,6 +19,7 @@ import { usePromptById } from "@/hooks/usePrompt";
 import { usePromptPlaceholders } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePromptPlaceholders";
 import { usePlaceholderMutations } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePlaceholderMutations";
 import PlaceholderList from "@/pages/prompt/playground-tabs/placeholders/components/PlaceholderList";
+import PlaceholderValueList from "@/pages/prompt/playground-tabs/placeholders/components/PlaceholderValueList";
 import PlaceholderValueEditor from "@/pages/prompt/playground-tabs/placeholders/components/PlaceholderValueEditor";
 import type { PromptPlaceholder } from "@/api/prompt/placeholder.api";
 
@@ -43,13 +44,16 @@ export default function Placeholders() {
 		createPlaceholder,
 		updatePlaceholder,
 		deletePlaceholder,
+		createValue,
 		isCreatingPlaceholder,
 		isUpdatingPlaceholder,
 		isDeletingPlaceholder,
+		isMutatingValue,
 	} = usePlaceholderMutations(promptId);
 
 	const [search, setSearch] = useState("");
 	const [selectedId, setSelectedId] = useState<number | undefined>(undefined);
+	const [selectedValueId, setSelectedValueId] = useState<number | undefined>(undefined);
 	const [createOpen, setCreateOpen] = useState(false);
 	const [newKey, setNewKey] = useState("");
 	const [newDescription, setNewDescription] = useState("");
@@ -60,6 +64,9 @@ export default function Placeholders() {
 	);
 	const [editKey, setEditKey] = useState("");
 	const [editDescription, setEditDescription] = useState("");
+	const [newValueOpen, setNewValueOpen] = useState(false);
+	const [newValueName, setNewValueName] = useState("");
+	const [newValueContent, setNewValueContent] = useState("");
 
 	const filteredPlaceholders = useMemo(() => {
 		const term = search.trim().toLowerCase();
@@ -87,6 +94,20 @@ export default function Placeholders() {
 	const selectedPlaceholder = filteredPlaceholders.find(
 		(placeholder) => placeholder.id === selectedId,
 	);
+
+	// Derived, not stored: a value id selected under a previous placeholder must never
+	// outlive it. If `selectedValueId` isn't among the CURRENT placeholder's values --
+	// because the placeholder changed, the value was deleted, or nothing was ever
+	// selected -- fall back to the first value instead of showing a stale or empty
+	// editor. Loading holds off the fallback so it never fires before the real values
+	// have arrived (loading is not emptiness, same rule as the panes below).
+	const selectedValue = useMemo(() => {
+		if (!selectedPlaceholder) return undefined;
+		const explicit = selectedPlaceholder.values.find((value) => value.id === selectedValueId);
+		if (explicit) return explicit;
+		if (isLoading) return undefined;
+		return selectedPlaceholder.values[0];
+	}, [selectedPlaceholder, selectedValueId, isLoading]);
 
 	const handleCreatePlaceholder = async () => {
 		if (!newKey.trim()) return;
@@ -133,23 +154,24 @@ export default function Placeholders() {
 		}
 	};
 
+	const handleCreateValue = async () => {
+		if (!selectedPlaceholder || !newValueName.trim()) return;
+		try {
+			const { value } = await createValue(selectedPlaceholder.id, {
+				name: newValueName.trim(),
+				content: newValueContent,
+			});
+			setNewValueName("");
+			setNewValueContent("");
+			setNewValueOpen(false);
+			setSelectedValueId(value.id);
+		} catch {
+			// usePlaceholderMutations already surfaces a toast on failure.
+		}
+	};
+
 	return (
 		<div className="w-full min-w-0 space-y-6 bg-background px-3 pt-8 text-foreground lg:pr-6">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div className="w-full sm:w-auto">
-					<SearchInput
-						placeholder="Search..."
-						className="w-full sm:w-[241px]"
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-					/>
-				</div>
-				<Button className="w-full px-7 sm:w-auto" onClick={() => setCreateOpen(true)}>
-					<PlusCircleIcon className="mr-2 h-4 w-4" />
-					New placeholder
-				</Button>
-			</div>
-
 			{isError ? (
 				// A failed load is not the same fact as genuine emptiness -- W1 fixed this
 				// one screen over (the chips); this is the tab's own copy of that defect.
@@ -157,28 +179,57 @@ export default function Placeholders() {
 					title="Couldn't load placeholders"
 					description="Something went wrong loading this prompt's placeholders. Try reloading the page."
 				/>
-			) : !isLoading && placeholders.length === 0 ? (
-				<EmptyState
-					title="No data"
-					description="No placeholders found. Create one to begin."
-				/>
 			) : (
-				<div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-					<PlaceholderList
-						placeholders={filteredPlaceholders}
-						keysInPromptText={keysInPromptText}
-						selectedId={selectedId}
+				<div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_220px_minmax(0,1fr)]">
+					<div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border p-3">
+						<SearchInput
+							placeholder="Search..."
+							className="w-full"
+							value={search}
+							onChange={(e) => setSearch(e.target.value)}
+						/>
+						<Button className="w-full" onClick={() => setCreateOpen(true)}>
+							<PlusCircleIcon className="mr-2 h-4 w-4" />
+							New placeholder
+						</Button>
+						<PlaceholderList
+							placeholders={filteredPlaceholders}
+							keysInPromptText={keysInPromptText}
+							selectedId={selectedId}
+							isLoading={isLoading}
+							onSelect={setSelectedId}
+							onRequestDelete={setPlaceholderPendingDelete}
+							onRequestEdit={handleRequestEditPlaceholder}
+						/>
+					</div>
+
+					<PlaceholderValueList
+						values={selectedPlaceholder?.values ?? []}
+						hasSelectedPlaceholder={!!selectedPlaceholder}
+						selectedValueId={selectedValue?.id}
 						isLoading={isLoading}
-						onSelect={setSelectedId}
-						onRequestDelete={setPlaceholderPendingDelete}
-						onRequestEdit={handleRequestEditPlaceholder}
+						onSelect={setSelectedValueId}
+						onRequestNew={() => setNewValueOpen(true)}
 					/>
+
 					<div className="min-w-0 rounded-xl border border-border p-4">
-						{selectedPlaceholder && promptId ? (
+						{isLoading ? (
+							// Loading is not emptiness -- the placeholders query still being in
+							// flight must never render as "select a placeholder" or "no values",
+							// the same rule PlaceholderList and the chips already apply.
+							<div className="flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
+								Loading…
+							</div>
+						) : selectedPlaceholder && selectedValue && promptId ? (
 							<PlaceholderValueEditor
 								promptId={promptId}
 								placeholder={selectedPlaceholder}
+								value={selectedValue}
 							/>
+						) : selectedPlaceholder ? (
+							<div className="flex min-h-[200px] items-center justify-center text-center text-sm text-muted-foreground">
+								No values yet. Add one to get started.
+							</div>
 						) : (
 							<div className="flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
 								Select a placeholder to manage its values.
@@ -281,6 +332,45 @@ export default function Placeholders() {
 				description="This removes the placeholder and all of its values. Testcases pinning any of its values will lose that pin."
 				isDeleting={isDeletingPlaceholder}
 			/>
+
+			<Dialog open={newValueOpen} onOpenChange={setNewValueOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>New value</DialogTitle>
+					</DialogHeader>
+					<div className="space-y-4">
+						<div>
+							<p className="mb-2 text-xs font-medium text-muted-foreground">Name</p>
+							<Input
+								placeholder="e.g. admin"
+								value={newValueName}
+								onChange={(e) => setNewValueName(e.target.value)}
+							/>
+						</div>
+						<div>
+							<p className="mb-2 text-xs font-medium text-muted-foreground">
+								Content
+							</p>
+							<Textarea
+								placeholder="Enter value content"
+								value={newValueContent}
+								onChange={(e) => setNewValueContent(e.target.value)}
+							/>
+						</div>
+					</div>
+					<DialogFooter className="mt-4">
+						<Button variant="outline" onClick={() => setNewValueOpen(false)}>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleCreateValue}
+							disabled={isMutatingValue || !newValueName.trim()}
+						>
+							Add
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
