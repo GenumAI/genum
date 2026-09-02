@@ -15,7 +15,7 @@ describe("migrationChecksum", () => {
 	// The whole scheme rests on this: the checksum is taken from the file as written,
 	// so one migration has ONE checksum across environments whose database names differ.
 	// Checksumming after substitution would make every environment look like drift.
-	it("is taken before {{DB_NAME}} substitution", () => {
+	it("hashes a string containing the {{DB_NAME}} marker differently from one where it was replaced", () => {
 		const raw = "CREATE TABLE {{DB_NAME}}.logs (a UInt8) ENGINE = Memory";
 		expect(migrationChecksum(raw)).not.toBe(migrationChecksum(raw.replace("{{DB_NAME}}", "a")));
 	});
