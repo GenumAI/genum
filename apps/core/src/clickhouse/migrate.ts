@@ -77,6 +77,11 @@ export async function readAppliedMigrations(
 	client: ClickHouseClient,
 	database: string,
 ): Promise<AppliedMigration[]> {
+	// Validated here rather than only in the callers that write: this query interpolates
+	// the name too, and `buildPlan` reaches it without passing through `ensureDatabase`
+	// or `applyPending` -- which is exactly what a read-only `status` command does.
+	assertSafeDatabaseName(database);
+
 	const resultSet = await client.query({
 		query: `SELECT name, checksum FROM ${database}.${MIGRATIONS_TABLE} FINAL ORDER BY name`,
 		format: "JSONEachRow",

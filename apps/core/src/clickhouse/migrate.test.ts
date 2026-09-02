@@ -1,5 +1,6 @@
+import type { ClickHouseClient } from "@clickhouse/client";
 import { describe, expect, it } from "vitest";
-import { assertSafeDatabaseName, prepareMigration } from "./migrate";
+import { assertSafeDatabaseName, prepareMigration, readAppliedMigrations } from "./migrate";
 
 const rawFile = {
 	name: "001_a.sql",
@@ -45,5 +46,24 @@ describe("assertSafeDatabaseName", () => {
 
 	it("rejects an empty name", () => {
 		expect(() => assertSafeDatabaseName("")).toThrow();
+	});
+});
+
+/**
+ * `buildPlan` reads `_migrations` without going through `ensureDatabase` or
+ * `applyPending`, so the read path has to validate the name itself. The stub client
+ * fails the test if it is reached: the point is that the name never becomes SQL.
+ */
+describe("readAppliedMigrations", () => {
+	it("rejects an unsafe database name before issuing a query", async () => {
+		const client = {
+			query: () => {
+				throw new Error("query() must not be reached for an unsafe name");
+			},
+		} as unknown as ClickHouseClient;
+
+		await expect(
+			readAppliedMigrations(client, "logs; DROP TABLE logs"),
+		).rejects.toThrow(/Invalid ClickHouse database name/);
 	});
 });
