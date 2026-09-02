@@ -9,7 +9,7 @@ export function splitStatements(sql: string): string[] {
 	const statements: string[] = [];
 	let current = "";
 	let inSingle = false;
-	let inBacktick = false;
+	let quotedIdentifierChar: "`" | '"' | null = null;
 
 	for (let i = 0; i < sql.length; i++) {
 		const char = sql[i];
@@ -27,9 +27,9 @@ export function splitStatements(sql: string): string[] {
 			continue;
 		}
 
-		if (inBacktick) {
+		if (quotedIdentifierChar !== null) {
 			current += char;
-			if (char === "`") inBacktick = false;
+			if (char === quotedIdentifierChar) quotedIdentifierChar = null;
 			continue;
 		}
 
@@ -53,8 +53,8 @@ export function splitStatements(sql: string): string[] {
 			continue;
 		}
 
-		if (char === "`") {
-			inBacktick = true;
+		if (char === "`" || char === '"') {
+			quotedIdentifierChar = char;
 			current += char;
 			continue;
 		}

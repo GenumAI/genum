@@ -33,6 +33,14 @@ describe("splitStatements", () => {
 		expect(splitStatements("SELECT `odd;name` FROM t")).toEqual(["SELECT `odd;name` FROM t"]);
 	});
 
+	it("keeps a semicolon inside a double-quoted identifier", () => {
+		expect(splitStatements('SELECT "odd;name" FROM t')).toEqual(['SELECT "odd;name" FROM t']);
+	});
+
+	it("keeps a double quote that lives inside a single-quoted literal", () => {
+		expect(splitStatements("SELECT 'say \"hi\"; now'")).toEqual(["SELECT 'say \"hi\"; now'"]);
+	});
+
 	it("ignores a trailing semicolon and trailing whitespace", () => {
 		expect(splitStatements("SELECT 1;\n\n")).toEqual(["SELECT 1"]);
 	});
