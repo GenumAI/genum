@@ -12,7 +12,11 @@ import type { SystemRepository } from "./SystemRepository";
 import type { ModelConfigParameters } from "@/ai/models/types";
 import type { InputJsonValue } from "@prisma/client/runtime/client";
 import type { PromptAuditResponse } from "@/ai/runner/types";
-import { toPlaceholderDefinitions } from "@/ai/placeholders/definitions";
+import {
+	parsePlaceholderSnapshot,
+	placeholderFingerprint,
+	toPlaceholderDefinitions,
+} from "@/ai/placeholders/definitions";
 
 type DefaultLanguageModel = {
 	id: number;
@@ -377,6 +381,13 @@ export class PromptsRepository {
 						commitMsg: true,
 						commitHash: true,
 						createdAt: true,
+						// The commits page has to show what logic each commit carries, not
+						// just its text -- a placeholder edit changes what the model
+						// receives, so a commit that does not show its definitions is
+						// hiding half of what was committed. `null` on commits made before
+						// placeholders existed, which the UI renders as "not recorded"
+						// rather than as "none".
+						placeholders: true,
 						author: {
 							select: {
 								id: true,
@@ -457,9 +468,9 @@ export class PromptsRepository {
 
 		const generations = await this.getPromptCommitCount(promptId);
 
-		const placeholders =
+		const definitions =
 			placeholderSnapshot !== undefined
-				? placeholderSnapshot
+				? parsePlaceholderSnapshot(placeholderSnapshot)
 				: toPlaceholderDefinitions(
 						await this.prisma.placeholder.findMany({
 							where: { promptId },
@@ -467,6 +478,17 @@ export class PromptsRepository {
 							orderBy: { id: "asc" },
 						}),
 					);
+
+		// Stored verbatim on the rollback path so an explicit null stays JSON null
+		// rather than becoming an empty array -- `definitions` is the parsed reading of
+		// the same thing, used for the hash.
+		const placeholders = placeholderSnapshot !== undefined ? placeholderSnapshot : definitions;
+
+		// The hash must cover what THIS commit stores, not today's live tables. On the
+		// rollback path the two differ, and hashing the live tables would leave the new
+		// commit looking current while it serves an older snapshot -- exactly the
+		// text/definition drift the snapshot exists to remove.
+		const fingerprint = placeholderFingerprint(definitions);
 
 		// create version
 		const version = await this.prisma.promptVersion.create({
@@ -478,7 +500,8 @@ export class PromptsRepository {
 				},
 				value: prompt.value,
 				commitMsg: commitMessage,
-				commitHash: commitHash(prompt, generations + 1), // + 1 because we are adding a new generation. to sync with current state
+				// + 1 because we are adding a new generation. to sync with current state
+				commitHash: commitHash(prompt, generations + 1, fingerprint),
 				languageModel: {
 					connect: {
 						id: prompt.languageModelId,

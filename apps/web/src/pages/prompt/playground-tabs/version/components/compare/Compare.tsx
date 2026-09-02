@@ -59,24 +59,33 @@ const Compare = () => {
 				{Object.entries(AccordionKeys).map(([title, key]) => {
 					const leftSource =
 						!commitA || commitA === "current"
-							? (dataA && "prompt" in dataA ? dataA.prompt : dataA)
-							: (dataA && "version" in dataA ? dataA.version : dataA);
+							? dataA && "prompt" in dataA
+								? dataA.prompt
+								: dataA
+							: dataA && "version" in dataA
+								? dataA.version
+								: dataA;
 					const rightSource =
 						!commitB || commitB === "current"
-							? (dataB && "prompt" in dataB ? dataB.prompt : dataB)
-							: (dataB && "version" in dataB ? dataB.version : dataB);
+							? dataB && "prompt" in dataB
+								? dataB.prompt
+								: dataB
+							: dataB && "version" in dataB
+								? dataB.version
+								: dataB;
 
 					const leftRaw = getByPath(leftSource, key);
 					const rightRaw = getByPath(rightSource, key);
 
 					if (!leftRaw && !rightRaw) return null;
 
-					if (key === AccordionKeys.Tools) {
+					// An empty array is truthy, so the !leftRaw && !rightRaw guard above does
+					// not catch "both sides have none" -- without this the section renders
+					// empty on both sides and reads as a change that is not there.
+					if (key === AccordionKeys.Tools || key === AccordionKeys.Placeholders) {
 						if (
-							Array.isArray(leftRaw) &&
-							leftRaw.length === 0 &&
-							Array.isArray(rightRaw) &&
-							rightRaw.length === 0
+							(!leftRaw || (Array.isArray(leftRaw) && leftRaw.length === 0)) &&
+							(!rightRaw || (Array.isArray(rightRaw) && rightRaw.length === 0))
 						) {
 							return null;
 						}
@@ -90,7 +99,10 @@ const Compare = () => {
 						? getChangedLinesStats(leftStr, rightStr)
 						: { added: 0, removed: 0 };
 
-					const diffLanguage = key === AccordionKeys.Prompt ? "markdown" : "json";
+					const diffLanguage =
+						key === AccordionKeys.Prompt || key === AccordionKeys.Placeholders
+							? "markdown"
+							: "json";
 
 					return (
 						<CompareSection

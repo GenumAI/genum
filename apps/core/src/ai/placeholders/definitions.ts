@@ -47,3 +47,37 @@ export function parsePlaceholderSnapshot(value: unknown): PlaceholderDefinition[
 
 	return definitions;
 }
+
+/**
+ * A canonical, order-independent fingerprint of a prompt's placeholder definitions,
+ * for `commitHash`.
+ *
+ * Placeholders carry logic that is committed with the prompt, so editing one must make
+ * the prompt uncommitted the way editing its text does. Without this, a key could be
+ * renamed or a value's content rewritten while the prompt still reads "committed" and
+ * production keeps serving the old snapshot.
+ *
+ * Sorted by key, then by value name, so a delete-and-recreate that changes only row ids
+ * does not read as a change. `isDefault` and `content` are in, because both change what
+ * the model receives. Returns `null` for "no placeholders" so `commitHash` can leave the
+ * hashed object byte-identical for every prompt that has none -- otherwise adding this
+ * field would flag every existing prompt in the fleet as uncommitted at once.
+ */
+export function placeholderFingerprint(definitions: PlaceholderDefinition[]): string | null {
+	if (definitions.length === 0) return null;
+
+	const canonical = [...definitions]
+		.sort((a, b) => a.key.localeCompare(b.key))
+		.map((definition) => ({
+			key: definition.key,
+			values: [...definition.values]
+				.sort((a, b) => a.name.localeCompare(b.name))
+				.map((value) => ({
+					name: value.name,
+					content: value.content,
+					isDefault: value.isDefault,
+				})),
+		}));
+
+	return JSON.stringify(canonical);
+}

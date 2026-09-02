@@ -1,5 +1,4 @@
 import { useCallback, useEffect } from "react";
-import { filterValidPlaceholderSelections } from "@genum/placeholders";
 import { promptApi } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
@@ -11,8 +10,7 @@ import type { FileMetadata } from "@/api/files";
 import { useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import { usePromptActions } from "@/stores/prompt.store";
-import usePlaygroundStore from "@/stores/playground.store";
-import { usePromptPlaceholders } from "@/pages/prompt/playground-tabs/placeholders/hooks/usePromptPlaceholders";
+import { usePlaceholderSelection } from "./usePlaceholderSelection";
 
 export function usePlaygroundPromptRun({
 	promptId,
@@ -46,21 +44,9 @@ export function usePlaygroundPromptRun({
 	const { toast } = useToast();
 	const { setRunLoading, setRunError, setLastRunResult } = usePromptActions();
 	const queryClient = useQueryClient();
-	const selectedPlaceholders = usePlaygroundStore((state) => state.selectedPlaceholders);
-	// Same source PlaceholderChips reads to validate the selection for display --
-	// see filterValidPlaceholderSelections' own comment (in @genum/placeholders) for
-	// why both must agree.
-	const {
-		data: placeholderDefinitions = [],
-		isLoading: placeholdersLoading,
-		isError: placeholdersErrored,
-	} = usePromptPlaceholders(promptId);
-	// `null` here means "not yet known" (loading or errored), not "known to be empty"
-	// -- filterValidPlaceholderSelections treats those differently on purpose: an
-	// unsettled state must pass the selection through unfiltered rather than silently
-	// drop it, since that would send an empty run body with no `ignored` echo either.
-	const knownPlaceholderDefinitions =
-		placeholdersLoading || placeholdersErrored ? null : placeholderDefinitions;
+	// One reading of the selection, shared with "add test case" -- see the hook for why
+	// two independent readings of it produced two different answers about the same key.
+	const { selection: placeholderSelection } = usePlaceholderSelection(promptId);
 
 	// The chips are computed from the live draft, but the server renders the SAVED
 	// Prompt.value (the editor only saves on fieldset blur). A selection made after
@@ -91,10 +77,7 @@ export function usePlaygroundPromptRun({
 			const runParams = {
 				question: inputContent,
 				...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
-				placeholders: filterValidPlaceholderSelections(
-					selectedPlaceholders,
-					knownPlaceholderDefinitions,
-				),
+				placeholders: placeholderSelection,
 			};
 
 			if (!testcaseId) {
@@ -154,8 +137,7 @@ export function usePlaygroundPromptRun({
 		inputContent,
 		promptId,
 		selectedFiles,
-		selectedPlaceholders,
-		knownPlaceholderDefinitions,
+		placeholderSelection,
 		setRunState,
 		setOutputContent,
 		testcaseId,
