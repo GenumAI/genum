@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { compareSteps } from "./compare";
-import { DEFAULT_STEPS_CONFIG, type Step } from "./types";
+import { DEFAULT_STEPS_CONFIG, type Step, type ToolCallStep } from "./types";
 
-const weather = (args: Record<string, unknown>): Step => ({
+const weather = (args: Record<string, unknown>): ToolCallStep => ({
 	kind: "tool_call",
 	name: "get_weather",
 	args,
