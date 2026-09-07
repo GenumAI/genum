@@ -753,16 +753,16 @@ export async function getProjectUsageWithDailyStats(
 }
 
 /**
- * Reads the spans of one trace, ordered by `span_index`. Scoped by org and project the
- * same way every other logger query is -- a trace_id from another org's run never matches.
- */
-/**
  * A trace spans every turn of a conversation, so its span count is unbounded even though
  * each request's steps are capped. Far more than this is a runaway trace, not a trace
  * anyone is going to read.
  */
 const MAX_TRACE_SPANS = 1000;
 
+/**
+ * Reads the spans of one trace, ordered by `span_index`. Scoped by org and project the
+ * same way every other logger query is -- a trace_id from another org's run never matches.
+ */
 export async function getTraceSpans(
 	traceId: string,
 	orgId: number,

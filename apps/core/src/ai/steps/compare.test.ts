@@ -169,19 +169,10 @@ describe("compareSteps", () => {
 			{ kind: "tool_call", name: "search", args: { q: "cats" } },
 			{ kind: "tool_call", name: "search", args: { q: "dogs" } },
 		];
-		// Greedy algorithm:
-		// - Expected[0] (search, ignore) matches actual[0] first → consume actual[0]
-		// - Expected[1] (search, exact, {q:"cats"}) now looks for matches
-		//   - actual[0] is consumed, skip
-		//   - actual[1] = {q:"dogs"} does not match {q:"cats"} exactly → MISMATCH
-		// Result: [{ index: 1, reason: "...called with different arguments..." }]
-		//
-		// Correct assignment via backtracking:
-		// - Try expected[0] with actual[0]: recurse
-		//   - Try expected[1] with actual[1]: args don't match → backtrack
-		// - Try expected[0] with actual[1]: recurse
-		//   - Try expected[1] with actual[0]: args match → success
-		// Result: []
+		// A first-come-first-served match is wrong here: expected[0] (ignore) would take
+		// actual[0], leaving expected[1] (exact, {q:"cats"}) to fail against {q:"dogs"}.
+		// Maximum matching seats both -- expected[1] displaces expected[0] onto actual[1]
+		// along an augmenting path -- so a permissive step never starves a strict one.
 		expect(compareSteps(expected, actual, DEFAULT_STEPS_CONFIG)).toEqual([]);
 	});
 
