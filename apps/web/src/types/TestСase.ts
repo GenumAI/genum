@@ -52,13 +52,14 @@ export interface TestCase {
 	/**
 	 * Present only on a trajectory testcase. `expectedSteps` is what is asserted,
 	 * `lastSteps` what the last run actually did, `lastMismatches` which expected steps it
-	 * failed to match. All three are `Json?` columns, so treat them as untrusted shapes:
-	 * render defensively rather than assuming they parse.
+	 * failed to match. All are `Json?` columns, always sent as `null` or an array; the
+	 * compiler enforces a null check before use. The remaining untrusted part is the shape
+	 * inside a non-null value, which may have been written by an old schema version.
 	 */
-	expectedSteps?: Step[];
-	lastSteps?: Step[];
-	stepsConfig?: StepsConfig;
-	lastMismatches?: StepMismatch[];
+	expectedSteps?: Step[] | null;
+	lastSteps?: Step[] | null;
+	stepsConfig?: StepsConfig | null;
+	lastMismatches?: StepMismatch[] | null;
 	files?: TestCaseFile[];
 	placeholderValues?: TestCasePinnedPlaceholderValue[];
 }
