@@ -53,3 +53,21 @@ export function mismatchByIndex(
 	}
 	return byIndex;
 }
+
+/**
+ * Whether the last run actually compared the pinned steps -- the only thing that licenses
+ * per-step marks. "Compared, everything passed" and "never compared" are different states
+ * and only the first may render green: the server leaves `lastMismatches` null on three
+ * live branches (a tool the recording does not cover, an AI assertion, a MANUAL one), and
+ * the first of those is the headline NOK this feature exists to detect.
+ *
+ * `lastSteps` cannot answer this -- it is written on every trajectory run, compared or not.
+ * An array is the wire signal for "compared", `[]` included (`Boolean([])` is true, so the
+ * check is `Array.isArray`, never truthiness). A non-empty array none of whose entries
+ * survive `mismatchByIndex` is unreadable rather than passing, and degrades to no marks --
+ * the promise the JSDoc above makes.
+ */
+export function hasStepComparison(mismatches: StepMismatch[] | null | undefined): boolean {
+	if (!Array.isArray(mismatches)) return false;
+	return mismatches.length === 0 || mismatchByIndex(mismatches).size > 0;
+}

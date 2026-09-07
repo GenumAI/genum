@@ -17,11 +17,6 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 
 	if (!trajectory.hasTrajectory) return null;
 
-	// `lastSteps` is written on every trajectory run, so a non-empty one means the
-	// testcase has been run. `Boolean([])` is true, so the length check is load-bearing:
-	// without it a never-run testcase would claim a verdict it does not have.
-	const hasRun = Array.isArray(testcase?.lastSteps) && testcase.lastSteps.length > 0;
-
 	// `useTestcaseTrajectory` already surfaces a toast on failure, and nothing here is
 	// optimistic -- every control reads the persisted value, so a rejected write needs no
 	// rollback. Swallowing the rejection is therefore the whole handler: without it each
@@ -36,7 +31,7 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 					{trajectory.steps.length === 1 ? "step" : "steps"}
 				</p>
 				<p className="text-xs text-muted-foreground">
-					{hasRun
+					{trajectory.hasRun
 						? // The verdict is deliberately NOT recomputed when expectations
 							// change, so it can describe rules that no longer apply. Saying
 							// when it was produced is what keeps that honest.
@@ -48,7 +43,12 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 			<div className="flex flex-col gap-3">
 				{trajectory.steps.map((step, index) => {
 					const reason = trajectory.mismatchByIndex.get(index);
-					const outcome = !hasRun
+					// Gated on a comparison having been recorded, not on the testcase
+					// having been run: a run that produced a verdict without comparing the
+					// steps (a tool the recording does not cover, an AI or MANUAL
+					// assertion) gets no marks at all rather than a row of green ticks
+					// beside its NOK.
+					const outcome = !trajectory.comparisonRecorded
 						? undefined
 						: step.enabled === false
 							? ("not-asserted" as const)

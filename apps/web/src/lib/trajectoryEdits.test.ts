@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { Step, StepMismatch } from "@/types/steps";
-import { enabledCount, mismatchByIndex, withFinalText, withStepPatch } from "./trajectoryEdits";
+import {
+	enabledCount,
+	hasStepComparison,
+	mismatchByIndex,
+	withFinalText,
+	withStepPatch,
+} from "./trajectoryEdits";
 
 const steps: Step[] = [
 	{ kind: "tool_call", name: "search", args: { q: "cats" }, argsMatch: "exact" },
@@ -70,5 +76,39 @@ describe("mismatchByIndex", () => {
 	it("is empty for an absent or malformed list", () => {
 		expect(mismatchByIndex(undefined).size).toBe(0);
 		expect(mismatchByIndex([{ index: "x" }] as unknown as StepMismatch[]).size).toBe(0);
+	});
+});
+
+describe("hasStepComparison", () => {
+	it("is false when the column is null -- the server ran but never compared", () => {
+		// `replay.stopped`, an AI assertion and a MANUAL one all leave `lastMismatches`
+		// null beside a real verdict. Treating that as "compared, nothing mismatched"
+		// paints every pinned step green next to a red NOK.
+		expect(hasStepComparison(null)).toBe(false);
+	});
+
+	it("is false when the field is absent", () => {
+		expect(hasStepComparison(undefined)).toBe(false);
+	});
+
+	it("is false for a non-array value from the Json? column", () => {
+		expect(hasStepComparison({ index: 0 } as unknown as StepMismatch[])).toBe(false);
+	});
+
+	it("is true for an empty array -- compared, and everything passed", () => {
+		expect(hasStepComparison([])).toBe(true);
+	});
+
+	it("is true for a usable list of mismatches", () => {
+		expect(hasStepComparison([{ index: 1, reason: "wrong tool" }])).toBe(true);
+	});
+
+	it("is false for a non-empty list whose every entry is unusable", () => {
+		// `mismatchByIndex` drops malformed entries, so such a list would otherwise
+		// present as "compared, nothing mismatched" -- the JSDoc there promises a wholly
+		// malformed list degrades to no per-step marks, and this is what keeps that true.
+		const garbage = [{ index: "x" }, { reason: 7 }] as unknown as StepMismatch[];
+		expect(mismatchByIndex(garbage).size).toBe(0);
+		expect(hasStepComparison(garbage)).toBe(false);
 	});
 });

@@ -3,7 +3,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { useToast } from "@/hooks/useToast";
-import { enabledCount, mismatchByIndex, withStepPatch } from "@/lib/trajectoryEdits";
+import {
+	enabledCount,
+	hasStepComparison,
+	mismatchByIndex,
+	withStepPatch,
+} from "@/lib/trajectoryEdits";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import type { TestCase } from "@/types/TestСase";
 import type { ArgsMatch, Step, StepsConfig } from "@/types/steps";
@@ -34,6 +39,20 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 		() => mismatchByIndex(testcase?.lastMismatches),
 		[testcase?.lastMismatches],
 	);
+
+	// Whether the last run compared the pinned steps. The panel gates its per-step marks
+	// on this and not on "has been run": a run that produced a verdict without comparing
+	// (a tool the recording does not cover, an AI or MANUAL assertion) leaves every step
+	// unmarked rather than green.
+	const comparisonRecorded = useMemo(
+		() => hasStepComparison(testcase?.lastMismatches),
+		[testcase?.lastMismatches],
+	);
+
+	// `lastSteps` is written on every trajectory run, so a non-empty one means the testcase
+	// has been run at all -- which is what the header line reports. `Boolean([])` is true,
+	// so the length check is load-bearing.
+	const hasRun = Array.isArray(testcase?.lastSteps) && testcase.lastSteps.length > 0;
 
 	const { mutateAsync, isPending } = useMutation({
 		mutationKey: testcaseKeys.updateTrajectory(testcaseId ?? undefined),
@@ -114,6 +133,8 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 		steps,
 		stepsConfig,
 		mismatchByIndex: mismatches,
+		comparisonRecorded,
+		hasRun,
 		lastRunAt: testcase?.updatedAt,
 		hasTrajectory,
 		saving: isPending,
