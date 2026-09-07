@@ -1,3 +1,5 @@
+import type { Step, StepMismatch, StepsConfig } from "@/types/steps";
+
 export type TestStatus = "OK" | "NOK" | "NEED_RUN";
 
 export interface TestCaseFile {
@@ -47,6 +49,16 @@ export interface TestCase {
 	updatedAt: string;
 	assertionType: "AI" | "STRICT";
 	assertionValue: string;
+	/**
+	 * Present only on a trajectory testcase. `expectedSteps` is what is asserted,
+	 * `lastSteps` what the last run actually did, `lastMismatches` which expected steps it
+	 * failed to match. All three are `Json?` columns, so treat them as untrusted shapes:
+	 * render defensively rather than assuming they parse.
+	 */
+	expectedSteps?: Step[];
+	lastSteps?: Step[];
+	stepsConfig?: StepsConfig;
+	lastMismatches?: StepMismatch[];
 	files?: TestCaseFile[];
 	placeholderValues?: TestCasePinnedPlaceholderValue[];
 }

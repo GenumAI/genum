@@ -44,3 +44,13 @@ export type ToolCall = {
 export type ConversationMessage =
 	| { role: "assistant"; content: string; toolCalls?: ToolCall[] }
 	| { role: "tool"; toolCallId: string; name: string; content: string };
+
+/**
+ * One expected step the last run did not match. `index` points into the testcase's
+ * `expectedSteps`. Mirrors `StepMismatch` in apps/core/src/ai/steps/compare.ts -- restated
+ * rather than imported, for the same reason the shapes above are.
+ */
+export type StepMismatch = {
+	index: number;
+	reason: string;
+};
