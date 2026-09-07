@@ -47,6 +47,12 @@ export interface TestCase {
 	assertionThoughts: string;
 	createdAt: string;
 	updatedAt: string;
+	/**
+	 * When a run last wrote a result. Null until the testcase has been run. Distinct from
+	 * `updatedAt`, which every edit bumps: the verdict is not recomputed when expectations
+	 * change, so only this can say how old the verdict beside them is.
+	 */
+	lastRunAt?: string | null;
 	assertionType: "AI" | "STRICT";
 	assertionValue: string;
 	/**

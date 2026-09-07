@@ -28,6 +28,10 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 	// it out of `TestcasesCreateType`, so `newTestcase` cannot leak an `unknown` into the
 	// `Json?` column Prisma expects `InputJsonValue | DbNull` for.
 	lastMismatches: true,
+	// Same boundary: when the last run happened is something the server observed, not
+	// something a client may claim. It is the one field that keeps a stale verdict honest
+	// against edited expectations, so a client that could set it could hide exactly that.
+	lastRunAt: true,
 })
 	.extend({
 		promptId: z.number(),
@@ -73,6 +77,10 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 	// column with no boundary of its own), so it must be omitted explicitly here or
 	// `.strict()` would wave it through instead of rejecting it.
 	lastMismatches: true,
+	// Same boundary, and the same generated-schema caveat: written by a run, never sent
+	// by a client. An editable "last run" timestamp would let an edit pass itself off as
+	// a run, which is the deception this column exists to prevent.
+	lastRunAt: true,
 })
 	.extend({
 		status: TestCaseStatusSchema.optional(),

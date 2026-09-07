@@ -31,6 +31,12 @@ model TestCase {
     // has no trajectory, or has one that has not been run since.
     lastMismatches          Json?
 
+    // When a run last wrote a result here. Distinct from `updatedAt`, which every edit
+    // bumps: the verdict is deliberately NOT recomputed when expectations change, so the
+    // UI has to be able to say the verdict is older than the rules it is shown beside.
+    // Null means the testcase has never been run. Written by a run, never by a client.
+    lastRunAt               DateTime?      @db.Timestamp(6)
+
     createdAt               DateTime       @default(now()) @db.Timestamp(6)
     updatedAt               DateTime       @default(now()) @updatedAt @db.Timestamp(6)
 

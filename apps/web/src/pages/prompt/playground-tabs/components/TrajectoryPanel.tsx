@@ -31,11 +31,16 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 					{trajectory.steps.length === 1 ? "step" : "steps"}
 				</p>
 				<p className="text-xs text-muted-foreground">
-					{trajectory.hasRun
-						? // The verdict is deliberately NOT recomputed when expectations
-							// change, so it can describe rules that no longer apply. Saying
-							// when it was produced is what keeps that honest.
-							`Last run ${new Date(trajectory.lastRunAt ?? "").toLocaleString()}`
+					{/*
+					 * The verdict is deliberately NOT recomputed when expectations change,
+					 * so it can describe rules that no longer apply. Saying when it was
+					 * produced is what keeps that honest -- which is why an absent
+					 * timestamp reports "not run yet" rather than `new Date(null)`'s
+					 * literal "Invalid Date". `lastRunAt` is nullable: a row that predates
+					 * the column, and every testcase never run, has none.
+					 */}
+					{trajectory.hasRun && trajectory.lastRunAt
+						? `Last run ${new Date(trajectory.lastRunAt).toLocaleString()}`
 						: "Not run yet"}
 				</p>
 			</div>

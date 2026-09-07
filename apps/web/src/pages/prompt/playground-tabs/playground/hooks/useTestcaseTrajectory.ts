@@ -135,7 +135,9 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 		mismatchByIndex: mismatches,
 		comparisonRecorded,
 		hasRun,
-		lastRunAt: testcase?.updatedAt,
+		// The column a run writes, not `updatedAt` -- which every expectation edit bumps,
+		// and so would date a stale verdict to the moment its rules changed.
+		lastRunAt: testcase?.lastRunAt ?? null,
 		hasTrajectory,
 		saving: isPending,
 		wouldEmptyTrajectory,

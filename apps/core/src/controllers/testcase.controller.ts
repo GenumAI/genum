@@ -262,6 +262,13 @@ export class TestcasesController {
 			lastOutput: run.answer,
 			lastChainOfThoughts: run.chainOfThoughts,
 			assertionThoughts: "",
+			// Set here, on the object every arm below writes through, so it lands on
+			// every run -- text and trajectory, asserted, unasserted and stopped alike.
+			// It records that a run happened, not what it concluded. `updatedAt` cannot
+			// stand in for it: every expectation edit bumps that, which would hide the
+			// one thing this timestamp exists to show -- a verdict older than the rules
+			// it is displayed beside.
+			lastRunAt: new Date(),
 			// Cleared by default and set only by the branch that actually compared steps.
 			// A stale set of marks beside a verdict that no comparison produced would
 			// point at steps nobody checked on this run.
