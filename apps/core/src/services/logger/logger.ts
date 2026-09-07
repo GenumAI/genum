@@ -756,6 +756,13 @@ export async function getProjectUsageWithDailyStats(
  * Reads the spans of one trace, ordered by `span_index`. Scoped by org and project the
  * same way every other logger query is -- a trace_id from another org's run never matches.
  */
+/**
+ * A trace spans every turn of a conversation, so its span count is unbounded even though
+ * each request's steps are capped. Far more than this is a runaway trace, not a trace
+ * anyone is going to read.
+ */
+const MAX_TRACE_SPANS = 1000;
+
 export async function getTraceSpans(
 	traceId: string,
 	orgId: number,
@@ -769,13 +776,14 @@ export async function getTraceSpans(
 
 		const result = await clickhouseClient.query({
 			query: QUERIES.GET_SPANS(CLICKHOUSE_TABLES.TRACE_SPANS, where),
-			query_params: params,
+			query_params: { ...params, limit: MAX_TRACE_SPANS },
 			format: "JSONEachRow",
 		});
 
 		const data = (await result.json()) as ClickHouseSpanRow[];
 
 		return data.map((row) => ({
+			timestamp: row.timestamp,
 			trace_id: row.trace_id,
 			span_id: row.span_id,
 			parent_span_id: row.parent_span_id,

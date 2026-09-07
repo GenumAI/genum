@@ -3,6 +3,8 @@
 // Mirrors `SpanRow` in apps/core/src/services/logger/spans.ts.
 
 export interface SpanRow {
+	/** Set by ClickHouse on insert, so it is present on every row read back. */
+	timestamp?: string;
 	trace_id: string;
 	span_id: string;
 	parent_span_id: string | null;

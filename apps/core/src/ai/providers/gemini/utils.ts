@@ -164,11 +164,20 @@ export function mapContentsToGeminiFormat(request: ProviderRequest): ContentList
 
 	for (const message of request.messages) {
 		if (message.role === "assistant") {
+			// `PromptRunSchema` permits an assistant message with no tool calls, and the
+			// text is meaningful even when there are: dropping it left `parts: []`, a
+			// payload Gemini rejects, so a valid request could only fail at the provider.
+			const parts: Part[] = [];
+			if (message.content) {
+				parts.push({ text: message.content });
+			}
+			for (const call of message.toolCalls ?? []) {
+				parts.push({ functionCall: { name: call.name, args: call.args } });
+			}
 			contents.push({
 				role: "model",
-				parts: (message.toolCalls ?? []).map((call) => ({
-					functionCall: { name: call.name, args: call.args },
-				})),
+				// An empty text part still beats an empty parts array.
+				parts: parts.length > 0 ? parts : [{ text: "" }],
 			});
 		} else {
 			contents.push({

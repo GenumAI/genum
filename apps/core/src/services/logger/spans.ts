@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import type { Step } from "@/ai/steps/types";
 
 export type SpanRow = {
+	/**
+	 * Set by ClickHouse (`DEFAULT now64()`), so it is absent on the way in and present on
+	 * every row read back out.
+	 */
+	timestamp?: string;
 	trace_id: string;
 	span_id: string;
 	parent_span_id: string | null;
@@ -61,6 +66,11 @@ export function toSpanRows(batch: SpanBatch): SpanRow[] {
 		tool_error: null,
 		vendor: batch.vendor,
 		model: batch.model,
+		// Placeholders, not measurements. A step carries no usage or timing of its own --
+		// the model's tokens and latency are billed once on the run's root `logs` row, and
+		// no tool is ever executed, so there is nothing to time. Written as zeros to keep
+		// the columns non-null and the OTel-shaped schema intact; a reader of `trace_spans`
+		// must not take them for a tool that genuinely cost 0 and took 0 ms.
 		tokens_in: 0,
 		tokens_out: 0,
 		cost: 0,

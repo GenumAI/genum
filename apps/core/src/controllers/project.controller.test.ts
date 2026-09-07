@@ -130,6 +130,8 @@ describe("ProjectController.addProjectMember", () => {
 	});
 });
 
+const TRACE_ID = "11111111-2222-4333-8444-555555555555";
+
 describe("ProjectController.getTraceSpans", () => {
 	let controller: ProjectController;
 
@@ -144,13 +146,24 @@ describe("ProjectController.getTraceSpans", () => {
 		// through the request instead of req.genumMeta.ids.
 		const { res } = makeRes();
 		const req = makeReq({
-			params: { traceId: "t1" },
+			params: { traceId: TRACE_ID },
 			body: { orgId: 999, project_id: 999 },
 			query: { orgId: 999, project_id: 999 },
 		});
 
 		await controller.getTraceSpans(req, res);
 
-		expect(getTraceSpans).toHaveBeenCalledWith("t1", CALLER_ORG, CALLER_PROJECT);
+		expect(getTraceSpans).toHaveBeenCalledWith(TRACE_ID, CALLER_ORG, CALLER_PROJECT);
+	});
+
+	// The write path validates a trace id as a uuid (`z.uuid()` in prompt.type.ts); the
+	// read path accepted any string at all. Harmless with a parameterised, org-scoped
+	// query, but the two halves should agree on what a trace id is.
+	it("rejects a trace id that is not a uuid", async () => {
+		const { res } = makeRes();
+		const req = makeReq({ params: { traceId: "t1" } });
+
+		await expect(controller.getTraceSpans(req, res)).rejects.toThrow();
+		expect(getTraceSpans).not.toHaveBeenCalled();
 	});
 });

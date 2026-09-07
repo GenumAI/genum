@@ -14,6 +14,7 @@ import {
 	ProjectMemberCreateSchema,
 	ProjectMemberUpdateSchema,
 	stringSchema,
+	uuidSchema,
 	ProjectUsageStatsSchema,
 	ProjectLogsQuerySchema,
 	ProjectUpdateSchema,
@@ -246,7 +247,7 @@ export class ProjectController {
 
 	public async getTraceSpans(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
-		const traceId = stringSchema.parse(req.params.traceId);
+		const traceId = uuidSchema.parse(req.params.traceId);
 
 		const spans = await getTraceSpans(traceId, metadata.orgID, metadata.projID);
 

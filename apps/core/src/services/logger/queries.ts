@@ -164,13 +164,16 @@ export const QUERIES = {
 	`,
 
 	/**
-	 * Get the spans of one trace, in step order
+	 * Get the spans of one trace, in step order. Bounded like GET_LOGS: a trace's span
+	 * count is unbounded across turns -- each request caps its own steps, the trace does
+	 * not -- so an unlimited SELECT returns a whole conversation's rows in one response.
 	 */
 	GET_SPANS: (table: string, where: string) => `
 		SELECT *
 		FROM ${table}
 		WHERE ${where}
 		ORDER BY span_index ASC
+		LIMIT {limit: UInt64}
 	`,
 
 	/**
