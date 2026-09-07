@@ -33,8 +33,6 @@ export type SpanBatch = {
 	vendor: string;
 	model: string;
 	steps: Step[];
-	/** Tool result by tool name, as replayed or supplied in the playground. */
-	results: Record<string, string>;
 };
 
 export function toSpanRows(batch: SpanBatch): SpanRow[] {
@@ -51,7 +49,7 @@ export function toSpanRows(batch: SpanBatch): SpanRow[] {
 		input: "",
 		output: step.kind === "final" ? step.text : "",
 		tool_args: step.kind === "tool_call" ? JSON.stringify(step.args ?? {}) : "",
-		tool_result: step.kind === "tool_call" ? (batch.results[step.name] ?? "") : "",
+		tool_result: step.kind === "tool_call" ? (step.recordedResult ?? "") : "",
 		tool_error: null,
 		vendor: batch.vendor,
 		model: batch.model,

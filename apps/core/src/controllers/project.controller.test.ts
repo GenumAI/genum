@@ -21,7 +21,12 @@ vi.mock("@/database/db", () => ({
 	},
 }));
 
+vi.mock("../services/logger/logger", () => ({
+	getTraceSpans: vi.fn(),
+}));
+
 import { db } from "@/database/db";
+import { getTraceSpans } from "../services/logger/logger";
 import { ProjectController } from "./project.controller";
 
 const CALLER_ORG = 1;
@@ -122,5 +127,30 @@ describe("ProjectController.addProjectMember", () => {
 
 		expect(captured.statusCode).toBe(404);
 		expect(db.project.addMember).not.toHaveBeenCalled();
+	});
+});
+
+describe("ProjectController.getTraceSpans", () => {
+	let controller: ProjectController;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		controller = new ProjectController();
+		vi.mocked(getTraceSpans).mockResolvedValue([]);
+	});
+
+	it("scopes the read to the caller's org and project, not the request body or query", async () => {
+		// A trace_id from another org's run must never be readable by spoofing org/project
+		// through the request instead of req.genumMeta.ids.
+		const { res } = makeRes();
+		const req = makeReq({
+			params: { traceId: "t1" },
+			body: { orgId: 999, project_id: 999 },
+			query: { orgId: 999, project_id: 999 },
+		});
+
+		await controller.getTraceSpans(req, res);
+
+		expect(getTraceSpans).toHaveBeenCalledWith("t1", CALLER_ORG, CALLER_PROJECT);
 	});
 });
