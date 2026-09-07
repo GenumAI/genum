@@ -97,18 +97,32 @@ export const useTestcasesColumns = ({
 				const steps = row.original.expectedSteps;
 				const stepCount = Array.isArray(steps) ? steps.length : 0;
 
+				// A text testcase keeps the bare span it has always had. Wrapping every row
+				// in a flex container to serve the few that carry a marker would change the
+				// box every name in the table sits in.
+				if (stepCount === 0) {
+					return <span className="font-medium">{row.getValue("name")}</span>;
+				}
+
 				return (
 					<span className="flex items-center gap-2">
 						<span className="font-medium">{row.getValue("name")}</span>
-						{stepCount > 0 && (
-							<span
-								className="flex items-center gap-1 text-xs text-muted-foreground"
-								title={`Asserts a recorded trajectory of ${stepCount} steps`}
-							>
-								<Wrench size={12} />
-								{stepCount}
-							</span>
-						)}
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex items-center gap-1 text-xs text-muted-foreground">
+										<Wrench size={12} />
+										{stepCount}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent>
+									<p>
+										Asserts a recorded trajectory of {stepCount}{" "}
+										{stepCount === 1 ? "step" : "steps"}
+									</p>
+								</TooltipContent>
+							</Tooltip>
+						</TooltipProvider>
 					</span>
 				);
 			},
