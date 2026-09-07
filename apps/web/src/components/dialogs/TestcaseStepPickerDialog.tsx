@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { ChatText, Wrench } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -11,14 +9,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import type { ArgsMatch, Step } from "@/types/steps";
+import { StepRow } from "@/components/steps/StepRow";
+import type { Step } from "@/types/steps";
 
 interface TestcaseStepPickerDialogProps {
 	open: boolean;
@@ -91,59 +83,13 @@ export function TestcaseStepPickerDialog({
 
 				<div className="flex max-h-96 flex-col gap-3 overflow-y-auto">
 					{steps.map((step, index) => (
-						<div key={`${step.kind}-${index}`} className="flex items-start gap-3">
-							<Checkbox
-								className="mt-1"
-								checked={step.enabled !== false}
-								onCheckedChange={(checked) =>
-									update(index, { enabled: checked === true })
-								}
-							/>
-							{step.kind === "tool_call" ? (
-								<Wrench className="mt-1 shrink-0" size={16} />
-							) : (
-								<ChatText className="mt-1 shrink-0" size={16} />
-							)}
-							<div className="min-w-0 flex-1">
-								{step.kind === "tool_call" ? (
-									<>
-										<div className="font-medium">{step.name}</div>
-										<pre className="mt-1 overflow-x-auto text-xs">
-											{JSON.stringify(step.args ?? {}, null, 2)}
-										</pre>
-										{unreadableArgsIndices?.has(index) && (
-											<p className="mt-1 text-xs text-destructive">
-												Recorded arguments could not be read -- shown as
-												empty and ignored, not a genuine no-args call.
-											</p>
-										)}
-										<Select
-											value={step.argsMatch ?? "exact"}
-											onValueChange={(value) =>
-												update(index, { argsMatch: value as ArgsMatch })
-											}
-										>
-											<SelectTrigger className="mt-1 w-64">
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="exact">
-													Arguments must match exactly
-												</SelectItem>
-												<SelectItem value="subset">
-													Only these keys must match
-												</SelectItem>
-												<SelectItem value="ignore">
-													Ignore arguments
-												</SelectItem>
-											</SelectContent>
-										</Select>
-									</>
-								) : (
-									<div className="whitespace-pre-wrap">{step.text}</div>
-								)}
-							</div>
-						</div>
+						<StepRow
+							key={`${step.kind}-${index}`}
+							step={step}
+							unreadableArgs={unreadableArgsIndices?.has(index)}
+							onEnabledChange={(enabled) => update(index, { enabled })}
+							onArgsMatchChange={(argsMatch) => update(index, { argsMatch })}
+						/>
 					))}
 				</div>
 
