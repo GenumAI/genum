@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { replayTrajectory } from "./replay";
+import { DEFAULT_MAX_STEPS, maxStepsForRecording, replayTrajectory } from "./replay";
 import type { ToolCallStep } from "./types";
 
 const recorded: ToolCallStep[] = [
@@ -94,6 +94,76 @@ describe("replayTrajectory", () => {
 
 		expect(result.stopped?.reason).toBe("step_limit");
 		expect(callModel).toHaveBeenCalledTimes(3);
+	});
+
+	// A nine-tool-call trajectory is legitimately recordable (the playground caps a
+	// conversation at 100 messages, and nothing bounds what the picker can pin). Under the
+	// fixed default of 8 it stopped at `step_limit` and was written NOK on every run,
+	// forever -- a testcase that can never pass. The bound has to come from the recording.
+	it("replays a recording longer than the default step limit", async () => {
+		const nine: ToolCallStep[] = Array.from({ length: 9 }, (_, i) => ({
+			kind: "tool_call" as const,
+			name: "search",
+			recordedResult: `r${i}`,
+		}));
+		const callModel = vi.fn();
+		for (let i = 0; i < 9; i++) {
+			callModel.mockResolvedValueOnce({
+				answer: "",
+				toolCalls: [{ id: `c${i}`, name: "search", args: { page: i } }],
+			});
+		}
+		callModel.mockResolvedValueOnce({ answer: "done" });
+
+		const result = await replayTrajectory({
+			callModel,
+			recorded: nine,
+			maxSteps: maxStepsForRecording(nine.length),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		// Nine tool turns plus the final answer: one model call per turn, so the bound
+		// must be recorded.length + 1, not recorded.length.
+		expect(callModel).toHaveBeenCalledTimes(10);
+	});
+
+	it("derives a bound that still fires for a runaway loop", () => {
+		// Never below the default, and exactly one turn of headroom over a recording that
+		// calls one tool per turn -- so a model that keeps calling tools past the end of
+		// the recording still hits `step_limit`.
+		expect(maxStepsForRecording(0)).toBe(DEFAULT_MAX_STEPS);
+		expect(maxStepsForRecording(3)).toBe(DEFAULT_MAX_STEPS);
+		expect(maxStepsForRecording(9)).toBe(10);
+	});
+
+	it("still bounds a model that never stops calling tools", async () => {
+		// A model that keeps asking past the end of the recording is stopped -- by
+		// `missing_recording` on the turn after the last recorded call, which under a
+		// recording-derived bound always arrives before `step_limit` does (each turn
+		// consumes at least one recording, and the bound is recorded.length + 1). Both
+		// stops are NOK with a message; this one names the tool, which is the truer cause.
+		// `step_limit` stays as the backstop for a caller that passes its own maxSteps --
+		// the test above.
+		const many: ToolCallStep[] = Array.from({ length: 20 }, (_, i) => ({
+			kind: "tool_call" as const,
+			name: "search",
+			recordedResult: `r${i}`,
+		}));
+		const callModel = vi.fn().mockResolvedValue({
+			answer: "",
+			toolCalls: [{ id: "c", name: "search", args: {} }],
+		});
+
+		const result = await replayTrajectory({
+			callModel,
+			recorded: many,
+			maxSteps: maxStepsForRecording(many.length),
+		});
+
+		expect(result.stopped).toBeDefined();
+		expect(result.stopped?.reason).toBe("missing_recording");
+		// Never more turns than the derived bound allows.
+		expect(callModel.mock.calls.length).toBeLessThanOrEqual(maxStepsForRecording(many.length));
 	});
 
 	it("matches repeated calls to the same tool by their ordinal", async () => {

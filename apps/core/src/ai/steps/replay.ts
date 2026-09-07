@@ -24,8 +24,26 @@ export type ReplayParams = {
 	maxSteps?: number;
 };
 
-/** Mirrors `recursionLimit` in `ai/runner/agent.ts:158`. */
-const DEFAULT_MAX_STEPS = 8;
+/**
+ * Floor for a replay that has nothing longer to go on. It is not `recursionLimit` from
+ * `ai/runner/agent.ts` (that is 4) and is not meant to track it: a replay is bounded by
+ * the recording it replays, not by how deep the live agent is allowed to recurse.
+ */
+export const DEFAULT_MAX_STEPS = 8;
+
+/**
+ * The bound a replay of `recordedToolCalls` tool calls needs. Each turn of the loop below
+ * is one model call, and a recording that called one tool per turn needs one turn per
+ * recorded call plus one for the final answer -- hence `+ 1`. A fixed default made any
+ * trajectory longer than it stop at `step_limit` and be written NOK on every run, forever;
+ * nothing bounds what an author can pin, so the bound has to come from the recording.
+ *
+ * A model that keeps calling tools past the end of the recording still hits the limit:
+ * this is a ceiling derived from what was recorded, not a promise that the replay ends.
+ */
+export function maxStepsForRecording(recordedToolCalls: number): number {
+	return Math.max(DEFAULT_MAX_STEPS, recordedToolCalls + 1);
+}
 
 /**
  * Drives the agent loop against recorded tool results. A tool call the recording does

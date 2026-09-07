@@ -1,3 +1,4 @@
+import { normalize } from "@/utils/normalize";
 import type { Step, StepsConfig, ToolCallStep } from "./types";
 
 export type StepMismatch = {
@@ -30,9 +31,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
 	if (leftKeys.length !== Object.keys(right).length) {
 		return false;
 	}
-	return leftKeys.every(
-		(key) => Object.hasOwn(right, key) && deepEqual(left[key], right[key]),
-	);
+	return leftKeys.every((key) => Object.hasOwn(right, key) && deepEqual(left[key], right[key]));
 }
 
 function argsMatchFor(step: ToolCallStep) {
@@ -50,7 +49,8 @@ function argsAgree(expected: ToolCallStep, actual: ToolCallStep): boolean {
 
 	if (mode === "subset") {
 		return Object.keys(expectedArgs).every(
-			(key) => Object.hasOwn(actualArgs, key) && deepEqual(actualArgs[key], expectedArgs[key]),
+			(key) =>
+				Object.hasOwn(actualArgs, key) && deepEqual(actualArgs[key], expectedArgs[key]),
 		);
 	}
 
@@ -61,15 +61,16 @@ function describe(step: Step): string {
 	return step.kind === "tool_call" ? `tool "${step.name}"` : "the final answer";
 }
 
-function stepMatches(
-	expected: Step,
-	actual: Step,
-): boolean {
+function stepMatches(expected: Step, actual: Step): boolean {
 	if (expected.kind !== actual.kind) {
 		return false;
 	}
 	if (expected.kind === "final" && actual.kind === "final") {
-		return expected.text === actual.text;
+		// The same `normalize` a STRICT text assertion uses (see utils/normalize.ts).
+		// Converting a text testcase into a trajectory one must not silently make the
+		// answer assertion stricter -- trailing whitespace or capitalisation going red
+		// only teaches authors to untick the final answer.
+		return normalize(expected.text) === normalize(actual.text);
 	}
 	if (expected.kind === "tool_call" && actual.kind === "tool_call") {
 		return expected.name === actual.name && argsAgree(expected, actual);
@@ -78,44 +79,51 @@ function stepMatches(
 }
 
 /**
- * Attempt to match enabled expected steps against actual steps with backtracking.
- * Returns a set of consumed actual indices if successful, or undefined if no valid
- * assignment exists. Only called for unordered matching (orderMatters: false).
+ * Maximum bipartite matching (Kuhn's algorithm) between the enabled expected steps and
+ * the actual ones. Returns the assignment as expectedIndex -> actualIndex.
+ *
+ * The assignment is the answer, not a by-product: mismatches are the expected indices
+ * MISSING from it. Re-deriving "this step was found" by testing it against the set of
+ * consumed actual steps is what let thirteen pinned calls pass against one actual call.
+ *
+ * Maximum matching also means the report is minimal -- only the steps that genuinely
+ * cannot be satisfied are listed, instead of every enabled step whenever no complete
+ * assignment exists -- and it is polynomial, so there is no input size at which we have
+ * to fall back to a greedy pass that answers a different question.
  */
-function tryMatchUnordered(
+function matchUnordered(
 	expected: Step[],
 	actual: Step[],
 	enabledIndices: number[],
-	consumed: Set<number> = new Set(),
-	depth: number = 0,
-): Set<number> | undefined {
-	// Base case: all enabled expected steps have been matched
-	if (depth === enabledIndices.length) {
-		return consumed;
-	}
+): Map<number, number> {
+	// actualIndex -> expectedIndex currently assigned to it
+	const assignedTo = new Map<number, number>();
 
-	const expectedIdx = enabledIndices[depth];
-	const expectedStep = expected[expectedIdx];
-
-	// Try to match against each unconsumed actual step
-	for (let i = 0; i < actual.length; i++) {
-		if (consumed.has(i)) {
-			continue;
-		}
-		const actualStep = actual[i];
-		if (stepMatches(expectedStep, actualStep)) {
-			// Try this assignment and recurse
-			consumed.add(i);
-			const result = tryMatchUnordered(expected, actual, enabledIndices, consumed, depth + 1);
-			if (result !== undefined) {
-				return result;
+	const augment = (expectedIdx: number, visited: Set<number>): boolean => {
+		for (let i = 0; i < actual.length; i++) {
+			if (visited.has(i) || !stepMatches(expected[expectedIdx], actual[i])) {
+				continue;
 			}
-			// Backtrack
-			consumed.delete(i);
+			visited.add(i);
+			const holder = assignedTo.get(i);
+			// Free, or its current holder can be re-seated somewhere else.
+			if (holder === undefined || augment(holder, visited)) {
+				assignedTo.set(i, expectedIdx);
+				return true;
+			}
 		}
+		return false;
+	};
+
+	for (const expectedIdx of enabledIndices) {
+		augment(expectedIdx, new Set());
 	}
 
-	return undefined;
+	const assignment = new Map<number, number>();
+	for (const [actualIdx, expectedIdx] of assignedTo) {
+		assignment.set(expectedIdx, actualIdx);
+	}
+	return assignment;
 }
 
 /**
@@ -124,8 +132,8 @@ function tryMatchUnordered(
  * consumed actual step, so a reordered but equivalent trajectory passes.
  *
  * When orderMatters is true, disabled steps do not consume positions in actual.
- * When orderMatters is false, uses backtracking to find a valid matching if the
- * number of enabled expected steps is <= 12; falls back to greedy for larger inputs.
+ * When orderMatters is false, a maximum bipartite matching decides the assignment (see
+ * `matchUnordered`) and the mismatches are exactly the expected steps it could not seat.
  */
 export function compareSteps(
 	expected: Step[],
@@ -179,67 +187,25 @@ function compareStepsUnordered(expected: Step[], actual: Step[]): StepMismatch[]
 		.map((step, index) => (step.enabled === false ? -1 : index))
 		.filter((index) => index !== -1);
 
-	// Use backtracking only if the number of enabled steps is reasonable
-	let consumed: Set<number> | undefined;
-	if (enabledIndices.length <= 12) {
-		consumed = tryMatchUnordered(expected, actual, enabledIndices);
-	} else {
-		// Fall back to greedy matching for large inputs
-		consumed = greedyMatchUnordered(expected, actual, enabledIndices);
-	}
+	const assignment = matchUnordered(expected, actual, enabledIndices);
 
-	if (consumed === undefined) {
-		consumed = new Set();
-	}
-
-	// Identify which expected steps were not matched
+	// A mismatch is an enabled expected step with no entry in the assignment.
 	const mismatches: StepMismatch[] = [];
 	enabledIndices.forEach((index) => {
-		const step = expected[index];
-		const found = Array.from(consumed!).some((actualIndex) => {
-			const other = actual[actualIndex];
-			return stepMatches(step, other);
-		});
-
-		if (!found) {
-			const called =
-				step.kind === "tool_call" &&
-				actual.some((other) => other.kind === "tool_call" && other.name === step.name);
-			mismatches.push({
-				index,
-				reason: called
-					? `${describe(step)} was called with different arguments`
-					: `${describe(step)} was never called`,
-			});
+		if (assignment.has(index)) {
+			return;
 		}
+		const step = expected[index];
+		const called =
+			step.kind === "tool_call" &&
+			actual.some((other) => other.kind === "tool_call" && other.name === step.name);
+		mismatches.push({
+			index,
+			reason: called
+				? `${describe(step)} was called with different arguments`
+				: `${describe(step)} was never called`,
+		});
 	});
 
 	return mismatches;
-}
-
-/**
- * Greedy matching fallback for >12 enabled expected steps to avoid pathological backtracking cost.
- */
-function greedyMatchUnordered(
-	expected: Step[],
-	actual: Step[],
-	enabledIndices: number[],
-): Set<number> | undefined {
-	const consumed = new Set<number>();
-
-	for (const index of enabledIndices) {
-		const step = expected[index];
-		const found = actual.findIndex((actualStep, actualIndex) => {
-			if (consumed.has(actualIndex)) {
-				return false;
-			}
-			return stepMatches(step, actualStep);
-		});
-
-		if (found !== -1) {
-			consumed.add(found);
-		}
-	}
-
-	return consumed;
 }

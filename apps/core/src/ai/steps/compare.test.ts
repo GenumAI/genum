@@ -185,6 +185,92 @@ describe("compareSteps", () => {
 		expect(compareSteps(expected, actual, DEFAULT_STEPS_CONFIG)).toEqual([]);
 	});
 
+	// Thirteen pinned calls against one actual call: above the old backtracking cap the
+	// greedy fallback matched one and then re-derived "found" by re-testing every expected
+	// step against ANY consumed index, so all thirteen were reported as passing. A pinned
+	// trajectory that can never fail is the exact defect this feature exists to prevent.
+	it("does not pass thirteen pinned calls against a single actual call", () => {
+		const expected: Step[] = Array.from({ length: 13 }, () => ({
+			kind: "tool_call" as const,
+			name: "search",
+			args: { q: "cats" },
+			argsMatch: "exact" as const,
+		}));
+		const actual: Step[] = [{ kind: "tool_call", name: "search", args: { q: "cats" } }];
+
+		const mismatches = compareSteps(expected, actual, DEFAULT_STEPS_CONFIG);
+		// One expected step is genuinely satisfied; the other twelve are not.
+		expect(mismatches).toHaveLength(12);
+	});
+
+	// A real assignment is in hand, so only the steps left unmatched are reported. Before,
+	// a single impossible step made every enabled step read as mismatched, which buries the
+	// one thing that actually changed.
+	it("reports only the genuinely unmatched steps when no full assignment exists", () => {
+		const expected: Step[] = [
+			{ ...weather({ city: "Berlin" }), argsMatch: "exact" },
+			{ kind: "tool_call", name: "get_time", args: { tz: "CET" }, argsMatch: "exact" },
+			{ kind: "final", text: "It is 12°" },
+		];
+		const actual: Step[] = [
+			weather({ city: "Berlin" }),
+			{ kind: "final", text: "It is 12°" },
+		];
+
+		const mismatches = compareSteps(expected, actual, DEFAULT_STEPS_CONFIG);
+		expect(mismatches).toHaveLength(1);
+		expect(mismatches[0].index).toBe(1);
+		expect(mismatches[0].reason).toContain("get_time");
+	});
+
+	// The same ambiguity as finding (b), but above the old 12-step cap: the resolution must
+	// not depend on how many steps the author happened to pin.
+	it("resolves competing matchers above the old greedy threshold", () => {
+		const expected: Step[] = [
+			{ kind: "tool_call", name: "search", argsMatch: "ignore" },
+			{ kind: "tool_call", name: "search", args: { q: "cats" }, argsMatch: "exact" },
+			...Array.from({ length: 11 }, (_, i) => ({
+				kind: "tool_call" as const,
+				name: `tool_${i}`,
+				argsMatch: "ignore" as const,
+			})),
+		];
+		const actual: Step[] = [
+			{ kind: "tool_call", name: "search", args: { q: "cats" } },
+			{ kind: "tool_call", name: "search", args: { q: "dogs" } },
+			...Array.from({ length: 11 }, (_, i) => ({
+				kind: "tool_call" as const,
+				name: `tool_${i}`,
+				args: {},
+			})),
+		];
+		expect(compareSteps(expected, actual, DEFAULT_STEPS_CONFIG)).toEqual([]);
+	});
+
+	// The final step must not be asserted more strictly than the STRICT text assertion it
+	// replaces: both run through `normalize`, so trailing whitespace and case do not fail a
+	// testcase converted from text to trajectory.
+	it("normalizes the final answer the way the text assertion does", () => {
+		const expected: Step[] = [{ kind: "final", text: "It is 12°" }];
+		expect(
+			compareSteps(expected, [{ kind: "final", text: "  it is 12°  " }], DEFAULT_STEPS_CONFIG),
+		).toEqual([]);
+	});
+
+	it("still fails a final answer that genuinely differs", () => {
+		const expected: Step[] = [{ kind: "final", text: "It is 12°" }];
+		expect(
+			compareSteps(expected, [{ kind: "final", text: "It is 30°" }], DEFAULT_STEPS_CONFIG),
+		).toHaveLength(1);
+	});
+
+	it("compares a JSON final answer by sorted keys, as the text assertion does", () => {
+		const expected: Step[] = [{ kind: "final", text: '{"b":2,"a":1}' }];
+		expect(
+			compareSteps(expected, [{ kind: "final", text: '{"a":1,"b":2}' }], DEFAULT_STEPS_CONFIG),
+		).toEqual([]);
+	});
+
 	// Finding (c): orderMatters with disabled steps
 	it("respects relative order of enabled steps with disabled step in the middle", () => {
 		const expected: Step[] = [

@@ -1,6 +1,6 @@
 import { TestCaseSchema as TestCaseSchemaGenerated, TestCaseStatusSchema } from "@/prisma-types";
 import { z } from "zod";
-import { StepsConfigSchema, StepsSchema } from "@/ai/steps/schema";
+import { hasEnabledStep, StepsConfigSchema, StepsSchema } from "@/ai/steps/schema";
 
 const nameSchema = z.string().trim().min(1).max(128);
 
@@ -10,7 +10,7 @@ const nameSchema = z.string().trim().min(1).max(128);
 // absent means enabled (see ToolCallStep/FinalStep in apps/core/src/ai/steps/types.ts), so the
 // predicate has to be `!== false`, matching what compareSteps itself reads, not `=== true`.
 const EnabledStepsSchema = StepsSchema.min(1).refine(
-	(steps) => steps.some((step) => step.enabled !== false),
+	hasEnabledStep,
 	"at least one step must be enabled",
 );
 const TestCaseSchema = TestCaseSchemaGenerated.extend({

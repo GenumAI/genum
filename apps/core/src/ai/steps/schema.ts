@@ -32,6 +32,17 @@ export const StepSchema = z.discriminatedUnion("kind", [ToolCallStepSchema, Fina
 
 export const StepsSchema = z.array(StepSchema);
 
+/**
+ * The one definition of "this trajectory asserts something". `enabled` is optional and
+ * absent means enabled (see ToolCallStep/FinalStep in ./types.ts), which is why the
+ * predicate is `!== false` and not `=== true` -- the same test `compareSteps` applies.
+ * Shared by the write boundary (`EnabledStepsSchema`) and the read boundary
+ * (`readExpectedSteps`) so the two halves cannot drift into an always-green testcase.
+ */
+export function hasEnabledStep(steps: readonly { enabled?: boolean }[]): boolean {
+	return steps.some((step) => step.enabled !== false);
+}
+
 export const StepsConfigSchema = z.object({ orderMatters: z.boolean() }).strict();
 
 // The schemas and the hand-written types must not drift: these fail to compile if they do.

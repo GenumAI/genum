@@ -13,8 +13,8 @@ import { checkPromptAccess, checkTestcaseAccess } from "@/services/access/Access
 import { db } from "@/database/db";
 import { callPromptModel, runPrompt } from "@/ai/runner/run";
 import { compareSteps } from "@/ai/steps/compare";
-import { replayTrajectory } from "@/ai/steps/replay";
-import { StepsSchema, StepsConfigSchema } from "@/ai/steps/schema";
+import { maxStepsForRecording, replayTrajectory } from "@/ai/steps/replay";
+import { hasEnabledStep, StepsSchema, StepsConfigSchema } from "@/ai/steps/schema";
 import {
 	DEFAULT_STEPS_CONFIG,
 	type Step,
@@ -31,6 +31,7 @@ import {
 	SourceType,
 } from "@/services/logger";
 import { type FileInput, fileService } from "@/services/file.service";
+import { normalize } from "@/utils/normalize";
 
 export class TestcasesController {
 	async getAllTestcases(req: Request, res: Response) {
@@ -203,6 +204,9 @@ export class TestcasesController {
 			// every trajectory testcase. `run` ends up holding the last turn, which is the
 			// one whose answer the testcase records.
 			try {
+				const recorded = expectedSteps.filter(
+					(step): step is ToolCallStep => step.kind === "tool_call",
+				);
 				replay = await replayTrajectory({
 					callModel: async (messages) => {
 						run = await callPromptModel(
@@ -211,9 +215,10 @@ export class TestcasesController {
 						);
 						return run;
 					},
-					recorded: expectedSteps.filter(
-						(step): step is ToolCallStep => step.kind === "tool_call",
-					),
+					recorded,
+					// The bound comes from what was recorded: a fixed default shorter than
+					// the trajectory stops it at `step_limit` and writes NOK on every run.
+					maxSteps: maxStepsForRecording(recorded.length),
 				});
 			} catch (error) {
 				// The turns that completed before this one were charged to the quota but
@@ -428,7 +433,7 @@ export function assertTrajectory(
  * the way out so a row written before that guard, or by hand, fails loudly instead of
  * quietly asserting nothing at all.
  */
-function readExpectedSteps(value: unknown): Step[] | null {
+export function readExpectedSteps(value: unknown): Step[] | null {
 	if (value === null || value === undefined) {
 		return null;
 	}
@@ -437,9 +442,12 @@ function readExpectedSteps(value: unknown): Step[] | null {
 		throw new Error("Testcase expectedSteps is not a valid trajectory");
 	}
 	// An empty array pins nothing, so on the trajectory path it would match anything the
-	// model did -- a testcase that can never fail. `.min(1)` keeps one out at the create
-	// boundary; a row that has one anyway is treated as the text testcase it really is.
-	return parsed.data.length > 0 ? parsed.data : null;
+	// model did -- a testcase that can never fail. An all-unticked array is the same hole
+	// with a non-zero length, since `compareSteps` skips every disabled step, so the test
+	// is the write side's own predicate and not `length > 0`. `EnabledStepsSchema` keeps
+	// both out at the create boundary; a row that has one anyway -- written before that
+	// guard, or bypassing Zod -- is treated as the text testcase it really is.
+	return hasEnabledStep(parsed.data) ? parsed.data : null;
 }
 
 function readStepsConfig(value: unknown): StepsConfig | null {
@@ -460,31 +468,5 @@ function getTestcaseStatus(lastOutput: string, expectedOutput: string) {
 	} catch (e) {
 		console.error(e);
 		return TestCaseStatus.NOK;
-	}
-}
-
-function sortKeys(value: unknown): unknown {
-	if (Array.isArray(value)) {
-		return value.map(sortKeys);
-	} else if (value !== null && typeof value === "object") {
-		return Object.keys(value as Record<string, unknown>)
-			.filter((key) => key !== "chainOfThoughts") // exclude chainOfThought
-			.sort()
-			.reduce((acc: Record<string, unknown>, key) => {
-				acc[key] = sortKeys((value as Record<string, unknown>)[key]);
-				return acc;
-			}, {});
-	}
-	return value;
-}
-
-function normalize(input: unknown): string {
-	try {
-		const parsed = JSON.parse(String(input));
-		// convert object to standard view, sorting keys (without chainOfThought)
-		return JSON.stringify(sortKeys(parsed));
-	} catch {
-		// if not JSON, simply convert string to one view
-		return String(input).trim().toLowerCase();
 	}
 }
