@@ -15,6 +15,7 @@ export type ProviderRequest = {
 	promptPrice: number;
 	completionPrice: number;
 	baseUrl?: string; // For custom OpenAI-compatible providers
+	messages?: ConversationMessage[];
 };
 
 /**
@@ -29,6 +30,14 @@ export type ToolCall = {
 	name: string;
 	args: Record<string, unknown>;
 };
+
+/**
+ * Turns after the opening question. Absent for a single-shot run, which is every
+ * caller that existed before agentic replay.
+ */
+export type ConversationMessage =
+	| { role: "assistant"; content: string; toolCalls?: ToolCall[] }
+	| { role: "tool"; toolCallId: string; name: string; content: string };
 
 export type ProviderResponse = {
 	answer: string;

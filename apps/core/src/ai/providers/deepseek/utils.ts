@@ -14,10 +14,32 @@ export function mapMessagesDeepSeek(request: ProviderRequest): ChatCompletionMes
 		throw new Error("DeepSeek models do not support file attachments");
 	}
 
-	return [
+	const messages: ChatCompletionMessageParam[] = [
 		{ role: "system", content: request.instruction },
 		{ role: "user", content: request.question },
 	];
+
+	for (const message of request.messages ?? []) {
+		if (message.role === "assistant") {
+			messages.push({
+				role: "assistant",
+				content: message.content,
+				tool_calls: message.toolCalls?.map((call) => ({
+					id: call.id,
+					type: "function" as const,
+					function: { name: call.name, arguments: JSON.stringify(call.args) },
+				})),
+			});
+		} else {
+			messages.push({
+				role: "tool",
+				tool_call_id: message.toolCallId,
+				content: message.content,
+			});
+		}
+	}
+
+	return messages;
 }
 
 /** Our flat FunctionCall shape into the nested shape chat completions expects. */

@@ -1,6 +1,8 @@
 import {
+	type Content,
 	type ContentListUnion,
 	type GenerateContentConfig,
+	type Part,
 	ThinkingLevel,
 	Type,
 } from "@google/genai";
@@ -136,20 +138,54 @@ export function mapConfigToGemini(request: ProviderRequest): GenerateContentConf
 }
 
 export function mapContentsToGeminiFormat(request: ProviderRequest): ContentListUnion {
-	if (request.files && request.files.length > 0) {
-		const parts = request.files.map((file) => ({
-			inlineData: {
-				mimeType: file.contentType,
-				data: file.buffer.toString("base64"),
-			},
-		}));
+	const opening: ContentListUnion =
+		request.files && request.files.length > 0
+			? [
+					{ text: request.question },
+					...request.files.map((file) => ({
+						inlineData: {
+							mimeType: file.contentType,
+							data: file.buffer.toString("base64"),
+						},
+					})),
+				]
+			: request.question;
 
-		const contents = [{ text: request.question }, ...parts];
-
-		return contents;
-	} else {
-		return request.question;
+	if (!request.messages || request.messages.length === 0) {
+		return opening;
 	}
+
+	const contents: Content[] = [
+		{
+			role: "user",
+			parts: typeof opening === "string" ? [{ text: opening }] : (opening as Part[]),
+		},
+	];
+
+	for (const message of request.messages) {
+		if (message.role === "assistant") {
+			contents.push({
+				role: "model",
+				parts: (message.toolCalls ?? []).map((call) => ({
+					functionCall: { name: call.name, args: call.args },
+				})),
+			});
+		} else {
+			contents.push({
+				role: "user",
+				parts: [
+					{
+						functionResponse: {
+							name: message.name,
+							response: { result: message.content },
+						},
+					},
+				],
+			});
+		}
+	}
+
+	return contents;
 }
 
 function mapReasoningEffortToGeminiThinkingLevel(
