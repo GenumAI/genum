@@ -96,7 +96,12 @@ export function usePlaygroundPromptRun({
 			};
 
 			if (!testcaseId) {
+				// A second "Run" pressed while this one is in flight discards this
+				// trajectory (via clearTrajectory above); a response that lands after must
+				// not seed the trajectory -- or its traceId -- that replaced it.
+				const generation = trajectoryGeneration.current;
 				const result = await promptApi.runPrompt(promptId, runParams);
+				if (trajectoryGeneration.current !== generation) return;
 				if (result) {
 					setLastRunResult(result);
 					setOutputContent(result);
@@ -184,6 +189,7 @@ export function usePlaygroundPromptRun({
 		warnAboutIgnoredPlaceholders,
 		clearTrajectory,
 		setTrajectory,
+		trajectoryGeneration,
 	]);
 
 	// The author supplied a result for the tool the run is paused on. Once every tool
