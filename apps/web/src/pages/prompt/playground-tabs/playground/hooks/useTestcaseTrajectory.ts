@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { useToast } from "@/hooks/useToast";
@@ -88,6 +88,19 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 		},
 	});
 
+	// The mirror of the guard in usePlaygroundTestcase: that side skips writing
+	// `expectedSteps` while a panel write is in flight, because our `testcase` is known to
+	// be behind between the click and the response. The same is true here of the
+	// expected-output save, which rewrites the final step's text -- our copy of the steps
+	// still carries the OLD text, and this panel's payload is the whole array, so there is
+	// no "skip one field" option to take: sending it at all would land the stale final
+	// step second and leave expectedOutput and the final step disagreeing, which is the
+	// two-expected-answers split this feature exists to remove. So the panel blocks
+	// instead, for the few hundred ms of the PUT, through the `disabled` path every
+	// control already reads.
+	const expectedWriteInFlight =
+		useIsMutating({ mutationKey: testcaseKeys.updateExpected(testcaseId ?? undefined) }) > 0;
+
 	/**
 	 * The boundary rejects an expectedSteps with nothing enabled -- a testcase that
 	 * asserts nothing always passes. Rather than send a request we know will 400, the
@@ -100,17 +113,22 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 
 	const setStepEnabled = useCallback(
 		async (index: number, enabled: boolean) => {
+			// `disabled` already keeps the controls from being clicked; this catches the
+			// click that beat the re-render. Both writes carry the whole `expectedSteps`
+			// array, so either one landing on stale steps overwrites the other's field.
+			if (expectedWriteInFlight) return;
 			if (!enabled && wouldEmptyTrajectory(index)) return;
 			await mutateAsync({ expectedSteps: withStepPatch(steps, index, { enabled }) });
 		},
-		[mutateAsync, steps, wouldEmptyTrajectory],
+		[expectedWriteInFlight, mutateAsync, steps, wouldEmptyTrajectory],
 	);
 
 	const setStepArgsMatch = useCallback(
 		async (index: number, argsMatch: ArgsMatch) => {
+			if (expectedWriteInFlight) return;
 			await mutateAsync({ expectedSteps: withStepPatch(steps, index, { argsMatch }) });
 		},
-		[mutateAsync, steps],
+		[expectedWriteInFlight, mutateAsync, steps],
 	);
 
 	const setOrderMatters = useCallback(
@@ -126,8 +144,11 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 	 * expectedOutput has been kept in step with the final step all along.
 	 */
 	const removeTrajectory = useCallback(async () => {
+		// Same race, worse outcome: an expected-output save carrying the old array landing
+		// after this one would put the trajectory back.
+		if (expectedWriteInFlight) return;
 		await mutateAsync({ expectedSteps: null });
-	}, [mutateAsync]);
+	}, [expectedWriteInFlight, mutateAsync]);
 
 	return {
 		steps,
@@ -139,7 +160,10 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 		// and so would date a stale verdict to the moment its rules changed.
 		lastRunAt: testcase?.lastRunAt ?? null,
 		hasTrajectory,
-		saving: isPending,
+		// Drives every control's `disabled`. An expected-output save in flight blocks the
+		// panel for the same reason a panel save does: whichever write lands second wins
+		// the whole `expectedSteps` array, and one of them is holding a stale copy.
+		saving: isPending || expectedWriteInFlight,
 		wouldEmptyTrajectory,
 		setStepEnabled,
 		setStepArgsMatch,
