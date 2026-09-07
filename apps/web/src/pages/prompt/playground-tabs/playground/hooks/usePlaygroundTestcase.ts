@@ -6,7 +6,7 @@ import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
 import { withFinalText } from "@/lib/trajectoryEdits";
 import type { TestCase } from "@/types/TestСase";
 import type { Step } from "@/types/steps";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import usePlaygroundStore from "@/stores/playground.store";
 
@@ -148,6 +148,12 @@ export function usePlaygroundTestcaseController({
 		if (!testcaseId || !testcases.length) return null;
 		return testcases.find((tc) => tc.id === Number(testcaseId)) || null;
 	}, [testcases, testcaseId]);
+
+	// `testcase` comes from the query cache, which only learns about a TrajectoryPanel edit
+	// once that edit's PUT resolves. Between the click and the response our copy of
+	// `expectedSteps` is known to be behind, so the expected-output save must not write it.
+	const trajectoryWriteInFlight =
+		useIsMutating({ mutationKey: testcaseKeys.updateTrajectory(testcaseId ?? undefined) }) > 0;
 
 	// The playground's placeholder chips are seeded from the selected testcase's pinned
 	// selection (Task 8) so the chips show -- and the run sends -- what will actually be
@@ -335,7 +341,13 @@ export function usePlaygroundTestcaseController({
 				// Writing only the field the author can see would change nothing the test
 				// checks. expectedOutput is written too, so the text testcase underneath
 				// is already correct if the trajectory is later removed.
-				const steps = testcase?.expectedSteps;
+				// ...unless the TrajectoryPanel has a write of its own in flight. Both
+				// surfaces send the WHOLE array, so ours is a read-modify-write over a copy
+				// that the in-flight edit has already superseded: sending it would revert
+				// the step the author just unticked, and the later PUT wins. Skipping the
+				// step sync costs one stale final-step text, which the next save corrects;
+				// sending it silently undoes an explicit action, which nothing corrects.
+				const steps = trajectoryWriteInFlight ? undefined : testcase?.expectedSteps;
 				if (Array.isArray(steps) && steps.length > 0) {
 					const next = withFinalText(steps, newExpectedContent.answer);
 					// Identity means there was no final step to rewrite: a trajectory whose
@@ -357,6 +369,7 @@ export function usePlaygroundTestcaseController({
 			storeOutputContent,
 			testcase,
 			testcaseId,
+			trajectoryWriteInFlight,
 			updateExpectedAsync,
 		],
 	);
