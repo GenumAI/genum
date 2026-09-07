@@ -151,17 +151,37 @@ describe("compareSteps", () => {
 	});
 
 	// Finding (b): greedy matching can fail when two expected steps could match the same actual
-	it("correctly matches when two expected steps call the same tool", () => {
+	it("resolves ambiguity between loose and strict matchers competing for same actual step", () => {
 		const expected: Step[] = [
-			{ ...weather({ city: "Berlin" }), argsMatch: "exact" },
-			{ ...weather({ city: "Paris" }), argsMatch: "exact" },
+			{
+				kind: "tool_call",
+				name: "search",
+				argsMatch: "ignore",
+			},
+			{
+				kind: "tool_call",
+				name: "search",
+				args: { q: "cats" },
+				argsMatch: "exact",
+			},
 		];
 		const actual: Step[] = [
-			weather({ city: "Paris" }),
-			weather({ city: "Berlin" }),
+			{ kind: "tool_call", name: "search", args: { q: "cats" } },
+			{ kind: "tool_call", name: "search", args: { q: "dogs" } },
 		];
-		// Greedy would pick Paris for the first, then fail on Berlin.
-		// Backtracking should succeed.
+		// Greedy algorithm:
+		// - Expected[0] (search, ignore) matches actual[0] first → consume actual[0]
+		// - Expected[1] (search, exact, {q:"cats"}) now looks for matches
+		//   - actual[0] is consumed, skip
+		//   - actual[1] = {q:"dogs"} does not match {q:"cats"} exactly → MISMATCH
+		// Result: [{ index: 1, reason: "...called with different arguments..." }]
+		//
+		// Correct assignment via backtracking:
+		// - Try expected[0] with actual[0]: recurse
+		//   - Try expected[1] with actual[1]: args don't match → backtrack
+		// - Try expected[0] with actual[1]: recurse
+		//   - Try expected[1] with actual[0]: args match → success
+		// Result: []
 		expect(compareSteps(expected, actual, DEFAULT_STEPS_CONFIG)).toEqual([]);
 	});
 

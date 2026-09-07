@@ -86,7 +86,6 @@ function tryMatchUnordered(
 	expected: Step[],
 	actual: Step[],
 	enabledIndices: number[],
-	actualIndex: number = 0,
 	consumed: Set<number> = new Set(),
 	depth: number = 0,
 ): Set<number> | undefined {
@@ -107,7 +106,7 @@ function tryMatchUnordered(
 		if (stepMatches(expectedStep, actualStep)) {
 			// Try this assignment and recurse
 			consumed.add(i);
-			const result = tryMatchUnordered(expected, actual, enabledIndices, 0, consumed, depth + 1);
+			const result = tryMatchUnordered(expected, actual, enabledIndices, consumed, depth + 1);
 			if (result !== undefined) {
 				return result;
 			}
