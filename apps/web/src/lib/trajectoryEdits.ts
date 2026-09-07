@@ -35,10 +35,14 @@ export function withFinalText(steps: Step[], text: string): Step[] {
 	return steps.map((step, i) => (i === finalIndex ? { ...step, text } : step));
 }
 
+function isStepMismatch(mismatch: StepMismatch | undefined): boolean {
+	return typeof mismatch?.index === "number" && typeof mismatch?.reason === "string";
+}
+
 /**
  * `lastMismatches` is a `Json?` column, so what comes back is only as trustworthy as what
- * went in. A malformed entry is dropped rather than rendered, and a wholly malformed list
- * degrades to "no per-step marks" instead of breaking the panel.
+ * went in. A malformed entry is dropped rather than rendered, and a list any of whose
+ * entries is malformed licenses no marks at all -- see `hasStepComparison`.
  */
 export function mismatchByIndex(
 	mismatches: StepMismatch[] | null | undefined,
@@ -47,7 +51,7 @@ export function mismatchByIndex(
 	if (!Array.isArray(mismatches)) return byIndex;
 
 	for (const mismatch of mismatches) {
-		if (typeof mismatch?.index === "number" && typeof mismatch?.reason === "string") {
+		if (isStepMismatch(mismatch)) {
 			byIndex.set(mismatch.index, mismatch.reason);
 		}
 	}
@@ -63,11 +67,16 @@ export function mismatchByIndex(
  *
  * `lastSteps` cannot answer this -- it is written on every trajectory run, compared or not.
  * An array is the wire signal for "compared", `[]` included (`Boolean([])` is true, so the
- * check is `Array.isArray`, never truthiness). A non-empty array none of whose entries
- * survive `mismatchByIndex` is unreadable rather than passing, and degrades to no marks --
- * the promise the JSDoc above makes.
+ * check is `Array.isArray`, never truthiness).
+ *
+ * The list must be readable in full, not merely in part. If one entry is malformed, the
+ * step it named is the step that failed, and dropping it renders that step green off an
+ * entry we could not read -- the same mistake as treating "never compared" as "passed",
+ * one step down. Counting readable entries rather than the map's size is deliberate: a
+ * list that names the same index twice would shrink the map below its own length and be
+ * misread as unreadable.
  */
 export function hasStepComparison(mismatches: StepMismatch[] | null | undefined): boolean {
 	if (!Array.isArray(mismatches)) return false;
-	return mismatches.length === 0 || mismatchByIndex(mismatches).size > 0;
+	return mismatches.every(isStepMismatch);
 }

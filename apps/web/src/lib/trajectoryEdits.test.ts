@@ -111,4 +111,27 @@ describe("hasStepComparison", () => {
 		expect(mismatchByIndex(garbage).size).toBe(0);
 		expect(hasStepComparison(garbage)).toBe(false);
 	});
+
+	it("is false when only SOME entries are unusable", () => {
+		// The dangerous half of the same bug. A dropped entry names the step that
+		// failed, so rendering the rest would paint that step green off an entry we
+		// could not read.
+		const mixed = [
+			{ index: 1, reason: "wrong tool" },
+			{ index: "x" },
+		] as unknown as StepMismatch[];
+		expect(mismatchByIndex(mixed).size).toBe(1);
+		expect(hasStepComparison(mixed)).toBe(false);
+	});
+
+	it("is true for a readable list that names one index twice", () => {
+		// Counting readable entries, not the map's size: a duplicate index collapses in
+		// the map, and comparing size to length would misread this as unreadable.
+		const duplicated = [
+			{ index: 2, reason: "first" },
+			{ index: 2, reason: "second" },
+		];
+		expect(mismatchByIndex(duplicated).size).toBe(1);
+		expect(hasStepComparison(duplicated)).toBe(true);
+	});
 });
