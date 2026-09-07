@@ -2,6 +2,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 
 import { Trash2, Loader2 } from "lucide-react";
+import { Wrench } from "@phosphor-icons/react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import TestCaseStatus from "@/pages/prompt/playground-tabs/testcases/TestCaseStatus";
@@ -92,7 +93,25 @@ export const useTestcasesColumns = ({
 		{
 			accessorKey: "name",
 			header: ({ column }) => <TableSortButton column={column} headerText="Testcase" />,
-			cell: ({ row }) => <span className="font-medium">{row.getValue("name")}</span>,
+			cell: ({ row }) => {
+				const steps = row.original.expectedSteps;
+				const stepCount = Array.isArray(steps) ? steps.length : 0;
+
+				return (
+					<span className="flex items-center gap-2">
+						<span className="font-medium">{row.getValue("name")}</span>
+						{stepCount > 0 && (
+							<span
+								className="flex items-center gap-1 text-xs text-muted-foreground"
+								title={`Asserts a recorded trajectory of ${stepCount} steps`}
+							>
+								<Wrench size={12} />
+								{stepCount}
+							</span>
+						)}
+					</span>
+				);
+			},
 			enableSorting: true,
 		},
 		...(!hidePromptColumn ? [promptColumn] : []),
