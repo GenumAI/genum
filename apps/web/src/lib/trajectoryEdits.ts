@@ -40,7 +40,9 @@ export function withFinalText(steps: Step[], text: string): Step[] {
  * went in. A malformed entry is dropped rather than rendered, and a wholly malformed list
  * degrades to "no per-step marks" instead of breaking the panel.
  */
-export function mismatchByIndex(mismatches: StepMismatch[] | undefined): Map<number, string> {
+export function mismatchByIndex(
+	mismatches: StepMismatch[] | null | undefined,
+): Map<number, string> {
 	const byIndex = new Map<number, string>();
 	if (!Array.isArray(mismatches)) return byIndex;
 

@@ -31,10 +31,7 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 	);
 
 	const mismatches = useMemo(
-		() =>
-			mismatchByIndex(
-				Array.isArray(testcase?.lastMismatches) ? testcase.lastMismatches : undefined,
-			),
+		() => mismatchByIndex(testcase?.lastMismatches),
 		[testcase?.lastMismatches],
 	);
 
