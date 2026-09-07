@@ -39,9 +39,19 @@ export type TrajectoryDraft = {
 	steps: Step[];
 	messages: ConversationMessage[];
 	pending: PendingToolCall[];
+	/**
+	 * The trace the server minted for this trajectory's first turn. Echoed back on every
+	 * continuation so N requests are logged as one run; null until a tool is called.
+	 */
+	traceId: string | null;
 };
 
-const EMPTY_TRAJECTORY: TrajectoryDraft = { steps: [], messages: [], pending: [] };
+const EMPTY_TRAJECTORY: TrajectoryDraft = {
+	steps: [],
+	messages: [],
+	pending: [],
+	traceId: null,
+};
 
 interface PlaygroundDraftData {
 	inputDrafts: Record<string, string>;

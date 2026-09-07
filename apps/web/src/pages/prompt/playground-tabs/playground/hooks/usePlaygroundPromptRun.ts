@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, type MutableRefObject } from "react";
 import { promptApi } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
@@ -27,6 +27,7 @@ export function usePlaygroundPromptRun({
 	trajectory,
 	setTrajectory,
 	clearTrajectory,
+	trajectoryGeneration,
 	setRunState,
 	setOutputContent,
 	setStatus,
@@ -44,6 +45,8 @@ export function usePlaygroundPromptRun({
 	trajectory: TrajectoryDraft;
 	setTrajectory: (updater: (prev: TrajectoryDraft) => TrajectoryDraft) => void;
 	clearTrajectory: () => void;
+	/** Bumped whenever the trajectory is discarded; see `usePlaygroundTrajectory`. */
+	trajectoryGeneration: MutableRefObject<number>;
 	setRunState: (state: { loading: boolean; wasRun?: boolean }) => void;
 	setOutputContent: (value: PromptResponse | null) => void;
 	setStatus: (status: string) => void;
@@ -113,6 +116,9 @@ export function usePlaygroundPromptRun({
 							steps,
 							messages: [{ role: "assistant", content: result.answer, toolCalls }],
 							pending: toolCalls.map((call, index) => ({ call, stepIndex: index })),
+							// Minted by the server for this turn; every continuation
+							// echoes it back so the turns log as one run, not N.
+							traceId: result.traceId ?? null,
 						}));
 					}
 				}
@@ -214,7 +220,8 @@ export function usePlaygroundPromptRun({
 
 			if (restPending.length > 0) {
 				// More tool calls from the same turn are still waiting on a result.
-				setTrajectory(() => ({
+				setTrajectory((prev) => ({
+					...prev,
 					steps: stepsSoFar,
 					messages: messagesSoFar,
 					pending: restPending,
@@ -222,9 +229,22 @@ export function usePlaygroundPromptRun({
 				return;
 			}
 
-			setTrajectory(() => ({ steps: stepsSoFar, messages: messagesSoFar, pending: [] }));
+			const traceId = trajectory.traceId;
+			setTrajectory((prev) => ({
+				...prev,
+				steps: stepsSoFar,
+				messages: messagesSoFar,
+				pending: [],
+			}));
+			// The Run button's spinner is fed by the session store, not the prompt store:
+			// without this the whole continuation round trip showed no sign of life --
+			// `pendingTool` is already null, so the pane is just a static list.
+			setRunState({ loading: true });
 			setRunLoading(true);
 			setRunError(null);
+			// A "Run" (or a testcase/prompt switch) mid-flight discards this trajectory;
+			// the response that lands afterwards must not write into whatever replaced it.
+			const generation = trajectoryGeneration.current;
 
 			try {
 				const nextResult = await promptApi.runPrompt(promptId, {
@@ -232,7 +252,9 @@ export function usePlaygroundPromptRun({
 					...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
 					placeholders: placeholderSelection,
 					messages: messagesSoFar,
+					...(traceId ? { traceId } : {}),
 				});
+				if (trajectoryGeneration.current !== generation) return;
 				setLastRunResult(nextResult);
 				setOutputContent(nextResult);
 				warnAboutIgnoredPlaceholders(nextResult.placeholders?.ignored);
@@ -246,6 +268,7 @@ export function usePlaygroundPromptRun({
 						args: call.args,
 					}));
 					setTrajectory((prev) => ({
+						...prev,
 						steps: [...prev.steps, ...newSteps],
 						messages: [
 							...prev.messages,
@@ -262,12 +285,14 @@ export function usePlaygroundPromptRun({
 					}));
 				} else {
 					setTrajectory((prev) => ({
+						...prev,
 						steps: [...prev.steps, { kind: "final", text: nextResult.answer }],
 						messages: prev.messages,
 						pending: [],
 					}));
 				}
 			} catch (err: unknown) {
+				if (trajectoryGeneration.current !== generation) return;
 				const error = err instanceof Error ? err : new Error("Failed to continue the run");
 				console.error("Failed to continue the agentic run:", err);
 				setRunError(error.message);
@@ -278,16 +303,22 @@ export function usePlaygroundPromptRun({
 					duration: 6000,
 				});
 			} finally {
-				setRunLoading(false);
+				// A newer run owns the spinner now; clearing it here would hide theirs.
+				if (trajectoryGeneration.current === generation) {
+					setRunState({ loading: false });
+					setRunLoading(false);
+				}
 			}
 		},
 		[
 			promptId,
 			trajectory,
 			setTrajectory,
+			trajectoryGeneration,
 			inputContent,
 			selectedFiles,
 			placeholderSelection,
+			setRunState,
 			setRunLoading,
 			setRunError,
 			setLastRunResult,

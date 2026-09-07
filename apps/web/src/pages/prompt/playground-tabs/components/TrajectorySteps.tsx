@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Wrench, ChatText } from "@phosphor-icons/react";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +12,12 @@ interface TrajectoryStepsProps {
 	/** Tool the run is paused on, waiting for the author to supply a result. */
 	pendingTool: string | null;
 	onToolResult: (name: string, result: string) => void;
+	/**
+	 * A turn is in flight. Between submitting a tool result and the model's reply there
+	 * is no pending tool and no new step, so without this the pane is a static list with
+	 * no sign that anything is happening.
+	 */
+	isRunning?: boolean;
 }
 
 /**
@@ -18,7 +25,12 @@ interface TrajectoryStepsProps {
  * never will be: the author supplies the result, which is what makes the run recordable
  * and, later, replayable.
  */
-export function TrajectorySteps({ steps, pendingTool, onToolResult }: TrajectoryStepsProps) {
+export function TrajectorySteps({
+	steps,
+	pendingTool,
+	onToolResult,
+	isRunning = false,
+}: TrajectoryStepsProps) {
 	const [result, setResult] = useState("");
 
 	return (
@@ -54,6 +66,15 @@ export function TrajectorySteps({ steps, pendingTool, onToolResult }: Trajectory
 					</CardContent>
 				</Card>
 			))}
+
+			{isRunning && !pendingTool && (
+				<Card>
+					<CardContent className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+						<Loader2 className="h-4 w-4 animate-spin" />
+						Waiting for the model...
+					</CardContent>
+				</Card>
+			)}
 
 			{pendingTool && (
 				<Card>

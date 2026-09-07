@@ -56,10 +56,11 @@ export function usePlaygroundController({
 		promptId,
 		testcaseId,
 	});
-	const { trajectory, setTrajectory, clearTrajectory } = usePlaygroundTrajectory({
-		promptId,
-		testcaseId,
-	});
+	const { trajectory, setTrajectory, clearTrajectory, trajectoryGeneration } =
+		usePlaygroundTrajectory({
+			promptId,
+			testcaseId,
+		});
 	const [isPromptChangedAfterAudit, setIsPromptChangedAfterAudit] = useState(false);
 	const {
 		status,
@@ -173,6 +174,7 @@ export function usePlaygroundController({
 		trajectory,
 		setTrajectory,
 		clearTrajectory,
+		trajectoryGeneration,
 		setRunState,
 		setOutputContent,
 		setStatus,

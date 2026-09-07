@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import usePlaygroundStore, { type TrajectoryDraft } from "@/stores/playground.store";
 
 /**
@@ -17,6 +17,15 @@ export function usePlaygroundTrajectory({
 		state.getTrajectoryDraft(promptId, testcaseId),
 	);
 
+	/**
+	 * Bumped every time the trajectory this hook points at is discarded or swapped out.
+	 * A continuation turn is a network round trip; without this, a response that lands
+	 * after the author pressed "Run" (or switched testcase) would append its steps onto
+	 * the freshly emptied trajectory, resurrecting a stale turn into a new recording --
+	 * wrong data in the exact structure this feature freezes into a testcase.
+	 */
+	const generationRef = useRef(0);
+
 	const setTrajectory = useCallback(
 		(updater: (prev: TrajectoryDraft) => TrajectoryDraft) => {
 			usePlaygroundStore.getState().setTrajectoryDraft(promptId, testcaseId, updater);
@@ -25,8 +34,16 @@ export function usePlaygroundTrajectory({
 	);
 
 	const clearTrajectory = useCallback(() => {
+		generationRef.current += 1;
 		usePlaygroundStore.getState().clearTrajectoryDraft(promptId, testcaseId);
 	}, [promptId, testcaseId]);
 
-	return { trajectory, setTrajectory, clearTrajectory };
+	// Scoping alone would send a late response to the right store key, but the author is
+	// looking at a different prompt: the turn is no longer theirs to finish.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the scope IS the dependency
+	useEffect(() => {
+		generationRef.current += 1;
+	}, [promptId, testcaseId]);
+
+	return { trajectory, setTrajectory, clearTrajectory, trajectoryGeneration: generationRef };
 }

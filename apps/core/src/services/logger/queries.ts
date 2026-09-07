@@ -3,6 +3,15 @@
  * All queries use parameterized WHERE clauses for SQL injection protection
  */
 
+/**
+ * A trajectory's continuation turns ("prt") are real provider calls -- their tokens and
+ * cost belong in every sum -- but they are turns of ONE run, not N runs. Counting them
+ * would inflate run counts and deflate every per-run cost average, which is the whole
+ * reason the type exists (see `LogType.PromptRunTurn`). Expressed as a `countIf` rather
+ * than a WHERE clause so the sums beside it still cover every billed turn.
+ */
+const RUN_COUNT = "countIf(log_type != 'prt')";
+
 export const QUERIES = {
 	/**
 	 * Count total records matching WHERE clause
@@ -29,7 +38,7 @@ export const QUERIES = {
 	 */
 	PROJECT_STATS: (table: string, where: string) => `
 		SELECT
-			count() as total_requests,
+			${RUN_COUNT} as total_requests,
 			sum(tokens_in) as total_tokens_in,
 			sum(tokens_out) as total_tokens_out,
 			sum(tokens_sum) as total_tokens_sum,
@@ -45,13 +54,13 @@ export const QUERIES = {
 	PROMPT_STATS: (table: string, where: string) => `
 		SELECT
 			prompt_id,
-			count() as total_requests,
+			${RUN_COUNT} as total_requests,
 			sum(tokens_in) as total_tokens_in,
 			sum(tokens_out) as total_tokens_out,
 			sum(tokens_sum) as total_tokens_sum,
 			avg(response_ms) as average_response_ms,
 			sum(cost) as total_cost,
-			countIf(log_lvl = 'SUCCESS') as success_count,
+			countIf(log_lvl = 'SUCCESS' AND log_type != 'prt') as success_count,
 			countIf(log_lvl = 'ERROR') as error_count,
 			max(timestamp) as last_used,
 			min(timestamp) as first_used
@@ -69,7 +78,7 @@ export const QUERIES = {
 		SELECT
 			model,
 			vendor,
-			count() as total_requests,
+			${RUN_COUNT} as total_requests,
 			sum(tokens_in) as total_tokens_in,
 			sum(tokens_out) as total_tokens_out,
 			sum(tokens_sum) as total_tokens_sum,
@@ -88,7 +97,7 @@ export const QUERIES = {
 	USER_STATS: (table: string, where: string) => `
 		SELECT
 			user_id,
-			count() as total_requests,
+			${RUN_COUNT} as total_requests,
 			sum(tokens_sum) as total_tokens_sum,
 			sum(cost) as total_cost,
 			max(timestamp) as last_activity,
@@ -106,7 +115,7 @@ export const QUERIES = {
 	API_KEY_STATS: (table: string, where: string) => `
 		SELECT
 			api_key_id,
-			count() as total_requests,
+			${RUN_COUNT} as total_requests,
 			sum(tokens_sum) as total_tokens_sum,
 			sum(cost) as total_cost,
 			max(timestamp) as last_activity
@@ -123,7 +132,7 @@ export const QUERIES = {
 	PROJECT_DAILY_STATS: (table: string, where: string) => `
 		SELECT
 			toDate(timestamp) as date,
-			count() as total_requests,
+			${RUN_COUNT} as total_requests,
 			sum(tokens_sum) as total_tokens_sum,
 			sum(cost) as total_cost
 		FROM ${table}
@@ -138,14 +147,14 @@ export const QUERIES = {
 	ORGANIZATION_DAILY_STATS: (table: string, where: string) => `
 		SELECT
 			toDate(timestamp) as date,
-			count() as total_requests,
+			${RUN_COUNT} as total_requests,
 			sum(tokens_sum) as total_tokens,
 			sum(cost) as total_cost,
 			project_id,
 			source,
 			vendor,
 			model,
-			count() as requests,
+			${RUN_COUNT} as requests,
 			sum(tokens_sum) as tokens,
 			sum(cost) as cost
 		FROM ${table}
@@ -168,7 +177,7 @@ export const QUERIES = {
 	 * Count runs by date range
 	 */
 	COUNT_BY_DATE: (table: string) => `
-		SELECT count() as total
+		SELECT ${RUN_COUNT} as total
 		FROM ${table}
 		WHERE timestamp >= {fromDate: DateTime} AND timestamp <= {toDate: DateTime}
 	`,

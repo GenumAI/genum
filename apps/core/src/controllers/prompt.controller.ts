@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { db } from "@/database/db";
 import { runPrompt } from "../ai/runner/run";
@@ -39,7 +40,8 @@ import type { CanvasAgentMessage, CanvasAgentParams, CanvasMessage } from "@/ai/
 import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
 import type { ModelConfigParameters } from "@/ai/models/types";
-import { SourceType } from "@/services/logger";
+import { type LogDocument, LogType, logSpans, logUsage, SourceType } from "@/services/logger";
+import { completedTurnSteps } from "@/ai/steps/turn";
 import { renamePlaceholderKey } from "@genum/placeholders";
 import { fileService } from "@/services/file.service";
 
@@ -77,6 +79,23 @@ export class PromptsController {
 		res.status(200).json({ prompts: promptsWithStatuses });
 	}
 
+	/**
+	 * One turn of a playground run.
+	 *
+	 * The agentic loop this endpoint serves runs in the BROWSER: a tool is never executed
+	 * by Genum, the author types its result in, so a three-turn trajectory arrives as
+	 * three independent HTTP requests and the server can never know which one is the last.
+	 * That rules out the shape `TestcasesController.runTestcase` uses (hold every turn's
+	 * usage, write one summed root row at the end): usage held for a "final" turn that
+	 * never comes is usage lost every time an author abandons a trajectory half-authored.
+	 *
+	 * So each turn writes its own row as it happens -- quota is charged per turn either
+	 * way -- and the turns are tied together by a `trace_id` that turn 1 mints and the
+	 * client echoes back. Turn 1 logs as `PromptRunSuccess`, turns 2..N as
+	 * `PromptRunTurn`, which keeps a trajectory counted once by run counts. COST IS
+	 * SPLIT ACROSS BOTH TYPES: a trajectory's full cost is `sum(cost)` over `prs` + `prt`
+	 * for one `trace_id`, never the `prs` row alone.
+	 */
 	public async runPrompt(req: Request, res: Response) {
 		const id = numberSchema.parse(req.params.id);
 		const {
@@ -84,6 +103,7 @@ export class PromptsController {
 			files: filesIds,
 			placeholders,
 			messages,
+			traceId: continuedTraceId,
 		} = PromptRunSchema.parse(req.body);
 
 		const metadata = req.genumMeta.ids;
@@ -91,6 +111,7 @@ export class PromptsController {
 
 		const prompt = await checkPromptAccess(id, metadata.projID);
 
+		let turnUsage: LogDocument | undefined;
 		const run = await runPrompt({
 			prompt: prompt,
 			question,
@@ -103,9 +124,52 @@ export class PromptsController {
 			// Absent for a single-shot run -- the playground sends the accumulated
 			// conversation back only once the author has supplied a tool result.
 			messages,
+			// Diverted only so the trace can be stamped on it below; it is written on
+			// every path that would have written it, in the same turn, unsummed.
+			collectUsage: (usage) => {
+				turnUsage = usage;
+			},
 		});
 
-		res.status(200).json({ ...run });
+		// A trace exists only once a trajectory does. Turn 1 mints one when the model asks
+		// for a tool; a continuation carries the one it was given. A run against a prompt
+		// that called no tool gets none, and its row is byte-for-byte what it always was.
+		const isContinuation = continuedTraceId !== undefined;
+		const startsTrajectory = !isContinuation && !!run.toolCalls?.length;
+		const traceId = isContinuation
+			? continuedTraceId
+			: startsTrajectory
+				? randomUUID()
+				: undefined;
+
+		if (turnUsage) {
+			await logUsage({
+				...turnUsage,
+				trace_id: traceId,
+				log_type: isContinuation ? LogType.PromptRunTurn : turnUsage.log_type,
+			});
+		}
+
+		// Append-only: this turn writes the steps it completed, at the offset the
+		// conversation it carried implies. See `completedTurnSteps`. The opening turn
+		// completes nothing -- its calls have no results until the author supplies them.
+		const { steps, spanIndexOffset } = traceId
+			? completedTurnSteps(messages, run)
+			: { steps: [], spanIndexOffset: 0 };
+		if (traceId && turnUsage && steps.length > 0) {
+			await logSpans({
+				trace_id: traceId,
+				orgId: turnUsage.orgId,
+				project_id: turnUsage.project_id,
+				prompt_id: turnUsage.prompt_id,
+				vendor: turnUsage.vendor,
+				model: turnUsage.model,
+				steps,
+				spanIndexOffset,
+			});
+		}
+
+		res.status(200).json({ ...run, traceId });
 	}
 
 	public async getModels(req: Request, res: Response) {

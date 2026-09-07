@@ -17,6 +17,21 @@ export enum LogLevel {
 
 export enum LogType {
 	PromptRunSuccess = "prs",
+	/**
+	 * A continuation turn of a playground trajectory: turns 2..N of one authoring
+	 * session, sharing the `trace_id` that turn 1 (logged as `PromptRunSuccess`) minted.
+	 *
+	 * The split exists because the playground's agentic loop runs in the BROWSER -- the
+	 * author types each tool result in -- so the server sees N independent requests and
+	 * can never know which turn is the last. Every turn therefore writes its own row as
+	 * it happens (usage is never held back and so never lost when a trajectory is
+	 * abandoned), and this type keeps run COUNTs honest: one trajectory is one `prs`.
+	 *
+	 * COST IS CONSEQUENTLY SPLIT ACROSS TWO ROW TYPES. The full cost of a trajectory is
+	 * `sum(cost) WHERE log_type IN ('prs', 'prt') AND trace_id = ...`, never the `prs`
+	 * row alone.
+	 */
+	PromptRunTurn = "prt",
 	PromptRunError = "pre",
 	AIError = "ae",
 	TechnicalError = "te",

@@ -68,10 +68,15 @@ export type PromptUpdateLLMConfigType = z.infer<typeof PromptUpdateLLMConfigSche
 // the conversation the playground accumulates while the author supplies tool results --
 // a tool is never executed by Genum, so this is the only place those results enter the
 // system, and arbitrary JSON here would reach the provider call unchecked.
+// Every turn of a trajectory is a billed provider call carrying the whole conversation
+// so far, so the conversation is capped here rather than left to grow without bound.
+const MAX_CONVERSATION_MESSAGES = 100;
+const MAX_MESSAGE_CONTENT = 32_000;
+
 const ToolCallSchema = z
 	.object({
-		id: z.string(),
-		name: z.string(),
+		id: z.string().min(1),
+		name: z.string().min(1),
 		args: z.record(z.string(), z.unknown()),
 	})
 	.strict();
@@ -80,16 +85,16 @@ const ConversationMessageSchema = z.discriminatedUnion("role", [
 	z
 		.object({
 			role: z.literal("assistant"),
-			content: z.string(),
+			content: z.string().max(MAX_MESSAGE_CONTENT),
 			toolCalls: z.array(ToolCallSchema).optional(),
 		})
 		.strict(),
 	z
 		.object({
 			role: z.literal("tool"),
-			toolCallId: z.string(),
-			name: z.string(),
-			content: z.string(),
+			toolCallId: z.string().min(1),
+			name: z.string().min(1),
+			content: z.string().max(MAX_MESSAGE_CONTENT),
 		})
 		.strict(),
 ]);
@@ -103,9 +108,21 @@ export const PromptRunSchema = z
 		 * Turns after the opening question, for an agentic run. Absent for a single-shot
 		 * run, which is every caller that existed before trajectory testcases.
 		 */
-		messages: z.array(ConversationMessageSchema).optional(),
+		messages: z.array(ConversationMessageSchema).max(MAX_CONVERSATION_MESSAGES).optional(),
+		/**
+		 * The trace the first turn of this trajectory minted and returned. The playground's
+		 * loop is client-side, so the server only learns that N requests are one trajectory
+		 * because the client echoes this back; a client may not choose it.
+		 */
+		traceId: z.uuid().optional(),
 	})
-	.strict();
+	.strict()
+	// Both or neither: a continuation with no trace would log turns that nothing ties
+	// together, and a trace with no conversation would log a root turn as a continuation.
+	.refine((body) => (body.messages === undefined) === (body.traceId === undefined), {
+		message: "messages and traceId must be sent together",
+		path: ["traceId"],
+	});
 
 export type PromptRunType = z.infer<typeof PromptRunSchema>;
 

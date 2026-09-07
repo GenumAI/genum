@@ -29,6 +29,12 @@ export interface PromptResponse {
 	};
 	/** Present when the model asked for tools instead of answering directly. */
 	toolCalls?: ToolCall[];
+	/**
+	 * The trace tying the turns of one trajectory together. Minted by the server on the
+	 * turn that first calls a tool; absent for a run that called none. Echo it back on
+	 * every continuation so the turns are logged as one run, not N.
+	 */
+	traceId?: string;
 }
 
 // ============================================================================
@@ -81,6 +87,8 @@ export interface RunPromptData {
 	 * and the results the author supplied for them. Absent for a single-shot run.
 	 */
 	messages?: ConversationMessage[];
+	/** Required whenever `messages` is sent: the trace the first turn returned. */
+	traceId?: string;
 }
 
 export interface AuditResponse {

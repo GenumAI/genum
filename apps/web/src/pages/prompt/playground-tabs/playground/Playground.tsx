@@ -133,24 +133,32 @@ export default function Playground() {
 							</div>
 						</div>
 
-						{trajectory.steps.length > 0 ? (
+						{/*
+						 * The trajectory sits ABOVE the output block, never in place of it:
+						 * replacing it hid "add test case" and "save as expected" for good
+						 * once a trajectory had completed, since nothing but a new run
+						 * clears one -- and those are the very affordances this feature is
+						 * being built to feed.
+						 */}
+						{trajectory.steps.length > 0 && (
 							<TrajectorySteps
 								steps={trajectory.steps}
 								pendingTool={trajectory.pendingTool}
 								onToolResult={trajectory.onToolResult}
-							/>
-						) : (
-							<OutputBlock
-								onSaveAsExpected={actions.testcase.saveAsExpected}
-								onTestcaseAdded={actions.testcase.onAdded}
-								onRegisterClearFunction={actions.testcase.registerClearFn}
-								selectedFiles={selectedFiles}
-								onTestcaseLoadingChange={setIsTestcaseLoading}
 								isRunning={ui.loading.run}
-								serverAssertionType={prompt.data?.prompt?.assertionType}
-								serverAssertionValue={prompt.data?.prompt?.assertionValue}
 							/>
 						)}
+
+						<OutputBlock
+							onSaveAsExpected={actions.testcase.saveAsExpected}
+							onTestcaseAdded={actions.testcase.onAdded}
+							onRegisterClearFunction={actions.testcase.registerClearFn}
+							selectedFiles={selectedFiles}
+							onTestcaseLoadingChange={setIsTestcaseLoading}
+							isRunning={ui.loading.run}
+							serverAssertionType={prompt.data?.prompt?.assertionType}
+							serverAssertionValue={prompt.data?.prompt?.assertionValue}
+						/>
 					</div>
 
 					<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">
