@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { useToast } from "@/hooks/useToast";
 import type { Log, PromptName } from "@/types/logs";
 import { getPromptName, isPromptDeleted } from "../utils/promptNames";
+import { LogTrajectorySection } from "./LogTrajectorySection";
 import {
 	getLogTypeDescription,
 	getSourceLabel,
@@ -290,6 +291,9 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 							</table>
 						</div>
 						<div className="mt-4 flex flex-col gap-4">
+							{selectedLog.trace_id && (
+								<LogTrajectorySection traceId={selectedLog.trace_id} />
+							)}
 							{selectedLog.in && (
 								<div>
 									<div className="mb-1 flex items-center justify-between">
