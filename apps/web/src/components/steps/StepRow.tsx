@@ -24,9 +24,10 @@ export interface StepRowProps {
 	outcomeReason?: string;
 	/**
 	 * This row records something that happened and cannot be edited at all — a log's
-	 * recorded trace. Distinct from `disabled`, which is a live control momentarily
-	 * unavailable: conflating the two makes a permanent state and a transient one
-	 * indistinguishable to the reader.
+	 * recorded trace. The checkbox and matcher select are absent from the DOM entirely
+	 * (not merely disabled). Distinct from `disabled`, which is a live control
+	 * momentarily unavailable: conflating the two makes a permanent state and a
+	 * transient one indistinguishable to the reader.
 	 */
 	readOnly?: boolean;
 	/** A write is in flight; the control is temporarily unavailable. */
@@ -54,16 +55,17 @@ export function StepRow({
 	// `enabled` is optional and absent means enabled -- the same rule the server's
 	// comparison uses. Reading it as `=== true` would render a pinned step as unticked.
 	const enabled = step.enabled !== false;
-	const inert = readOnly || disabled;
 
 	return (
 		<div className="flex items-start gap-3">
-			<Checkbox
-				className="mt-1"
-				checked={enabled}
-				disabled={inert}
-				onCheckedChange={(checked) => onEnabledChange?.(checked === true)}
-			/>
+			{!readOnly && (
+				<Checkbox
+					className="mt-1"
+					checked={enabled}
+					disabled={disabled}
+					onCheckedChange={(checked) => onEnabledChange?.(checked === true)}
+				/>
+			)}
 			{step.kind === "tool_call" ? (
 				<Wrench className="mt-1 shrink-0" size={16} />
 			) : (
@@ -82,20 +84,26 @@ export function StepRow({
 								not a genuine no-args call.
 							</p>
 						)}
-						<Select
-							value={step.argsMatch ?? "exact"}
-							disabled={inert}
-							onValueChange={(value) => onArgsMatchChange?.(value as ArgsMatch)}
-						>
-							<SelectTrigger className="mt-1 w-64">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="exact">Arguments must match exactly</SelectItem>
-								<SelectItem value="subset">Only these keys must match</SelectItem>
-								<SelectItem value="ignore">Ignore arguments</SelectItem>
-							</SelectContent>
-						</Select>
+						{!readOnly && (
+							<Select
+								value={step.argsMatch ?? "exact"}
+								disabled={disabled}
+								onValueChange={(value) => onArgsMatchChange?.(value as ArgsMatch)}
+							>
+								<SelectTrigger className="mt-1 w-64">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="exact">
+										Arguments must match exactly
+									</SelectItem>
+									<SelectItem value="subset">
+										Only these keys must match
+									</SelectItem>
+									<SelectItem value="ignore">Ignore arguments</SelectItem>
+								</SelectContent>
+							</Select>
+						)}
 					</>
 				) : (
 					<div className="whitespace-pre-wrap">{step.text}</div>
