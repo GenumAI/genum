@@ -32,7 +32,7 @@ function row(overrides: Partial<SpanRow>): SpanRow {
 
 describe("spansToSteps", () => {
 	it("turns a tool row back into a tool_call step with parsed args", () => {
-		const steps = spansToSteps([
+		const { steps } = spansToSteps([
 			row({
 				span_type: "tool",
 				name: "get_weather",
@@ -52,14 +52,15 @@ describe("spansToSteps", () => {
 	});
 
 	it("turns an llm row back into a final step carrying its output", () => {
-		expect(spansToSteps([row({ span_type: "llm", output: "It is 12 degrees." })])).toEqual([
-			{ kind: "final", text: "It is 12 degrees." },
-		]);
+		const { steps } = spansToSteps([row({ span_type: "llm", output: "It is 12 degrees." })]);
+		expect(steps).toEqual([{ kind: "final", text: "It is 12 degrees." }]);
 	});
 
 	it("carries recordedResult through untouched -- it is what keeps the testcase replayable", () => {
 		const recorded = "a result with \"quotes\", newlines\n and unicode ✓";
-		const [step] = spansToSteps([
+		const {
+			steps: [step],
+		} = spansToSteps([
 			row({ span_type: "tool", name: "t", tool_args: "{}", tool_result: recorded }),
 		]);
 
@@ -69,7 +70,7 @@ describe("spansToSteps", () => {
 	it("preserves the order the rows arrive in rather than re-sorting", () => {
 		// The read path already orders by span_index; these rows deliberately carry
 		// indices that would reorder if this mapper sorted them itself.
-		const steps = spansToSteps([
+		const { steps } = spansToSteps([
 			row({ span_type: "tool", span_index: 7, name: "first", tool_args: "{}" }),
 			row({ span_type: "tool", span_index: 2, name: "second", tool_args: "{}" }),
 			row({ span_type: "llm", span_index: 5, output: "done" }),
@@ -83,7 +84,7 @@ describe("spansToSteps", () => {
 	});
 
 	it("does not assume a trailing final step", () => {
-		const steps = spansToSteps([
+		const { steps } = spansToSteps([
 			row({ span_type: "tool", name: "search", tool_args: "{}" }),
 			row({ span_type: "tool", name: "search", tool_args: "{}" }),
 		]);
@@ -93,7 +94,9 @@ describe("spansToSteps", () => {
 	});
 
 	it("returns an empty trajectory for an empty trace", () => {
-		expect(spansToSteps([])).toEqual([]);
+		const { steps, unreadableArgsIndices } = spansToSteps([]);
+		expect(steps).toEqual([]);
+		expect(unreadableArgsIndices).toEqual(new Set());
 	});
 
 	// A ClickHouse row is not trusted input. Each of these would throw or produce a
@@ -106,7 +109,7 @@ describe("spansToSteps", () => {
 		["an array", '["a","b"]'],
 		["a scalar", "5"],
 	])("degrades %s tool_args to ignored empty args instead of throwing", (_label, toolArgs) => {
-		const steps = spansToSteps([
+		const { steps, unreadableArgsIndices } = spansToSteps([
 			row({ span_type: "tool", name: "get_weather", tool_args: toolArgs, tool_result: "r" }),
 		]);
 
@@ -119,10 +122,13 @@ describe("spansToSteps", () => {
 				recordedResult: "r",
 			},
 		]);
+		// The marker is out-of-band, never on the step itself -- `steps[0]` above has no
+		// extra key, so it can never leak into the createTestcase payload.
+		expect(unreadableArgsIndices).toEqual(new Set([0]));
 	});
 
 	it("keeps the good steps of a trace that contains one bad row", () => {
-		const steps = spansToSteps([
+		const { steps, unreadableArgsIndices } = spansToSteps([
 			row({ span_type: "tool", name: "ok", tool_args: '{"a":1}' }),
 			row({ span_type: "tool", name: "bad", tool_args: "{oops" }),
 			row({ span_type: "llm", output: "done" }),
@@ -132,5 +138,14 @@ describe("spansToSteps", () => {
 		expect(steps[0]).toMatchObject({ name: "ok", args: { a: 1 } });
 		expect(steps[1]).toMatchObject({ name: "bad", argsMatch: "ignore" });
 		expect(steps[2]).toEqual({ kind: "final", text: "done" });
+		expect(unreadableArgsIndices).toEqual(new Set([1]));
+	});
+
+	it("does not mark a genuinely no-args call as unreadable", () => {
+		const { unreadableArgsIndices } = spansToSteps([
+			row({ span_type: "tool", name: "ping", tool_args: "{}" }),
+		]);
+
+		expect(unreadableArgsIndices.size).toBe(0);
 	});
 });

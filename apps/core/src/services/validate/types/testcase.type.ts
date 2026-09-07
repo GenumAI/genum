@@ -3,6 +3,16 @@ import { z } from "zod";
 import { StepsConfigSchema, StepsSchema } from "@/ai/steps/schema";
 
 const nameSchema = z.string().trim().min(1).max(128);
+
+// `.min(1)` only bounds the array length. `compareSteps` (apps/core/src/ai/steps/compare.ts)
+// skips every step with `enabled === false` -- both the ordered and unordered paths -- so an
+// array of five all-unticked steps has length 5 and asserts nothing. `enabled` is optional and
+// absent means enabled (see ToolCallStep/FinalStep in apps/core/src/ai/steps/types.ts), so the
+// predicate has to be `!== false`, matching what compareSteps itself reads, not `=== true`.
+const EnabledStepsSchema = StepsSchema.min(1).refine(
+	(steps) => steps.some((step) => step.enabled !== false),
+	"at least one step must be enabled",
+);
 const TestCaseSchema = TestCaseSchemaGenerated.extend({
 	name: nameSchema,
 });
@@ -26,11 +36,13 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 		// malformed step silently asserts nothing. Validate the trajectory here instead.
 		// `lastSteps` is deliberately absent: it is written by a run, never by a client.
 		//
-		// `.min(1)`: an empty trajectory is truthy, so it would take the trajectory path
-		// and then match everything -- a testcase that can never fail, which is the exact
-		// failure this feature exists to prevent. A testcase that pins nothing is a text
-		// testcase, and a text testcase leaves `expectedSteps` unset.
-		expectedSteps: StepsSchema.min(1).optional(),
+		// An empty array is truthy, so it would take the trajectory path and then match
+		// everything; an array of unticked steps is non-empty but still matches everything,
+		// because `compareSteps` skips disabled steps. `EnabledStepsSchema` rejects both --
+		// a testcase that can never fail, which is the exact failure this feature exists to
+		// prevent. A testcase that pins nothing is a text testcase, and a text testcase
+		// leaves `expectedSteps` unset.
+		expectedSteps: EnabledStepsSchema.optional(),
 		stepsConfig: StepsConfigSchema.optional(),
 	})
 	.strict();
@@ -58,8 +70,11 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 		placeholders: z.record(z.string(), z.string()).optional(),
 		// Same boundary as create: an edited trajectory is validated, not trusted.
 		// `lastSteps` is writable here, as `lastOutput` always has been -- it is the
-		// last run's trajectory, and a run writes it through this same method.
-		expectedSteps: StepsSchema.min(1).optional(),
+		// last run's trajectory, and a run writes it through this same method. `lastSteps`
+		// is what a run recorded, not what an author asserts, so it is not put through
+		// `EnabledStepsSchema` -- an all-disabled `lastSteps` is just a run with nothing
+		// enabled at the time, not a boundary violation.
+		expectedSteps: EnabledStepsSchema.optional(),
 		lastSteps: StepsSchema.optional(),
 		stepsConfig: StepsConfigSchema.optional(),
 	})

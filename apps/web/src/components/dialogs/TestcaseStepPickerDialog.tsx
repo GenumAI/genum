@@ -23,6 +23,13 @@ import type { ArgsMatch, Step } from "@/types/steps";
 interface TestcaseStepPickerDialogProps {
 	open: boolean;
 	trajectory: Step[];
+	/**
+	 * Indices into `trajectory` whose recorded arguments could not be read (see
+	 * `spansToSteps`/`MappedTrajectory`). Display-only: it is never merged into a step and
+	 * never reaches `onConfirm`'s payload -- `steps` state below is built solely from
+	 * `trajectory`/`withDefaults`, which never carries this field.
+	 */
+	unreadableArgsIndices?: Set<number>;
 	/** A create request is in flight -- keeps the author from submitting twice. */
 	saving?: boolean;
 	onCancel: () => void;
@@ -48,6 +55,7 @@ function withDefaults(trajectory: Step[]): Step[] {
 export function TestcaseStepPickerDialog({
 	open,
 	trajectory,
+	unreadableArgsIndices,
 	saving = false,
 	onCancel,
 	onConfirm,
@@ -103,6 +111,12 @@ export function TestcaseStepPickerDialog({
 										<pre className="mt-1 overflow-x-auto text-xs">
 											{JSON.stringify(step.args ?? {}, null, 2)}
 										</pre>
+										{unreadableArgsIndices?.has(index) && (
+											<p className="mt-1 text-xs text-destructive">
+												Recorded arguments could not be read -- shown as
+												empty and ignored, not a genuine no-args call.
+											</p>
+										)}
 										<Select
 											value={step.argsMatch ?? "exact"}
 											onValueChange={(value) =>

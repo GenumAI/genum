@@ -13,6 +13,8 @@ import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 /** Stable identity: a fresh `[]` here would re-fire the picker's reset effect forever. */
 const NO_STEPS: Step[] = [];
+/** Same reasoning as `NO_STEPS`, for the closed-picker default of `unreadableArgsIndices`. */
+const NO_UNREADABLE_ARGS: Set<number> = new Set();
 
 interface UseAddTestcaseFromLogParams {
 	promptId?: number;
@@ -26,9 +28,12 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 
 	// Non-null while the picker is open: the trajectory to pick from, and the prompt the
 	// testcase will hang off, captured at click time so a later selection cannot move it.
-	const [pending, setPending] = useState<{ steps: Step[]; promptId: number; log: Log } | null>(
-		null,
-	);
+	const [pending, setPending] = useState<{
+		steps: Step[];
+		unreadableArgsIndices: Set<number>;
+		promptId: number;
+		log: Log;
+	} | null>(null);
 
 	const refreshTestcases = useCallback(
 		async (targetPromptId: number) => {
@@ -48,7 +53,17 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 	);
 
 	const submit = useCallback(
-		async (log: Log, targetPromptId: number, expectedSteps?: Step[]) => {
+		async (
+			log: Log,
+			targetPromptId: number,
+			expectedSteps?: Step[],
+			// True when the log carried a trace_id but the recorded trajectory could not be
+			// turned into steps (the span fetch failed, or it came back empty) -- the author
+			// asked for tool-call assertions and is about to get a plain text testcase
+			// instead. Logging to console.error and falling through silently would leave
+			// them believing they pinned tool calls when they pinned nothing.
+			traceUnavailable = false,
+		) => {
 			try {
 				const { ok, unresolvedPlaceholders } = await createTestcase({
 					promptId: targetPromptId,
@@ -64,22 +79,28 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 				});
 
 				if (ok) {
-					if (unresolvedPlaceholders.length > 0) {
-						// A value that has since been renamed or deleted cannot transfer --
-						// saying so here is the difference between a partial transfer and a
-						// silent one.
-						toast({
-							title: "Testcase added",
-							description: `Testcase was created from log, but these placeholders could not transfer: ${unresolvedPlaceholders.join(", ")}.`,
-							variant: "default",
-						});
-					} else {
-						toast({
-							title: "Testcase added",
-							description: "Testcase was created from log.",
-							variant: "default",
-						});
+					// Composable: an author can hit both the trace warning and the
+					// unresolved-placeholder warning on the same create, and both must show.
+					const notes: string[] = [];
+					if (traceUnavailable) {
+						notes.push(
+							"the recorded trajectory could not be loaded, so no steps were pinned",
+						);
 					}
+					if (unresolvedPlaceholders.length > 0) {
+						notes.push(
+							`these placeholders could not transfer: ${unresolvedPlaceholders.join(", ")}`,
+						);
+					}
+
+					toast({
+						title: "Testcase added",
+						description:
+							notes.length > 0
+								? `Testcase was created from log; ${notes.join("; ")}.`
+								: "Testcase was created from log.",
+						variant: "default",
+					});
 
 					await refreshTestcases(targetPromptId);
 					return true;
@@ -112,23 +133,36 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 
 		if (selectedLog.trace_id) {
 			let steps: Step[] = [];
+			let unreadableArgsIndices: Set<number> = NO_UNREADABLE_ARGS;
 			try {
 				const { spans } = await queryClient.fetchQuery({
 					queryKey: logsKeys.traceSpans(selectedLog.trace_id),
 					queryFn: () => projectApi.getTraceSpans(selectedLog.trace_id as string),
 				});
-				steps = spansToSteps(spans);
+				({ steps, unreadableArgsIndices } = spansToSteps(spans));
 			} catch (error) {
 				// The trajectory is telemetry and ages out; the testcase is product data.
 				// A trace we cannot read is a reason to fall back to a text testcase, not
-				// a reason to refuse to create one.
+				// a reason to refuse to create one -- but the author still needs to know.
 				console.error("Failed to load trace spans for log:", error);
 			}
 
 			if (steps.length > 0) {
-				setPending({ steps, promptId: targetPromptId, log: selectedLog });
+				setPending({
+					steps,
+					unreadableArgsIndices,
+					promptId: targetPromptId,
+					log: selectedLog,
+				});
 				return;
 			}
+
+			// Either the fetch failed above, or it succeeded with no spans to turn into
+			// steps -- either way, the author asked for a trajectory testcase and is about
+			// to get a plain text one. `traceUnavailable: true` surfaces that in the toast
+			// instead of leaving them to believe they pinned tool calls.
+			await submit(selectedLog, targetPromptId, undefined, true);
+			return;
 		}
 
 		await submit(selectedLog, targetPromptId);
@@ -152,6 +186,7 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 		stepPicker: {
 			open: pending !== null,
 			trajectory: pending?.steps ?? NO_STEPS,
+			unreadableArgsIndices: pending?.unreadableArgsIndices ?? NO_UNREADABLE_ARGS,
 			saving: creatingTestcase,
 			onCancel: () => setPending(null),
 			onConfirm: confirmSteps,

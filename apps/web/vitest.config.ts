@@ -14,7 +14,9 @@ export default defineConfig({
 		},
 	},
 	test: {
-		globals: true,
+		// No `globals: true`: every test file imports describe/expect/it explicitly, and no
+		// tsconfig declares the `vitest/globals` types -- turning this on would let a future
+		// test lean on the globals and pass at runtime while `tsc -b` never catches it.
 		environment: "node",
 		include: ["src/**/*.{test,spec}.{ts,tsx}"],
 	},
