@@ -13,7 +13,7 @@ import { testcaseAssertionFormat, testcaseNamerFormat } from "@/ai/runner/format
 import { checkPromptAccess, checkTestcaseAccess } from "@/services/access/AccessService";
 import { db } from "@/database/db";
 import { callPromptModel, runPrompt } from "@/ai/runner/run";
-import { compareSteps } from "@/ai/steps/compare";
+import { compareSteps, type StepMismatch } from "@/ai/steps/compare";
 import { maxStepsForRecording, replayTrajectory } from "@/ai/steps/replay";
 import { hasEnabledStep, StepsSchema, StepsConfigSchema } from "@/ai/steps/schema";
 import {
@@ -262,6 +262,10 @@ export class TestcasesController {
 			lastOutput: run.answer,
 			lastChainOfThoughts: run.chainOfThoughts,
 			assertionThoughts: "",
+			// Cleared by default and set only by the branch that actually compared steps.
+			// A stale set of marks beside a verdict that no comparison produced would
+			// point at steps nobody checked on this run.
+			lastMismatches: null,
 		};
 
 		if (expectedSteps && replay) {
@@ -299,6 +303,7 @@ export class TestcasesController {
 				);
 				updateData.status = result.status;
 				updateData.assertionThoughts = result.thoughts;
+				updateData.lastMismatches = result.mismatches;
 			}
 		} else if (assertionType === "MANUAL") {
 			updateData.status = TestCaseStatus.NEED_RUN;
@@ -428,16 +433,17 @@ export function assertTrajectory(
 	expected: Step[],
 	actual: Step[],
 	stepsConfig: StepsConfig | null,
-): { status: TestCaseStatus; thoughts: string } {
+): { status: TestCaseStatus; thoughts: string; mismatches: StepMismatch[] } {
 	const mismatches = compareSteps(expected, actual, stepsConfig ?? DEFAULT_STEPS_CONFIG);
 
 	if (mismatches.length === 0) {
-		return { status: TestCaseStatus.OK, thoughts: "" };
+		return { status: TestCaseStatus.OK, thoughts: "", mismatches };
 	}
 
 	return {
 		status: TestCaseStatus.NOK,
 		thoughts: mismatches.map((mismatch) => mismatch.reason).join("; "),
+		mismatches,
 	};
 }
 

@@ -678,6 +678,50 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		expect(updatePayload().assertionThoughts).toContain("get_weather");
 	});
 
+	it("persists the structured mismatches of a STRICT trajectory run", async () => {
+		// The web marks individual steps from this. A joined string cannot say WHICH step
+		// failed, which is the entire point of pinning steps one by one.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({ stepsConfig: { orderMatters: false } }),
+		);
+		modelTurn({
+			answer: "",
+			toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Munich" } }],
+		});
+		modelTurn({ answer: "It is 12°" });
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(updatePayload().status).toBe("NOK");
+		expect(updatePayload().lastMismatches).toEqual([expect.objectContaining({ index: 0 })]);
+	});
+
+	it("clears lastMismatches when the verdict did not come from step comparison", async () => {
+		// An AI or MANUAL verdict, or a replay that stopped, explains itself in
+		// assertionThoughts. Leaving the previous run's per-step marks beside a verdict
+		// that did not produce them would mark steps that were never compared.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({
+				prompt: {
+					id: PROMPT,
+					projectId: PROJECT,
+					value: "do this",
+					assertionType: "MANUAL",
+					assertionValue: null,
+				},
+			}),
+		);
+		modelTurn({ answer: "It is 12°" });
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(updatePayload().lastMismatches).toBeNull();
+	});
+
 	it("fails with the stop message when the model calls an unrecorded tool", async () => {
 		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
 		modelTurn({ answer: "", toolCalls: [{ id: "c1", name: "send_email", args: {} }] });
@@ -812,6 +856,25 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		expect(vi.mocked(runPrompt).mock.calls[0][0].collectUsage).toBeUndefined();
 		expect(logUsage).not.toHaveBeenCalled();
 		expect(logSpans).not.toHaveBeenCalled();
+	});
+
+	it("clears lastMismatches on a plain text run", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({
+				expectedSteps: null,
+				expectedOutput: "the answer",
+			}),
+		);
+		vi.mocked(runPrompt).mockResolvedValue({
+			answer: "the answer",
+			chainOfThoughts: "",
+		} as never);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(updatePayload().lastMismatches).toBeNull();
 	});
 });
 
