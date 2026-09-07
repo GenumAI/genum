@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { ResponseOutputItem } from "openai/resources/responses/responses";
-import type { ProviderRequest, ProviderResponse } from "..";
+import type { ProviderRequest, ProviderResponse, ToolCall } from "..";
 import { answerMapper, inputMapper, responsesConfigMapper } from "./utils";
 
 export async function generateOpenAI(request: ProviderRequest): Promise<ProviderResponse> {
@@ -28,16 +28,26 @@ export async function generateOpenAI(request: ProviderRequest): Promise<Provider
 		...responsesConfigMapper(request),
 	});
 
-	const message = response.output.filter(
+	const items = response.output.filter(
 		(message: ResponseOutputItem) =>
 			message.type === "message" || message.type === "function_call",
-	)[0];
+	);
+	const message = items[0];
 	if (!message) {
 		throw new Error("No message from OpenAI");
 	}
 
+	const toolCalls: ToolCall[] = items
+		.filter((item) => item.type === "function_call")
+		.map((item) => ({
+			id: item.call_id,
+			name: item.name,
+			args: JSON.parse(item.arguments) as Record<string, unknown>,
+		}));
+
 	const result: ProviderResponse = {
 		answer: answerMapper(message),
+		toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
 		tokens: {
 			prompt: Number(response.usage?.input_tokens),
 			completion: Number(response.usage?.output_tokens),
