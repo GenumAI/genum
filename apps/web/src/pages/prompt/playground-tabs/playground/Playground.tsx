@@ -5,6 +5,7 @@ import TextEditor from "@/pages/prompt/playground-tabs/playground/components/pro
 import PlaceholderChips from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/components/PlaceholderChips";
 import OutputBlock from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
 import { TrajectorySteps } from "@/pages/prompt/playground-tabs/components/TrajectorySteps";
+import { TrajectoryPanel } from "@/pages/prompt/playground-tabs/components/TrajectoryPanel";
 import { Button } from "@/components/ui/button";
 import SettingsBar from "./components/settings-block/models-settings/SettingsBar";
 import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDialog";
@@ -148,6 +149,8 @@ export default function Playground() {
 								isRunning={ui.loading.run}
 							/>
 						)}
+
+						<TrajectoryPanel testcaseId={testcaseId} testcase={testcase.data} />
 
 						<OutputBlock
 							onSaveAsExpected={actions.testcase.saveAsExpected}
