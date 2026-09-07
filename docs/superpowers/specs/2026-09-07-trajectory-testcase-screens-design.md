@@ -169,9 +169,11 @@ has `expectedSteps`. One row per step:
 - a checkbox bound to `enabled`
 - for a tool call: the name, its arguments, and a matcher select (`exact` / `subset` /
   `ignore`)
-- for the final step: its text is edited by the expected-output editor per decision 3 and is
-  not repeated in the list, but its checkbox and its outcome sit beside that editor, so
-  every step's state is visible in one place
+- for the final step: a row carrying only its checkbox and its outcome, saying its text is
+  the expected output above. The text is not repeated, and the checkbox stays in the panel
+  rather than moving next to the editor — the expected-output block is a subsystem of its
+  own (`useExpectedOutput`, its metrics, its expand/preview controls), and threading a
+  step's `enabled` flag through it would couple two unrelated things for a visual gain
 - the last run's outcome for that step, from `lastMismatches`: matched, mismatched with the
   reason, or not asserted
 - a header line naming the last run's time, or saying the testcase has not been run
