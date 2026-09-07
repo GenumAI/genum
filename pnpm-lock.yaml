@@ -422,6 +422,9 @@ importers:
       vite-plugin-svgr:
         specifier: ^4.3.0
         version: 4.5.0(rollup@4.60.3)(typescript@5.7.3)(vite@6.4.3(@types/node@24.10.9)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.9.0))
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/ui@4.1.10)(vite@6.4.3(@types/node@24.10.9)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.9.0))
 
   packages/placeholders:
     devDependencies:
@@ -430,7 +433,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.0.5
-        version: 3.2.7(@types/node@24.10.9)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0)
+        version: 3.2.7(@types/debug@4.1.12)(@types/node@24.10.9)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0)
 
 packages:
 
@@ -10393,6 +10396,14 @@ snapshots:
     optionalDependencies:
       vite: 6.4.3(@types/node@24.10.9)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0)
 
+  '@vitest/mocker@4.1.10(vite@6.4.3(@types/node@24.10.9)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.9.0))':
+    dependencies:
+      '@vitest/spy': 4.1.10
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 6.4.3(@types/node@24.10.9)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.9.0)
+
   '@vitest/mocker@4.1.10(vite@6.4.3(@types/node@24.10.9)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.10
@@ -10448,7 +10459,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.1
-      vitest: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/ui@4.1.10)(vite@6.4.3(@types/node@24.10.9)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))
+      vitest: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/ui@4.1.10)(vite@6.4.3(@types/node@24.10.9)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.9.0))
 
   '@vitest/utils@3.2.7':
     dependencies:
@@ -14130,7 +14141,7 @@ snapshots:
       tsx: 4.21.0
       yaml: 2.9.0
 
-  vitest@3.2.7(@types/node@24.10.9)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0):
+  vitest@3.2.7(@types/debug@4.1.12)(@types/node@24.10.9)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.7
@@ -14156,6 +14167,7 @@ snapshots:
       vite-node: 3.2.4(@types/node@24.10.9)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
+      '@types/debug': 4.1.12
       '@types/node': 24.10.9
     transitivePeerDependencies:
       - jiti
@@ -14170,6 +14182,35 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  vitest@4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/ui@4.1.10)(vite@6.4.3(@types/node@24.10.9)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.9.0)):
+    dependencies:
+      '@vitest/expect': 4.1.10
+      '@vitest/mocker': 4.1.10(vite@6.4.3(@types/node@24.10.9)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.9.0))
+      '@vitest/pretty-format': 4.1.10
+      '@vitest/runner': 4.1.10
+      '@vitest/snapshot': 4.1.10
+      '@vitest/spy': 4.1.10
+      '@vitest/utils': 4.1.10
+      es-module-lexer: 2.3.1
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.1
+      pathe: 2.0.3
+      picomatch: 4.0.4
+      std-env: 4.2.0
+      tinybench: 2.9.0
+      tinyexec: 1.1.2
+      tinyglobby: 0.2.15
+      tinyrainbow: 3.1.1
+      vite: 6.4.3(@types/node@24.10.9)(jiti@1.21.7)(tsx@4.21.0)(yaml@2.9.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      '@types/node': 24.10.9
+      '@vitest/ui': 4.1.10(vitest@4.1.10)
+    transitivePeerDependencies:
+      - msw
 
   vitest@4.1.10(@opentelemetry/api@1.9.0)(@types/node@24.10.9)(@vitest/ui@4.1.10)(vite@6.4.3(@types/node@24.10.9)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0)):
     dependencies:

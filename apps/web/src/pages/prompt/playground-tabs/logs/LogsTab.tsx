@@ -20,6 +20,7 @@ import { useLogsData } from "./hooks/useLogsData";
 import { useLogsFilters } from "./hooks/useLogsFilters";
 import { useLogsPagination } from "./hooks/useLogsPagination";
 import { useAddTestcaseFromLog } from "./hooks/useAddTestcaseFromLog";
+import { TestcaseStepPickerDialog } from "@/components/dialogs/TestcaseStepPickerDialog";
 import type { Log } from "@/types/logs";
 
 export default function LogsTab() {
@@ -44,7 +45,7 @@ export default function LogsTab() {
 		isActive,
 	});
 
-	const { handleAddTestcaseFromLog, creatingTestcase } = useAddTestcaseFromLog({
+	const { handleAddTestcaseFromLog, creatingTestcase, stepPicker } = useAddTestcaseFromLog({
 		promptId,
 		selectedLog,
 	});
@@ -173,6 +174,8 @@ export default function LogsTab() {
 				promptNames={[]}
 				isSinglePromptPage={true}
 			/>
+
+			{stepPicker.open && <TestcaseStepPickerDialog {...stepPicker} />}
 		</div>
 	);
 }

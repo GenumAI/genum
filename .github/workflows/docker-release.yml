@@ -67,8 +67,8 @@ jobs:
       # @genum/placeholders resolves into its dist/, which a clean checkout does not
       # have. Calling vitest directly skips the task graph, so vite cannot resolve the
       # package and three suites error out. That is how v1.10.0 shipped with no images.
-      - name: Run unit tests (core)
-        run: pnpm turbo run test:run --filter=core
+      - name: Run unit tests (core, web)
+        run: pnpm turbo run test:run --filter=core --filter=web
 
       - name: Extract release version
         id: release_version

@@ -1,6 +1,7 @@
 import { apiClient } from "../client";
 import type { ApiRequestConfig } from "../client";
 import type { TestCase, TestCaseResponse } from "@/types/TestСase";
+import type { Step, StepsConfig } from "@/types/steps";
 
 // ============================================================================
 // Types
@@ -18,6 +19,9 @@ export interface CreateTestcaseData {
 	name?: string;
 	files?: string[];
 	placeholders?: Record<string, string>;
+	/** See `TestcasePayload.expectedSteps` -- the backend rejects an empty array. */
+	expectedSteps?: Step[];
+	stepsConfig?: StepsConfig;
 }
 
 export interface UpdateTestcaseData {

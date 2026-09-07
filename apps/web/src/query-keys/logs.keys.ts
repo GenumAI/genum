@@ -71,5 +71,5 @@ export const logsKeys = {
 			source,
 			query,
 		] as const,
+	traceSpans: (traceId: ScopeParam) => ["trace-spans", traceId] as const,
 };
-

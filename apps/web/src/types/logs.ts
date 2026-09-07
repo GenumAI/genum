@@ -17,6 +17,12 @@ export interface Log {
 	placeholders?: Record<string, string>;
 	api?: string;
 	prompt_id?: number;
+	/**
+	 * Set on a run that recorded a trajectory. The backend has always sent it
+	 * (`transformRowToLogDocument`); it is what turns "add testcase from log" into the
+	 * step picker instead of a plain text testcase.
+	 */
+	trace_id?: string;
 }
 
 export interface LogsResponse {
