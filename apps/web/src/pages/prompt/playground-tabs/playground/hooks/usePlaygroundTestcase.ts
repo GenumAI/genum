@@ -3,7 +3,9 @@ import type { PromptResponse } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import type { UpdateExpected } from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
 import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
+import { withFinalText } from "@/lib/trajectoryEdits";
 import type { TestCase } from "@/types/TestСase";
+import type { Step } from "@/types/steps";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import usePlaygroundStore from "@/stores/playground.store";
@@ -120,6 +122,7 @@ export function usePlaygroundTestcaseController({
 		mutationFn: async (updateData: {
 			expectedOutput: string;
 			expectedChainOfThoughts: string;
+			expectedSteps?: Step[];
 		}) => {
 			if (!testcaseId) return;
 			return testcasesApi.updateTestcase(testcaseId, updateData);
@@ -318,10 +321,30 @@ export function usePlaygroundTestcaseController({
 			}
 
 			try {
-				const updateData = {
+				const updateData: {
+					expectedOutput: string;
+					expectedChainOfThoughts: string;
+					expectedSteps?: Step[];
+				} = {
 					expectedOutput: newExpectedContent.answer,
 					expectedChainOfThoughts: currentExpectedThoughts || "",
 				};
+
+				// For a trajectory testcase the final step IS the expected answer -- the
+				// verdict comes from the step comparison and never reads expectedOutput.
+				// Writing only the field the author can see would change nothing the test
+				// checks. expectedOutput is written too, so the text testcase underneath
+				// is already correct if the trajectory is later removed.
+				const steps = testcase?.expectedSteps;
+				if (Array.isArray(steps) && steps.length > 0) {
+					const next = withFinalText(steps, newExpectedContent.answer);
+					// Identity means there was no final step to rewrite: a trajectory whose
+					// last turn still asked for a tool. Sending the unchanged array would
+					// be a pointless write.
+					if (next !== steps) {
+						updateData.expectedSteps = next;
+					}
+				}
 
 				await updateExpectedAsync(updateData);
 			} catch (error) {
@@ -332,6 +355,7 @@ export function usePlaygroundTestcaseController({
 			currentExpectedThoughts,
 			setExpectedOutput,
 			storeOutputContent,
+			testcase,
 			testcaseId,
 			updateExpectedAsync,
 		],
