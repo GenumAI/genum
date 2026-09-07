@@ -6,6 +6,7 @@ import { renderPlaceholders } from "@genum/placeholders";
 import { toPlaceholderDefinitions } from "../placeholders/definitions";
 import {
 	calculateCost,
+	type ConversationMessage,
 	generateDeepSeek,
 	generateGemini,
 	generateOpenAI,
@@ -102,7 +103,14 @@ async function runPromptWithProvider(provider: AiVendor, request: ProviderReques
 	}
 }
 
-export async function runPrompt(data: runPromptParams) {
+/**
+ * Everything a run needs before the provider is called: the model, the API key (custom
+ * providers included), the quota, and the rendered instruction. Extracted so the agentic
+ * replay path resolves a run exactly the way a plain run does -- two copies would drift,
+ * and a replay that ran against different placeholder definitions than the prompt does
+ * would invalidate every trajectory testcase without failing anything.
+ */
+async function resolvePromptRun(data: runPromptParams) {
 	const prompt = data.prompt;
 
 	let instruction = data.system_instructions ?? prompt.value;
@@ -164,6 +172,34 @@ export async function runPrompt(data: runPromptParams) {
 	const render = renderPlaceholders(instruction, definitions, data.placeholders ?? {});
 	instruction = render.text;
 
+	return {
+		model,
+		apiKey,
+		baseUrl,
+		quotaUsed,
+		instruction,
+		render,
+		runOrgId,
+		runProjectId,
+		runUserId,
+	};
+}
+
+export async function runPrompt(data: runPromptParams) {
+	const prompt = data.prompt;
+
+	const {
+		model,
+		apiKey,
+		baseUrl,
+		quotaUsed,
+		instruction,
+		render,
+		runOrgId,
+		runProjectId,
+		runUserId,
+	} = await resolvePromptRun(data);
+
 	try {
 		// run prompt
 		const completion = await runPromptWithProvider(model.vendor, {
@@ -178,6 +214,9 @@ export async function runPrompt(data: runPromptParams) {
 			promptPrice: model.promptPrice,
 			completionPrice: model.completionPrice,
 			baseUrl, // Pass baseUrl for custom providers
+			// Absent for every caller that existed before agentic replay, which is what
+			// keeps a single-shot run byte-identical to what it sent before.
+			messages: data.messages,
 		});
 
 		const cost = calculateCost(
@@ -253,6 +292,21 @@ export async function runPrompt(data: runPromptParams) {
 
 		throw error;
 	}
+}
+
+/**
+ * One model turn of a trajectory replay: the same prompt, the same committed
+ * placeholders, plus the conversation so far.
+ *
+ * It delegates to `runPrompt` rather than resolving a run of its own. A replayed turn is
+ * a real call to the provider -- it costs money and belongs in the usage log -- so it
+ * must charge quota and log exactly like any other run, and the resolution it shares
+ * (`resolvePromptRun`) is the same one `runPrompt` uses. The result is the full run
+ * result, a superset of the `{ answer, toolCalls }` the replay loop needs, so the caller
+ * can also keep the last turn's cost and resolved placeholders for its response.
+ */
+export async function callPromptModel(data: runPromptParams, messages: ConversationMessage[]) {
+	return await runPrompt({ ...data, messages });
 }
 
 export async function transcribe(

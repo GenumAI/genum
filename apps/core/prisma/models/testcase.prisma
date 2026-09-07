@@ -17,6 +17,15 @@ model TestCase {
     lastChainOfThoughts     String?
     status                  TestCaseStatus @default(NEED_RUN)
     assertionThoughts       String?        @default("")
+
+    // A trajectory testcase. Null means the text testcase this model has always been --
+    // no row is rewritten by the migration. `expectedSteps` is a copy of the recorded
+    // steps (results included), so the test outlives the ClickHouse retention window
+    // the trajectory itself lives under.
+    expectedSteps           Json?
+    lastSteps               Json?
+    stepsConfig             Json?
+
     createdAt               DateTime       @default(now()) @db.Timestamp(6)
     updatedAt               DateTime       @default(now()) @updatedAt @db.Timestamp(6)
 

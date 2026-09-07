@@ -1,5 +1,34 @@
-import type { PrismaClient, TestCase } from "@/prisma";
+import type { Prisma, PrismaClient, TestCase } from "@/prisma";
 import type { TestcasesCreateType, TestcasesUpdateType } from "@/services/validate";
+
+/**
+ * `expectedSteps` and `stepsConfig` are `Json?` columns, whose Prisma input type is
+ * `InputJsonValue`. The validated step objects carry a `Record<string, unknown>` for a
+ * tool call's arguments, which does not structurally satisfy that type, so they are
+ * re-stated here rather than being spread in blind -- and only when present, so a text
+ * testcase's columns are left unset instead of being written as JSON null.
+ */
+function trajectoryColumns(data: {
+	expectedSteps?: unknown;
+	lastSteps?: unknown;
+	stepsConfig?: unknown;
+}): {
+	expectedSteps?: Prisma.InputJsonValue;
+	lastSteps?: Prisma.InputJsonValue;
+	stepsConfig?: Prisma.InputJsonValue;
+} {
+	return {
+		...(data.expectedSteps !== undefined
+			? { expectedSteps: data.expectedSteps as Prisma.InputJsonValue }
+			: {}),
+		...(data.lastSteps !== undefined
+			? { lastSteps: data.lastSteps as Prisma.InputJsonValue }
+			: {}),
+		...(data.stepsConfig !== undefined
+			? { stepsConfig: data.stepsConfig as Prisma.InputJsonValue }
+			: {}),
+	};
+}
 
 export class TestcasesRepository {
 	private prisma: PrismaClient;
@@ -65,10 +94,19 @@ export class TestcasesRepository {
 	}
 
 	public async newTestcase(data: TestcasesCreateType & { files?: string[] }) {
-		const { files, placeholders: _placeholders, ...testcaseData } = data;
+		const {
+			files,
+			placeholders: _placeholders,
+			expectedSteps,
+			stepsConfig,
+			...testcaseData
+		} = data;
 
 		const testcase = await this.prisma.testCase.create({
-			data: testcaseData,
+			data: {
+				...testcaseData,
+				...trajectoryColumns({ expectedSteps, stepsConfig }),
+			},
 		});
 
 		// Create file associations if files are provided
@@ -96,10 +134,19 @@ export class TestcasesRepository {
 	// missing the relation would read in the cache as "no pin", clearing the chips even
 	// though nothing about the pin changed.
 	public async updateTestcaseByID(id: number, data: TestcasesUpdateType) {
-		const { placeholders: _placeholders, ...testcaseData } = data;
+		const {
+			placeholders: _placeholders,
+			expectedSteps,
+			lastSteps,
+			stepsConfig,
+			...testcaseData
+		} = data;
 		return await this.prisma.testCase.update({
 			where: { id },
-			data: testcaseData,
+			data: {
+				...testcaseData,
+				...trajectoryColumns({ expectedSteps, lastSteps, stepsConfig }),
+			},
 			include: {
 				placeholderValues: {
 					include: { placeholderValue: { include: { placeholder: true } } },

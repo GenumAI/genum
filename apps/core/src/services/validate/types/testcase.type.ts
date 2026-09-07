@@ -1,5 +1,6 @@
 import { TestCaseSchema as TestCaseSchemaGenerated, TestCaseStatusSchema } from "@/prisma-types";
 import { z } from "zod";
+import { StepsConfigSchema, StepsSchema } from "@/ai/steps/schema";
 
 const nameSchema = z.string().trim().min(1).max(128);
 const TestCaseSchema = TestCaseSchemaGenerated.extend({
@@ -11,6 +12,8 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 	status: true,
 	createdAt: true,
 	updatedAt: true,
+	// Written by a run, never by a client -- `.strict()` rejects it if one sends it.
+	lastSteps: true,
 })
 	.extend({
 		promptId: z.number(),
@@ -18,6 +21,12 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 		expectedChainOfThoughts: z.string().optional(),
 		lastChainOfThoughts: z.string().optional(),
 		placeholders: z.record(z.string(), z.string()).optional(),
+		// The generated schema types a `Json?` column as `unknown`, which would let any
+		// shape at all into the column and only surface at assertion time, where a
+		// malformed step silently asserts nothing. Validate the trajectory here instead.
+		// `lastSteps` is deliberately absent: it is written by a run, never by a client.
+		expectedSteps: StepsSchema.optional(),
+		stepsConfig: StepsConfigSchema.optional(),
 	})
 	.strict();
 
@@ -42,6 +51,12 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 	.extend({
 		status: TestCaseStatusSchema.optional(),
 		placeholders: z.record(z.string(), z.string()).optional(),
+		// Same boundary as create: an edited trajectory is validated, not trusted.
+		// `lastSteps` is writable here, as `lastOutput` always has been -- it is the
+		// last run's trajectory, and a run writes it through this same method.
+		expectedSteps: StepsSchema.optional(),
+		lastSteps: StepsSchema.optional(),
+		stepsConfig: StepsConfigSchema.optional(),
 	})
 	.partial()
 	.strict();

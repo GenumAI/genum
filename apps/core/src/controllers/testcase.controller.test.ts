@@ -26,17 +26,19 @@ vi.mock("@/services/access/AccessService", () => ({
 vi.mock("@/ai/runner/system", () => ({
 	system_prompt: {
 		testcaseNamer: vi.fn(),
+		testcaseAssertionV2: vi.fn(),
 	},
 }));
 
 vi.mock("@/ai/runner/run", () => ({
 	runPrompt: vi.fn(),
+	callPromptModel: vi.fn(),
 }));
 
 import { db } from "@/database/db";
 import { checkTestcaseAccess, checkPromptAccess } from "@/services/access/AccessService";
 import { system_prompt } from "@/ai/runner/system";
-import { runPrompt } from "@/ai/runner/run";
+import { callPromptModel, runPrompt } from "@/ai/runner/run";
 import { TestcasesController } from "./testcase.controller";
 
 const PROJECT = 10;
@@ -368,5 +370,307 @@ describe("TestcasesController.runTestcase", () => {
 		expect(runPrompt).toHaveBeenCalledWith(
 			expect.objectContaining({ placeholders: { admin_role: "false" } }),
 		);
+	});
+});
+
+describe("TestcasesController.runTestcase with a recorded trajectory", () => {
+	let controller: TestcasesController;
+
+	const expectedSteps = [
+		{
+			kind: "tool_call",
+			name: "get_weather",
+			args: { city: "Berlin" },
+			recordedResult: '{"temp":12}',
+		},
+		{ kind: "final", text: "It is 12°" },
+	];
+
+	function makeTrajectoryTestcase(overrides: Record<string, unknown> = {}) {
+		return {
+			id: 5,
+			promptId: PROMPT,
+			input: "what is the weather",
+			expectedOutput: "",
+			files: [],
+			placeholderValues: [],
+			expectedSteps,
+			stepsConfig: null,
+			prompt: {
+				id: PROMPT,
+				projectId: PROJECT,
+				value: "do this",
+				assertionType: "STRICT",
+				assertionValue: null,
+			},
+			...overrides,
+		} as never;
+	}
+
+	function updatePayload() {
+		return vi.mocked(db.testcases.updateTestcaseByID).mock.calls[0][1] as Record<
+			string,
+			unknown
+		>;
+	}
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		controller = new TestcasesController();
+		vi.mocked(db.testcases.updateTestcaseByID).mockResolvedValue({ id: 5 } as never);
+	});
+
+	it("replays the recording and passes when the trajectory is unchanged", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
+		vi.mocked(callPromptModel)
+			.mockResolvedValueOnce({
+				answer: "",
+				toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
+			} as never)
+			.mockResolvedValueOnce({ answer: "It is 12°" } as never);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		// The replay IS the run: no extra, separately billed single-shot call.
+		expect(runPrompt).not.toHaveBeenCalled();
+		expect(callPromptModel).toHaveBeenCalledTimes(2);
+		expect(updatePayload().status).toBe("OK");
+		expect(updatePayload().assertionThoughts).toBe("");
+		expect(updatePayload().lastSteps).toEqual([
+			{ kind: "tool_call", name: "get_weather", args: { city: "Berlin" } },
+			{ kind: "final", text: "It is 12°" },
+		]);
+		expect(updatePayload().lastOutput).toBe("It is 12°");
+	});
+
+	it("fails and names the tool when an argument changed", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
+		vi.mocked(callPromptModel)
+			.mockResolvedValueOnce({
+				answer: "",
+				toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Munich" } }],
+			} as never)
+			.mockResolvedValueOnce({ answer: "It is 12°" } as never);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(updatePayload().status).toBe("NOK");
+		expect(updatePayload().assertionThoughts).toContain("get_weather");
+	});
+
+	it("fails with the stop message when the model calls an unrecorded tool", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
+		vi.mocked(callPromptModel).mockResolvedValueOnce({
+			answer: "",
+			toolCalls: [{ id: "c1", name: "send_email", args: {} }],
+		} as never);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(updatePayload().status).toBe("NOK");
+		expect(updatePayload().assertionThoughts).toContain("send_email");
+	});
+
+	it("records the trajectory but asserts nothing when the prompt is MANUAL", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({
+				prompt: {
+					id: PROMPT,
+					projectId: PROJECT,
+					value: "do this",
+					assertionType: "MANUAL",
+					assertionValue: null,
+				},
+			}),
+		);
+		vi.mocked(callPromptModel).mockResolvedValueOnce({ answer: "It is 12°" } as never);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(updatePayload().status).toBe("NEED_RUN");
+		expect(updatePayload().lastSteps).toEqual([{ kind: "final", text: "It is 12°" }]);
+	});
+
+	it("hands the judge both trajectories when the prompt is AI", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({
+				prompt: {
+					id: PROMPT,
+					projectId: PROJECT,
+					value: "do this",
+					assertionType: "AI",
+					assertionValue: "the same tools",
+				},
+			}),
+		);
+		vi.mocked(callPromptModel).mockResolvedValueOnce({ answer: "It is 12°" } as never);
+		vi.mocked(system_prompt.testcaseAssertionV2).mockResolvedValue({
+			assertionStatus: "OK",
+			assertionThoughts: "same trajectory",
+		} as never);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(updatePayload().status).toBe("OK");
+		const judgeInput = vi.mocked(system_prompt.testcaseAssertionV2).mock.calls[0][0] as string;
+		expect(judgeInput).toContain("get_weather");
+		expect(updatePayload().assertionThoughts).toBe("same trajectory");
+	});
+
+	it("honours orderMatters stored on the testcase", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({ stepsConfig: { orderMatters: true } }),
+		);
+		// The final answer arrives before the tool call: equivalent unordered, wrong ordered.
+		vi.mocked(callPromptModel)
+			.mockResolvedValueOnce({
+				answer: "It is 12°",
+				toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
+			} as never)
+			.mockResolvedValueOnce({ answer: "done" } as never);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(updatePayload().status).toBe("NOK");
+	});
+
+	it("refuses to assert against a malformed stored trajectory", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({ expectedSteps: [{ kind: "tool_call" }] }),
+		);
+		const { res } = makeRes();
+
+		await expect(controller.runTestcase(makeReq(undefined), res)).rejects.toThrow(
+			/not a valid trajectory/,
+		);
+		expect(callPromptModel).not.toHaveBeenCalled();
+	});
+
+	it("leaves a text testcase on exactly the path it had before", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({
+				expectedSteps: null,
+				expectedOutput: "the answer",
+			}),
+		);
+		vi.mocked(runPrompt).mockResolvedValue({
+			answer: "the answer",
+			chainOfThoughts: "",
+		} as never);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(runPrompt).toHaveBeenCalledTimes(1);
+		expect(callPromptModel).not.toHaveBeenCalled();
+		expect(updatePayload().status).toBe("OK");
+		expect(updatePayload().lastSteps).toBeUndefined();
+	});
+});
+
+describe("TestcasesController.createTestcase with a recorded trajectory", () => {
+	let controller: TestcasesController;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		controller = new TestcasesController();
+		vi.mocked(db.testcases.newTestcase).mockResolvedValue({ id: 5 } as never);
+		vi.mocked(db.testcases.setPlaceholderSelection).mockResolvedValue(undefined as never);
+		vi.mocked(db.placeholders.resolveSelection).mockResolvedValue({
+			rows: [],
+			unresolved: [],
+		} as never);
+		vi.mocked(checkPromptAccess).mockResolvedValue({
+			id: PROMPT,
+			projectId: PROJECT,
+			value: "do this",
+		} as never);
+		vi.mocked(system_prompt.testcaseNamer).mockResolvedValue({ answer: "generated" } as never);
+	});
+
+	it("persists the pinned steps and their config", async () => {
+		const { res, captured } = makeRes();
+		const steps = [
+			{
+				kind: "tool_call",
+				name: "get_weather",
+				args: { city: "Berlin" },
+				argsMatch: "exact",
+				recordedResult: '{"temp":12}',
+			},
+			{ kind: "final", text: "It is 12°" },
+		];
+
+		await controller.createTestcase(
+			makeReq({
+				promptId: PROMPT,
+				input: "i",
+				expectedOutput: "e",
+				lastOutput: "",
+				expectedSteps: steps,
+				stepsConfig: { orderMatters: true },
+			}),
+			res,
+		);
+
+		expect(captured.statusCode).toBe(200);
+		expect(db.testcases.newTestcase).toHaveBeenCalledWith(
+			expect.objectContaining({
+				expectedSteps: steps,
+				stepsConfig: { orderMatters: true },
+			}),
+		);
+	});
+
+	it("rejects a malformed trajectory at the boundary", async () => {
+		const { res } = makeRes();
+
+		await expect(
+			controller.createTestcase(
+				makeReq({
+					promptId: PROMPT,
+					input: "i",
+					expectedOutput: "e",
+					lastOutput: "",
+					// A tool call with no name, and a kind that is not a step at all.
+					expectedSteps: [{ kind: "tool_call" }, { kind: "shell", cmd: "rm -rf /" }],
+				}),
+				res,
+			),
+		).rejects.toThrow();
+
+		expect(db.testcases.newTestcase).not.toHaveBeenCalled();
+	});
+
+	it("refuses a client-supplied lastSteps", async () => {
+		const { res } = makeRes();
+
+		await expect(
+			controller.createTestcase(
+				makeReq({
+					promptId: PROMPT,
+					input: "i",
+					expectedOutput: "e",
+					lastOutput: "",
+					lastSteps: [{ kind: "final", text: "not yours to write" }],
+				}),
+				res,
+			),
+		).rejects.toThrow();
+
+		expect(db.testcases.newTestcase).not.toHaveBeenCalled();
 	});
 });

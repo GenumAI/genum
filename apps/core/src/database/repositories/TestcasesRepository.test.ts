@@ -5,8 +5,12 @@ import type { PrismaClient } from "@/prisma";
 function makeMockPrisma() {
 	return {
 		testCase: {
+			create: vi.fn(),
 			update: vi.fn(),
 			findMany: vi.fn(),
+		},
+		testcaseFile: {
+			createMany: vi.fn(),
 		},
 	};
 }
@@ -76,6 +80,75 @@ describe("TestcasesRepository.updateTestcaseByID", () => {
 		const call = mockPrisma.testCase.update.mock.calls[0][0];
 		expect(call.data).not.toHaveProperty("placeholders");
 		expect(call.data).toEqual({ name: "renamed" });
+	});
+
+	// A run writes the trajectory it just produced through this method. The columns are
+	// `Json?`, so they have to be re-stated for Prisma's input type rather than spread
+	// in -- a silent drop here would leave the UI diffing against nothing.
+	it("writes the trajectory a run produced", async () => {
+		mockPrisma.testCase.update.mockResolvedValue({ id: 5, placeholderValues: [] });
+		const lastSteps = [{ kind: "final" as const, text: "It is 12°" }];
+
+		await repo.updateTestcaseByID(5, { lastOutput: "It is 12°", lastSteps });
+
+		expect(mockPrisma.testCase.update.mock.calls[0][0].data).toEqual({
+			lastOutput: "It is 12°",
+			lastSteps,
+		});
+	});
+});
+
+// A trajectory testcase copies the steps it pins into PostgreSQL (results included) so
+// the test outlives the ClickHouse retention the trajectory itself lives under. A
+// nullable column nothing writes is not a delivered field: pin the write.
+describe("TestcasesRepository.newTestcase", () => {
+	let mockPrisma: ReturnType<typeof makeMockPrisma>;
+	let repo: TestcasesRepository;
+
+	beforeEach(() => {
+		mockPrisma = makeMockPrisma();
+		repo = new TestcasesRepository(mockPrisma as unknown as PrismaClient);
+	});
+
+	it("writes the pinned trajectory and its config", async () => {
+		mockPrisma.testCase.create.mockResolvedValue({ id: 5 });
+		const expectedSteps = [
+			{ kind: "tool_call" as const, name: "get_weather", recordedResult: '{"temp":12}' },
+			{ kind: "final" as const, text: "It is 12°" },
+		];
+
+		await repo.newTestcase({
+			name: "t",
+			promptId: 1,
+			input: "i",
+			expectedOutput: "e",
+			lastOutput: "",
+			expectedSteps,
+			stepsConfig: { orderMatters: true },
+		});
+
+		expect(mockPrisma.testCase.create).toHaveBeenCalledWith({
+			data: expect.objectContaining({
+				expectedSteps,
+				stepsConfig: { orderMatters: true },
+			}),
+		});
+	});
+
+	it("leaves a text testcase's trajectory columns unset", async () => {
+		mockPrisma.testCase.create.mockResolvedValue({ id: 5 });
+
+		await repo.newTestcase({
+			name: "t",
+			promptId: 1,
+			input: "i",
+			expectedOutput: "e",
+			lastOutput: "",
+		});
+
+		const data = mockPrisma.testCase.create.mock.calls[0][0].data;
+		expect(data.expectedSteps).toBeUndefined();
+		expect(data.stepsConfig).toBeUndefined();
 	});
 });
 

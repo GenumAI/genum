@@ -5,6 +5,7 @@ import type { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "langch
 import type OpenAI from "openai";
 import type { FileInput } from "@/services/file.service";
 import type { PlaceholderDefinition, PlaceholderSelection } from "@genum/placeholders";
+import type { ConversationMessage } from "@/ai/providers";
 
 export type runPromptParams = {
 	prompt: Prompt;
@@ -21,6 +22,11 @@ export type runPromptParams = {
 	placeholders?: PlaceholderSelection;
 	/** Committed definitions, when the caller resolved a productive commit. */
 	placeholderDefinitions?: PlaceholderDefinition[];
+	/**
+	 * Turns after the opening question, for an agentic replay. Absent for a single-shot
+	 * run, which is every caller that existed before trajectory testcases.
+	 */
+	messages?: ConversationMessage[];
 };
 
 export type testcaseAssertion = {
