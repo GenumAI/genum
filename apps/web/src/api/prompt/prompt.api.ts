@@ -3,6 +3,7 @@ import type { ApiRequestConfig } from "../client";
 import type { PromptSettings, TLanguageModel, TestcaseStatuses } from "@/types/Prompt";
 import type { TestCase } from "@/types/TestСase";
 import type { ResponseModelConfig } from "@/types/AIModel";
+import type { ConversationMessage, ToolCall } from "@/types/steps";
 
 export interface PromptResponse {
 	answer: string;
@@ -26,6 +27,8 @@ export interface PromptResponse {
 		ignored: string[];
 		undefinedKeys: string[];
 	};
+	/** Present when the model asked for tools instead of answering directly. */
+	toolCalls?: ToolCall[];
 }
 
 // ============================================================================
@@ -73,6 +76,11 @@ export interface RunPromptData {
 	question?: string;
 	files?: string[];
 	placeholders?: Record<string, string>;
+	/**
+	 * Turns after the opening question, for an agentic run: the tool calls the model made
+	 * and the results the author supplied for them. Absent for a single-shot run.
+	 */
+	messages?: ConversationMessage[];
 }
 
 export interface AuditResponse {

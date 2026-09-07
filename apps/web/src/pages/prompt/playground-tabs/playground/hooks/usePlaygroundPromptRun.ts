@@ -7,6 +7,8 @@ import type { PromptResponse } from "@/api/prompt";
 import type { PromptSettings } from "@/types/Prompt";
 import type { TestCase } from "@/types/TestСase";
 import type { FileMetadata } from "@/api/files";
+import type { ConversationMessage, ToolCallStep } from "@/types/steps";
+import type { TrajectoryDraft } from "@/stores/playground.store";
 import { useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import { usePromptActions } from "@/stores/prompt.store";
@@ -22,6 +24,9 @@ export function usePlaygroundPromptRun({
 	currentAssertionType,
 	promptSettings,
 	selectedFiles,
+	trajectory,
+	setTrajectory,
+	clearTrajectory,
 	setRunState,
 	setOutputContent,
 	setStatus,
@@ -36,6 +41,9 @@ export function usePlaygroundPromptRun({
 	currentAssertionType: string;
 	promptSettings: PromptSettings | undefined;
 	selectedFiles: FileMetadata[];
+	trajectory: TrajectoryDraft;
+	setTrajectory: (updater: (prev: TrajectoryDraft) => TrajectoryDraft) => void;
+	clearTrajectory: () => void;
 	setRunState: (state: { loading: boolean; wasRun?: boolean }) => void;
 	setOutputContent: (value: PromptResponse | null) => void;
 	setStatus: (status: string) => void;
@@ -69,6 +77,10 @@ export function usePlaygroundPromptRun({
 	const handleRun = useCallback(async () => {
 		if (!promptId) return;
 
+		// A fresh "Run" starts a new trajectory, discarding any earlier one still waiting
+		// on tool results for this prompt/testcase -- the author asked to run again, not
+		// to continue the interrupted one.
+		clearTrajectory();
 		setRunState({ loading: true });
 		setRunLoading(true);
 		setRunError(null);
@@ -86,6 +98,23 @@ export function usePlaygroundPromptRun({
 					setLastRunResult(result);
 					setOutputContent(result);
 					warnAboutIgnoredPlaceholders(result.placeholders?.ignored);
+
+					// The tool is never executed by Genum: the run pauses here and the author
+					// types the result in (see handleToolResult), which is what turns this
+					// into a recordable, later replayable trajectory.
+					const toolCalls = result.toolCalls;
+					if (toolCalls && toolCalls.length > 0) {
+						const steps: ToolCallStep[] = toolCalls.map((call) => ({
+							kind: "tool_call",
+							name: call.name,
+							args: call.args,
+						}));
+						setTrajectory(() => ({
+							steps,
+							messages: [{ role: "assistant", content: result.answer, toolCalls }],
+							pending: toolCalls.map((call, index) => ({ call, stepIndex: index })),
+						}));
+					}
 				}
 				return;
 			}
@@ -147,7 +176,126 @@ export function usePlaygroundPromptRun({
 		setLastRunResult,
 		toast,
 		warnAboutIgnoredPlaceholders,
+		clearTrajectory,
+		setTrajectory,
 	]);
+
+	// The author supplied a result for the tool the run is paused on. Once every tool
+	// call from the last turn has a result, the accumulated conversation is sent back so
+	// the model can continue -- an empty string is a valid, deliberate result (e.g. a
+	// tool that legitimately returns nothing) and is sent through unchanged.
+	const handleToolResult = useCallback(
+		async (name: string, result: string) => {
+			if (!promptId) return;
+
+			const [front, ...restPending] = trajectory.pending;
+			if (!front) return;
+			// The queue, not the argument, is authoritative for which call this resolves --
+			// `name` only round-trips what TrajectorySteps was showing, so a mismatch means
+			// the UI and the queue drifted apart rather than a case to special-case here.
+			if (front.call.name !== name) {
+				console.warn(
+					`Tool result for "${name}" applied to pending call "${front.call.name}"; the trajectory queue may be out of sync.`,
+				);
+			}
+
+			const toolMessage: ConversationMessage = {
+				role: "tool",
+				toolCallId: front.call.id,
+				name: front.call.name,
+				content: result,
+			};
+			const messagesSoFar = [...trajectory.messages, toolMessage];
+			const stepsSoFar = trajectory.steps.map((step, index) =>
+				index === front.stepIndex && step.kind === "tool_call"
+					? { ...step, recordedResult: result }
+					: step,
+			);
+
+			if (restPending.length > 0) {
+				// More tool calls from the same turn are still waiting on a result.
+				setTrajectory(() => ({
+					steps: stepsSoFar,
+					messages: messagesSoFar,
+					pending: restPending,
+				}));
+				return;
+			}
+
+			setTrajectory(() => ({ steps: stepsSoFar, messages: messagesSoFar, pending: [] }));
+			setRunLoading(true);
+			setRunError(null);
+
+			try {
+				const nextResult = await promptApi.runPrompt(promptId, {
+					question: inputContent,
+					...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
+					placeholders: placeholderSelection,
+					messages: messagesSoFar,
+				});
+				setLastRunResult(nextResult);
+				setOutputContent(nextResult);
+				warnAboutIgnoredPlaceholders(nextResult.placeholders?.ignored);
+
+				const nextToolCalls = nextResult.toolCalls;
+				if (nextToolCalls && nextToolCalls.length > 0) {
+					const baseIndex = stepsSoFar.length;
+					const newSteps: ToolCallStep[] = nextToolCalls.map((call) => ({
+						kind: "tool_call",
+						name: call.name,
+						args: call.args,
+					}));
+					setTrajectory((prev) => ({
+						steps: [...prev.steps, ...newSteps],
+						messages: [
+							...prev.messages,
+							{
+								role: "assistant",
+								content: nextResult.answer,
+								toolCalls: nextToolCalls,
+							},
+						],
+						pending: nextToolCalls.map((call, index) => ({
+							call,
+							stepIndex: baseIndex + index,
+						})),
+					}));
+				} else {
+					setTrajectory((prev) => ({
+						steps: [...prev.steps, { kind: "final", text: nextResult.answer }],
+						messages: prev.messages,
+						pending: [],
+					}));
+				}
+			} catch (err: unknown) {
+				const error = err instanceof Error ? err : new Error("Failed to continue the run");
+				console.error("Failed to continue the agentic run:", err);
+				setRunError(error.message);
+				toast({
+					title: "Error",
+					description: error.message,
+					variant: "destructive",
+					duration: 6000,
+				});
+			} finally {
+				setRunLoading(false);
+			}
+		},
+		[
+			promptId,
+			trajectory,
+			setTrajectory,
+			inputContent,
+			selectedFiles,
+			placeholderSelection,
+			setRunLoading,
+			setRunError,
+			setLastRunResult,
+			setOutputContent,
+			warnAboutIgnoredPlaceholders,
+			toast,
+		],
+	);
 
 	useEffect(() => {
 		if (!storeOutputContent || !testcaseId || !testcase || !wasRun) {
@@ -172,5 +320,5 @@ export function usePlaygroundPromptRun({
 		setRunState,
 	]);
 
-	return { handleRun };
+	return { handleRun, handleToolResult };
 }

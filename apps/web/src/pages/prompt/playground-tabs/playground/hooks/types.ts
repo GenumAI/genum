@@ -3,6 +3,7 @@ import type { Options } from "@/hooks/usePrompt";
 import type { PromptSettings, TLanguageModel } from "@/types/Prompt";
 import type { TestCase } from "@/types/TestСase";
 import type { AuditData } from "@/types/audit";
+import type { Step } from "@/types/steps";
 
 // ============================================================================
 // Grouped Data Types for Playground Controller
@@ -152,6 +153,17 @@ export interface PlaygroundActionsGroup {
 }
 
 /**
+ * The agentic run in progress, if any: the steps accumulated so far and the tool the run
+ * is paused on. Empty for a plain single-shot run, which is every run that existed
+ * before trajectory testcases -- that is what keeps it rendering exactly as before.
+ */
+export interface PlaygroundTrajectoryGroup {
+	steps: Step[];
+	pendingTool: string | null;
+	onToolResult: (name: string, result: string) => void;
+}
+
+/**
  * Complete return type for usePlaygroundController
  */
 export interface PlaygroundControllerReturn {
@@ -160,6 +172,7 @@ export interface PlaygroundControllerReturn {
 	metrics: PlaygroundMetricsGroup;
 	ui: PlaygroundUIGroup;
 	models: TLanguageModel[];
+	trajectory: PlaygroundTrajectoryGroup;
 	actions: PlaygroundActionsGroup;
 }
 

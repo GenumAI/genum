@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import TextEditor from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/TextEditor";
 import PlaceholderChips from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/components/PlaceholderChips";
 import OutputBlock from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
+import { TrajectorySteps } from "@/pages/prompt/playground-tabs/components/TrajectorySteps";
 import { Button } from "@/components/ui/button";
 import SettingsBar from "./components/settings-block/models-settings/SettingsBar";
 import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDialog";
@@ -39,7 +40,7 @@ export default function Playground() {
 		selectedFiles,
 	});
 
-	const { prompt, testcase, metrics, ui, models, actions } = controller;
+	const { prompt, testcase, metrics, ui, models, trajectory, actions } = controller;
 	const hasCurrentPromptData = prompt.data?.prompt?.id === promptId;
 	const isTestcaseReady = !testcase.loading;
 	const shouldShowTransitionSkeletonBase =
@@ -132,16 +133,24 @@ export default function Playground() {
 							</div>
 						</div>
 
-						<OutputBlock
-							onSaveAsExpected={actions.testcase.saveAsExpected}
-							onTestcaseAdded={actions.testcase.onAdded}
-							onRegisterClearFunction={actions.testcase.registerClearFn}
-							selectedFiles={selectedFiles}
-							onTestcaseLoadingChange={setIsTestcaseLoading}
-							isRunning={ui.loading.run}
-							serverAssertionType={prompt.data?.prompt?.assertionType}
-							serverAssertionValue={prompt.data?.prompt?.assertionValue}
-						/>
+						{trajectory.steps.length > 0 ? (
+							<TrajectorySteps
+								steps={trajectory.steps}
+								pendingTool={trajectory.pendingTool}
+								onToolResult={trajectory.onToolResult}
+							/>
+						) : (
+							<OutputBlock
+								onSaveAsExpected={actions.testcase.saveAsExpected}
+								onTestcaseAdded={actions.testcase.onAdded}
+								onRegisterClearFunction={actions.testcase.registerClearFn}
+								selectedFiles={selectedFiles}
+								onTestcaseLoadingChange={setIsTestcaseLoading}
+								isRunning={ui.loading.run}
+								serverAssertionType={prompt.data?.prompt?.assertionType}
+								serverAssertionValue={prompt.data?.prompt?.assertionValue}
+							/>
+						)}
 					</div>
 
 					<div className="w-full min-w-0 shrink-0 lg:w-[clamp(280px,24vw,400px)] lg:min-w-[280px] lg:max-w-[400px]">

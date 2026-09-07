@@ -79,7 +79,12 @@ export class PromptsController {
 
 	public async runPrompt(req: Request, res: Response) {
 		const id = numberSchema.parse(req.params.id);
-		const { question, files: filesIds, placeholders } = PromptRunSchema.parse(req.body);
+		const {
+			question,
+			files: filesIds,
+			placeholders,
+			messages,
+		} = PromptRunSchema.parse(req.body);
 
 		const metadata = req.genumMeta.ids;
 		const files = await fileService.getFileObjectsByIds(filesIds, metadata.projID);
@@ -95,6 +100,9 @@ export class PromptsController {
 			user_id: metadata.userID,
 			files: files,
 			placeholders: placeholders ?? {},
+			// Absent for a single-shot run -- the playground sends the accumulated
+			// conversation back only once the author has supplied a tool result.
+			messages,
 		});
 
 		res.status(200).json({ ...run });

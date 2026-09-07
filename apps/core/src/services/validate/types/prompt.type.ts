@@ -1,6 +1,7 @@
 import { AssertionTypeSchema, PromptSchema as PromptSchemaGenerated } from "@/prisma-types";
 import { LogLevel, SourceType } from "@/services/logger";
 import { FunctionCallSchema } from "@/ai/models/types";
+import type { ConversationMessage } from "@/ai/providers";
 import { z } from "zod";
 
 const PromptSchema = PromptSchemaGenerated.extend({
@@ -63,15 +64,56 @@ export const PromptUpdateLLMConfigSchema = z
 
 export type PromptUpdateLLMConfigType = z.infer<typeof PromptUpdateLLMConfigSchema>;
 
+// Mirrors `ToolCall` / `ConversationMessage` in @/ai/providers. Boundary validation for
+// the conversation the playground accumulates while the author supplies tool results --
+// a tool is never executed by Genum, so this is the only place those results enter the
+// system, and arbitrary JSON here would reach the provider call unchecked.
+const ToolCallSchema = z
+	.object({
+		id: z.string(),
+		name: z.string(),
+		args: z.record(z.string(), z.unknown()),
+	})
+	.strict();
+
+const ConversationMessageSchema = z.discriminatedUnion("role", [
+	z
+		.object({
+			role: z.literal("assistant"),
+			content: z.string(),
+			toolCalls: z.array(ToolCallSchema).optional(),
+		})
+		.strict(),
+	z
+		.object({
+			role: z.literal("tool"),
+			toolCallId: z.string(),
+			name: z.string(),
+			content: z.string(),
+		})
+		.strict(),
+]);
+
 export const PromptRunSchema = z
 	.object({
 		question: z.string(),
 		files: z.array(z.string()).optional().default([]),
 		placeholders: z.record(z.string(), z.string()).optional(),
+		/**
+		 * Turns after the opening question, for an agentic run. Absent for a single-shot
+		 * run, which is every caller that existed before trajectory testcases.
+		 */
+		messages: z.array(ConversationMessageSchema).optional(),
 	})
 	.strict();
 
 export type PromptRunType = z.infer<typeof PromptRunSchema>;
+
+// The schema and the hand-written provider type must not drift.
+type _ConversationMessageMatchesType =
+	z.infer<typeof ConversationMessageSchema> extends ConversationMessage ? true : never;
+const _assertion: _ConversationMessageMatchesType = true;
+void _assertion;
 
 export const PromptCommitSchema = z
 	.object({
