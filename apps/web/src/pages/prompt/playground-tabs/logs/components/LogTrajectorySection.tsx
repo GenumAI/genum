@@ -27,10 +27,17 @@ export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
 				{isLoading && <p className="text-sm text-muted-foreground">Loading the trace…</p>}
 				{/* An empty list and a failed read look identical if the failure is silent,
 				    and they mean opposite things: "this run called no tools" versus "we
-				    could not tell you what it did". */}
+				    could not tell you what it did".
+				    A failure can also arrive while a previous read's steps are still cached
+				    -- a background refetch on window focus is enough. Hiding them would drop
+				    a chain the author was reading, and showing them under a bare error would
+				    leave them unable to tell whether it is current, so the message says which
+				    of the two situations this is. */}
 				{isError && (
 					<p className="text-sm text-destructive">
-						The recorded trace could not be loaded.
+						{data && data.steps.length > 0
+							? "The trace could not be re-read; these are the steps from the last successful read."
+							: "The recorded trace could not be loaded."}
 					</p>
 				)}
 				{data && data.steps.length === 0 && !isLoading && !isError && (
