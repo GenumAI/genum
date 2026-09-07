@@ -92,4 +92,110 @@ describe("compareSteps", () => {
 			compareSteps(expected, [{ kind: "final", text: "It is 30°" }], DEFAULT_STEPS_CONFIG),
 		).toHaveLength(1);
 	});
+
+	// Finding (a): object key order should not matter
+	it("ignores object key order in exact mode", () => {
+		const expected: Step[] = [
+			{
+				...weather({ city: "Berlin", unit: "C" }),
+				argsMatch: "exact",
+			},
+		];
+		const actual: Step[] = [
+			{
+				kind: "tool_call",
+				name: "get_weather",
+				args: { unit: "C", city: "Berlin" },
+			},
+		];
+		expect(compareSteps(expected, actual, DEFAULT_STEPS_CONFIG)).toEqual([]);
+	});
+
+	it("ignores nested object key order in exact mode", () => {
+		const expected: Step[] = [
+			{
+				kind: "tool_call",
+				name: "get_weather",
+				args: { location: { city: "Berlin", country: "DE" } },
+				argsMatch: "exact",
+			},
+		];
+		const actual: Step[] = [
+			{
+				kind: "tool_call",
+				name: "get_weather",
+				args: { location: { country: "DE", city: "Berlin" } },
+			},
+		];
+		expect(compareSteps(expected, actual, DEFAULT_STEPS_CONFIG)).toEqual([]);
+	});
+
+	it("detects reordered array elements as different", () => {
+		const expected: Step[] = [
+			{
+				kind: "tool_call",
+				name: "list_items",
+				args: { items: ["a", "b", "c"] },
+				argsMatch: "exact",
+			},
+		];
+		const actual: Step[] = [
+			{
+				kind: "tool_call",
+				name: "list_items",
+				args: { items: ["c", "b", "a"] },
+			},
+		];
+		const mismatches = compareSteps(expected, actual, DEFAULT_STEPS_CONFIG);
+		expect(mismatches).toHaveLength(1);
+	});
+
+	// Finding (b): greedy matching can fail when two expected steps could match the same actual
+	it("correctly matches when two expected steps call the same tool", () => {
+		const expected: Step[] = [
+			{ ...weather({ city: "Berlin" }), argsMatch: "exact" },
+			{ ...weather({ city: "Paris" }), argsMatch: "exact" },
+		];
+		const actual: Step[] = [
+			weather({ city: "Paris" }),
+			weather({ city: "Berlin" }),
+		];
+		// Greedy would pick Paris for the first, then fail on Berlin.
+		// Backtracking should succeed.
+		expect(compareSteps(expected, actual, DEFAULT_STEPS_CONFIG)).toEqual([]);
+	});
+
+	// Finding (c): orderMatters with disabled steps
+	it("respects relative order of enabled steps with disabled step in the middle", () => {
+		const expected: Step[] = [
+			{ ...weather({ city: "Berlin" }), argsMatch: "exact" },
+			{ kind: "tool_call", name: "search_docs", enabled: false },
+			{ kind: "tool_call", name: "get_time", args: { tz: "CET" }, argsMatch: "exact" },
+		];
+		const actual: Step[] = [
+			weather({ city: "Berlin" }),
+			{ kind: "tool_call", name: "get_time", args: { tz: "CET" } },
+		];
+		// The enabled steps (get_weather, get_time) appear in order in actual,
+		// and the disabled step should not consume a position.
+		expect(compareSteps(expected, actual, { orderMatters: true })).toEqual([]);
+	});
+
+	it("rejects enabled steps out of order even with a disabled step in between", () => {
+		const expected: Step[] = [
+			{ ...weather({ city: "Berlin" }), argsMatch: "exact" },
+			{ kind: "tool_call", name: "search_docs", enabled: false },
+			{ kind: "tool_call", name: "get_time", args: { tz: "CET" }, argsMatch: "exact" },
+		];
+		const actual: Step[] = [
+			{ kind: "tool_call", name: "get_time", args: { tz: "CET" } },
+			weather({ city: "Berlin" }),
+		];
+		// The enabled steps are out of order (get_time before get_weather),
+		// so this should fail. get_weather is found at position 1, then we look for
+		// get_time from position 2 onwards and don't find it.
+		const mismatches = compareSteps(expected, actual, { orderMatters: true });
+		expect(mismatches).toHaveLength(1);
+		expect(mismatches[0].index).toBe(2);
+	});
 });
