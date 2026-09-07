@@ -70,5 +70,11 @@ export function createProjectRouter(): Router {
 	// Logs
 	router.get("/logs", asyncHandler(projectController.getProjectLogs.bind(projectController)));
 
+	// Trace spans (agentic run trajectories)
+	router.get(
+		"/traces/:traceId/spans",
+		asyncHandler(projectController.getTraceSpans.bind(projectController)),
+	);
+
 	return router;
 }

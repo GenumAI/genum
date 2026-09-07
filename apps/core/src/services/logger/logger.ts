@@ -16,6 +16,7 @@ import { env } from "@/env";
 import { WhereBuilder } from "./where.builder";
 import { QUERIES } from "./queries";
 import { mapApiKeyStatsRow, resolveLogPlaceholders } from "./mappers";
+import { toSpanRows, type SpanBatch, type SpanRow } from "./spans";
 import type {
 	LogDocument,
 	LogSearchResult,
@@ -31,6 +32,7 @@ import type {
 	OrganizationUsageStats,
 	OrganizationDetailedUsageStats,
 	ClickHouseLogRow,
+	ClickHouseSpanRow,
 	ClickHouseCountRow,
 	ClickHouseProjectStatsRow,
 	ClickHousePromptStatsRow,
@@ -48,6 +50,8 @@ import type {
 
 // Export types for external use
 export type {
+	SpanBatch,
+	SpanRow,
 	LogDocument,
 	LogSearchResult,
 	ProjectUsageStats,
@@ -62,6 +66,7 @@ export type {
 	OrganizationUsageStats,
 	OrganizationDetailedUsageStats,
 	ClickHouseLogRow,
+	ClickHouseSpanRow,
 	ClickHouseCountRow,
 	ClickHouseProjectStatsRow,
 	ClickHousePromptStatsRow,
@@ -81,6 +86,7 @@ const clickhousePassword = env.CLICKHOUSE_PASSWORD;
 
 enum CLICKHOUSE_TABLES {
 	LOGS = "logs",
+	TRACE_SPANS = "trace_spans",
 }
 
 export const clickhouseClient = createClient({
@@ -164,6 +170,7 @@ function transformRowToLogDocument(row: ClickHouseLogRow): LogDocument {
 		user_id: row.user_id || undefined,
 		api_key_id: row.api_key_id || undefined,
 		testcase_id: row.testcase_id || undefined,
+		trace_id: row.trace_id || undefined,
 		vendor: row.vendor,
 		model: row.model,
 		tokens_in: row.tokens_in,
@@ -199,6 +206,7 @@ export async function logUsage(document: LogDocument): Promise<void> {
 					user_id: document.user_id || null,
 					api_key_id: document.api_key_id || null,
 					testcase_id: document.testcase_id || null,
+					trace_id: document.trace_id ?? null,
 					vendor: document.vendor,
 					model: document.model,
 					tokens_in: document.tokens_in,
@@ -219,6 +227,32 @@ export async function logUsage(document: LogDocument): Promise<void> {
 		});
 	} catch (error) {
 		console.error("Ошибка записи лога в ClickHouse:", error);
+		throw error;
+	}
+}
+
+/**
+ * Writes the steps of an agentic run. The root of the trace is the `logs` row written by
+ * `logUsage`; this call adds its tool_call/final steps as rows in `trace_spans`.
+ *
+ * Mirrors `logUsage`'s own error handling around its insert rather than swallowing: a
+ * caller that wants telemetry to never fail a run must catch this itself, the same way it
+ * must already catch `logUsage`.
+ */
+export async function logSpans(batch: SpanBatch): Promise<void> {
+	const rows = toSpanRows(batch);
+	if (rows.length === 0) {
+		return;
+	}
+
+	try {
+		await clickhouseClient.insert({
+			table: CLICKHOUSE_TABLES.TRACE_SPANS,
+			values: rows,
+			format: "JSONEachRow",
+		});
+	} catch (error) {
+		console.error("Ошибка записи span-ов в ClickHouse:", error);
 		throw error;
 	}
 }
@@ -713,6 +747,58 @@ export async function getProjectUsageWithDailyStats(
 		};
 	} catch (error) {
 		console.error("Error getting detailed project usage stats V2 from ClickHouse:", error);
+		throw error;
+	}
+}
+
+/**
+ * Reads the spans of one trace, ordered by `span_index`. Scoped by org and project the
+ * same way every other logger query is -- a trace_id from another org's run never matches.
+ */
+export async function getTraceSpans(
+	traceId: string,
+	orgId: number,
+	projectId: number,
+): Promise<SpanRow[]> {
+	try {
+		const { where, params } = WhereBuilder.forOrg(orgId)
+			.projectId(projectId)
+			.traceId(traceId)
+			.build();
+
+		const result = await clickhouseClient.query({
+			query: QUERIES.GET_SPANS(CLICKHOUSE_TABLES.TRACE_SPANS, where),
+			query_params: params,
+			format: "JSONEachRow",
+		});
+
+		const data = (await result.json()) as ClickHouseSpanRow[];
+
+		return data.map((row) => ({
+			trace_id: row.trace_id,
+			span_id: row.span_id,
+			parent_span_id: row.parent_span_id,
+			span_index: Number(row.span_index),
+			span_type: row.span_type as SpanRow["span_type"],
+			orgId: Number(row.orgId),
+			project_id: Number(row.project_id),
+			prompt_id: Number(row.prompt_id),
+			name: row.name,
+			input: row.input,
+			output: row.output,
+			tool_args: row.tool_args,
+			tool_result: row.tool_result,
+			tool_error: row.tool_error,
+			vendor: row.vendor,
+			model: row.model,
+			tokens_in: Number(row.tokens_in),
+			tokens_out: Number(row.tokens_out),
+			cost: Number(row.cost),
+			duration_ms: Number(row.duration_ms),
+			status: row.status,
+		}));
+	} catch (error) {
+		console.error("Error getting trace spans from ClickHouse:", error);
 		throw error;
 	}
 }

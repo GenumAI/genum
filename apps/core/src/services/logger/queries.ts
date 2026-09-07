@@ -155,6 +155,16 @@ export const QUERIES = {
 	`,
 
 	/**
+	 * Get the spans of one trace, in step order
+	 */
+	GET_SPANS: (table: string, where: string) => `
+		SELECT *
+		FROM ${table}
+		WHERE ${where}
+		ORDER BY span_index ASC
+	`,
+
+	/**
 	 * Count runs by date range
 	 */
 	COUNT_BY_DATE: (table: string) => `

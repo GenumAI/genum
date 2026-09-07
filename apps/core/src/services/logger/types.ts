@@ -40,6 +40,9 @@ export interface LogDocument {
 	api_key_id?: number;
 	testcase_id?: number;
 
+	// agentic run: set when this row is the root span of a trajectory
+	trace_id?: string;
+
 	// AI info
 	vendor: string;
 	model: string;
@@ -187,6 +190,7 @@ export interface ClickHouseLogRow {
 	user_id: number | null;
 	api_key_id: number | null;
 	testcase_id: number | null;
+	trace_id: string | null;
 	vendor: string;
 	model: string;
 	tokens_in: number;
@@ -203,6 +207,32 @@ export interface ClickHouseLogRow {
 
 export interface ClickHouseCountRow {
 	total: number | string;
+}
+
+// Row shape returned by `SELECT * FROM trace_spans`
+export interface ClickHouseSpanRow {
+	timestamp: string;
+	trace_id: string;
+	span_id: string;
+	parent_span_id: string | null;
+	span_index: number;
+	span_type: string;
+	orgId: number;
+	project_id: number;
+	prompt_id: number;
+	name: string;
+	input: string;
+	output: string;
+	tool_args: string;
+	tool_result: string;
+	tool_error: string | null;
+	vendor: string;
+	model: string;
+	tokens_in: number;
+	tokens_out: number;
+	cost: number;
+	duration_ms: number;
+	status: string;
 }
 
 export interface ClickHouseProjectStatsRow {

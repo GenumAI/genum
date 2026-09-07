@@ -5,6 +5,7 @@ import { ProjectService } from "@/services/project.service";
 import {
 	getProjectUsageWithDailyStats,
 	getProjectLogs,
+	getTraceSpans,
 	type LogDocument,
 	type PromptUsageStats,
 } from "../services/logger/logger";
@@ -241,5 +242,14 @@ export class ProjectController {
 			...logs,
 			promptNames,
 		});
+	}
+
+	public async getTraceSpans(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const traceId = stringSchema.parse(req.params.traceId);
+
+		const spans = await getTraceSpans(traceId, metadata.orgID, metadata.projID);
+
+		res.status(200).json({ spans });
 	}
 }

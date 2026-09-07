@@ -40,6 +40,13 @@ export class WhereBuilder {
 	}
 
 	/**
+	 * Add trace ID condition
+	 */
+	traceId(traceId: string): this {
+		return this.addCondition("trace_id", traceId, "String");
+	}
+
+	/**
 	 * Add multiple project IDs condition (IN clause)
 	 */
 	projectIds(projectIds: number[]): this {

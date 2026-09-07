@@ -6,11 +6,13 @@
 // Export all public functions
 export {
 	logUsage,
+	logSpans,
 	getPromptLogs,
 	getProjectUsageStats,
 	getProjectLogs,
 	getOrganizationDailyUsageStats,
 	getProjectUsageWithDailyStats,
+	getTraceSpans,
 	countRunsByDate,
 	clickhouseClient,
 	clickhouseUrl,
@@ -19,6 +21,8 @@ export {
 
 // Export types
 export type {
+	SpanBatch,
+	SpanRow,
 	LogDocument,
 	LogSearchResult,
 	ProjectUsageStats,
