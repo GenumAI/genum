@@ -1,31 +1,39 @@
-import type { Prisma, PrismaClient, TestCase } from "@/prisma";
+import { Prisma } from "@/prisma";
+import type { PrismaClient, TestCase } from "@/prisma";
 import type { TestcasesCreateType, TestcasesUpdateType } from "@/services/validate";
 
 /**
- * `expectedSteps` and `stepsConfig` are `Json?` columns, whose Prisma input type is
- * `InputJsonValue`. The validated step objects carry a `Record<string, unknown>` for a
- * tool call's arguments, which does not structurally satisfy that type, so they are
- * re-stated here rather than being spread in blind -- and only when present, so a text
- * testcase's columns are left unset instead of being written as JSON null.
+ * `expectedSteps`, `lastSteps` and `stepsConfig` are `Json?` columns. Prisma needs three
+ * different things from us for three different intents, and conflating any two of them is
+ * the bug this function exists to prevent:
+ *
+ *   - absent (`undefined`)  -> leave the column alone
+ *   - a value               -> write it
+ *   - `null`                -> clear the column, which Prisma spells `Prisma.DbNull`
+ *
+ * A plain `null` cast to `InputJsonValue` is rejected at runtime, which is why clearing a
+ * trajectory was impossible through the API before this.
  */
-function trajectoryColumns(data: {
+export function trajectoryColumns(data: {
 	expectedSteps?: unknown;
 	lastSteps?: unknown;
 	stepsConfig?: unknown;
+	lastMismatches?: unknown;
 }): {
-	expectedSteps?: Prisma.InputJsonValue;
-	lastSteps?: Prisma.InputJsonValue;
-	stepsConfig?: Prisma.InputJsonValue;
+	expectedSteps?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+	lastSteps?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+	stepsConfig?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+	lastMismatches?: Prisma.InputJsonValue | typeof Prisma.DbNull;
 } {
+	const column = (value: unknown) =>
+		value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
+
 	return {
-		...(data.expectedSteps !== undefined
-			? { expectedSteps: data.expectedSteps as Prisma.InputJsonValue }
-			: {}),
-		...(data.lastSteps !== undefined
-			? { lastSteps: data.lastSteps as Prisma.InputJsonValue }
-			: {}),
-		...(data.stepsConfig !== undefined
-			? { stepsConfig: data.stepsConfig as Prisma.InputJsonValue }
+		...(data.expectedSteps !== undefined ? { expectedSteps: column(data.expectedSteps) } : {}),
+		...(data.lastSteps !== undefined ? { lastSteps: column(data.lastSteps) } : {}),
+		...(data.stepsConfig !== undefined ? { stepsConfig: column(data.stepsConfig) } : {}),
+		...(data.lastMismatches !== undefined
+			? { lastMismatches: column(data.lastMismatches) }
 			: {}),
 	};
 }
@@ -133,19 +141,27 @@ export class TestcasesRepository {
 	// must carry the same placeholderValues shape as that list -- an update response
 	// missing the relation would read in the cache as "no pin", clearing the chips even
 	// though nothing about the pin changed.
-	public async updateTestcaseByID(id: number, data: TestcasesUpdateType) {
+	// `lastMismatches` is not part of `TestcasesUpdateType` -- the schema is `.strict()`
+	// and deliberately does not accept it from a client -- so the signature is widened
+	// here to accept it from a caller that derived it from a run (or from the update
+	// handler's own cascade), rather than smuggling it through the parsed request type.
+	public async updateTestcaseByID(
+		id: number,
+		data: TestcasesUpdateType & { lastMismatches?: unknown },
+	) {
 		const {
 			placeholders: _placeholders,
 			expectedSteps,
 			lastSteps,
 			stepsConfig,
+			lastMismatches,
 			...testcaseData
 		} = data;
 		return await this.prisma.testCase.update({
 			where: { id },
 			data: {
 				...testcaseData,
-				...trajectoryColumns({ expectedSteps, lastSteps, stepsConfig }),
+				...trajectoryColumns({ expectedSteps, lastSteps, stepsConfig, lastMismatches }),
 			},
 			include: {
 				placeholderValues: {

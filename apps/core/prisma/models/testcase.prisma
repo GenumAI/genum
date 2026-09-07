@@ -26,6 +26,11 @@ model TestCase {
     lastSteps               Json?
     stepsConfig             Json?
 
+    // What `compareSteps` returned on the last run: `StepMismatch[]`, indices into
+    // `expectedSteps`. Derived from a run, never sent by a client. Null when the testcase
+    // has no trajectory, or has one that has not been run since.
+    lastMismatches          Json?
+
     createdAt               DateTime       @default(now()) @db.Timestamp(6)
     updatedAt               DateTime       @default(now()) @updatedAt @db.Timestamp(6)
 

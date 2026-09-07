@@ -91,3 +91,40 @@ describe("TestcasesUpdateSchema -- expectedSteps enabled-step boundary", () => {
 		expect(result.success).toBe(true);
 	});
 });
+
+describe("TestcasesUpdateSchema — clearing a trajectory", () => {
+	it("accepts expectedSteps: null, which means clear the trajectory", () => {
+		expect(TestcasesUpdateSchema.safeParse({ expectedSteps: null }).success).toBe(true);
+	});
+
+	it("accepts stepsConfig: null", () => {
+		expect(TestcasesUpdateSchema.safeParse({ stepsConfig: null }).success).toBe(true);
+	});
+
+	it("still rejects an expectedSteps whose every step is unticked", () => {
+		const result = TestcasesUpdateSchema.safeParse({
+			expectedSteps: [
+				{ kind: "tool_call", name: "search", enabled: false },
+				{ kind: "final", text: "done", enabled: false },
+			],
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("still accepts a mixed expectedSteps", () => {
+		const result = TestcasesUpdateSchema.safeParse({
+			expectedSteps: [
+				{ kind: "tool_call", name: "search", enabled: false },
+				{ kind: "final", text: "done" },
+			],
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("does not accept lastMismatches -- it is derived from a run, never claimed", () => {
+		const result = TestcasesUpdateSchema.safeParse({
+			lastMismatches: [{ index: 0, reason: "made up" }],
+		});
+		expect(result.success).toBe(false);
+	});
+});

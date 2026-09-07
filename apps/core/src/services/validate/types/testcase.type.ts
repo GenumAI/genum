@@ -24,6 +24,10 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 	updatedAt: true,
 	// Written by a run, never by a client -- `.strict()` rejects it if one sends it.
 	lastSteps: true,
+	// Same boundary: derived from a run, never sent by a client. Omitting it also keeps
+	// it out of `TestcasesCreateType`, so `newTestcase` cannot leak an `unknown` into the
+	// `Json?` column Prisma expects `InputJsonValue | DbNull` for.
+	lastMismatches: true,
 })
 	.extend({
 		promptId: z.number(),
@@ -64,6 +68,11 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 	promptId: true,
 	createdAt: true,
 	updatedAt: true,
+	// Written by a run, never by a client -- `.strict()` rejects it if one sends it. The
+	// generated base schema carries it as a plain nullish `unknown` (it mirrors the `Json?`
+	// column with no boundary of its own), so it must be omitted explicitly here or
+	// `.strict()` would wave it through instead of rejecting it.
+	lastMismatches: true,
 })
 	.extend({
 		status: TestCaseStatusSchema.optional(),
@@ -74,9 +83,13 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 		// is what a run recorded, not what an author asserts, so it is not put through
 		// `EnabledStepsSchema` -- an all-disabled `lastSteps` is just a run with nothing
 		// enabled at the time, not a boundary violation.
-		expectedSteps: EnabledStepsSchema.optional(),
+		//
+		// `null` is how a client says "clear the trajectory": the testcase goes back to
+		// being the plain text one it was before any steps were pinned. The repository
+		// turns it into `Prisma.DbNull`. `undefined` still means "leave it alone".
+		expectedSteps: EnabledStepsSchema.nullable().optional(),
 		lastSteps: StepsSchema.optional(),
-		stepsConfig: StepsConfigSchema.optional(),
+		stepsConfig: StepsConfigSchema.nullable().optional(),
 	})
 	.partial()
 	.strict();

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TestcasesRepository } from "./TestcasesRepository";
+import { Prisma } from "@/prisma";
 import type { PrismaClient } from "@/prisma";
+import { TestcasesRepository, trajectoryColumns } from "./TestcasesRepository";
 
 function makeMockPrisma() {
 	return {
@@ -220,5 +221,35 @@ describe("TestcasesRepository.getTestcasesByPromptId", () => {
 		await repo.getTestcasesByPromptId(1, { includePlaceholders: false });
 		call = mockPrisma.testCase.findMany.mock.calls[0][0];
 		expect(call.include).not.toHaveProperty("placeholderValues");
+	});
+});
+
+describe("trajectoryColumns", () => {
+	it("omits a field the caller did not mention", () => {
+		expect(trajectoryColumns({})).toEqual({});
+	});
+
+	it("passes a value through unchanged", () => {
+		const steps = [{ kind: "tool_call", name: "search" }];
+		expect(trajectoryColumns({ expectedSteps: steps })).toEqual({ expectedSteps: steps });
+	});
+
+	it("maps null to Prisma.DbNull so the column becomes SQL NULL", () => {
+		// `null` cast to InputJsonValue is rejected by Prisma at runtime; DbNull is the
+		// only way to clear a Json? column, and clearing it is how a trajectory testcase
+		// becomes a text one again.
+		expect(trajectoryColumns({ expectedSteps: null })).toEqual({
+			expectedSteps: Prisma.DbNull,
+		});
+	});
+
+	it("maps every trajectory column independently", () => {
+		expect(
+			trajectoryColumns({ expectedSteps: null, lastSteps: [], stepsConfig: null }),
+		).toEqual({
+			expectedSteps: Prisma.DbNull,
+			lastSteps: [],
+			stepsConfig: Prisma.DbNull,
+		});
 	});
 });

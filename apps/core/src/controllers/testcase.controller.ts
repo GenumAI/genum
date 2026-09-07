@@ -5,6 +5,7 @@ import {
 	type TestcasesCreateType,
 	TestcasesCreateWithoutNameSchema,
 	TestcasesUpdateSchema,
+	type TestcasesUpdateType,
 	TestcaseRunSchema,
 	numberSchema,
 } from "@/services/validate";
@@ -125,7 +126,20 @@ export class TestcasesController {
 			await db.testcases.setPlaceholderSelection(id, resolved.rows);
 		}
 
-		const testcase = await db.testcases.updateTestcaseByID(id, data);
+		// Clearing the trajectory clears everything that only describes a trajectory. A row
+		// left holding a step config and a per-step explanation for steps that no longer
+		// exist is a row nothing can interpret, so the server cascades rather than trusting
+		// the client to send all three. `lastMismatches` is not a field of `data` -- the
+		// schema is `.strict()` and deliberately does not accept it from a client -- so the
+		// cascade is built into a separate object typed to carry it, rather than mutating
+		// the parsed input.
+		const updateData: TestcasesUpdateType & { lastMismatches?: unknown } = { ...data };
+		if (data.expectedSteps === null) {
+			updateData.stepsConfig = null;
+			updateData.lastMismatches = null;
+		}
+
+		const testcase = await db.testcases.updateTestcaseByID(id, updateData);
 
 		res.status(200).json({ testcase, unresolvedPlaceholders: unresolved });
 	}

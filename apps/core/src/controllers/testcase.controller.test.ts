@@ -241,6 +241,23 @@ describe("TestcasesController.updateTestcase", () => {
 		]);
 	});
 
+	it("clearing expectedSteps also clears stepsConfig and lastMismatches", async () => {
+		// A client that sends only `expectedSteps: null` must not be able to leave the row
+		// holding an orphaned config or an explanation of steps that are gone.
+		const { res } = makeRes();
+
+		await controller.updateTestcase(makeReq({ expectedSteps: null }), res);
+
+		expect(db.testcases.updateTestcaseByID).toHaveBeenCalledWith(
+			5,
+			expect.objectContaining({
+				expectedSteps: null,
+				stepsConfig: null,
+				lastMismatches: null,
+			}),
+		);
+	});
+
 	it("responds with the newly pinned selection, not the pre-update one", async () => {
 		// updateTestcaseByID's response carries the placeholderValues include (Task 9), so
 		// writing the new pin AFTER building that response would answer with the stale
