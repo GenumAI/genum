@@ -22,6 +22,12 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 	// without it a never-run testcase would claim a verdict it does not have.
 	const hasRun = Array.isArray(testcase?.lastSteps) && testcase.lastSteps.length > 0;
 
+	// `useTestcaseTrajectory` already surfaces a toast on failure, and nothing here is
+	// optimistic -- every control reads the persisted value, so a rejected write needs no
+	// rollback. Swallowing the rejection is therefore the whole handler: without it each
+	// failed save also logs an unhandled promise rejection.
+	const alreadyReported = () => {};
+
 	return (
 		<div className="flex flex-col gap-3 rounded-[6px] border p-4">
 			<div className="flex items-center justify-between">
@@ -65,7 +71,9 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 											setConfirmingRemoval(true);
 											return;
 										}
-										void trajectory.setStepEnabled(index, checked === true);
+										trajectory
+											.setStepEnabled(index, checked === true)
+											.catch(alreadyReported);
 									}}
 								/>
 								<div className="min-w-0 flex-1">
@@ -105,10 +113,12 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 									setConfirmingRemoval(true);
 									return;
 								}
-								void trajectory.setStepEnabled(index, enabled);
+								trajectory.setStepEnabled(index, enabled).catch(alreadyReported);
 							}}
 							onArgsMatchChange={(argsMatch) => {
-								void trajectory.setStepArgsMatch(index, argsMatch);
+								trajectory
+									.setStepArgsMatch(index, argsMatch)
+									.catch(alreadyReported);
 							}}
 						/>
 					);
@@ -120,7 +130,7 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 					checked={trajectory.stepsConfig.orderMatters}
 					disabled={trajectory.saving}
 					onCheckedChange={(checked) => {
-						void trajectory.setOrderMatters(checked === true);
+						trajectory.setOrderMatters(checked === true).catch(alreadyReported);
 					}}
 				/>
 				<span className="text-sm">Steps must happen in this order</span>
@@ -138,9 +148,12 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 							variant="destructive"
 							disabled={trajectory.saving}
 							onClick={() => {
-								void trajectory.removeTrajectory().then(() => {
-									setConfirmingRemoval(false);
-								});
+								trajectory
+									.removeTrajectory()
+									.then(() => {
+										setConfirmingRemoval(false);
+									})
+									.catch(alreadyReported);
 							}}
 						>
 							Remove the trajectory
