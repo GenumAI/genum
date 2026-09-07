@@ -587,6 +587,51 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		]);
 	});
 
+	it("records the completed turns when a later turn throws, and still rethrows", async () => {
+		// Quota was charged on turn 1 the moment it returned. If its usage document died
+		// with the exception, the org would be billed for a call that appears nowhere --
+		// and before turns were collected, that row was written as it happened.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
+		modelTurn(
+			{ answer: "", toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }] },
+			{ tokens_in: 10, tokens_out: 5, tokens_sum: 15, cost: 0.25, response_ms: 100 },
+		);
+		vi.mocked(callPromptModel).mockRejectedValueOnce(new Error("provider down"));
+		const { res } = makeRes();
+
+		await expect(controller.runTestcase(makeReq(undefined), res)).rejects.toThrow(
+			"provider down",
+		);
+
+		expect(logUsage).toHaveBeenCalledTimes(1);
+		const row = vi.mocked(logUsage).mock.calls[0][0];
+		expect(row.tokens_sum).toBe(15);
+		expect(row.cost).toBe(0.25);
+		expect(row.trace_id).toEqual(expect.any(String));
+		// A run that died partway is not a successful run.
+		expect(row.log_type).toBe("pre");
+		expect(row.log_lvl).toBe("ERROR");
+		// The steps died with the replay; none are invented.
+		expect(logSpans).toHaveBeenCalledWith(expect.objectContaining({ steps: [] }));
+		// The verdict is never written for a run that threw.
+		expect(db.testcases.updateTestcaseByID).not.toHaveBeenCalled();
+	});
+
+	it("writes nothing extra when the very first turn throws", async () => {
+		// Nothing was billed through the collector, and runPrompt already logged its own
+		// AIError for the failing call.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
+		vi.mocked(callPromptModel).mockRejectedValueOnce(new Error("provider down"));
+		const { res } = makeRes();
+
+		await expect(controller.runTestcase(makeReq(undefined), res)).rejects.toThrow(
+			"provider down",
+		);
+
+		expect(logUsage).not.toHaveBeenCalled();
+		expect(logSpans).not.toHaveBeenCalled();
+	});
+
 	it("writes the trace of a stopped replay too", async () => {
 		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
 		modelTurn({ answer: "", toolCalls: [{ id: "c1", name: "send_email", args: {} }] });

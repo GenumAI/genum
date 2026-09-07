@@ -22,7 +22,14 @@ import {
 	type ToolCallStep,
 } from "@/ai/steps/types";
 import { system_prompt } from "@/ai/runner/system";
-import { type LogDocument, logSpans, logUsage, SourceType } from "@/services/logger";
+import {
+	type LogDocument,
+	LogLevel,
+	logSpans,
+	LogType,
+	logUsage,
+	SourceType,
+} from "@/services/logger";
 import { type FileInput, fileService } from "@/services/file.service";
 
 export class TestcasesController {
@@ -195,18 +202,28 @@ export class TestcasesController {
 			// would bill and log an extra, identical call to the provider on every run of
 			// every trajectory testcase. `run` ends up holding the last turn, which is the
 			// one whose answer the testcase records.
-			replay = await replayTrajectory({
-				callModel: async (messages) => {
-					run = await callPromptModel(
-						{ ...runParams, collectUsage: (usage) => turns.push(usage) },
-						messages,
-					);
-					return run;
-				},
-				recorded: expectedSteps.filter(
-					(step): step is ToolCallStep => step.kind === "tool_call",
-				),
-			});
+			try {
+				replay = await replayTrajectory({
+					callModel: async (messages) => {
+						run = await callPromptModel(
+							{ ...runParams, collectUsage: (usage) => turns.push(usage) },
+							messages,
+						);
+						return run;
+					},
+					recorded: expectedSteps.filter(
+						(step): step is ToolCallStep => step.kind === "tool_call",
+					),
+				});
+			} catch (error) {
+				// The turns that completed before this one were charged to the quota but
+				// are still sitting in `turns`, unwritten. Record them, then let the
+				// failure through untouched: billed-but-unrecorded usage is an accounting
+				// hole, and before turns were collected each row was written as it
+				// happened, so losing them here would be a regression.
+				await logTrajectoryRun(traceId, turns, [], { failed: true });
+				throw error;
+			}
 
 			await logTrajectoryRun(traceId, turns, replay.steps);
 		} else {
@@ -333,12 +350,24 @@ export class TestcasesController {
  * sum is how long the run's provider calls took end to end, which is what a root span's
  * duration means. It slightly under-reports, since it excludes our own time between
  * turns -- but `max` would claim "the slowest turn" and `last` "the final turn", and
- * neither of those is a run's latency. `log_lvl` stays `success`: it describes the
- * provider calls, not whether the testcase passed.
+ * neither of those is a run's latency. On the success path `log_lvl` stays `success`: it
+ * describes the provider calls, not whether the testcase passed.
+ *
+ * `failed` marks the partial row written when a turn threw partway through: the earlier
+ * turns really were billed and must be recorded, but a run that died is not a successful
+ * run, so the row says so rather than quietly inflating the success figures. The failing
+ * turn's own `AIError` row (written by `runPrompt`, tokens and cost zero) still carries
+ * the error itself, so nothing is double counted. No spans are written on that path --
+ * the steps died with the replay, and inventing them would be worse than having none.
  */
-async function logTrajectoryRun(traceId: string, turns: LogDocument[], steps: Step[]) {
-	// Empty only if the very first turn threw, in which case runPrompt already logged
-	// its own AIError and the exception is on its way up.
+async function logTrajectoryRun(
+	traceId: string,
+	turns: LogDocument[],
+	steps: Step[],
+	options: { failed?: boolean } = {},
+) {
+	// Empty when the very first turn threw, in which case runPrompt already logged its
+	// own AIError and there is no billed usage to record.
 	const base = turns[turns.length - 1];
 	if (!base) {
 		return;
@@ -346,6 +375,13 @@ async function logTrajectoryRun(traceId: string, turns: LogDocument[], steps: St
 
 	await logUsage({
 		...base,
+		...(options.failed
+			? {
+					log_type: LogType.PromptRunError,
+					log_lvl: LogLevel.error,
+					description: "trajectory run failed partway; usage covers the completed turns",
+				}
+			: {}),
 		trace_id: traceId,
 		tokens_in: turns.reduce((sum, turn) => sum + turn.tokens_in, 0),
 		tokens_out: turns.reduce((sum, turn) => sum + turn.tokens_out, 0),
