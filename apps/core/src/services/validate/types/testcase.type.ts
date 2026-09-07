@@ -25,7 +25,12 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 		// shape at all into the column and only surface at assertion time, where a
 		// malformed step silently asserts nothing. Validate the trajectory here instead.
 		// `lastSteps` is deliberately absent: it is written by a run, never by a client.
-		expectedSteps: StepsSchema.optional(),
+		//
+		// `.min(1)`: an empty trajectory is truthy, so it would take the trajectory path
+		// and then match everything -- a testcase that can never fail, which is the exact
+		// failure this feature exists to prevent. A testcase that pins nothing is a text
+		// testcase, and a text testcase leaves `expectedSteps` unset.
+		expectedSteps: StepsSchema.min(1).optional(),
 		stepsConfig: StepsConfigSchema.optional(),
 	})
 	.strict();
@@ -54,7 +59,7 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 		// Same boundary as create: an edited trajectory is validated, not trusted.
 		// `lastSteps` is writable here, as `lastOutput` always has been -- it is the
 		// last run's trajectory, and a run writes it through this same method.
-		expectedSteps: StepsSchema.optional(),
+		expectedSteps: StepsSchema.min(1).optional(),
 		lastSteps: StepsSchema.optional(),
 		stepsConfig: StepsConfigSchema.optional(),
 	})

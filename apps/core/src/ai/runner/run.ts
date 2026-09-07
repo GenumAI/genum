@@ -19,7 +19,7 @@ import { getApiKeyByQuota } from "@/services/access/AccessService";
 import { transcribeOpenAI } from "../providers/openai/speech";
 import type { runPromptParams, SystemPrompt } from "./types";
 import { getSystemPrompt, SYSTEM_PROMPTS } from "./system";
-import { LogLevel, LogType, SourceType } from "@/services/logger";
+import { type LogDocument, LogLevel, LogType, SourceType } from "@/services/logger";
 import { toLogPlaceholders } from "@/services/logger/mappers";
 import { HttpError } from "@/utils/errors";
 
@@ -233,7 +233,7 @@ export async function runPrompt(data: runPromptParams) {
 			await db.organization.chargeQuota(data.userOrgId, cost.total);
 		}
 
-		await logUsage({
+		const usage: LogDocument = {
 			source: data.source,
 			log_type: LogType.PromptRunSuccess,
 			log_lvl: LogLevel.success,
@@ -253,7 +253,20 @@ export async function runPrompt(data: runPromptParams) {
 			placeholders: toLogPlaceholders(render.resolved),
 			testcase_id: data.testcase_id ? data.testcase_id : undefined,
 			api_key_id: data.api_key_id ? data.api_key_id : undefined,
-		});
+		};
+
+		// One turn of an agentic replay is not a run of the prompt: N turns logged as N
+		// rows would count one testcase run N times in every COUNT()/avg(cost) aggregate,
+		// and the intermediate turns -- an empty answer plus a tool request -- would read
+		// as ordinary completed runs. A caller that collects instead of logging is
+		// responsible for writing ONE root row summed across the turns (see
+		// TestcasesController.runTestcase). Quota is charged above either way: every turn
+		// is a real provider call with real tokens.
+		if (data.collectUsage) {
+			data.collectUsage(usage);
+		} else {
+			await logUsage(usage);
+		}
 
 		return {
 			...completion,

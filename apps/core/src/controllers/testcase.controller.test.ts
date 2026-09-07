@@ -35,10 +35,24 @@ vi.mock("@/ai/runner/run", () => ({
 	callPromptModel: vi.fn(),
 }));
 
+vi.mock("@/services/file.service", () => ({
+	fileService: { getFileObjectsByIds: vi.fn() },
+}));
+
+// Only the two writers are stubbed; SourceType and the rest stay real.
+vi.mock("@/services/logger", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@/services/logger")>()),
+	logUsage: vi.fn(),
+	logSpans: vi.fn(),
+}));
+
 import { db } from "@/database/db";
 import { checkTestcaseAccess, checkPromptAccess } from "@/services/access/AccessService";
 import { system_prompt } from "@/ai/runner/system";
 import { callPromptModel, runPrompt } from "@/ai/runner/run";
+import { logSpans, logUsage } from "@/services/logger";
+import type { LogDocument } from "@/services/logger";
+import { fileService } from "@/services/file.service";
 import { TestcasesController } from "./testcase.controller";
 
 const PROJECT = 10;
@@ -414,6 +428,33 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		>;
 	}
 
+	// A turn of the replay: the answer the model gave, plus the usage document
+	// `runPrompt` would otherwise have written to ClickHouse itself.
+	function modelTurn(turn: Record<string, unknown>, usage: Partial<LogDocument> = {}) {
+		vi.mocked(callPromptModel).mockImplementationOnce(async (data) => {
+			data.collectUsage?.({
+				source: "testcase",
+				log_type: "prs",
+				log_lvl: "SUCCESS",
+				orgId: 1,
+				project_id: PROJECT,
+				prompt_id: PROMPT,
+				vendor: "OPENAI",
+				model: "gpt-4o",
+				tokens_in: 10,
+				tokens_out: 5,
+				tokens_sum: 15,
+				cost: 0.25,
+				response_ms: 100,
+				testcase_id: 5,
+				in: "what is the weather",
+				out: String(turn.answer ?? ""),
+				...usage,
+			} as LogDocument);
+			return turn as never;
+		});
+	}
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		controller = new TestcasesController();
@@ -422,12 +463,11 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 
 	it("replays the recording and passes when the trajectory is unchanged", async () => {
 		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
-		vi.mocked(callPromptModel)
-			.mockResolvedValueOnce({
-				answer: "",
-				toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
-			} as never)
-			.mockResolvedValueOnce({ answer: "It is 12°" } as never);
+		modelTurn({
+			answer: "",
+			toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
+		});
+		modelTurn({ answer: "It is 12°" });
 		const { res, captured } = makeRes();
 
 		await controller.runTestcase(makeReq(undefined), res);
@@ -445,14 +485,115 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		expect(updatePayload().lastOutput).toBe("It is 12°");
 	});
 
+	it("replays the real prompt with the testcase's own pins, files and id", async () => {
+		// The drift GAP-3 exists to prevent: a replay that ran the prompt with different
+		// placeholders, files or attribution than a plain run would still go green while
+		// asserting something the product never does.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({
+				files: [{ fileId: "f1" }],
+				placeholderValues: [
+					{
+						placeholderId: 5,
+						placeholderValueId: 9,
+						placeholderValue: {
+							id: 9,
+							name: "true",
+							isDefault: false,
+							placeholder: { id: 5, key: "admin_role" },
+						},
+					},
+				],
+			}),
+		);
+		vi.mocked(fileService.getFileObjectsByIds).mockResolvedValue([
+			{ id: "f1" },
+		] as never);
+		modelTurn({ answer: "It is 12°" });
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(callPromptModel).toHaveBeenCalledWith(
+			expect.objectContaining({
+				prompt: expect.objectContaining({ id: PROMPT }),
+				question: "what is the weather",
+				source: "testcase",
+				testcase_id: 5,
+				userOrgId: 1,
+				userProjectId: PROJECT,
+				placeholders: { admin_role: "true" },
+				files: [{ id: "f1" }],
+				collectUsage: expect.any(Function),
+			}),
+			// The conversation so far -- empty on the opening turn.
+			[],
+		);
+	});
+
+	it("writes one root log row and one span batch, correlated by trace_id", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
+		modelTurn(
+			{ answer: "", toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }] },
+			{ tokens_in: 10, tokens_out: 5, tokens_sum: 15, cost: 0.25, response_ms: 100 },
+		);
+		modelTurn(
+			{ answer: "It is 12°" },
+			{ tokens_in: 20, tokens_out: 2, tokens_sum: 22, cost: 0.75, response_ms: 300 },
+		);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		// Two provider calls, ONE row: otherwise this run counts twice in every
+		// COUNT()/avg(cost) aggregate and its empty intermediate turn reads as a
+		// completed run of its own.
+		expect(logUsage).toHaveBeenCalledTimes(1);
+		const root = vi.mocked(logUsage).mock.calls[0][0];
+		expect(root.tokens_in).toBe(30);
+		expect(root.tokens_out).toBe(7);
+		expect(root.tokens_sum).toBe(37);
+		expect(root.cost).toBe(1);
+		expect(root.response_ms).toBe(400);
+		expect(root.out).toBe("It is 12°");
+		// The root row keeps the turns' own attribution rather than being rebuilt.
+		expect(root.testcase_id).toBe(5);
+		expect(root.prompt_id).toBe(PROMPT);
+		expect(root.trace_id).toEqual(expect.any(String));
+
+		expect(logSpans).toHaveBeenCalledTimes(1);
+		const spans = vi.mocked(logSpans).mock.calls[0][0];
+		expect(spans.trace_id).toBe(root.trace_id);
+		expect(spans.vendor).toBe("OPENAI");
+		expect(spans.model).toBe("gpt-4o");
+		expect(spans.steps).toEqual([
+			{ kind: "tool_call", name: "get_weather", args: { city: "Berlin" } },
+			{ kind: "final", text: "It is 12°" },
+		]);
+	});
+
+	it("writes the trace of a stopped replay too", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
+		modelTurn({ answer: "", toolCalls: [{ id: "c1", name: "send_email", args: {} }] });
+		const { res } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		// The provider calls happened and cost money: they are logged whatever the
+		// assertion concluded.
+		expect(logUsage).toHaveBeenCalledTimes(1);
+		expect(logSpans).toHaveBeenCalledTimes(1);
+	});
+
 	it("fails and names the tool when an argument changed", async () => {
 		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
-		vi.mocked(callPromptModel)
-			.mockResolvedValueOnce({
-				answer: "",
-				toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Munich" } }],
-			} as never)
-			.mockResolvedValueOnce({ answer: "It is 12°" } as never);
+		modelTurn({
+			answer: "",
+			toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Munich" } }],
+		});
+		modelTurn({ answer: "It is 12°" });
 		const { res, captured } = makeRes();
 
 		await controller.runTestcase(makeReq(undefined), res);
@@ -464,10 +605,7 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 
 	it("fails with the stop message when the model calls an unrecorded tool", async () => {
 		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
-		vi.mocked(callPromptModel).mockResolvedValueOnce({
-			answer: "",
-			toolCalls: [{ id: "c1", name: "send_email", args: {} }],
-		} as never);
+		modelTurn({ answer: "", toolCalls: [{ id: "c1", name: "send_email", args: {} }] });
 		const { res, captured } = makeRes();
 
 		await controller.runTestcase(makeReq(undefined), res);
@@ -489,7 +627,7 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 				},
 			}),
 		);
-		vi.mocked(callPromptModel).mockResolvedValueOnce({ answer: "It is 12°" } as never);
+		modelTurn({ answer: "It is 12°" });
 		const { res, captured } = makeRes();
 
 		await controller.runTestcase(makeReq(undefined), res);
@@ -511,7 +649,7 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 				},
 			}),
 		);
-		vi.mocked(callPromptModel).mockResolvedValueOnce({ answer: "It is 12°" } as never);
+		modelTurn({ answer: "It is 12°" });
 		vi.mocked(system_prompt.testcaseAssertionV2).mockResolvedValue({
 			assertionStatus: "OK",
 			assertionThoughts: "same trajectory",
@@ -532,18 +670,34 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 			makeTrajectoryTestcase({ stepsConfig: { orderMatters: true } }),
 		);
 		// The final answer arrives before the tool call: equivalent unordered, wrong ordered.
-		vi.mocked(callPromptModel)
-			.mockResolvedValueOnce({
-				answer: "It is 12°",
-				toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
-			} as never)
-			.mockResolvedValueOnce({ answer: "done" } as never);
+		modelTurn({
+			answer: "It is 12°",
+			toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
+		});
+		modelTurn({ answer: "done" });
 		const { res, captured } = makeRes();
 
 		await controller.runTestcase(makeReq(undefined), res);
 
 		expect(captured.statusCode).toBe(200);
 		expect(updatePayload().status).toBe("NOK");
+	});
+
+	it("treats a stored empty trajectory as the text testcase it is", async () => {
+		// Belt and braces behind `.min(1)`: a row that has one anyway must not become a
+		// testcase that can never fail.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({ expectedSteps: [], expectedOutput: "the answer" }),
+		);
+		vi.mocked(runPrompt).mockResolvedValue({ answer: "the answer" } as never);
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(callPromptModel).not.toHaveBeenCalled();
+		expect(runPrompt).toHaveBeenCalledTimes(1);
+		expect(updatePayload().lastSteps).toBeUndefined();
 	});
 
 	it("refuses to assert against a malformed stored trajectory", async () => {
@@ -578,6 +732,11 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		expect(callPromptModel).not.toHaveBeenCalled();
 		expect(updatePayload().status).toBe("OK");
 		expect(updatePayload().lastSteps).toBeUndefined();
+		// One row, written by runPrompt itself, no trace and no spans: the text path is
+		// provably the path it always was.
+		expect(vi.mocked(runPrompt).mock.calls[0][0].collectUsage).toBeUndefined();
+		expect(logUsage).not.toHaveBeenCalled();
+		expect(logSpans).not.toHaveBeenCalled();
 	});
 });
 
@@ -647,6 +806,27 @@ describe("TestcasesController.createTestcase with a recorded trajectory", () => 
 					lastOutput: "",
 					// A tool call with no name, and a kind that is not a step at all.
 					expectedSteps: [{ kind: "tool_call" }, { kind: "shell", cmd: "rm -rf /" }],
+				}),
+				res,
+			),
+		).rejects.toThrow();
+
+		expect(db.testcases.newTestcase).not.toHaveBeenCalled();
+	});
+
+	it("rejects an empty trajectory", async () => {
+		// `[]` is truthy, so it would take the trajectory path and then match anything
+		// the model did -- a testcase that can never fail.
+		const { res } = makeRes();
+
+		await expect(
+			controller.createTestcase(
+				makeReq({
+					promptId: PROMPT,
+					input: "i",
+					expectedOutput: "e",
+					lastOutput: "",
+					expectedSteps: [],
 				}),
 				res,
 			),

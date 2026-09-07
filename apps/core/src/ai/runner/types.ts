@@ -6,6 +6,7 @@ import type OpenAI from "openai";
 import type { FileInput } from "@/services/file.service";
 import type { PlaceholderDefinition, PlaceholderSelection } from "@genum/placeholders";
 import type { ConversationMessage } from "@/ai/providers";
+import type { LogDocument } from "@/services/logger";
 
 export type runPromptParams = {
 	prompt: Prompt;
@@ -27,6 +28,14 @@ export type runPromptParams = {
 	 * run, which is every caller that existed before trajectory testcases.
 	 */
 	messages?: ConversationMessage[];
+	/**
+	 * When set, a successful run hands its usage document here INSTEAD of writing it to
+	 * ClickHouse -- the caller is then on the hook for one root row covering the whole
+	 * run. Only the success log is diverted: a failed turn still logs its own AIError,
+	 * because the exception propagates and the caller never gets to write anything.
+	 * Quota is charged either way.
+	 */
+	collectUsage?: (document: LogDocument) => void;
 };
 
 export type testcaseAssertion = {

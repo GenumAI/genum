@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { TestCaseStatus } from "@/prisma";
 import {
@@ -21,7 +22,7 @@ import {
 	type ToolCallStep,
 } from "@/ai/steps/types";
 import { system_prompt } from "@/ai/runner/system";
-import { SourceType } from "@/services/logger";
+import { type LogDocument, logSpans, logUsage, SourceType } from "@/services/logger";
 import { type FileInput, fileService } from "@/services/file.service";
 
 export class TestcasesController {
@@ -183,19 +184,31 @@ export class TestcasesController {
 		let replay: Awaited<ReturnType<typeof replayTrajectory>> | undefined;
 
 		if (expectedSteps) {
+			// One run, one trace: the `logs` row written below is this trace's root span
+			// and `trace_spans` holds its steps.
+			const traceId = randomUUID();
+			// Each turn hands its usage document over instead of writing it; they are
+			// summed into the single root row after the replay finishes.
+			const turns: LogDocument[] = [];
+
 			// The replay's first turn IS the run -- calling `runPrompt` separately first
 			// would bill and log an extra, identical call to the provider on every run of
 			// every trajectory testcase. `run` ends up holding the last turn, which is the
 			// one whose answer the testcase records.
 			replay = await replayTrajectory({
 				callModel: async (messages) => {
-					run = await callPromptModel(runParams, messages);
+					run = await callPromptModel(
+						{ ...runParams, collectUsage: (usage) => turns.push(usage) },
+						messages,
+					);
 					return run;
 				},
 				recorded: expectedSteps.filter(
 					(step): step is ToolCallStep => step.kind === "tool_call",
 				),
 			});
+
+			await logTrajectoryRun(traceId, turns, replay.steps);
 		} else {
 			run = await runPrompt(runParams);
 		}
@@ -312,6 +325,47 @@ export class TestcasesController {
 }
 
 /**
+ * Writes the telemetry of one agentic run: a single root `logs` row summed across the
+ * turns, plus that run's steps in `trace_spans`, correlated by `trace_id`.
+ *
+ * Summing is what makes the run count once. `response_ms` is summed too, deliberately:
+ * the turns are sequential (the replay awaits each before issuing the next), so their
+ * sum is how long the run's provider calls took end to end, which is what a root span's
+ * duration means. It slightly under-reports, since it excludes our own time between
+ * turns -- but `max` would claim "the slowest turn" and `last` "the final turn", and
+ * neither of those is a run's latency. `log_lvl` stays `success`: it describes the
+ * provider calls, not whether the testcase passed.
+ */
+async function logTrajectoryRun(traceId: string, turns: LogDocument[], steps: Step[]) {
+	// Empty only if the very first turn threw, in which case runPrompt already logged
+	// its own AIError and the exception is on its way up.
+	const base = turns[turns.length - 1];
+	if (!base) {
+		return;
+	}
+
+	await logUsage({
+		...base,
+		trace_id: traceId,
+		tokens_in: turns.reduce((sum, turn) => sum + turn.tokens_in, 0),
+		tokens_out: turns.reduce((sum, turn) => sum + turn.tokens_out, 0),
+		tokens_sum: turns.reduce((sum, turn) => sum + turn.tokens_sum, 0),
+		cost: turns.reduce((sum, turn) => sum + turn.cost, 0),
+		response_ms: turns.reduce((sum, turn) => sum + turn.response_ms, 0),
+	});
+
+	await logSpans({
+		trace_id: traceId,
+		orgId: base.orgId,
+		project_id: base.project_id,
+		prompt_id: base.prompt_id,
+		vendor: base.vendor,
+		model: base.model,
+		steps,
+	});
+}
+
+/**
  * STRICT assertion over a trajectory. Only steps the author enabled are compared;
  * see `ai/steps/compare.ts` for the argument-matching modes.
  */
@@ -346,7 +400,10 @@ function readExpectedSteps(value: unknown): Step[] | null {
 	if (!parsed.success) {
 		throw new Error("Testcase expectedSteps is not a valid trajectory");
 	}
-	return parsed.data;
+	// An empty array pins nothing, so on the trajectory path it would match anything the
+	// model did -- a testcase that can never fail. `.min(1)` keeps one out at the create
+	// boundary; a row that has one anyway is treated as the text testcase it really is.
+	return parsed.data.length > 0 ? parsed.data : null;
 }
 
 function readStepsConfig(value: unknown): StepsConfig | null {

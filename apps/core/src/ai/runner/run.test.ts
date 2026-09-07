@@ -130,6 +130,42 @@ describe("runPrompt / callPromptModel share one resolution", () => {
 		expect(turn.toolCalls).toEqual(toolCalls);
 	});
 
+	it("hands the usage document over instead of logging it, but still charges quota", async () => {
+		const collected: unknown[] = [];
+
+		await callPromptModel({ ...params(), collectUsage: (doc) => collected.push(doc) }, []);
+
+		// The caller writes one root row for the whole run; N turns must not become N
+		// rows. The turn is still a real provider call, so quota is still charged.
+		expect(logUsage).not.toHaveBeenCalled();
+		expect(db.organization.chargeQuota).toHaveBeenCalledTimes(1);
+		expect(collected).toEqual([
+			expect.objectContaining({
+				vendor: "OPENAI",
+				model: "gpt-4o",
+				tokens_in: 10,
+				tokens_out: 5,
+				tokens_sum: 15,
+				out: "the answer",
+			}),
+		]);
+	});
+
+	it("still logs a failed turn even when usage is collected", async () => {
+		// The exception propagates and the collector never gets to write anything, so
+		// suppressing this row too would lose the failure entirely.
+		vi.mocked(generateOpenAI).mockRejectedValue(new Error("provider down"));
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(
+			callPromptModel({ ...params(), collectUsage: () => {} }, []),
+		).rejects.toThrow("provider down");
+
+		consoleError.mockRestore();
+		expect(logUsage).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(logUsage).mock.calls[0][0].log_type).toBe("ae");
+	});
+
 	it("still logs the error and rethrows when the provider fails", async () => {
 		vi.mocked(generateOpenAI).mockRejectedValue(new Error("provider down"));
 		// runPrompt console.errors the failure; keep the suite's output clean.
