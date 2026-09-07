@@ -478,8 +478,15 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		expect(callPromptModel).toHaveBeenCalledTimes(2);
 		expect(updatePayload().status).toBe("OK");
 		expect(updatePayload().assertionThoughts).toBe("");
+		// The tool step keeps the result the replay fed back, so the stored trajectory is
+		// readable without the expectation it was replayed from.
 		expect(updatePayload().lastSteps).toEqual([
-			{ kind: "tool_call", name: "get_weather", args: { city: "Berlin" } },
+			{
+				kind: "tool_call",
+				name: "get_weather",
+				args: { city: "Berlin" },
+				recordedResult: '{"temp":12}',
+			},
 			{ kind: "final", text: "It is 12°" },
 		]);
 		expect(updatePayload().lastOutput).toBe("It is 12°");
@@ -568,8 +575,14 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		expect(spans.trace_id).toBe(root.trace_id);
 		expect(spans.vendor).toBe("OPENAI");
 		expect(spans.model).toBe("gpt-4o");
+		// The spans carry the real tool result, not an empty string.
 		expect(spans.steps).toEqual([
-			{ kind: "tool_call", name: "get_weather", args: { city: "Berlin" } },
+			{
+				kind: "tool_call",
+				name: "get_weather",
+				args: { city: "Berlin" },
+				recordedResult: '{"temp":12}',
+			},
 			{ kind: "final", text: "It is 12°" },
 		]);
 	});

@@ -74,7 +74,18 @@ export async function replayTrajectory({
 				};
 			}
 
-			steps.push({ kind: "tool_call", name: call.name, args: call.args });
+			// The result is carried on the step, not just fed to the model: a trajectory
+			// has to be readable on its own. `lastSteps` and the run's `trace_spans` rows
+			// both need to say what the tool returned during THIS run, and this loop is
+			// the only place that knows it as it happens. It is also in `expectedSteps`,
+			// and that redundancy is the point -- neither the span row nor the last-run
+			// trajectory should need the expectation to still exist to be interpretable.
+			steps.push({
+				kind: "tool_call",
+				name: call.name,
+				args: call.args,
+				recordedResult: match.recordedResult,
+			});
 			messages.push({
 				role: "tool",
 				toolCallId: call.id,

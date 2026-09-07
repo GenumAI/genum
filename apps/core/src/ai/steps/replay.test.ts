@@ -24,8 +24,16 @@ describe("replayTrajectory", () => {
 		const result = await replayTrajectory({ callModel, recorded });
 
 		expect(result.stopped).toBeUndefined();
+		// The step carries the result the loop fed back, so the trajectory is readable
+		// without the recording it was replayed from (spans, and the UI's diff of
+		// `lastSteps`, both depend on this).
 		expect(result.steps).toEqual([
-			{ kind: "tool_call", name: "get_weather", args: { city: "Berlin" } },
+			{
+				kind: "tool_call",
+				name: "get_weather",
+				args: { city: "Berlin" },
+				recordedResult: '{"temp":12}',
+			},
 			{ kind: "final", text: "It is 12°" },
 		]);
 
@@ -105,7 +113,7 @@ describe("replayTrajectory", () => {
 			})
 			.mockResolvedValueOnce({ answer: "done" });
 
-		await replayTrajectory({ callModel, recorded: twice });
+		const result = await replayTrajectory({ callModel, recorded: twice });
 
 		expect(callModel.mock.calls[2][0].at(-1)).toEqual({
 			role: "tool",
@@ -113,5 +121,11 @@ describe("replayTrajectory", () => {
 			name: "get_weather",
 			content: "second",
 		});
+		// Each step keeps its own result, so two calls to the same tool do not collapse
+		// into one -- that collapsing is the defect a name-keyed results map caused here
+		// once already, and the spans written from these steps would inherit it.
+		expect(
+			result.steps.flatMap((step) => (step.kind === "tool_call" ? [step.recordedResult] : [])),
+		).toEqual(["first", "second"]);
 	});
 });

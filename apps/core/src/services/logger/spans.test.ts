@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { toSpanRows } from "./spans";
+import { replayTrajectory } from "@/ai/steps/replay";
 import type { Step } from "@/ai/steps/types";
 
 const steps: Step[] = [
@@ -94,6 +95,50 @@ describe("toSpanRows", () => {
 		expect(rows[0].tool_result).toBe('{"temp":12}');
 		expect(rows[1].tool_result).toBe('{"temp":28}');
 		expect(rows[0].tool_result).not.toBe(rows[1].tool_result);
+	});
+
+	// The seam this table exists for: what a replayed run actually hands the writer.
+	// `toSpanRows` reads `recordedResult` off the step, so the guarantee is only real if
+	// the replay loop puts it there -- it did not, and every tool span was landing with
+	// an empty `tool_result` while this file's own tests passed on hand-built steps.
+	it("carries the real, per-call results of a replayed run", async () => {
+		const callModel = vi
+			.fn()
+			.mockResolvedValueOnce({
+				answer: "",
+				toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
+			})
+			.mockResolvedValueOnce({
+				answer: "",
+				toolCalls: [{ id: "c2", name: "get_weather", args: { city: "Cairo" } }],
+			})
+			.mockResolvedValueOnce({ answer: "12° and 28°" });
+
+		const replay = await replayTrajectory({
+			callModel,
+			recorded: [
+				{ kind: "tool_call", name: "get_weather", recordedResult: '{"temp":12}' },
+				{ kind: "tool_call", name: "get_weather", recordedResult: '{"temp":28}' },
+			],
+		});
+
+		const rows = toSpanRows({
+			trace_id: "t1",
+			orgId: 1,
+			project_id: 2,
+			prompt_id: 3,
+			vendor: "OPENAI",
+			model: "gpt-5",
+			steps: replay.steps,
+		});
+
+		expect(rows.map((row) => row.tool_result)).toEqual(['{"temp":12}', '{"temp":28}', ""]);
+		expect(rows.map((row) => row.tool_args)).toEqual([
+			'{"city":"Berlin"}',
+			'{"city":"Cairo"}',
+			"",
+		]);
+		expect(rows[2].output).toBe("12° and 28°");
 	});
 
 	it("writes an empty tool_result when the step has no recordedResult", () => {
