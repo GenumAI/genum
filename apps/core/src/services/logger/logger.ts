@@ -235,9 +235,11 @@ export async function logUsage(document: LogDocument): Promise<void> {
  * Writes the steps of an agentic run. The root of the trace is the `logs` row written by
  * `logUsage`; this call adds its tool_call/final steps as rows in `trace_spans`.
  *
- * Mirrors `logUsage`'s own error handling around its insert rather than swallowing: a
- * caller that wants telemetry to never fail a run must catch this itself, the same way it
- * must already catch `logUsage`.
+ * Deliberately diverges from `logUsage`, which propagates its insert error: by the time
+ * this runs, the run's `logs` row is already written and the run itself succeeded. Spans
+ * are supplementary detail -- letting a failed span insert throw away an otherwise
+ * successful run would be strictly worse than just not having the spans. Do not "fix" this
+ * back into consistency with `logUsage`.
  */
 export async function logSpans(batch: SpanBatch): Promise<void> {
 	const rows = toSpanRows(batch);
@@ -253,7 +255,6 @@ export async function logSpans(batch: SpanBatch): Promise<void> {
 		});
 	} catch (error) {
 		console.error("Ошибка записи span-ов в ClickHouse:", error);
-		throw error;
 	}
 }
 
