@@ -1,4 +1,5 @@
 import type { ConversationMessage, ToolCall } from "@/ai/providers";
+import { effectiveSteps, turnsOf } from "./session";
 import type { Step, ToolCallStep } from "./types";
 
 export type ModelTurn = {
@@ -9,6 +10,8 @@ export type ModelTurn = {
 export type ReplayStop = {
 	reason: "missing_recording" | "step_limit";
 	tool?: string;
+	/** 1-based, for the author reading the message. */
+	turn?: number;
 	message: string;
 };
 
@@ -19,8 +22,8 @@ export type ReplayResult = {
 
 export type ReplayParams = {
 	callModel: (messages: ConversationMessage[]) => Promise<ModelTurn>;
-	/** Tool results from the original run. A tool is never executed. */
-	recorded: ToolCallStep[];
+	/** The pinned session. Tool results are replayed from it; a tool is never executed. */
+	recorded: Step[];
 	maxSteps?: number;
 };
 
@@ -32,17 +35,19 @@ export type ReplayParams = {
 export const DEFAULT_MAX_STEPS = 8;
 
 /**
- * The bound a replay of `recordedToolCalls` tool calls needs. Each turn of the loop below
- * is one model call, and a recording that called one tool per turn needs one turn per
- * recorded call plus one for the final answer -- hence `+ 1`. A fixed default made any
- * trajectory longer than it stop at `step_limit` and be written NOK on every run, forever;
- * nothing bounds what an author can pin, so the bound has to come from the recording.
+ * The bound a replay of this recording needs. Each turn of the loop below is one model
+ * call, and a session needs one call per recorded tool call plus one per turn for that
+ * turn's answer. The old `+ 1` was the single final answer of a one-turn recording; a
+ * five-turn session budgeted that way stops at `step_limit` and is written NOK on every
+ * run, forever -- the exact failure this function exists to remove.
  *
- * A model that keeps calling tools past the end of the recording still hits the limit:
- * this is a ceiling derived from what was recorded, not a promise that the replay ends.
+ * Derived from the EFFECTIVE list: a truncated session is budgeted by what it runs.
  */
-export function maxStepsForRecording(recordedToolCalls: number): number {
-	return Math.max(DEFAULT_MAX_STEPS, recordedToolCalls + 1);
+export function maxStepsForRecording(recorded: Step[]): number {
+	const effective = effectiveSteps(recorded);
+	const toolCalls = effective.filter((step) => step.kind === "tool_call").length;
+	const turns = turnsOf(effective).length;
+	return Math.max(DEFAULT_MAX_STEPS, toolCalls + turns);
 }
 
 /**
@@ -55,31 +60,48 @@ export async function replayTrajectory({
 	recorded,
 	maxSteps = DEFAULT_MAX_STEPS,
 }: ReplayParams): Promise<ReplayResult> {
+	const turns = turnsOf(effectiveSteps(recorded));
 	const messages: ConversationMessage[] = [];
 	const steps: Step[] = [];
-	// How many times each tool has been called so far, so a second call to the same
-	// tool picks up the second recording rather than replaying the first.
-	const seen = new Map<string, number>();
+	let turnIndex = 0;
+	// Per turn, not per session: a tool called in turns 1 and 3 must take turn 3's
+	// recording for turn 3, the same way the comparison matches within a turn.
+	let seen = new Map<string, number>();
 
 	for (let step = 0; step < maxSteps; step++) {
 		const turn = await callModel(messages);
 
 		if (!turn.toolCalls || turn.toolCalls.length === 0) {
 			steps.push({ kind: "final", text: turn.answer });
-			return { steps };
+
+			const next = turns[turnIndex + 1];
+			const reply = next?.steps[0];
+			if (!next || reply?.kind !== "user") {
+				return { steps };
+			}
+
+			// The reply is emitted as a step as well as fed to the model: `lastSteps` has
+			// to carry the same turn structure as `expectedSteps`, or the panel can group
+			// the expectation and not the actual run.
+			steps.push({ kind: "user", text: reply.text });
+			messages.push({ role: "user", content: reply.text });
+			turnIndex += 1;
+			seen = new Map();
+			continue;
 		}
 
-		messages.push({
-			role: "assistant",
-			content: turn.answer,
-			toolCalls: turn.toolCalls,
-		});
+		messages.push({ role: "assistant", content: turn.answer, toolCalls: turn.toolCalls });
+
+		const turnRecording = turns[turnIndex]?.steps ?? [];
 
 		for (const call of turn.toolCalls) {
 			const ordinal = seen.get(call.name) ?? 0;
 			seen.set(call.name, ordinal + 1);
 
-			const match = recorded.filter((entry) => entry.name === call.name)[ordinal];
+			const match = turnRecording.filter(
+				(entry): entry is ToolCallStep =>
+					entry.kind === "tool_call" && entry.name === call.name,
+			)[ordinal];
 
 			if (!match || match.recordedResult === undefined) {
 				return {
@@ -87,7 +109,8 @@ export async function replayTrajectory({
 					stopped: {
 						reason: "missing_recording",
 						tool: call.name,
-						message: `tool "${call.name}" was called but the recording has no result for it`,
+						turn: turnIndex + 1,
+						message: `tool "${call.name}" was called in turn ${turnIndex + 1} but the recording has no result for it`,
 					},
 				};
 			}
@@ -117,7 +140,8 @@ export async function replayTrajectory({
 		steps,
 		stopped: {
 			reason: "step_limit",
-			message: `replay stopped after ${maxSteps} steps`,
+			turn: turnIndex + 1,
+			message: `replay stopped after ${maxSteps} steps, in turn ${turnIndex + 1}`,
 		},
 	};
 }

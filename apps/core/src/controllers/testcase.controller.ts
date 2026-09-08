@@ -16,12 +16,7 @@ import { callPromptModel, runPrompt } from "@/ai/runner/run";
 import { compareSteps, type StepMismatch } from "@/ai/steps/compare";
 import { maxStepsForRecording, replayTrajectory } from "@/ai/steps/replay";
 import { hasEnabledStep, StepsSchema, StepsConfigSchema } from "@/ai/steps/schema";
-import {
-	DEFAULT_STEPS_CONFIG,
-	type Step,
-	type StepsConfig,
-	type ToolCallStep,
-} from "@/ai/steps/types";
+import { DEFAULT_STEPS_CONFIG, type Step, type StepsConfig } from "@/ai/steps/types";
 import { system_prompt } from "@/ai/runner/system";
 import {
 	type LogDocument,
@@ -218,9 +213,6 @@ export class TestcasesController {
 			// every trajectory testcase. `run` ends up holding the last turn, which is the
 			// one whose answer the testcase records.
 			try {
-				const recorded = expectedSteps.filter(
-					(step): step is ToolCallStep => step.kind === "tool_call",
-				);
 				replay = await replayTrajectory({
 					callModel: async (messages) => {
 						run = await callPromptModel(
@@ -229,10 +221,10 @@ export class TestcasesController {
 						);
 						return run;
 					},
-					recorded,
+					recorded: expectedSteps,
 					// The bound comes from what was recorded: a fixed default shorter than
 					// the trajectory stops it at `step_limit` and writes NOK on every run.
-					maxSteps: maxStepsForRecording(recorded.length),
+					maxSteps: maxStepsForRecording(expectedSteps),
 				});
 			} catch (error) {
 				// The turns that completed before this one were charged to the quota but

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { DEFAULT_MAX_STEPS, maxStepsForRecording, replayTrajectory } from "./replay";
-import type { ToolCallStep } from "./types";
+import type { ModelTurn } from "./replay";
+import type { ConversationMessage } from "@/ai/providers";
+import type { Step, ToolCallStep } from "./types";
 
 const recorded: ToolCallStep[] = [
 	{
@@ -118,7 +120,7 @@ describe("replayTrajectory", () => {
 		const result = await replayTrajectory({
 			callModel,
 			recorded: nine,
-			maxSteps: maxStepsForRecording(nine.length),
+			maxSteps: maxStepsForRecording(nine),
 		});
 
 		expect(result.stopped).toBeUndefined();
@@ -131,9 +133,16 @@ describe("replayTrajectory", () => {
 		// Never below the default, and exactly one turn of headroom over a recording that
 		// calls one tool per turn -- so a model that keeps calling tools past the end of
 		// the recording still hits `step_limit`.
-		expect(maxStepsForRecording(0)).toBe(DEFAULT_MAX_STEPS);
-		expect(maxStepsForRecording(3)).toBe(DEFAULT_MAX_STEPS);
-		expect(maxStepsForRecording(9)).toBe(10);
+		const callsOf = (n: number): Step[] =>
+			Array.from({ length: n }, () => ({
+				kind: "tool_call" as const,
+				name: "t",
+				recordedResult: "{}",
+			}));
+
+		expect(maxStepsForRecording(callsOf(0))).toBe(DEFAULT_MAX_STEPS);
+		expect(maxStepsForRecording(callsOf(3))).toBe(DEFAULT_MAX_STEPS);
+		expect(maxStepsForRecording(callsOf(9))).toBe(10);
 	});
 
 	it("still bounds a model that never stops calling tools", async () => {
@@ -157,13 +166,13 @@ describe("replayTrajectory", () => {
 		const result = await replayTrajectory({
 			callModel,
 			recorded: many,
-			maxSteps: maxStepsForRecording(many.length),
+			maxSteps: maxStepsForRecording(many),
 		});
 
 		expect(result.stopped).toBeDefined();
 		expect(result.stopped?.reason).toBe("missing_recording");
 		// Never more turns than the derived bound allows.
-		expect(callModel.mock.calls.length).toBeLessThanOrEqual(maxStepsForRecording(many.length));
+		expect(callModel.mock.calls.length).toBeLessThanOrEqual(maxStepsForRecording(many));
 	});
 
 	it("matches repeated calls to the same tool by their ordinal", async () => {
@@ -197,5 +206,127 @@ describe("replayTrajectory", () => {
 		expect(
 			result.steps.flatMap((step) => (step.kind === "tool_call" ? [step.recordedResult] : [])),
 		).toEqual(["first", "second"]);
+	});
+
+	it("replays a second turn by feeding the recorded user reply", async () => {
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "get_weather", recordedResult: '{"t":21}' },
+			{ kind: "final", text: "21 in Paris" },
+			{ kind: "user", text: "and in London?" },
+			{ kind: "tool_call", name: "get_weather", recordedResult: '{"t":14}' },
+			{ kind: "final", text: "14 in London" },
+		];
+		const seen: ConversationMessage[][] = [];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "get_weather", args: { city: "Paris" } }] },
+			{ answer: "21 in Paris" },
+			{ answer: "", toolCalls: [{ id: "2", name: "get_weather", args: { city: "London" } }] },
+			{ answer: "14 in London" },
+		];
+		let turn = 0;
+		const result = await replayTrajectory({
+			callModel: async (messages) => {
+				seen.push([...messages]);
+				return answers[turn++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		expect(result.steps.filter((s) => s.kind === "final")).toHaveLength(2);
+		// The reply is emitted into the result, so `lastSteps` has the same turn structure
+		// as `expectedSteps` and the panel can group both.
+		expect(result.steps).toContainEqual({ kind: "user", text: "and in London?" });
+		// It also reached the model.
+		expect(seen[2]).toContainEqual({ role: "user", content: "and in London?" });
+	});
+
+	it("takes the second turn's recording for the second turn's call of the same tool", async () => {
+		// A global ordinal would hand turn 2 the turn-1 recording the moment turn 1 makes an
+		// extra call. The lookup is per turn for the same reason the comparison is.
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "t", recordedResult: "first" },
+			{ kind: "tool_call", name: "t", recordedResult: "second" },
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "again" },
+			{ kind: "tool_call", name: "t", recordedResult: "third" },
+			{ kind: "final", text: "two" },
+		];
+		const answers: ModelTurn[] = [
+			{
+				answer: "",
+				toolCalls: [
+					{ id: "1", name: "t", args: {} },
+					{ id: "2", name: "t", args: {} },
+				],
+			},
+			{ answer: "one" },
+			{ answer: "", toolCalls: [{ id: "3", name: "t", args: {} }] },
+			{ answer: "two" },
+		];
+		let i = 0;
+		const result = await replayTrajectory({
+			callModel: async () => answers[i++],
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		const results = result.steps
+			.filter((s): s is ToolCallStep => s.kind === "tool_call")
+			.map((s) => s.recordedResult);
+		expect(results).toEqual(["first", "second", "third"]);
+	});
+
+	it("stops the whole session at a divergence and names the turn", async () => {
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "known", recordedResult: "{}" },
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "again" },
+			{ kind: "tool_call", name: "known", recordedResult: "{}" },
+			{ kind: "final", text: "two" },
+		];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "known", args: {} }] },
+			{ answer: "one" },
+			{ answer: "", toolCalls: [{ id: "2", name: "surprise", args: {} }] },
+		];
+		let i = 0;
+		const result = await replayTrajectory({
+			callModel: async () => answers[i++],
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped?.reason).toBe("missing_recording");
+		expect(result.stopped?.tool).toBe("surprise");
+		// Turns are 1-based in the message the author reads.
+		expect(result.stopped?.turn).toBe(2);
+		expect(result.steps.some((s) => s.kind === "final" && s.text === "two")).toBe(false);
+	});
+
+	it("budgets one model call per turn, not one for the whole session", () => {
+		// Five turns with eight tool calls needs 8 + 5. The old `+ 1` was the single final
+		// answer; a five-turn session that gets 9 fails step_limit on every run, forever.
+		const recorded: Step[] = [];
+		for (let turn = 0; turn < 5; turn++) {
+			if (turn > 0) recorded.push({ kind: "user", text: `q${turn}` });
+			recorded.push({ kind: "tool_call", name: "t", recordedResult: "{}" });
+			if (turn < 3) recorded.push({ kind: "tool_call", name: "t", recordedResult: "{}" });
+			recorded.push({ kind: "final", text: `a${turn}` });
+		}
+		expect(recorded.filter((s) => s.kind === "tool_call")).toHaveLength(8);
+		expect(maxStepsForRecording(recorded)).toBe(13);
+	});
+
+	it("budgets a truncated session by what it actually runs", () => {
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "t", recordedResult: "{}" },
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "dead", enabled: false },
+			{ kind: "tool_call", name: "t", recordedResult: "{}" },
+			{ kind: "final", text: "two" },
+		];
+		expect(maxStepsForRecording(recorded)).toBe(DEFAULT_MAX_STEPS);
 	});
 });
