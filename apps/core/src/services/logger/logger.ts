@@ -13,6 +13,7 @@
 import { createClient } from "@clickhouse/client";
 import moment from "moment";
 import { env } from "@/env";
+import { captureSentryException } from "@/services/sentry/init";
 import { WhereBuilder } from "./where.builder";
 import { QUERIES, QUOTE_64BIT_INTEGERS } from "./queries";
 import {
@@ -186,6 +187,16 @@ function transformRowToLogListEntry(row: ClickHouseLogListRow): LogListEntry {
 	};
 }
 
+/**
+ * Records one run. Never rejects.
+ *
+ * Every caller writes this row AFTER the run it describes has already happened -- and, on
+ * the success path in `runPrompt`, after the organisation's quota has already been charged
+ * for it. Rethrowing turned an answer the user had paid for into a 500 whenever ClickHouse
+ * was down, slow, or rejected the row, so a failed insert is reported and dropped instead:
+ * losing an analytics row is recoverable, charging for an answer we then refuse to hand
+ * over is not.
+ */
 export async function logUsage(document: LogDocument): Promise<void> {
 	const timestamp = document.timestamp ?? new Date();
 
@@ -230,7 +241,7 @@ export async function logUsage(document: LogDocument): Promise<void> {
 		});
 	} catch (error) {
 		console.error("Ошибка записи лога в ClickHouse:", error);
-		throw error;
+		captureSentryException(error, { error_type: "clickhouse_log_write" });
 	}
 }
 
