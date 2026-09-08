@@ -1,8 +1,52 @@
-import { useRef, useEffect, memo } from "react";
+import { useRef, useEffect, useState, memo } from "react";
 import Editor, { OnMount, EditorProps, useMonaco } from "@monaco-editor/react";
 import { useTheme } from "@/components/theme/theme-provider";
 import type { editor } from "monaco-editor";
 import { MONACO_THEME_NAMES, registerMonacoTheme } from "@/components/ui/monaco-theme";
+
+let monacoSetup: Promise<unknown> | undefined;
+let isMonacoSetupDone = false;
+
+const ensureMonacoSetup = () => {
+	if (!monacoSetup) {
+		monacoSetup = import("@/lib/monaco-setup").then((setup) => {
+			isMonacoSetupDone = true;
+			return setup;
+		});
+	}
+
+	return monacoSetup;
+};
+
+/**
+ * Pulls monaco in on first use instead of at boot.
+ *
+ * Both <Editor> and useMonaco() call loader.init() when they mount, and the loader falls
+ * back to fetching monaco from a CDN unless loader.config() ran first — so nothing may
+ * touch @monaco-editor/react until monaco-setup has resolved.
+ */
+export const useMonacoSetup = () => {
+	const [isReady, setIsReady] = useState(isMonacoSetupDone);
+
+	useEffect(() => {
+		if (isReady) {
+			return;
+		}
+
+		let cancelled = false;
+		ensureMonacoSetup().then(() => {
+			if (!cancelled) {
+				setIsReady(true);
+			}
+		});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [isReady]);
+
+	return isReady;
+};
 
 export interface MonacoEditorProps extends Omit<EditorProps, "theme"> {
 	/**
@@ -68,7 +112,7 @@ const BASE_EDITOR_OPTIONS: editor.IStandaloneEditorConstructionOptions = {
  * Reusable Monaco Editor component with consistent defaults
  * Used across the application for code/JSON editing
  */
-const MonacoEditor = ({
+const LoadedMonacoEditor = ({
 	onMount,
 	options,
 	autoDispose = true,
@@ -123,6 +167,29 @@ const MonacoEditor = ({
 			{...props}
 		/>
 	);
+};
+
+const MonacoEditor = (props: MonacoEditorProps) => {
+	const isReady = useMonacoSetup();
+
+	// Reserves the editor's box so the surrounding layout does not jump when monaco lands.
+	if (!isReady) {
+		return (
+			<section
+				style={{
+					display: "flex",
+					position: "relative",
+					textAlign: "initial",
+					width: props.width ?? "100%",
+					height: props.height ?? "100%",
+				}}
+			>
+				{props.loading}
+			</section>
+		);
+	}
+
+	return <LoadedMonacoEditor {...props} />;
 };
 
 export default memo(MonacoEditor);
