@@ -15,6 +15,7 @@ import { db } from "@/database/db";
 import { callPromptModel, runPrompt } from "@/ai/runner/run";
 import { compareSteps, type StepMismatch } from "@/ai/steps/compare";
 import { maxStepsForRecording, replayTrajectory } from "@/ai/steps/replay";
+import { effectiveSteps, turnsOf } from "@/ai/steps/session";
 import { hasEnabledStep, StepsSchema, StepsConfigSchema } from "@/ai/steps/schema";
 import { DEFAULT_STEPS_CONFIG, type Step, type StepsConfig } from "@/ai/steps/types";
 import { system_prompt } from "@/ai/runner/system";
@@ -132,6 +133,20 @@ export class TestcasesController {
 		if (data.expectedSteps === null) {
 			updateData.stepsConfig = null;
 			updateData.lastMismatches = null;
+		}
+
+		// The client sends only expectedSteps. The server derives expectedOutput from it, in the
+		// same write, so no second client writer appears -- the panel saves per action with no
+		// Save button, and a client-side cascade here would be a third writer of a field two
+		// surfaces already contend for.
+		if (Array.isArray(data.expectedSteps)) {
+			const effective = effectiveSteps(data.expectedSteps as Step[]);
+			const lastFinal = [...effective]
+				.reverse()
+				.find((step) => step.kind === "final" && step.enabled !== false);
+			if (lastFinal?.kind === "final") {
+				updateData.expectedOutput = lastFinal.text;
+			}
 		}
 
 		const testcase = await db.testcases.updateTestcaseByID(id, updateData);
@@ -280,11 +295,16 @@ export class TestcasesController {
 			} else if (assertionType === "MANUAL") {
 				updateData.status = TestCaseStatus.NEED_RUN;
 			} else if (assertionType === "AI") {
+				// A judge that cannot see turn boundaries cannot catch the failure the STRICT path
+				// catches -- an agent that swaps two turns' tool calls looks identical when
+				// flattened.
+				const expectedForJudge = JSON.stringify(turnsOf(effectiveSteps(expectedSteps)));
+				const actualForJudge = JSON.stringify(turnsOf(replay.steps));
 				const assertion = await system_prompt.testcaseAssertionV2(
 					testcaseAssertionFormat({
 						assertion_instruction: assertionValue || "",
-						last_output: JSON.stringify(replay.steps),
-						expected_output: JSON.stringify(expectedSteps),
+						last_output: actualForJudge,
+						expected_output: expectedForJudge,
 					}),
 					metadata.orgID,
 					metadata.projID,
@@ -451,6 +471,13 @@ export function assertTrajectory(
  * what went in. The create/update schemas validate it on the way in; this re-checks on
  * the way out so a row written before that guard, or by hand, fails loudly instead of
  * quietly asserting nothing at all.
+ *
+ * Returns the parsed steps UNCUT -- a session unticked partway through still has the
+ * dropped tail on the row, and this is not where it is removed. Truncation happens in
+ * exactly one place, `effectiveSteps`, and every consumer of this function's return
+ * value (replay, compare, the AI judge, the step budget) calls it themselves. Cutting
+ * here too would be a second place a session's end could be decided, and the two could
+ * disagree.
  */
 export function readExpectedSteps(value: unknown): Step[] | null {
 	if (value === null || value === undefined) {

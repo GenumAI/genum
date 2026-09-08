@@ -258,6 +258,66 @@ describe("TestcasesController.updateTestcase", () => {
 		);
 	});
 
+	it("rewrites expectedOutput to the last enabled final when the session is truncated", async () => {
+		// Truncating changes which final is last. If expectedOutput does not follow, removing
+		// the trajectory later yields a text testcase asserting an answer from a turn the
+		// session no longer reaches -- and the previous spec requires the text testcase
+		// underneath to be correct at that moment.
+		const { res } = makeRes();
+
+		await controller.updateTestcase(
+			makeReq({
+				expectedSteps: [
+					{ kind: "final", text: "first answer" },
+					{ kind: "user", text: "again", enabled: false },
+					{ kind: "final", text: "second answer" },
+				],
+			}),
+			res,
+		);
+
+		expect(db.testcases.updateTestcaseByID).toHaveBeenCalledWith(
+			5,
+			expect.objectContaining({ expectedOutput: "first answer" }),
+		);
+	});
+
+	it("rewrites expectedOutput when the last final's text is edited", async () => {
+		const { res } = makeRes();
+
+		await controller.updateTestcase(
+			makeReq({
+				expectedSteps: [
+					{ kind: "final", text: "one" },
+					{ kind: "user", text: "again" },
+					{ kind: "final", text: "the new answer" },
+				],
+			}),
+			res,
+		);
+
+		expect(db.testcases.updateTestcaseByID).toHaveBeenCalledWith(
+			5,
+			expect.objectContaining({ expectedOutput: "the new answer" }),
+		);
+	});
+
+	it("leaves expectedOutput alone when the update carries no expectedSteps", async () => {
+		const { res } = makeRes();
+
+		await controller.updateTestcase(makeReq({ input: "changed" }), res);
+
+		expect(db.testcases.updateTestcaseByID).toHaveBeenCalledWith(
+			5,
+			expect.objectContaining({ input: "changed" }),
+		);
+		const updateData = vi.mocked(db.testcases.updateTestcaseByID).mock.calls[0][1] as Record<
+			string,
+			unknown
+		>;
+		expect(updateData).not.toHaveProperty("expectedOutput");
+	});
+
 	it("responds with the newly pinned selection, not the pre-update one", async () => {
 		// updateTestcaseByID's response carries the placeholderValues include (Task 9), so
 		// writing the new pin AFTER building that response would answer with the stale
