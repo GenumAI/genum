@@ -326,8 +326,8 @@ git commit -m "feat(steps): a session model with user replies, truncation and tu
 **Files:**
 - Modify: `apps/core/src/ai/providers/index.ts`
 - Modify: `apps/core/src/services/validate/types/prompt.type.ts`
-- Modify: `apps/core/src/ai/providers/openai/utils.ts`, `anthropic/generate.ts`, `deepseek/*`, `gemini/utils.ts`
-- Test: `apps/core/src/ai/providers/<per-provider existing test files>`
+- Modify: `apps/core/src/ai/providers/openai/utils.ts:119`, `anthropic/utils.ts:82`, `deepseek/utils.ts:23`, `gemini/utils.ts:166` — all four mappers live in a `utils.ts`, one per provider
+- Test: `apps/core/src/ai/providers/{openai,anthropic,deepseek,gemini}/utils.test.ts`
 
 **Interfaces:**
 - Consumes: nothing from Task 1.
