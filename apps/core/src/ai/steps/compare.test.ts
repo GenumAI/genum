@@ -295,4 +295,87 @@ describe("compareSteps", () => {
 		expect(mismatches).toHaveLength(1);
 		expect(mismatches[0].index).toBe(2);
 	});
+
+	it("does not let a call from one turn satisfy an expectation from another", () => {
+		// The case the whole decision rests on. Pinned: turn 1 asks Paris, turn 2 asks
+		// London. A regressed agent swaps them and answers the wrong city in both turns.
+		// Flat matching over the whole session sees the same multiset and passes green.
+		const expected: Step[] = [
+			{ kind: "tool_call", name: "get_weather", args: { city: "Paris" } },
+			{ kind: "final", text: "21 in Paris" },
+			{ kind: "user", text: "and in London?" },
+			{ kind: "tool_call", name: "get_weather", args: { city: "London" } },
+			{ kind: "final", text: "14 in London" },
+		];
+		const actual: Step[] = [
+			{ kind: "tool_call", name: "get_weather", args: { city: "London" } },
+			{ kind: "final", text: "21 in Paris" },
+			{ kind: "user", text: "and in London?" },
+			{ kind: "tool_call", name: "get_weather", args: { city: "Paris" } },
+			{ kind: "final", text: "14 in London" },
+		];
+
+		const mismatches = compareSteps(expected, actual, { orderMatters: false });
+
+		expect(mismatches).toHaveLength(2);
+		// Flat indices into `expected`, so the panel can point at the pinned step.
+		expect(mismatches.map((m) => m.index).sort()).toEqual([0, 3]);
+	});
+
+	it("still ignores order inside a turn", () => {
+		const expected: Step[] = [
+			{ kind: "tool_call", name: "a" },
+			{ kind: "tool_call", name: "b" },
+			{ kind: "final", text: "done" },
+		];
+		const actual: Step[] = [
+			{ kind: "tool_call", name: "b" },
+			{ kind: "tool_call", name: "a" },
+			{ kind: "final", text: "done" },
+		];
+		expect(compareSteps(expected, actual, { orderMatters: false })).toEqual([]);
+	});
+
+	it("reports a turn the run never reached as mismatched, not as passed", () => {
+		const expected: Step[] = [
+			{ kind: "tool_call", name: "a" },
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "again" },
+			{ kind: "tool_call", name: "b" },
+			{ kind: "final", text: "two" },
+		];
+		const actual: Step[] = [
+			{ kind: "tool_call", name: "a" },
+			{ kind: "final", text: "one" },
+		];
+
+		const mismatches = compareSteps(expected, actual, { orderMatters: false });
+
+		expect(mismatches.map((m) => m.index).sort()).toEqual([3, 4]);
+	});
+
+	it("never reports a user reply as a mismatch", () => {
+		// A reply is an input, replayed verbatim. There is nothing to compare.
+		const expected: Step[] = [
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "again" },
+			{ kind: "final", text: "two" },
+		];
+		const actual: Step[] = [
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "SOMETHING ELSE" },
+			{ kind: "final", text: "two" },
+		];
+		expect(compareSteps(expected, actual, { orderMatters: false })).toEqual([]);
+	});
+
+	it("compares a truncated session only up to the cut", () => {
+		const expected: Step[] = [
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "dead", enabled: false },
+			{ kind: "tool_call", name: "never" },
+		];
+		const actual: Step[] = [{ kind: "final", text: "one" }];
+		expect(compareSteps(expected, actual, { orderMatters: false })).toEqual([]);
+	});
 });

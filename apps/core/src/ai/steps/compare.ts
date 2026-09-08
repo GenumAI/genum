@@ -1,4 +1,5 @@
 import { normalize } from "@/utils/normalize";
+import { effectiveSteps, turnsOf } from "./session";
 import type { Step, StepsConfig, ToolCallStep } from "./types";
 
 export type StepMismatch = {
@@ -127,23 +128,51 @@ function matchUnordered(
 }
 
 /**
- * Compares only the steps the author enabled. Order is compared when
- * `config.orderMatters`; otherwise each expected step is matched against any not yet
- * consumed actual step, so a reordered but equivalent trajectory passes.
+ * Compares a pinned session against what a run actually did, turn by turn.
  *
- * When orderMatters is true, disabled steps do not consume positions in actual.
- * When orderMatters is false, a maximum bipartite matching decides the assignment (see
- * `matchUnordered`) and the mismatches are exactly the expected steps it could not seat.
+ * Matching is per turn because a session-wide match hides the failure this feature
+ * exists to detect: with `orderMatters: false`, an agent that swaps turn 1's and turn
+ * 2's tool calls presents the same multiset of calls as the recording and passes green,
+ * having answered the wrong thing in both turns.
+ *
+ * Indices in the result address the FLAT expected array. Every consumer downstream --
+ * `lastMismatches`, the panel's per-step marks -- addresses steps that way, and a
+ * turn-local index would silently point at the wrong step.
  */
 export function compareSteps(
 	expected: Step[],
 	actual: Step[],
 	config: StepsConfig,
 ): StepMismatch[] {
-	if (config.orderMatters) {
-		return compareStepsOrdered(expected, actual);
-	}
-	return compareStepsUnordered(expected, actual);
+	const expectedTurns = turnsOf(effectiveSteps(expected));
+	const actualTurns = turnsOf(actual);
+	const mismatches: StepMismatch[] = [];
+
+	expectedTurns.forEach((turn, index) => {
+		// A turn the run never reached: every comparable step in it is unmet. Reporting
+		// nothing here would read as "this turn passed".
+		const actualSteps = actualTurns[index]?.steps ?? [];
+		const comparable = turn.steps.filter((step) => step.kind !== "user");
+		const comparableActual = actualSteps.filter((step) => step.kind !== "user");
+
+		const turnMismatches = config.orderMatters
+			? compareStepsOrdered(comparable, comparableActual)
+			: compareStepsUnordered(comparable, comparableActual);
+
+		// Map each turn-local index back to its flat position. `comparable` dropped the
+		// turn's leading user reply, so the offset is the turn's start plus the number of
+		// user steps skipped before that index.
+		const flat = turn.steps
+			.map((step, position) => ({ step, position }))
+			.filter((entry) => entry.step.kind !== "user")
+			.map((entry) => turn.start + entry.position);
+
+		for (const mismatch of turnMismatches) {
+			mismatches.push({ ...mismatch, index: flat[mismatch.index] ?? turn.start });
+		}
+	});
+
+	return mismatches;
 }
 
 function compareStepsOrdered(expected: Step[], actual: Step[]): StepMismatch[] {
