@@ -12,6 +12,7 @@ import { LogsFilter } from "./components/LogsFilter";
 import { LogDetailsDialog } from "@/pages/prompt/playground-tabs/logs/components/LogDetailsDialog";
 import { useAddTestcaseFromLog } from "@/pages/prompt/playground-tabs/logs/hooks/useAddTestcaseFromLog";
 import { TestcaseStepPickerDialog } from "@/components/dialogs/TestcaseStepPickerDialog";
+import { useLogDetail } from "@/pages/prompt/playground-tabs/logs/hooks/useLogDetail";
 import { useLogsFilters } from "@/pages/prompt/playground-tabs/logs/hooks/useLogsFilters";
 import { useLogsPagination } from "@/pages/prompt/playground-tabs/logs/hooks/useLogsPagination";
 import { useRefetchOnWorkspaceChange } from "@/hooks/useRefetchOnWorkspaceChange";
@@ -41,9 +42,16 @@ export function LogsPage() {
 	});
 	const { promptNames, refetchPromptNames } = useProjectPromptNames();
 
+	// No promptId: this page spans prompts, so the detail lookup is scoped by the project.
+	const { logDetail, isLoadingLogDetail } = useLogDetail({
+		log: selectedLog,
+		enabled: isLogDetailsOpen,
+	});
+
 	const { handleAddTestcaseFromLog, creatingTestcase, stepPicker } = useAddTestcaseFromLog({
 		promptId: selectedPromptId,
 		selectedLog,
+		logDetail,
 	});
 
 	useEffect(() => {
@@ -153,6 +161,8 @@ export function LogsPage() {
 				open={isLogDetailsOpen}
 				onOpenChange={setIsLogDetailsOpen}
 				selectedLog={selectedLog}
+				logDetail={logDetail}
+				isLoadingLogDetail={isLoadingLogDetail}
 				isInputExpanded={isInputExpanded}
 				setIsInputExpanded={setIsInputExpanded}
 				isOutputExpanded={isOutputExpanded}

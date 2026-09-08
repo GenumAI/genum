@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DiffEditor, DiffEditorProps, DiffOnMount, useMonaco } from "@monaco-editor/react";
 import { parseJson } from "@/lib/jsonUtils";
-import { editor } from "monaco-editor";
+import type { editor } from "monaco-editor";
 import { useTheme } from "@/components/theme/theme-provider";
 import { MONACO_THEME_NAMES, registerMonacoTheme } from "@/components/ui/monaco-theme";
+import { useMonacoSetup } from "@/hooks/useMonacoSetup";
 
 type DisposableHandle = {
 	dispose: () => void;
@@ -11,7 +12,15 @@ type DisposableHandle = {
 
 type DiffSurfaceToken = "--editor-input-background" | "--background";
 
-const CompareDiffEditor = ({
+type CompareDiffEditorProps = DiffEditorProps & {
+	onChange?: (value: string) => void;
+	onBlur?: (value: string) => void;
+	renderOverviewRuler?: boolean;
+	maxHeight?: number;
+	surfaceToken?: DiffSurfaceToken;
+};
+
+const LoadedCompareDiffEditor = ({
 	onChange,
 	onBlur,
 	renderOverviewRuler = true,
@@ -19,13 +28,7 @@ const CompareDiffEditor = ({
 	loading,
 	surfaceToken = "--background",
 	...props
-}: DiffEditorProps & {
-	onChange?: (value: string) => void;
-	onBlur?: (value: string) => void;
-	renderOverviewRuler?: boolean;
-	maxHeight?: number;
-	surfaceToken?: DiffSurfaceToken;
-}) => {
+}: CompareDiffEditorProps) => {
 	const { resolvedTheme } = useTheme();
 	const monaco = useMonaco();
 	const monacoTheme = resolvedTheme
@@ -232,6 +235,35 @@ const CompareDiffEditor = ({
 	}
 
 	return editorElement;
+};
+
+const CompareDiffEditor = (props: CompareDiffEditorProps) => {
+	const isReady = useMonacoSetup();
+
+	if (isReady) {
+		return <LoadedCompareDiffEditor {...props} />;
+	}
+
+	// Reserves the editor's box so the surrounding layout does not jump when monaco lands.
+	const placeholder = (
+		<section
+			style={{
+				display: "flex",
+				position: "relative",
+				textAlign: "initial",
+				width: props.width ?? "100%",
+				height: props.height ?? "100%",
+			}}
+		>
+			{props.loading}
+		</section>
+	);
+
+	if (props.maxHeight) {
+		return <div className="overflow-hidden">{placeholder}</div>;
+	}
+
+	return placeholder;
 };
 
 export default CompareDiffEditor;

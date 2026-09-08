@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+  merge_group:
+  pull_request:
+    branches:
+      - "main"
+
+# A newer push to the same ref makes the in-flight run obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Nothing in core type-checks without this: @/prisma and @/prisma-types
+      # resolve into src/.generated, which is generated, not committed.
+      - name: Generate Prisma client
+        run: pnpm --filter core db:generate
+
+      # apps/web has no `type-check` script, so `turbo run type-check` skips it and
+      # reports success without checking a single web file. Web types are checked by
+      # `tsc -b` inside its own `build`, which is why this build is a gate here and
+      # not a smoke test. Also builds @genum/placeholders, which core and web both
+      # resolve into its dist/.
+      - name: Build (packages, core, web)
+        run: pnpm build
+
+      - name: Type-check core
+        run: pnpm turbo run type-check --filter=core
+
+      # Through turbo, not `pnpm --filter core test:run`: every entry point of
+      # @genum/placeholders resolves into its dist/, which a clean checkout does not
+      # have. Calling vitest directly skips the task graph, so vite cannot resolve the
+      # package and three suites error out. No database is needed by either package.
+      - name: Run unit tests (core, placeholders)
+        run: pnpm turbo run test:run
+
+      # Informational, never a gate: lint and format are already red on main (core 35
+      # problems, web 354, biome 172 errors), so a blocking step would fail every pull
+      # request on day one. Judge a change by its delta on the files it touched.
+      - name: Lint (informational, does not fail the build)
+        continue-on-error: true
+        run: pnpm lint

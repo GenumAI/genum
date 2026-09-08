@@ -3,6 +3,7 @@ import Editor, { OnMount, EditorProps, useMonaco } from "@monaco-editor/react";
 import { useTheme } from "@/components/theme/theme-provider";
 import type { editor } from "monaco-editor";
 import { MONACO_THEME_NAMES, registerMonacoTheme } from "@/components/ui/monaco-theme";
+import { useMonacoSetup } from "@/hooks/useMonacoSetup";
 
 export interface MonacoEditorProps extends Omit<EditorProps, "theme"> {
 	/**
@@ -68,7 +69,7 @@ const BASE_EDITOR_OPTIONS: editor.IStandaloneEditorConstructionOptions = {
  * Reusable Monaco Editor component with consistent defaults
  * Used across the application for code/JSON editing
  */
-const MonacoEditor = ({
+const LoadedMonacoEditor = ({
 	onMount,
 	options,
 	autoDispose = true,
@@ -123,6 +124,29 @@ const MonacoEditor = ({
 			{...props}
 		/>
 	);
+};
+
+const MonacoEditor = (props: MonacoEditorProps) => {
+	const isReady = useMonacoSetup();
+
+	// Reserves the editor's box so the surrounding layout does not jump when monaco lands.
+	if (!isReady) {
+		return (
+			<section
+				style={{
+					display: "flex",
+					position: "relative",
+					textAlign: "initial",
+					width: props.width ?? "100%",
+					height: props.height ?? "100%",
+				}}
+			>
+				{props.loading}
+			</section>
+		);
+	}
+
+	return <LoadedMonacoEditor {...props} />;
 };
 
 export default memo(MonacoEditor);

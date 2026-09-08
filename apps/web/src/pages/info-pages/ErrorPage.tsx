@@ -1,7 +1,14 @@
 import { useMemo } from "react";
-import { isRouteErrorResponse } from "react-router-dom";
+import { isRouteErrorResponse, useRouteError } from "react-router-dom";
 
-export function ErrorPage({ error }: any) {
+import { Button } from "@/components/ui/button";
+
+export function ErrorPage() {
+	// This is mounted as a router `errorElement`, which receives nothing through props -- the
+	// error is only reachable through useRouteError(). Reading it from a prop meant every
+	// failure, including a page chunk that failed to load, rendered the bare "Unknown Error".
+	const error = useRouteError();
+
 	const content = useMemo(() => {
 		if (isRouteErrorResponse(error)) {
 			return (
@@ -29,6 +36,9 @@ export function ErrorPage({ error }: any) {
 	return (
 		<div className="h-screen w-screen flex flex-col items-center gap-4 justify-center">
 			{content}
+			<Button variant="outline" onClick={() => window.location.reload()}>
+				Reload
+			</Button>
 		</div>
 	);
 }

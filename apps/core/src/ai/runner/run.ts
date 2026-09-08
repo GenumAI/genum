@@ -21,9 +21,25 @@ import type { runPromptParams, SystemPrompt } from "./types";
 import { getSystemPrompt, SYSTEM_PROMPTS } from "./system";
 import { type LogDocument, LogLevel, LogType, SourceType } from "@/services/logger";
 import { toLogPlaceholders } from "@/services/logger/mappers";
+import { captureSentryException } from "@/services/sentry/init";
 import { HttpError } from "@/utils/errors";
 
 let systemPromptsConfig: SystemPrompt;
+
+/**
+ * Writes the analytics row for a run that has already finished, off the critical path.
+ *
+ * The answer is complete and, on the success path, already billed, so the caller must not
+ * wait on ClickHouse to hand it over. `logUsage` reports its own failures; this handler is
+ * here so anything it cannot anticipate is still reported rather than surfacing as an
+ * unhandled rejection.
+ */
+function recordUsage(document: LogDocument): void {
+	void logUsage(document).catch((error) => {
+		console.error("Failed to record run in ClickHouse:", error);
+		captureSentryException(error, { error_type: "clickhouse_log_write" });
+	});
+}
 
 export async function initSystemPromptsConfig() {
 	const systemOrgId = await db.system.getSystemOrganizationId();
@@ -265,7 +281,7 @@ export async function runPrompt(data: runPromptParams) {
 		if (data.collectUsage) {
 			data.collectUsage(usage);
 		} else {
-			await logUsage(usage);
+			recordUsage(usage);
 		}
 
 		return {
@@ -280,7 +296,7 @@ export async function runPrompt(data: runPromptParams) {
 	} catch (error) {
 		console.error(error);
 
-		await logUsage({
+		recordUsage({
 			source: data.source,
 			log_type: LogType.AIError,
 			log_lvl: LogLevel.error,
@@ -343,7 +359,7 @@ export async function transcribe(
 
 	const transcription = await transcribeOpenAI(apiKey.key, audio); // todo: refactor
 
-	await logUsage({
+	recordUsage({
 		source: SourceType.api,
 		log_type: LogType.PromptRunSuccess,
 		log_lvl: LogLevel.success,

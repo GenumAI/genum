@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import MonacoEditor from "@/components/ui/MonacoEditor";
 import { parseJson } from "@/lib/jsonUtils";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { Eye, EyeClosed, CornersOut } from "phosphor-react";
+import { Eye, EyeClosed, CornersOut } from "@phosphor-icons/react";
 import { formatUserLocalDateTime } from "@/lib/formatUserLocalDateTime";
 import AIPreview from "@/pages/prompt/playground-tabs/playground/components/input-textarea/components/AIPreview";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/useToast";
-import type { Log, PromptName } from "@/types/logs";
+import type { Log, LogDetail, PromptName } from "@/types/logs";
 import { getPromptName, isPromptDeleted } from "../utils/promptNames";
 import { LogTrajectorySection } from "./LogTrajectorySection";
 import {
@@ -31,6 +31,13 @@ interface LogDetailsDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	selectedLog: Log | null;
+	/**
+	 * The payload of `selectedLog`, fetched on open. Null while it is loading -- the list
+	 * row no longer carries `in`/`out`/`placeholders`, so everything below that reads them
+	 * comes from here.
+	 */
+	logDetail: LogDetail | null;
+	isLoadingLogDetail: boolean;
 	isInputExpanded: boolean;
 	setIsInputExpanded: (v: boolean) => void;
 	isOutputExpanded: boolean;
@@ -45,6 +52,8 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 	open,
 	onOpenChange,
 	selectedLog,
+	logDetail,
+	isLoadingLogDetail,
 	isInputExpanded,
 	setIsInputExpanded,
 	isOutputExpanded,
@@ -64,8 +73,8 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 		}
 	}, [open]);
 
-	const parsedInput = useMemo(() => parseJson(selectedLog?.in || ""), [selectedLog?.in]);
-	const parsedOutput = useMemo(() => parseJson(selectedLog?.out || ""), [selectedLog?.out]);
+	const parsedInput = useMemo(() => parseJson(logDetail?.in || ""), [logDetail?.in]);
+	const parsedOutput = useMemo(() => parseJson(logDetail?.out || ""), [logDetail?.out]);
 	const promptName = useMemo(
 		() => getPromptName(selectedLog?.prompt_id, promptNames),
 		[selectedLog?.prompt_id, promptNames],
@@ -75,15 +84,15 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 		return isSinglePromptPage ? false : isPromptDeleted(selectedLog?.prompt_id, promptNames);
 	}, [isSinglePromptPage, promptNames, selectedLog?.prompt_id]);
 
-	// `selectedLog.placeholders` is `key -> valueName` (run.ts's toLogPlaceholders wraps
+	// `logDetail.placeholders` is `key -> valueName` (run.ts's toLogPlaceholders wraps
 	// render.resolved). A legacy row without real placeholders still surfaces here as
 	// `{ memory_key: "..." }` -- resolveLogPlaceholders' fallback on the read path -- so
 	// old log rows keep displaying through this panel without any special-casing here.
 	const placeholdersLabel = useMemo(() => {
-		const entries = Object.entries(selectedLog?.placeholders ?? {});
+		const entries = Object.entries(logDetail?.placeholders ?? {});
 		if (entries.length === 0) return null;
 		return entries.map(([key, value]) => `${key}: ${value}`).join(" · ");
-	}, [selectedLog?.placeholders]);
+	}, [logDetail?.placeholders]);
 	const handlePreviewError = useCallback(
 		(error: string) => {
 			toast({
@@ -294,7 +303,12 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 							{selectedLog.trace_id && (
 								<LogTrajectorySection traceId={selectedLog.trace_id} />
 							)}
-							{selectedLog.in && (
+							{isLoadingLogDetail && (
+								<p className="font-medium text-xs leading-none tracking-normal text-muted-foreground">
+									Loading input and output…
+								</p>
+							)}
+							{logDetail?.in && (
 								<div>
 									<div className="mb-1 flex items-center justify-between">
 										<p className="font-medium text-xs leading-none tracking-normal text-muted-foreground">
@@ -349,7 +363,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 												<div className="h-[200px] overflow-y-auto overflow-x-hidden w-full">
 													<div className="p-4 w-full max-w-full overflow-x-hidden">
 														<AIPreview
-															content={selectedLog.in || ""}
+															content={logDetail?.in || ""}
 															onError={handlePreviewError}
 														/>
 													</div>
@@ -366,7 +380,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 									</div>
 								</div>
 							)}
-							{selectedLog.out && (
+							{logDetail?.out && (
 								<div>
 									<div className="mb-1 flex items-center justify-between">
 										<p className="font-medium text-xs leading-none tracking-normal text-muted-foreground">
@@ -408,7 +422,13 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 							<div className="flex justify-end mt-4">
 								<Button
 									onClick={handleAddTestcaseFromLog}
-									disabled={creatingTestcase || isPromptDeletedForCurrentLog}
+									// A testcase IS the log's input and output, so it cannot be created before
+									// the payload has arrived.
+									disabled={
+										creatingTestcase ||
+										isPromptDeletedForCurrentLog ||
+										!logDetail
+									}
 									className="text-[14px] h-[36px]"
 								>
 									{creatingTestcase ? "Adding..." : "Add testcase"}
@@ -451,7 +471,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 							{isInputPreviewMode ? (
 								<div className="h-full overflow-y-auto rounded-md border bg-transparent p-4 text-sm">
 									<AIPreview
-										content={selectedLog?.in || ""}
+										content={logDetail?.in || ""}
 										onError={handlePreviewError}
 									/>
 								</div>

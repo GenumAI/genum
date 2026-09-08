@@ -1,5 +1,36 @@
 import { describe, it, expect } from "vitest";
-import { mapApiKeyStatsRow, resolveLogPlaceholders, toLogPlaceholders } from "./mappers";
+import {
+	formatClickHouseTimestamp,
+	mapApiKeyStatsRow,
+	parseClickHouseTimestamp,
+	resolveLogPlaceholders,
+	toLogPlaceholders,
+} from "./mappers";
+
+describe("ClickHouse timestamps", () => {
+	it("reads a zoneless ClickHouse timestamp as UTC", () => {
+		// `new Date("2026-09-07 15:41:25.368")` reads this in the process timezone, so the
+		// same row described a different instant depending on where the server ran.
+		expect(parseClickHouseTimestamp("2026-09-07 15:41:25.368").toISOString()).toBe(
+			"2026-09-07T15:41:25.368Z",
+		);
+	});
+
+	it("falls back to now for an empty value rather than an Invalid Date", () => {
+		expect(Number.isNaN(parseClickHouseTimestamp("").getTime())).toBe(false);
+	});
+
+	it("round-trips, which is what makes a timestamp usable as part of a row's address", () => {
+		const literal = "2026-09-07 15:41:25.368";
+		expect(formatClickHouseTimestamp(parseClickHouseTimestamp(literal))).toBe(literal);
+	});
+
+	it("formats an instant in UTC, not the process timezone", () => {
+		expect(formatClickHouseTimestamp(new Date("2026-01-02T03:04:05.678Z"))).toBe(
+			"2026-01-02 03:04:05.678",
+		);
+	});
+});
 
 describe("mapApiKeyStatsRow", () => {
 	it("coerces the string aggregates ClickHouse returns into numbers", () => {

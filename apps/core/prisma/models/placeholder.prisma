@@ -12,6 +12,8 @@ model Placeholder {
     updatedAt DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
     @@unique([key, promptId])
+
+    @@index([promptId])
 }
 
 model PlaceholderValue {

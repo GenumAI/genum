@@ -4,6 +4,7 @@ import type { PromptSettings, TLanguageModel, TestcaseStatuses } from "@/types/P
 import type { TestCase } from "@/types/TestСase";
 import type { ResponseModelConfig } from "@/types/AIModel";
 import type { ConversationMessage, ToolCall } from "@/types/steps";
+import type { Log, LogDetail, LogsResponse } from "@/types/logs";
 
 export interface PromptResponse {
 	answer: string;
@@ -165,31 +166,8 @@ export interface LogsQueryParams {
 	query?: string;
 }
 
-export interface LogsResponse {
-	logs: Log[];
-	total: number;
-}
-
-export interface Log {
-	log_lvl: string;
-	timestamp: string;
-	source: string;
-	vendor: string;
-	model: string;
-	tokens_sum: number;
-	cost: number;
-	response_ms: number;
-	description?: string;
-	tokens_in?: number;
-	tokens_out?: number;
-	in?: string;
-	out?: string;
-	log_type?: string;
-	user_name?: string;
-	placeholders?: Record<string, string>;
-	api?: string;
-	prompt_id?: number;
-}
+/** Canonical shape lives in `@/types/logs`; re-exported so the three copies cannot drift. */
+export type { Log, LogDetail, LogsResponse };
 
 export interface AgentMessageData {
 	mode: string;
@@ -443,6 +421,26 @@ export const promptApi = {
 		const queryString = queryParams.toString();
 		const url = `/prompts/${promptId}/logs${queryString ? `?${queryString}` : ""}`;
 		const response = await apiClient.get<LogsResponse>(url, config);
+		return response.data;
+	},
+
+	/**
+	 * The payload of one log row. Separate from `getLogs` so a list never carries `in`,
+	 * `out` and `placeholders` for rows nobody opened.
+	 *
+	 * `timestamp` is not redundant with `logId`: the logs table is partitioned by month, so
+	 * it is what keeps the lookup off every part the organisation owns.
+	 */
+	getLogDetail: async (
+		promptId: number | string,
+		params: { logId: string; timestamp: string },
+		config?: ApiRequestConfig,
+	): Promise<LogDetail> => {
+		const queryString = new URLSearchParams(params).toString();
+		const response = await apiClient.get<LogDetail>(
+			`/prompts/${promptId}/logs/detail?${queryString}`,
+			config,
+		);
 		return response.data;
 	},
 

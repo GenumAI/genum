@@ -20,7 +20,10 @@ vi.mock("@/database/db", () => ({
 
 vi.mock("@/services/access/AccessService", () => ({ getApiKeyByQuota: vi.fn() }));
 
-vi.mock("@/services/logger/logger", () => ({ logUsage: vi.fn() }));
+// Resolves, because the caller no longer awaits it: `recordUsage` fires the write off the
+// critical path and attaches a `.catch`, so a mock returning `undefined` would blow up
+// inside the runner rather than exercising it.
+vi.mock("@/services/logger/logger", () => ({ logUsage: vi.fn(async () => {}) }));
 
 vi.mock("@/ai/providers", async (importOriginal) => ({
 	...(await importOriginal<typeof import("@/ai/providers")>()),

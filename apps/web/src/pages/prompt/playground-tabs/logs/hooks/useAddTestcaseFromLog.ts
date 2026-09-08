@@ -6,7 +6,7 @@ import { useCreateTestcase } from "@/hooks/useCreateTestcase";
 import { projectApi } from "@/api/project";
 import { promptApi } from "@/api/prompt/prompt.api";
 import { spansToSteps } from "@/lib/spansToSteps";
-import type { Log } from "@/types/logs";
+import type { Log, LogDetail } from "@/types/logs";
 import type { Step } from "@/types/steps";
 import { logsKeys } from "@/query-keys/logs.keys";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
@@ -19,9 +19,18 @@ const NO_UNREADABLE_ARGS: Set<number> = new Set();
 interface UseAddTestcaseFromLogParams {
 	promptId?: number;
 	selectedLog: Log | null;
+	/**
+	 * The payload of `selectedLog`. A testcase IS its input and output, so this is not
+	 * optional context -- without it there is nothing to create, hence the guard below.
+	 */
+	logDetail: LogDetail | null;
 }
 
-export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseFromLogParams) {
+export function useAddTestcaseFromLog({
+	promptId,
+	selectedLog,
+	logDetail,
+}: UseAddTestcaseFromLogParams) {
 	const { toast } = useToast();
 	const { createTestcase, loading: creatingTestcase } = useCreateTestcase();
 	const queryClient = useQueryClient();
@@ -32,7 +41,12 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 		steps: Step[];
 		unreadableArgsIndices: Set<number>;
 		promptId: number;
-		log: Log;
+		/**
+		 * The payload, captured at click time. A list row carries no `in`/`out` any more,
+		 * so the detail is what a testcase is actually made of -- and capturing it here
+		 * means a selection change while the picker is open cannot move it.
+		 */
+		detail: LogDetail;
 	} | null>(null);
 
 	const refreshTestcases = useCallback(
@@ -54,7 +68,7 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 
 	const submit = useCallback(
 		async (
-			log: Log,
+			detail: LogDetail,
 			targetPromptId: number,
 			expectedSteps?: Step[],
 			// True when the log carried a trace_id but the recorded trajectory could not be
@@ -67,10 +81,10 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 			try {
 				const { ok, unresolvedPlaceholders } = await createTestcase({
 					promptId: targetPromptId,
-					input: log.in || "",
-					expectedOutput: log.out || "",
-					lastOutput: log.out || "",
-					placeholders: log.placeholders ?? {},
+					input: detail.in || "",
+					expectedOutput: detail.out || "",
+					lastOutput: detail.out || "",
+					placeholders: detail.placeholders ?? {},
 					// Left unset for a text testcase: the backend rejects an empty array,
 					// and a testcase that pins no steps is a text testcase by definition.
 					...(expectedSteps && expectedSteps.length > 0
@@ -126,7 +140,9 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 	);
 
 	const handleAddTestcaseFromLog = useCallback(async () => {
-		if (!selectedLog) return;
+		// `logDetail` is still loading, or failed: creating a testcase now would silently
+		// make an empty one.
+		if (!selectedLog || !logDetail) return;
 
 		const targetPromptId = Number(selectedLog.prompt_id ?? promptId);
 		if (!targetPromptId) return;
@@ -152,7 +168,7 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 					steps,
 					unreadableArgsIndices,
 					promptId: targetPromptId,
-					log: selectedLog,
+					detail: logDetail,
 				});
 				return;
 			}
@@ -161,19 +177,19 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 			// steps -- either way, the author asked for a trajectory testcase and is about
 			// to get a plain text one. `traceUnavailable: true` surfaces that in the toast
 			// instead of leaving them to believe they pinned tool calls.
-			await submit(selectedLog, targetPromptId, undefined, true);
+			await submit(logDetail, targetPromptId, undefined, true);
 			return;
 		}
 
-		await submit(selectedLog, targetPromptId);
-	}, [promptId, queryClient, selectedLog, submit]);
+		await submit(logDetail, targetPromptId);
+	}, [logDetail, promptId, queryClient, selectedLog, submit]);
 
 	const confirmSteps = useCallback(
 		async (steps: Step[]) => {
 			if (!pending) return;
 			// Unticked steps ride along so the testcase still shows what was ignored;
 			// `compareSteps` skips them.
-			const ok = await submit(pending.log, pending.promptId, steps);
+			const ok = await submit(pending.detail, pending.promptId, steps);
 			if (ok) setPending(null);
 		},
 		[pending, submit],

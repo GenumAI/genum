@@ -1,3 +1,5 @@
+import { workspaceScope } from "./scope.keys";
+
 type ScopeParam = string | number | undefined;
 
 export interface ProjectLogsKeyParams {
@@ -24,7 +26,18 @@ export interface PromptLogsKeyParams {
 	query?: string;
 }
 
+export interface LogDetailKeyParams {
+	promptId?: ScopeParam;
+	logId?: string;
+	timestamp?: string;
+}
+
 export const logsKeys = {
+	/** A single row's payload. `promptId` is part of the key because the prompt-scoped and
+	 * project-scoped endpoints enforce different access boundaries and must not share a
+	 * cache entry. */
+	logDetail: ({ promptId, logId, timestamp }: LogDetailKeyParams) =>
+		["log-detail", ...workspaceScope(), promptId, logId, timestamp] as const,
 	projectLogs: ({
 		page,
 		pageSize,
@@ -38,6 +51,7 @@ export const logsKeys = {
 	}: ProjectLogsKeyParams) =>
 		[
 			"project-logs",
+			...workspaceScope(),
 			page,
 			pageSize,
 			fromDate,
@@ -61,6 +75,7 @@ export const logsKeys = {
 	}: PromptLogsKeyParams) =>
 		[
 			"prompt-logs-tab",
+			...workspaceScope(),
 			promptId,
 			page,
 			pageSize,

@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Info } from "phosphor-react";
+import { Info } from "@phosphor-icons/react";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import {
 	Select,

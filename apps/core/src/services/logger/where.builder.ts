@@ -3,6 +3,7 @@
  * Protects against SQL injection by using query parameters
  */
 
+import { formatClickHouseTimestamp } from "./mappers";
 import type { SourceType, LogLevel } from "./types";
 
 // Type for query parameter values
@@ -58,19 +59,51 @@ export class WhereBuilder {
 	}
 
 	/**
-	 * Add date range condition
+	 * Add date range condition.
+	 *
+	 * Takes instants, not day strings. It used to take `YYYY-MM-DD` and widen them to
+	 * `00:00:00` / `23:59:59`, but the UI sends an instant at the user's local midnight --
+	 * `2026-08-23T22:00:00.000Z` for a UTC+2 user picking the 24th. Truncating that to a
+	 * day did not merely widen the window, it SHIFTED it: a day the user never picked came
+	 * in at the bottom and the tail of the last picked day fell off. The extra rows were
+	 * the smaller half of the problem.
 	 */
-	dateRange(fromDate?: string, toDate?: string): this {
+	dateRange(fromDate?: Date, toDate?: Date): this {
 		if (fromDate) {
 			const paramName = this.nextParamName();
-			this.conditions.push(`timestamp >= {${paramName}: DateTime}`);
-			this.params[paramName] = `${fromDate} 00:00:00`;
+			this.conditions.push(`timestamp >= {${paramName}: DateTime64(3)}`);
+			this.params[paramName] = formatClickHouseTimestamp(fromDate);
 		}
 		if (toDate) {
 			const paramName = this.nextParamName();
-			this.conditions.push(`timestamp <= {${paramName}: DateTime}`);
-			this.params[paramName] = `${toDate} 23:59:59`;
+			this.conditions.push(`timestamp <= {${paramName}: DateTime64(3)}`);
+			this.params[paramName] = formatClickHouseTimestamp(toDate);
 		}
+		return this;
+	}
+
+	/**
+	 * Pin one row's exact timestamp.
+	 *
+	 * Exact rather than a range because the table is `PARTITION BY toYYYYMM(timestamp)`:
+	 * this is what lets a detail lookup touch one month of parts instead of every part the
+	 * organisation owns.
+	 */
+	timestampExact(timestamp: string): this {
+		const paramName = this.nextParamName();
+		this.conditions.push(`timestamp = {${paramName}: DateTime64(3)}`);
+		this.params[paramName] = timestamp;
+		return this;
+	}
+
+	/**
+	 * Add log id condition. Passed as a string: `log_id` is a `UInt64` and JSON rounds one
+	 * off, so it is never turned into a JS number anywhere on the way in or out.
+	 */
+	logId(logId: string): this {
+		const paramName = this.nextParamName();
+		this.conditions.push(`log_id = {${paramName}: UInt64}`);
+		this.params[paramName] = logId;
 		return this;
 	}
 

@@ -12,6 +12,18 @@
  */
 const RUN_COUNT = "countIf(log_type != 'prt')";
 
+/**
+ * Send this with any query that selects `log_id`.
+ *
+ * `@clickhouse/client` turns JSONEachRow into objects with `JSON.parse`, and it ships with
+ * `output_format_json_quote_64bit_integers` OFF -- so an unquoted `UInt64` arrives as a
+ * double and silently loses its low digits: 15725040608634065115 comes back as
+ * ...065000, and every detail lookup built from it addresses a row that does not exist.
+ * Quoting on the server is the only place this can be fixed; `String(row.log_id)` in
+ * TypeScript runs after the damage.
+ */
+export const QUOTE_64BIT_INTEGERS = { output_format_json_quote_64bit_integers: 1 } as const;
+
 export const QUERIES = {
 	/**
 	 * Count total records matching WHERE clause
@@ -23,14 +35,75 @@ export const QUERIES = {
 	`,
 
 	/**
+	 * Every column a log LIST needs, and no more.
+	 *
+	 * Named explicitly rather than `SELECT *` on purpose. Under `SELECT *` a page of ten
+	 * carried `in`, `out` and `placeholders` for every row the query touched, which is what
+	 * exhausted the query memory limit in production. The payload belongs to
+	 * GET_LOG_DETAIL.
+	 *
+	 * How many rows it touches is decided by the caller, not here: every caller must pin
+	 * `project_id` so the filter completes the sorting key (orgId, project_id, timestamp)
+	 * and `ORDER BY timestamp DESC LIMIT n` can read in key order instead of sorting the
+	 * whole match set.
+	 *
+	 * `trace_id` is the one agentic column here, and it is here because it is an address,
+	 * not a payload: a bounded string that tells the list whether a row has a recorded
+	 * trajectory at all. The steps themselves live in `trace_spans` and are read only when
+	 * the details dialog opens (GET_TRACE_SPANS).
+	 *
+	 * Both this and GET_LOG_DETAIL must be sent with QUOTE_64BIT_INTEGERS -- see there.
+	 */
+	LOG_LIST_COLUMNS: `
+		log_id,
+		timestamp,
+		source,
+		log_lvl,
+		log_type,
+		description,
+		orgId,
+		project_id,
+		prompt_id,
+		user_id,
+		api_key_id,
+		testcase_id,
+		trace_id,
+		vendor,
+		model,
+		tokens_in,
+		tokens_out,
+		tokens_sum,
+		cost,
+		response_ms
+	`,
+
+	/**
 	 * Get logs with pagination
 	 */
 	GET_LOGS: (table: string, where: string) => `
-		SELECT * 
+		SELECT ${QUERIES.LOG_LIST_COLUMNS}
 		FROM ${table}
 		WHERE ${where}
 		ORDER BY timestamp DESC
 		LIMIT {limit: UInt64} OFFSET {offset: UInt64}
+	`,
+
+	/**
+	 * The payload of a single row, for the details dialog.
+	 *
+	 * `where` always pins an exact `timestamp`, which prunes to the one monthly partition
+	 * (`PARTITION BY toYYYYMM(timestamp)`) before `log_id` picks the row out of it. Without
+	 * that predicate this would scan the organisation: `log_id` is materialised, not part
+	 * of any index.
+	 *
+	 * `LIMIT 1` because `log_id` is a hash, not an enforced key -- two rows agreeing on all
+	 * fourteen hashed fields including the millisecond are indistinguishable here anyway.
+	 */
+	GET_LOG_DETAIL: (table: string, where: string) => `
+		SELECT log_id, \`in\`, \`out\`, memory_key, placeholders
+		FROM ${table}
+		WHERE ${where}
+		LIMIT 1
 	`,
 
 	/**
@@ -182,6 +255,6 @@ export const QUERIES = {
 	COUNT_BY_DATE: (table: string) => `
 		SELECT ${RUN_COUNT} as total
 		FROM ${table}
-		WHERE timestamp >= {fromDate: DateTime} AND timestamp <= {toDate: DateTime}
+		WHERE timestamp >= {fromDate: DateTime64(3)} AND timestamp <= {toDate: DateTime64(3)}
 	`,
 } as const;

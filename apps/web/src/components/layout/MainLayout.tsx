@@ -213,7 +213,7 @@ const RotateScreenPlug = () => {
 		return (
 			<div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center w-full min-h-[100dvh] h-full">
 				<div
-					style={{ backgroundImage: 'url("/rotation-bg.png")' }}
+					style={{ backgroundImage: 'url("/rotation-bg.webp")' }}
 					className={clsx(
 						"absolute inset-0 bg-center bg-no-repeat bg-cover scale-x-[-1] scale-y-[-1]",
 						"before:content-[''] before:absolute before:inset-0 before:backdrop-blur-[45px]",

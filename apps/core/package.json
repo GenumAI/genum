@@ -1,7 +1,7 @@
 {
   "name": "core",
   "private": true,
-  "version": "1.10.0",
+  "version": "1.11.0",
   "engines": {
     "node": ">=22"
   },
@@ -70,6 +70,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
     "express-oauth2-jwt-bearer": "^1.7.1",
     "langchain": "^1.2.7",
     "moment": "^2.30.1",

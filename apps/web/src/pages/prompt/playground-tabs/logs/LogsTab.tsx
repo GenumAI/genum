@@ -21,6 +21,7 @@ import { useLogsFilters } from "./hooks/useLogsFilters";
 import { useLogsPagination } from "./hooks/useLogsPagination";
 import { useAddTestcaseFromLog } from "./hooks/useAddTestcaseFromLog";
 import { TestcaseStepPickerDialog } from "@/components/dialogs/TestcaseStepPickerDialog";
+import { useLogDetail } from "./hooks/useLogDetail";
 import type { Log } from "@/types/logs";
 
 export default function LogsTab() {
@@ -45,9 +46,16 @@ export default function LogsTab() {
 		isActive,
 	});
 
+	const { logDetail, isLoadingLogDetail } = useLogDetail({
+		log: selectedLog,
+		enabled: isLogDetailsOpen,
+		promptId,
+	});
+
 	const { handleAddTestcaseFromLog, creatingTestcase, stepPicker } = useAddTestcaseFromLog({
 		promptId,
 		selectedLog,
+		logDetail,
 	});
 
 	useEffect(() => {
@@ -165,6 +173,8 @@ export default function LogsTab() {
 				open={isLogDetailsOpen}
 				onOpenChange={setIsLogDetailsOpen}
 				selectedLog={selectedLog}
+				logDetail={logDetail}
+				isLoadingLogDetail={isLoadingLogDetail}
 				isInputExpanded={isInputExpanded}
 				setIsInputExpanded={setIsInputExpanded}
 				isOutputExpanded={isOutputExpanded}

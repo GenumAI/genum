@@ -3,6 +3,13 @@ import { db } from "@/database/db";
 import { isCloudInstance } from "@/utils/env";
 import { HttpError } from "@/utils/errors";
 
+/**
+ * Runs on nearly every prompt route, so it reads the scalar row and nothing else: all it
+ * needs is `projectId`, and its callers take a plain `Prompt`. The page that renders
+ * commit history asks `getPromptByIdWithHistory` for it separately -- routing this guard
+ * back through a relation-carrying read would put every commit of every prompt back on
+ * the wire for thirty-odd endpoints that never look at them.
+ */
 export async function checkPromptAccess(promptId: number, projectId: number) {
 	const prompt = await db.prompts.getPromptById(promptId);
 	if (!prompt) {
