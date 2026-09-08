@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { isAxiosError } from "axios";
+import { ApiError } from "@/api/client";
 import { accountClosureApi } from "@/api/user";
 import type { ClosureOutcome, ClosurePreview, ClosureRefusal } from "@/api/user";
 import { closureKeys } from "@/query-keys/closure.keys";
@@ -19,6 +19,12 @@ import { isLocalAuth } from "@/lib/auth";
  *           person and the next token carries a fresh `auth_time`.
  *   local → a password field in the dialog; there is no identity provider to
  *           redirect to.
+ *
+ * Every failure below is read off `ApiError`, because that is what the axios
+ * response interceptor rejects with -- a plain `Error` subclass that carries the
+ * status and the parsed body but is NOT an axios error. Asking `isAxiosError`
+ * here answers false for every response the server ever sends, which would bury
+ * the refusal and the step-up under a generic "did not reach the server".
  */
 
 export type ClosureError =
@@ -41,7 +47,21 @@ export function useAccountClosure(isOpen: boolean) {
 	// screen before anyone is asked to confirm.
 	const preview = useQuery<ClosurePreview>({
 		queryKey: closureKeys.preview(),
-		queryFn: () => accountClosureApi.preview(),
+		queryFn: async () => {
+			try {
+				return await accountClosureApi.preview();
+			} catch (caught) {
+				// The server answers a refusal with 409, so it arrives here as a
+				// rejection -- but it is an answer, not a failure. Resolving it as
+				// data is what puts the service's own wording on screen in place
+				// of the confirmation; rethrowing would show "we could not check".
+				const refusal = asRefusal(caught);
+				if (refusal) {
+					return refusal;
+				}
+				throw caught;
+			}
+		},
 		enabled: isOpen,
 		staleTime: 0,
 		retry: false,
@@ -82,34 +102,48 @@ export function useAccountClosure(isOpen: boolean) {
 
 type LoginWithRedirect = ReturnType<typeof useAuth>["loginWithRedirect"];
 
+/**
+ * The 409 body, if this is one. The interceptor leaves `status` undefined only
+ * when the request never got a response, so a status of 409 is always a real
+ * answer from `statusFor()`.
+ */
+function asRefusal(caught: unknown): ClosureRefusal | null {
+	if (!(caught instanceof ApiError) || caught.status !== 409) {
+		return null;
+	}
+
+	const data = (caught.data ?? {}) as Partial<ClosureRefusal>;
+	if (!data.reason) {
+		return null;
+	}
+
+	return {
+		status: "refused",
+		step: data.step ?? "",
+		reason: data.reason,
+		detail: data.detail ?? "This account cannot be closed yet.",
+	};
+}
+
 async function handle(
 	caught: unknown,
 	needsPassword: boolean,
 	loginWithRedirect: LoginWithRedirect,
 ): Promise<ClosureError> {
-	if (!isAxiosError(caught) || !caught.response) {
+	// No status means the interceptor's network branch: the request never
+	// reached the server, so there is no body to read.
+	if (!(caught instanceof ApiError) || caught.status === undefined) {
 		return { kind: "failed", detail: "The request did not reach the server. Try again." };
 	}
 
-	const status = caught.response.status;
-	const data = (caught.response.data ?? {}) as Partial<ClosureRefusal> & {
-		error?: string;
-		detail?: string;
-	};
-
-	if (status === 409 && data.reason) {
-		return {
-			kind: "refused",
-			refusal: {
-				status: "refused",
-				step: data.step ?? "",
-				reason: data.reason,
-				detail: data.detail ?? "This account cannot be closed yet.",
-			},
-		};
+	const refusal = asRefusal(caught);
+	if (refusal) {
+		return { kind: "refused", refusal };
 	}
 
-	if (status === 401) {
+	const data = (caught.data ?? {}) as { detail?: string };
+
+	if (caught.status === 401) {
 		if (needsPassword) {
 			// One message for both "wrong password" and "no credential", matching
 			// the server: this endpoint must not become an oracle.
