@@ -1,3 +1,5 @@
+import { workspaceScope } from "./scope.keys";
+
 type ScopeParam = string | number | undefined;
 
 export interface ProjectLogsKeyParams {
@@ -35,7 +37,7 @@ export const logsKeys = {
 	 * project-scoped endpoints enforce different access boundaries and must not share a
 	 * cache entry. */
 	logDetail: ({ promptId, logId, timestamp }: LogDetailKeyParams) =>
-		["log-detail", promptId, logId, timestamp] as const,
+		["log-detail", ...workspaceScope(), promptId, logId, timestamp] as const,
 	projectLogs: ({
 		page,
 		pageSize,
@@ -49,6 +51,7 @@ export const logsKeys = {
 	}: ProjectLogsKeyParams) =>
 		[
 			"project-logs",
+			...workspaceScope(),
 			page,
 			pageSize,
 			fromDate,
@@ -72,6 +75,7 @@ export const logsKeys = {
 	}: PromptLogsKeyParams) =>
 		[
 			"prompt-logs-tab",
+			...workspaceScope(),
 			promptId,
 			page,
 			pageSize,
