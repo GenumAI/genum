@@ -177,7 +177,23 @@ export class PromptsRepository {
 	}
 
 	// get prompt by ID
-	public async getPromptById(id: number) {
+	//
+	// Scalars only. This is what `checkPromptAccess` reads on nearly every prompt route
+	// just to compare `projectId`, and what the prompt auditor and the public API's run
+	// endpoint read for `value` / `languageModelConfig`. The relations it used to carry
+	// are unbounded: `branches -> promptVersions` grows by one full prompt body plus its
+	// audit and placeholder JSON on every commit, so a prompt with two hundred commits
+	// used to cost two hundred prompt bodies per request, forever. Callers that actually
+	// render the history ask for it by name below.
+	public async getPromptById(id: number): Promise<Prompt | null> {
+		return await this.prisma.prompt.findUnique({
+			where: { id },
+		});
+	}
+
+	// The whole prompt page in one row: the model it runs on, its audit, and the newest
+	// version of each branch first. Only PromptsController.getPromptById needs this.
+	public async getPromptByIdWithHistory(id: number) {
 		return await this.prisma.prompt.findUnique({
 			where: { id },
 			include: {
@@ -461,7 +477,12 @@ export class PromptsRepository {
 			throw new Error("branch not found");
 		}
 
-		const prompt = await this.getPromptById(promptId);
+		// Scalars plus the audit this version copies. The branch is already resolved above
+		// and nothing here reads the version history, so it is not fetched.
+		const prompt = await this.prisma.prompt.findUnique({
+			where: { id: promptId },
+			include: { audit: true },
+		});
 		if (!prompt) {
 			throw new Error("Prompt not found");
 		}

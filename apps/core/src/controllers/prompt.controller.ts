@@ -57,23 +57,22 @@ export class PromptsController {
 		const metadata = req.genumMeta.ids;
 		const prompts = await db.prompts.getProjectPrompts(metadata.projID);
 
-		const promptsWithStatuses = await Promise.all(
-			prompts.map(async (prompt) => {
-				const testcases = await db.testcases.getTestcasesByPromptId(prompt.id);
-				const statusCounts = testcases.reduce(
-					(acc: Record<string, number>, testcase: { status: string }) => {
-						acc[testcase.status] = (acc[testcase.status] || 0) + 1;
-						return acc;
-					},
-					{},
-				);
-				// const lastCommit = prompt.branches[0]?.promptVersions[0]?.commitHash || null;
-				// const lastCommitAuthor = prompt.branches[0]?.promptVersions[0]?.author || null;
-				const lastCommit = prompt.branches[0]?.promptVersions[0] || null;
-				const { branches: _, ...promptWithoutBranches } = prompt;
-				return { ...promptWithoutBranches, testcaseStatuses: statusCounts, lastCommit };
-			}),
+		// One aggregate for the whole project rather than one full read of every testcase
+		// per prompt: the list renders counts, and a testcase row carries three unbounded
+		// TEXT columns none of them look at.
+		const statusesByPrompt = statusCountsByPrompt(
+			await db.testcases.countByStatusForProject(metadata.projID),
 		);
+
+		const promptsWithStatuses = prompts.map((prompt) => {
+			const lastCommit = prompt.branches[0]?.promptVersions[0] || null;
+			const { branches: _, ...promptWithoutBranches } = prompt;
+			return {
+				...promptWithoutBranches,
+				testcaseStatuses: statusesByPrompt.get(prompt.id) ?? {},
+				lastCommit,
+			};
+		});
 
 		res.status(200).json({ prompts: promptsWithStatuses });
 	}
@@ -234,32 +233,29 @@ export class PromptsController {
 		const metadata = req.genumMeta.ids;
 		const id = numberSchema.parse(req.params.id);
 
-		const prompt = await checkPromptAccess(id, metadata.projID);
+		await checkPromptAccess(id, metadata.projID);
 
-		const testcases = await db.testcases.getTestcasesByPromptId(id);
-		const statusCounts = testcases.reduce(
-			(acc: Record<string, number>, testcase: { status: string }) => {
-				acc[testcase.status] = (acc[testcase.status] || 0) + 1;
-				return acc;
-			},
-			{},
-		);
+		// This page is the only reader of the commit history, so it is the only caller
+		// that pays for the branches -> promptVersions payload -- the guard above stopped
+		// carrying it for the other thirty-odd routes on this router.
+		const prompt = await db.prompts.getPromptByIdWithHistory(id);
+		if (!prompt) {
+			res.status(404).json({ error: "Prompt is not found" });
+			return;
+		}
 
-		// Type assertion to handle the included relations
-		const promptWithBranches = prompt as unknown as {
-			branches: { promptVersions: { commitHash: string; authorId: string }[] }[];
-		};
-		const lastCommit = promptWithBranches.branches[0]?.promptVersions[0]?.commitHash || null;
-		const lastCommitAuthor =
-			promptWithBranches.branches[0]?.promptVersions[0]?.authorId || null;
+		const statusCounts =
+			statusCountsByPrompt(await db.testcases.countByStatusForPrompt(id)).get(id) ?? {};
+
+		const lastVersion = prompt.branches[0]?.promptVersions[0];
 
 		// Omit branches from the response
-		const { branches: _, ...promptWithoutBranches } = promptWithBranches;
+		const { branches: _, ...promptWithoutBranches } = prompt;
 		const promptWithStatuses = {
 			...promptWithoutBranches,
 			testcaseStatuses: statusCounts,
-			lastCommit,
-			lastCommitAuthor,
+			lastCommit: lastVersion?.commitHash || null,
+			lastCommitAuthor: lastVersion?.authorId || null,
 		};
 
 		res.status(200).json({ prompt: promptWithStatuses });
@@ -890,6 +886,24 @@ export class PromptsController {
 
 		res.status(200).json({ message: result.answer });
 	}
+}
+
+/**
+ * Pivots the testcase status aggregate into the per-prompt histogram both prompt
+ * responses carry. A status with no testcases has no row in the aggregate and so stays
+ * out of the histogram entirely -- that absent key is what the per-row reducer this
+ * replaced produced, and what the web client already reads as zero. A prompt with no
+ * testcases at all has no entry either, so callers default it to `{}` rather than letting
+ * the key fall out of the response.
+ */
+function statusCountsByPrompt(rows: { promptId: number; status: string; _count: number }[]) {
+	const byPrompt = new Map<number, Record<string, number>>();
+	for (const row of rows) {
+		const counts = byPrompt.get(row.promptId) ?? {};
+		counts[row.status] = (counts[row.status] ?? 0) + row._count;
+		byPrompt.set(row.promptId, counts);
+	}
+	return byPrompt;
 }
 
 function chatMessagesToHuman(messages: CanvasMessage[]): CanvasAgentMessage[] {
