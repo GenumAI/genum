@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart2 } from "lucide-react";
-import { CircleNotch } from "phosphor-react";
+import { CircleNotch } from "@phosphor-icons/react";
 import {
 	Dialog,
 	DialogContent,

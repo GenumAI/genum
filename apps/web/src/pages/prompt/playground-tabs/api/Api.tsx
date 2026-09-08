@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ClipboardText, Check } from "phosphor-react";
+import { ClipboardText, Check } from "@phosphor-icons/react";
 import { useApiEndpoint } from "./hooks/useApiEndpoint";
 
 const COPY_INPUT_CLASSNAME =

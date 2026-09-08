@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import PromptActionPopover from "@/components/popovers/PromptActionPopover";
 import { useAIGeneration } from "../../hooks/useAIGeneration";
 import { TuneIcon } from "@/lib/icons/TuneIcon";
-import { CircleNotch } from "phosphor-react";
+import { CircleNotch } from "@phosphor-icons/react";
 
 type AIGenerateMode = "schema" | "tool" | "input" | "commit" | "prompt-generate" | "prompt-tune";
 

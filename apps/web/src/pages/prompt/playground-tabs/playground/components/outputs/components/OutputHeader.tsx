@@ -1,5 +1,5 @@
 import type React from "react";
-import { CornersOut } from "phosphor-react";
+import { CornersOut } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";

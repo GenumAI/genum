@@ -17,7 +17,6 @@ import {
 	EyeClosedIcon,
 } from "@phosphor-icons/react";
 import { Separator } from "@/components/ui/separator";
-import { EditorContent } from "@tiptap/react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useTooltipsEnabledOnExpand } from "@/hooks/useEditorViewState";
@@ -345,7 +344,7 @@ const EditorCard = ({
 									!editorHeight && "h-full min-h-0 flex-1 flex flex-col",
 								)}
 							>
-								{children ? children : <EditorContent editor={editor} />}
+								{children}
 							</div>
 						)}
 					</CardContent>
