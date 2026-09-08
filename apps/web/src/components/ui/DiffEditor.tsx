@@ -4,7 +4,7 @@ import { parseJson } from "@/lib/jsonUtils";
 import type { editor } from "monaco-editor";
 import { useTheme } from "@/components/theme/theme-provider";
 import { MONACO_THEME_NAMES, registerMonacoTheme } from "@/components/ui/monaco-theme";
-import { useMonacoSetup } from "@/components/ui/MonacoEditor";
+import { useMonacoSetup } from "@/hooks/useMonacoSetup";
 
 type DisposableHandle = {
 	dispose: () => void;

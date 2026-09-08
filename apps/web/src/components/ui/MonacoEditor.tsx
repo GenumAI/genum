@@ -1,52 +1,9 @@
-import { useRef, useEffect, useState, memo } from "react";
+import { useRef, useEffect, memo } from "react";
 import Editor, { OnMount, EditorProps, useMonaco } from "@monaco-editor/react";
 import { useTheme } from "@/components/theme/theme-provider";
 import type { editor } from "monaco-editor";
 import { MONACO_THEME_NAMES, registerMonacoTheme } from "@/components/ui/monaco-theme";
-
-let monacoSetup: Promise<unknown> | undefined;
-let isMonacoSetupDone = false;
-
-const ensureMonacoSetup = () => {
-	if (!monacoSetup) {
-		monacoSetup = import("@/lib/monaco-setup").then((setup) => {
-			isMonacoSetupDone = true;
-			return setup;
-		});
-	}
-
-	return monacoSetup;
-};
-
-/**
- * Pulls monaco in on first use instead of at boot.
- *
- * Both <Editor> and useMonaco() call loader.init() when they mount, and the loader falls
- * back to fetching monaco from a CDN unless loader.config() ran first — so nothing may
- * touch @monaco-editor/react until monaco-setup has resolved.
- */
-export const useMonacoSetup = () => {
-	const [isReady, setIsReady] = useState(isMonacoSetupDone);
-
-	useEffect(() => {
-		if (isReady) {
-			return;
-		}
-
-		let cancelled = false;
-		ensureMonacoSetup().then(() => {
-			if (!cancelled) {
-				setIsReady(true);
-			}
-		});
-
-		return () => {
-			cancelled = true;
-		};
-	}, [isReady]);
-
-	return isReady;
-};
+import { useMonacoSetup } from "@/hooks/useMonacoSetup";
 
 export interface MonacoEditorProps extends Omit<EditorProps, "theme"> {
 	/**

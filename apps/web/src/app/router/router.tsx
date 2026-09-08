@@ -48,7 +48,7 @@ const clearFlag = () => {
 	}
 };
 
-const lazyPage = <T extends ComponentType<any>>(load: () => Promise<{ default: T }>) =>
+const lazyPage = <T extends ComponentType>(load: () => Promise<{ default: T }>) =>
 	lazy(() =>
 		load()
 			.then((module) => {
