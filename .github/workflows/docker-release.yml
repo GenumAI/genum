@@ -15,17 +15,18 @@ env:
   DOCKER_IMAGE_PREFIX: ${{ secrets.DOCKER_HUB_USERNAME || 'genum' }}
 
 jobs:
-  # Gate for the whole release: runs the checks, then resolves the version and image
-  # tags once so the two build jobs below do not each repeat that logic.
+  # Gate for the whole release: runs the checks, then resolves the version once so
+  # the build jobs below do not each repeat that logic.
   test-and-lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: github.event.repository.fork == false && (github.event.release.target_commitish == 'main' || github.event.release.target_commitish == 'refs/heads/main')
     outputs:
       # Only the version travels between jobs. Image tags embed
       # secrets.DOCKER_HUB_USERNAME, and GitHub drops any job output containing a
       # secret ("Skip output ... since it may contain secret"), which silently
       # yields an empty tag and "tag is needed when pushing to registry".
-      # Each build job computes its own tags instead.
+      # Each job computes its own tags instead.
       tag: ${{ steps.release_version.outputs.tag }}
 
     steps:
@@ -81,13 +82,55 @@ jobs:
           VERSION=${TAG#v}
           echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
 
-
-  build-core:
-    runs-on: ubuntu-latest
+  # One leg per image per architecture, each on a runner of that architecture.
+  #
+  # This used to be two jobs that each asked buildx for linux/amd64,linux/arm64 on an
+  # x86 runner, with QEMU emulating aarch64. The core image cannot avoid running arm64
+  # code at build time — its runtime stage installs production dependencies, and both
+  # bcrypt (native addon) and the prisma CLI (per-platform binaries) have to be the
+  # target's, so that stage cannot be pinned to $BUILDPLATFORM the way the builder
+  # stages are. Under emulation that step died with
+  # "qemu: uncaught target signal 4 (Illegal instruction)" on roughly every other
+  # release, with identical inputs between a success and a failure (same binfmt digest,
+  # same base image, same lockfile) — i.e. the variance was inside QEMU, not in
+  # anything we could pin. The web image never failed, because its runtime stage is
+  # nginx:alpine and runs nothing.
+  #
+  # GitHub's arm64 Linux runners are free for public repositories, so each platform now
+  # builds natively and QEMU is gone. Nothing is tagged here: each leg pushes an
+  # untagged image by digest, and the merge job below assembles the multi-arch tag once
+  # both digests exist. A failed leg therefore publishes nothing half-finished.
+  build:
     needs: test-and-lint
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: core
+            dockerfile: ./apps/core/dockerfile
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - component: core
+            dockerfile: ./apps/core/dockerfile
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+          - component: web
+            dockerfile: ./apps/web/Dockerfile
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - component: web
+            dockerfile: ./apps/web/Dockerfile
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Checkout code
@@ -95,15 +138,8 @@ jobs:
         with:
           ref: main
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: arm64,amd64
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
-        with:
-          platforms: linux/amd64,linux/arm64
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
@@ -111,93 +147,79 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Compute image tags
-        id: image_tags
+      - name: Compute image name
+        id: image
         env:
           IMAGE_BASE: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}
-          VERSION: ${{ needs.test-and-lint.outputs.tag }}
-          IS_PRERELEASE: ${{ github.event.release.prerelease }}
-        run: |
-          TAGS="$IMAGE_BASE/core:$VERSION"
-          if [[ "$IS_PRERELEASE" == "false" ]]; then
-            TAGS="$TAGS,$IMAGE_BASE/core:latest"
-          fi
-          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          COMPONENT: ${{ matrix.component }}
+        run: echo "name=$IMAGE_BASE/$COMPONENT" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push Core image
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./apps/core/dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platform }}
           build-args: |
             RELEASE_VERSION=${{ needs.test-and-lint.outputs.tag }}
-          tags: ${{ steps.image_tags.outputs.tags }}
+          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.component }}-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
       # Pulls the compiled output straight out of the image just built, instead of
-      # repeating the build natively on the runner. Reuses the builder layers from
-      # the step above, and is architecture-independent, so one platform is enough.
-      - name: Extract Core dist for source maps
+      # repeating the build natively on the runner: the builder layers are still in
+      # this runner's cache. The output is architecture-independent JavaScript, so the
+      # amd64 leg alone is enough and the arm64 leg skips this.
+      - name: Extract dist for source maps
+        if: matrix.arch == 'amd64'
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./apps/core/dockerfile
+          file: ${{ matrix.dockerfile }}
           target: dist
-          platforms: linux/amd64
-          outputs: type=local,dest=./apps/core/dist
+          platforms: ${{ matrix.platform }}
+          outputs: type=local,dest=./dist-artifact
 
-      - name: Create Sentry release for Core
-        continue-on-error: true
-        uses: getsentry/action-release@v3
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_CORE }}
+      - name: Upload dist for source maps
+        if: matrix.arch == 'amd64'
+        uses: actions/upload-artifact@v7
         with:
-          environment: production
-          release: ${{ needs.test-and-lint.outputs.tag }}
-          sourcemaps: ./apps/core/dist
+          name: dist-${{ matrix.component }}
+          path: ./dist-artifact
+          if-no-files-found: error
+          retention-days: 1
 
-      - name: Summary
-        env:
-          TAG: ${{ needs.test-and-lint.outputs.tag }}
-          IS_PRERELEASE: ${{ github.event.release.prerelease }}
-          IMAGE_BASE: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}
-        run: |
-          {
-            echo "### 🐳 Core"
-            echo "- \`$IMAGE_BASE/core:$TAG\`"
-            if [[ "$IS_PRERELEASE" == "false" ]]; then
-              echo "- \`$IMAGE_BASE/core:latest\`"
-            else
-              echo "- (latest tag skipped for prerelease)"
-            fi
-            echo "- Sentry release: \`$TAG\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  build-web:
+  # Assembles the per-architecture digests into one tagged multi-arch manifest. This is
+  # the only step that creates a tag, so `:latest` never points at a half-built release.
+  publish:
+    needs: [test-and-lint, build]
     runs-on: ubuntu-latest
-    needs: test-and-lint
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [core, web]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-        with:
-          ref: main
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: arm64,amd64
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
-        with:
-          platforms: linux/amd64,linux/arm64
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
@@ -205,64 +227,68 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Compute image tags
-        id: image_tags
+      - name: Download digests
+        uses: actions/download-artifact@v8
+        with:
+          path: /tmp/digests
+          pattern: digest-${{ matrix.component }}-*
+          merge-multiple: true
+
+      - name: Create multi-arch manifest
+        working-directory: /tmp/digests
         env:
           IMAGE_BASE: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}
+          COMPONENT: ${{ matrix.component }}
           VERSION: ${{ needs.test-and-lint.outputs.tag }}
           IS_PRERELEASE: ${{ github.event.release.prerelease }}
         run: |
-          TAGS="$IMAGE_BASE/web:$VERSION"
+          IMAGE="$IMAGE_BASE/$COMPONENT"
+          TAG_ARGS=(-t "$IMAGE:$VERSION")
           if [[ "$IS_PRERELEASE" == "false" ]]; then
-            TAGS="$TAGS,$IMAGE_BASE/web:latest"
+            TAG_ARGS+=(-t "$IMAGE:latest")
           fi
-          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          SOURCES=()
+          shopt -s nullglob
+          for f in *; do
+            SOURCES+=("$IMAGE@sha256:$f")
+          done
+          if [[ ${#SOURCES[@]} -eq 0 ]]; then
+            echo "Error: no digests were downloaded for $COMPONENT"
+            exit 1
+          fi
+          docker buildx imagetools create "${TAG_ARGS[@]}" "${SOURCES[@]}"
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
 
-      - name: Build and push Web image
-        uses: docker/build-push-action@v7
+      - name: Download dist for source maps
+        uses: actions/download-artifact@v8
         with:
-          context: .
-          file: ./apps/web/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          build-args: |
-            RELEASE_VERSION=${{ needs.test-and-lint.outputs.tag }}
-          tags: ${{ steps.image_tags.outputs.tags }}
+          name: dist-${{ matrix.component }}
+          path: ./dist-artifact
 
-      # See the note in build-core: same trick, reusing the builder layers instead
-      # of running `vite build` a second time on the runner.
-      - name: Extract Web dist for source maps
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./apps/web/Dockerfile
-          target: dist
-          platforms: linux/amd64
-          outputs: type=local,dest=./apps/web/dist
-
-      - name: Create Sentry release for Web
+      - name: Create Sentry release
         continue-on-error: true
         uses: getsentry/action-release@v3
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_WEB }}
+          SENTRY_PROJECT: ${{ matrix.component == 'core' && secrets.SENTRY_PROJECT_CORE || secrets.SENTRY_PROJECT_WEB }}
         with:
           environment: production
           release: ${{ needs.test-and-lint.outputs.tag }}
-          sourcemaps: ./apps/web/dist
+          sourcemaps: ./dist-artifact
 
       - name: Summary
         env:
+          COMPONENT: ${{ matrix.component }}
           TAG: ${{ needs.test-and-lint.outputs.tag }}
           IS_PRERELEASE: ${{ github.event.release.prerelease }}
           IMAGE_BASE: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}
         run: |
           {
-            echo "### 🐳 Web"
-            echo "- \`$IMAGE_BASE/web:$TAG\`"
+            echo "### 🐳 $COMPONENT"
+            echo "- \`$IMAGE_BASE/$COMPONENT:$TAG\` (linux/amd64, linux/arm64)"
             if [[ "$IS_PRERELEASE" == "false" ]]; then
-              echo "- \`$IMAGE_BASE/web:latest\`"
+              echo "- \`$IMAGE_BASE/$COMPONENT:latest\`"
             else
               echo "- (latest tag skipped for prerelease)"
             fi
