@@ -218,6 +218,15 @@ jobs:
         component: [core, web]
 
     steps:
+      # Only the Sentry step needs this, and it needs the full history: `set-commits --auto`
+      # resolves the commit range since the previous release from the repository in the
+      # working directory, so a shallow clone or no clone at all fails the whole action --
+      # taking the source-map upload with it, since that runs after set-commits.
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -265,7 +274,12 @@ jobs:
           name: dist-${{ matrix.component }}
           path: ./dist-artifact
 
+      # Deliberately non-fatal: the images are already tagged and pushed by this point, so
+      # failing the job over telemetry would report a release that in fact shipped. The
+      # summary below states the real outcome instead, because a green run that silently
+      # skipped the source-map upload is how this went unnoticed in v1.11.0.
       - name: Create Sentry release
+        id: sentry
         continue-on-error: true
         uses: getsentry/action-release@v3
         env:
@@ -283,6 +297,7 @@ jobs:
           TAG: ${{ needs.test-and-lint.outputs.tag }}
           IS_PRERELEASE: ${{ github.event.release.prerelease }}
           IMAGE_BASE: ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PREFIX }}
+          SENTRY_OUTCOME: ${{ steps.sentry.outcome }}
         run: |
           {
             echo "### 🐳 $COMPONENT"
@@ -292,5 +307,9 @@ jobs:
             else
               echo "- (latest tag skipped for prerelease)"
             fi
-            echo "- Sentry release: \`$TAG\`"
+            if [[ "$SENTRY_OUTCOME" == "success" ]]; then
+              echo "- Sentry release: \`$TAG\`"
+            else
+              echo "- ⚠️ Sentry release **failed** ($SENTRY_OUTCOME) — no source maps for \`$TAG\`, so stack traces stay minified. See the step log."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
