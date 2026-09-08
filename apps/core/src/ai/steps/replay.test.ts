@@ -243,26 +243,24 @@ describe("replayTrajectory", () => {
 	});
 
 	it("takes the second turn's recording for the second turn's call of the same tool", async () => {
-		// A global ordinal would hand turn 2 the turn-1 recording the moment turn 1 makes an
-		// extra call. The lookup is per turn for the same reason the comparison is.
+		// Turn 1's recording holds TWO calls of `t` but the model only makes ONE of them,
+		// so a global, never-reset ordinal would leave it at 1 going into turn 2 and hand
+		// turn 2's single call turn 1's SECOND recording instead of turn 2's own first --
+		// a `missing_recording` stop under the global reading (turn 2's recording only has
+		// one entry, at ordinal 0) and a silent wrong-value swap under any reading that
+		// doesn't stop. The lookup has to be per turn for the same reason the comparison is.
 		const recorded: Step[] = [
-			{ kind: "tool_call", name: "t", recordedResult: "first" },
-			{ kind: "tool_call", name: "t", recordedResult: "second" },
+			{ kind: "tool_call", name: "t", recordedResult: "t1-a" },
+			{ kind: "tool_call", name: "t", recordedResult: "t1-b" },
 			{ kind: "final", text: "one" },
 			{ kind: "user", text: "again" },
-			{ kind: "tool_call", name: "t", recordedResult: "third" },
+			{ kind: "tool_call", name: "t", recordedResult: "t2-a" },
 			{ kind: "final", text: "two" },
 		];
 		const answers: ModelTurn[] = [
-			{
-				answer: "",
-				toolCalls: [
-					{ id: "1", name: "t", args: {} },
-					{ id: "2", name: "t", args: {} },
-				],
-			},
+			{ answer: "", toolCalls: [{ id: "1", name: "t", args: {} }] },
 			{ answer: "one" },
-			{ answer: "", toolCalls: [{ id: "3", name: "t", args: {} }] },
+			{ answer: "", toolCalls: [{ id: "2", name: "t", args: {} }] },
 			{ answer: "two" },
 		];
 		let i = 0;
@@ -272,10 +270,11 @@ describe("replayTrajectory", () => {
 			maxSteps: maxStepsForRecording(recorded),
 		});
 
+		expect(result.stopped).toBeUndefined();
 		const results = result.steps
 			.filter((s): s is ToolCallStep => s.kind === "tool_call")
 			.map((s) => s.recordedResult);
-		expect(results).toEqual(["first", "second", "third"]);
+		expect(results).toEqual(["t1-a", "t2-a"]);
 	});
 
 	it("stops the whole session at a divergence and names the turn", async () => {
@@ -305,6 +304,36 @@ describe("replayTrajectory", () => {
 		expect(result.steps.some((s) => s.kind === "final" && s.text === "two")).toBe(false);
 	});
 
+	it("stops after the last enabled turn when the next reply was unticked", async () => {
+		// Truncation is decided in exactly one place, effectiveSteps -- this is the one
+		// place that rule is observable at runtime: the disabled reply is never emitted,
+		// never fed to the model, and turn 2's tool is never called at all.
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "t", recordedResult: "{}" },
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "dead", enabled: false },
+			{ kind: "tool_call", name: "t", recordedResult: "{}" },
+			{ kind: "final", text: "two" },
+		];
+		const callModel = vi
+			.fn()
+			.mockResolvedValueOnce({ answer: "", toolCalls: [{ id: "1", name: "t", args: {} }] })
+			.mockResolvedValueOnce({ answer: "one" });
+
+		const result = await replayTrajectory({
+			callModel,
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		expect(callModel).toHaveBeenCalledTimes(2);
+		expect(result.steps).toEqual([
+			{ kind: "tool_call", name: "t", args: {}, recordedResult: "{}" },
+			{ kind: "final", text: "one" },
+		]);
+	});
+
 	it("budgets one model call per turn, not one for the whole session", () => {
 		// Five turns with eight tool calls needs 8 + 5. The old `+ 1` was the single final
 		// answer; a five-turn session that gets 9 fails step_limit on every run, forever.
@@ -319,14 +348,29 @@ describe("replayTrajectory", () => {
 		expect(maxStepsForRecording(recorded)).toBe(13);
 	});
 
-	it("budgets a truncated session by what it actually runs", () => {
-		const recorded: Step[] = [
-			{ kind: "tool_call", name: "t", recordedResult: "{}" },
-			{ kind: "final", text: "one" },
-			{ kind: "user", text: "dead", enabled: false },
-			{ kind: "tool_call", name: "t", recordedResult: "{}" },
-			{ kind: "final", text: "two" },
-		];
-		expect(maxStepsForRecording(recorded)).toBe(DEFAULT_MAX_STEPS);
+	it("budgets a truncated session by what it actually runs, not what the full pin holds", () => {
+		// The effective session alone (3 turns, 9 tool calls -> 12) already clears
+		// DEFAULT_MAX_STEPS, and the dead tail past the disabled reply (4 more turns, 20
+		// more tool calls) is large enough that including it would give a very different
+		// number (36) -- so this only passes if maxStepsForRecording runs its count through
+		// effectiveSteps first, not the raw array. The vacuous version of this test let
+		// both readings clamp to the same DEFAULT_MAX_STEPS and passed either way.
+		const recorded: Step[] = [];
+		for (let turn = 0; turn < 3; turn++) {
+			if (turn > 0) recorded.push({ kind: "user", text: `q${turn}` });
+			for (let call = 0; call < 3; call++) {
+				recorded.push({ kind: "tool_call", name: "t", recordedResult: "{}" });
+			}
+			recorded.push({ kind: "final", text: `a${turn}` });
+		}
+		recorded.push({ kind: "user", text: "dead", enabled: false });
+		for (let turn = 0; turn < 4; turn++) {
+			recorded.push({ kind: "user", text: `dead-q${turn}` });
+			for (let call = 0; call < 5; call++) {
+				recorded.push({ kind: "tool_call", name: "t", recordedResult: "{}" });
+			}
+			recorded.push({ kind: "final", text: `dead-a${turn}` });
+		}
+		expect(maxStepsForRecording(recorded)).toBe(12);
 	});
 });
