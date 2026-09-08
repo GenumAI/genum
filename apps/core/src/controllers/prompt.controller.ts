@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { db } from "@/database/db";
 import { runPrompt } from "../ai/runner/run";
 import type { AiVendor, PromptChat } from "@/prisma";
-import { getPromptLogs } from "../services/logger/logger";
+import { getLogDetail, getPromptLogs } from "../services/logger/logger";
 import { ModelConfigService } from "../ai/models/modelConfigService";
 import { mdToXml, objToXml } from "@/utils/xml";
 import {
@@ -10,6 +10,7 @@ import {
 	CanvasChatMessageSchema,
 	InputGeneratorSchema,
 	JsonSchemaEditorSchema,
+	LogDetailQuerySchema,
 	PromptLogsQuerySchema,
 	ToolEditorSchema,
 } from "@/services/validate";
@@ -486,6 +487,7 @@ export class PromptsController {
 
 		const result = await getPromptLogs(
 			metadata.orgID,
+			metadata.projID,
 			promptId,
 			query.page,
 			query.pageSize,
@@ -497,6 +499,34 @@ export class PromptsController {
 		);
 
 		res.status(200).json(result);
+	}
+
+	/**
+	 * The payload of a single log row. Split out of the list so that `in`, `out` and
+	 * `placeholders` are read for the one row a user opened rather than for every row a
+	 * page scanned.
+	 */
+	public async getPromptLogDetail(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const promptId = numberSchema.parse(req.params.id);
+
+		await checkPromptAccess(promptId, metadata.projID);
+
+		const { logId, timestamp } = LogDetailQuerySchema.parse(req.query);
+
+		const detail = await getLogDetail({
+			orgId: metadata.orgID,
+			projectId: metadata.projID,
+			promptId,
+			logId,
+			timestamp,
+		});
+
+		if (!detail) {
+			return res.status(404).json({ error: "Log not found" });
+		}
+
+		res.status(200).json(detail);
 	}
 
 	public async saveModelConfig(req: Request, res: Response) {

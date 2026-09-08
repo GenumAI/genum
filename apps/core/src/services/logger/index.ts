@@ -20,6 +20,8 @@ export {
 // Export types
 export type {
 	LogDocument,
+	LogListEntry,
+	LogDetail,
 	LogSearchResult,
 	ProjectUsageStats,
 	PromptUsageStats,
@@ -32,7 +34,8 @@ export type {
 	ProjectLogsFilter,
 	OrganizationUsageStats,
 	OrganizationDetailedUsageStats,
-	ClickHouseLogRow,
+	ClickHouseLogListRow,
+	ClickHouseLogDetailRow,
 	ClickHouseCountRow,
 	ClickHouseProjectStatsRow,
 	ClickHousePromptStatsRow,

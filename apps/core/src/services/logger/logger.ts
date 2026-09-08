@@ -14,10 +14,17 @@ import { createClient } from "@clickhouse/client";
 import moment from "moment";
 import { env } from "@/env";
 import { WhereBuilder } from "./where.builder";
-import { QUERIES } from "./queries";
-import { mapApiKeyStatsRow, resolveLogPlaceholders } from "./mappers";
+import { QUERIES, QUOTE_64BIT_INTEGERS } from "./queries";
+import {
+	formatClickHouseTimestamp,
+	mapApiKeyStatsRow,
+	parseClickHouseTimestamp,
+	resolveLogPlaceholders,
+} from "./mappers";
 import type {
 	LogDocument,
+	LogListEntry,
+	LogDetail,
 	LogSearchResult,
 	ProjectUsageStats,
 	PromptUsageStats,
@@ -30,7 +37,8 @@ import type {
 	ProjectLogsFilter,
 	OrganizationUsageStats,
 	OrganizationDetailedUsageStats,
-	ClickHouseLogRow,
+	ClickHouseLogListRow,
+	ClickHouseLogDetailRow,
 	ClickHouseCountRow,
 	ClickHouseProjectStatsRow,
 	ClickHousePromptStatsRow,
@@ -49,6 +57,8 @@ import type {
 // Export types for external use
 export type {
 	LogDocument,
+	LogListEntry,
+	LogDetail,
 	LogSearchResult,
 	ProjectUsageStats,
 	PromptUsageStats,
@@ -61,7 +71,8 @@ export type {
 	ProjectLogsFilter,
 	OrganizationUsageStats,
 	OrganizationDetailedUsageStats,
-	ClickHouseLogRow,
+	ClickHouseLogListRow,
+	ClickHouseLogDetailRow,
 	ClickHouseCountRow,
 	ClickHouseProjectStatsRow,
 	ClickHousePromptStatsRow,
@@ -112,8 +123,8 @@ function buildWhereConditions(
 	orgId: number,
 	projectId?: number,
 	promptId?: number,
-	fromDate?: string,
-	toDate?: string,
+	fromDate?: Date,
+	toDate?: Date,
 	source?: SourceType,
 	logLevel?: LogLevel,
 	projectIds?: number[],
@@ -150,10 +161,11 @@ function buildWhereConditions(
 	return builder.build();
 }
 
-// Helper function to transform ClickHouse row to LogDocument
-function transformRowToLogDocument(row: ClickHouseLogRow): LogDocument {
+// Helper function to transform a ClickHouse list row to a LogListEntry
+function transformRowToLogListEntry(row: ClickHouseLogListRow): LogListEntry {
 	return {
-		timestamp: row.timestamp ? new Date(row.timestamp) : new Date(),
+		log_id: String(row.log_id),
+		timestamp: parseClickHouseTimestamp(row.timestamp),
 		source: row.source as SourceType,
 		log_lvl: row.log_lvl as LogLevel,
 		log_type: row.log_type as LogType,
@@ -171,9 +183,6 @@ function transformRowToLogDocument(row: ClickHouseLogRow): LogDocument {
 		tokens_sum: row.tokens_sum,
 		cost: row.cost,
 		response_ms: row.response_ms,
-		in: row.in,
-		out: row.out,
-		placeholders: resolveLogPlaceholders(row),
 	};
 }
 
@@ -181,8 +190,10 @@ export async function logUsage(document: LogDocument): Promise<void> {
 	const timestamp = document.timestamp ?? new Date();
 
 	try {
-		// Format timestamp as YYYY-MM-DD HH:mm:ss.SSS for ClickHouse DateTime64
-		const timestampStr = moment(timestamp).format("YYYY-MM-DD HH:mm:ss.SSS");
+		// UTC, matching `parseClickHouseTimestamp` on the way back out: the column carries
+		// no zone, so writing in the process timezone and reading in UTC would shift every
+		// row by the offset on any server that is not itself UTC.
+		const timestampStr = formatClickHouseTimestamp(timestamp);
 
 		await clickhouseClient.insert({
 			table: CLICKHOUSE_TABLES.LOGS,
@@ -223,8 +234,21 @@ export async function logUsage(document: LogDocument): Promise<void> {
 	}
 }
 
+/**
+ * `projectId` is not optional context -- it completes the sorting key.
+ *
+ * The key is (orgId, project_id, timestamp). With `project_id` left free this filter stops
+ * at `orgId`, so `ORDER BY timestamp DESC LIMIT 10` cannot read in key order: ClickHouse
+ * reads every row the organisation logged in the window and sorts them to return ten. With
+ * it pinned, the same page reads 8k rows instead of 480k on a 3M-row table.
+ *
+ * Safe because a log row's `project_id` is always the prompt's project: the API run path
+ * rejects `prompt.projectId !== project.id` outright, the UI path goes through
+ * `checkPromptAccess`, and `PromptUpdateSchema` cannot move a prompt between projects.
+ */
 export async function getPromptLogs(
 	orgId: number,
+	projectId: number,
 	promptId: number,
 	page: number = 1,
 	pageSize: number = 10,
@@ -234,18 +258,16 @@ export async function getPromptLogs(
 	logLevel?: LogLevel,
 	query?: string,
 ): Promise<LogSearchResult> {
-	const fromDateStr = fromDate
-		? moment(fromDate).format("YYYY-MM-DD")
-		: moment().subtract(30, "days").format("YYYY-MM-DD");
-	const toDateStr = toDate ? moment(toDate).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
+	const from = fromDate ?? moment().subtract(30, "days").toDate();
+	const to = toDate ?? new Date();
 
 	try {
 		const { where, params } = buildWhereConditions(
 			orgId,
-			undefined,
+			projectId,
 			promptId,
-			fromDateStr,
-			toDateStr,
+			from,
+			to,
 			source,
 			logLevel,
 			undefined,
@@ -269,11 +291,12 @@ export async function getPromptLogs(
 		const logsResult = await clickhouseClient.query({
 			query: QUERIES.GET_LOGS(CLICKHOUSE_TABLES.LOGS, where),
 			query_params: queryParams,
+			clickhouse_settings: QUOTE_64BIT_INTEGERS,
 			format: "JSONEachRow",
 		});
 
-		const logsData = (await logsResult.json()) as ClickHouseLogRow[];
-		const logs = logsData.map(transformRowToLogDocument);
+		const logsData = (await logsResult.json()) as ClickHouseLogListRow[];
+		const logs = logsData.map(transformRowToLogListEntry);
 
 		return {
 			logs,
@@ -287,25 +310,74 @@ export async function getPromptLogs(
 	}
 }
 
+/**
+ * The payload of one log row, for the details dialog.
+ *
+ * `orgId` and `projectId` are the caller's, never the client's. `projectId` is always
+ * passed -- it is both the access boundary on the project logs page and, on either page,
+ * the middle of the sorting key (orgId, project_id, timestamp), so pinning it lets the
+ * exact `timestamp` narrow to a granule rather than a whole partition. A prompt's rows
+ * cannot carry another project's id: the API run path rejects
+ * `prompt.projectId !== project.id`, the UI path goes through `checkPromptAccess`, and
+ * `PromptUpdateSchema` cannot move a prompt between projects.
+ *
+ * Returns `null` for a row that is not there rather than throwing -- a log outside the
+ * retention window is a 404, not a fault.
+ */
+export async function getLogDetail(params: {
+	orgId: number;
+	projectId: number;
+	logId: string;
+	timestamp: Date;
+	promptId?: number;
+}): Promise<LogDetail | null> {
+	try {
+		const builder = WhereBuilder.forOrg(params.orgId).projectId(params.projectId);
+
+		if (params.promptId !== undefined) {
+			builder.promptId(params.promptId);
+		}
+
+		builder.timestampExact(formatClickHouseTimestamp(params.timestamp)).logId(params.logId);
+
+		const { where, params: queryParams } = builder.build();
+
+		const result = await clickhouseClient.query({
+			query: QUERIES.GET_LOG_DETAIL(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: queryParams,
+			clickhouse_settings: QUOTE_64BIT_INTEGERS,
+			format: "JSONEachRow",
+		});
+
+		const rows = (await result.json()) as ClickHouseLogDetailRow[];
+		const row = rows[0];
+		if (!row) {
+			return null;
+		}
+
+		return {
+			log_id: String(row.log_id),
+			in: row.in,
+			out: row.out,
+			placeholders: resolveLogPlaceholders(row),
+		};
+	} catch (error) {
+		console.error("Error getting log detail from ClickHouse:", error);
+		throw error;
+	}
+}
+
 export async function getProjectUsageStats(
 	orgId: number,
 	projectId: number,
 	fromDate?: Date,
 	toDate?: Date,
 ): Promise<ProjectUsageStats> {
-	const fromDateStr = fromDate
-		? moment(fromDate).format("YYYY-MM-DD")
-		: moment().subtract(30, "days").format("YYYY-MM-DD");
-	const toDateStr = toDate ? moment(toDate).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
+	const from = fromDate ?? moment().subtract(30, "days").toDate();
+	const to = toDate ?? new Date();
 
 	try {
-		const { where, params } = buildWhereConditions(
-			orgId,
-			projectId,
-			undefined,
-			fromDateStr,
-			toDateStr,
-		);
+		const { where, params } = buildWhereConditions(orgId, projectId, undefined, from, to);
 
 		const result = await clickhouseClient.query({
 			query: QUERIES.PROJECT_STATS(CLICKHOUSE_TABLES.LOGS, where),
@@ -332,8 +404,9 @@ export async function getProjectUsageStats(
 			total_tokens_sum: Number(row.total_tokens_sum || 0),
 			average_response_ms: Math.round(Number(row.average_response_ms || 0)),
 			total_cost: Number(row.total_cost || 0),
-			from_date: fromDateStr,
-			to_date: toDateStr,
+			// The API still reports the window as days; the QUERY is now exact.
+			from_date: moment.utc(from).format("YYYY-MM-DD"),
+			to_date: moment.utc(to).format("YYYY-MM-DD"),
 		};
 	} catch (error) {
 		console.error("Error getting project usage stats from ClickHouse:", error);
@@ -347,30 +420,34 @@ async function getProjectDetailedUsageStats(
 	fromDate?: Date,
 	toDate?: Date,
 ): Promise<ProjectDetailedUsageStats> {
-	const fromDateStr = fromDate
-		? moment(fromDate).format("YYYY-MM-DD")
-		: moment().subtract(30, "days").format("YYYY-MM-DD");
-	const toDateStr = toDate ? moment(toDate).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
+	const from = fromDate ?? moment().subtract(30, "days").toDate();
+	const to = toDate ?? new Date();
 
 	try {
-		// First, get project-level statistics
-		const projectStats = await getProjectUsageStats(orgId, projectId, fromDate, toDate);
+		const { where, params } = buildWhereConditions(orgId, projectId, undefined, from, to);
 
-		// Then, get detailed statistics by prompt, model, and user
-		const { where, params } = buildWhereConditions(
-			orgId,
-			projectId,
-			undefined,
-			fromDateStr,
-			toDateStr,
-		);
+		const aggregate = (query: string) =>
+			clickhouseClient.query({ query, query_params: params, format: "JSONEachRow" });
 
-		// Get prompts stats
-		const promptsResult = await clickhouseClient.query({
-			query: QUERIES.PROMPT_STATS(CLICKHOUSE_TABLES.LOGS, where),
-			query_params: params,
-			format: "JSONEachRow",
-		});
+		// Five aggregations over the same rows plus the project totals. They were awaited
+		// one after another, so the endpoint cost their SUM (~76ms against a 3M-row table)
+		// when it only ever needed their MAX (~27ms) -- none of them reads another's output.
+		const [projectStats, promptsResult, modelsResult, usersResult, apiKeysResult] =
+			await Promise.all([
+				getProjectUsageStats(orgId, projectId, fromDate, toDate),
+				aggregate(QUERIES.PROMPT_STATS(CLICKHOUSE_TABLES.LOGS, where)),
+				aggregate(QUERIES.MODEL_STATS(CLICKHOUSE_TABLES.LOGS, where)),
+				aggregate(
+					QUERIES.USER_STATS(CLICKHOUSE_TABLES.LOGS, `${where} AND user_id IS NOT NULL`),
+				),
+				// Runs from the UI and from testcases carry no key, so they are excluded.
+				aggregate(
+					QUERIES.API_KEY_STATS(
+						CLICKHOUSE_TABLES.LOGS,
+						`${where} AND api_key_id IS NOT NULL`,
+					),
+				),
+			]);
 
 		const promptsData = (await promptsResult.json()) as ClickHousePromptStatsRow[];
 		const prompts: PromptUsageStats[] = promptsData.map((row) => {
@@ -393,13 +470,6 @@ async function getProjectDetailedUsageStats(
 			};
 		});
 
-		// Get models stats
-		const modelsResult = await clickhouseClient.query({
-			query: QUERIES.MODEL_STATS(CLICKHOUSE_TABLES.LOGS, where),
-			query_params: params,
-			format: "JSONEachRow",
-		});
-
 		const modelsData = (await modelsResult.json()) as ClickHouseModelStatsRow[];
 		const models: ModelUsageStats[] = modelsData.map((row) => ({
 			model: row.model,
@@ -412,24 +482,6 @@ async function getProjectDetailedUsageStats(
 			average_response_ms: Math.round(Number(row.average_response_ms || 0)),
 		}));
 
-		// Get users stats
-		const { where: whereWithUsers, params: paramsWithUsers } = buildWhereConditions(
-			orgId,
-			projectId,
-			undefined,
-			fromDateStr,
-			toDateStr,
-		);
-
-		const usersResult = await clickhouseClient.query({
-			query: QUERIES.USER_STATS(
-				CLICKHOUSE_TABLES.LOGS,
-				`${whereWithUsers} AND user_id IS NOT NULL`,
-			),
-			query_params: paramsWithUsers,
-			format: "JSONEachRow",
-		});
-
 		const usersData = (await usersResult.json()) as ClickHouseUserStatsRow[];
 		const users: UserActivityStats[] = usersData.map((row) => ({
 			user_id: Number(row.user_id),
@@ -439,16 +491,6 @@ async function getProjectDetailedUsageStats(
 			last_activity: row.last_activity ? moment(row.last_activity).toISOString() : null,
 			first_activity: row.first_activity ? moment(row.first_activity).toISOString() : null,
 		}));
-
-		// Get API key stats. Runs from the UI and from testcases carry no key, so they are excluded.
-		const apiKeysResult = await clickhouseClient.query({
-			query: QUERIES.API_KEY_STATS(
-				CLICKHOUSE_TABLES.LOGS,
-				`${where} AND api_key_id IS NOT NULL`,
-			),
-			query_params: params,
-			format: "JSONEachRow",
-		});
 
 		const apiKeysData = (await apiKeysResult.json()) as ClickHouseApiKeyStatsRow[];
 		const api_keys: ApiKeyUsageStats[] = apiKeysData.map(mapApiKeyStatsRow);
@@ -473,20 +515,16 @@ export async function getProjectLogs(
 	pageSize: number = 10,
 	filters?: ProjectLogsFilter,
 ): Promise<LogSearchResult> {
-	const fromDateStr = filters?.fromDate
-		? moment(filters.fromDate).format("YYYY-MM-DD")
-		: moment().subtract(30, "days").format("YYYY-MM-DD");
-	const toDateStr = filters?.toDate
-		? moment(filters.toDate).format("YYYY-MM-DD")
-		: moment().format("YYYY-MM-DD");
+	const from = filters?.fromDate ?? moment().subtract(30, "days").toDate();
+	const to = filters?.toDate ?? new Date();
 
 	try {
 		const { where, params } = buildWhereConditions(
 			orgId,
 			projectId,
 			filters?.promptId,
-			fromDateStr,
-			toDateStr,
+			from,
+			to,
 			filters?.source,
 			filters?.logLevel,
 			undefined,
@@ -510,11 +548,12 @@ export async function getProjectLogs(
 		const logsResult = await clickhouseClient.query({
 			query: QUERIES.GET_LOGS(CLICKHOUSE_TABLES.LOGS, where),
 			query_params: queryParams,
+			clickhouse_settings: QUOTE_64BIT_INTEGERS,
 			format: "JSONEachRow",
 		});
 
-		const logsData = (await logsResult.json()) as ClickHouseLogRow[];
-		const logs = logsData.map(transformRowToLogDocument);
+		const logsData = (await logsResult.json()) as ClickHouseLogListRow[];
+		const logs = logsData.map(transformRowToLogListEntry);
 
 		return {
 			logs,
@@ -534,18 +573,16 @@ export async function getOrganizationDailyUsageStats(
 	fromDate?: Date,
 	toDate?: Date,
 ): Promise<OrganizationDailyUsageStats[]> {
-	const fromDateStr = fromDate
-		? moment(fromDate).format("YYYY-MM-DD")
-		: moment().subtract(30, "days").format("YYYY-MM-DD");
-	const toDateStr = toDate ? moment(toDate).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
+	const from = fromDate ?? moment().subtract(30, "days").toDate();
+	const to = toDate ?? new Date();
 
 	try {
 		const { where, params } = buildWhereConditions(
 			orgId,
 			undefined,
 			undefined,
-			fromDateStr,
-			toDateStr,
+			from,
+			to,
 			undefined,
 			undefined,
 			projectIds,
@@ -647,29 +684,22 @@ export async function getProjectUsageWithDailyStats(
 	fromDate?: Date,
 	toDate?: Date,
 ): Promise<ProjectDetailedUsageStatsV2> {
-	const fromDateStr = fromDate
-		? moment(fromDate).format("YYYY-MM-DD")
-		: moment().subtract(30, "days").format("YYYY-MM-DD");
-	const toDateStr = toDate ? moment(toDate).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD");
+	const from = fromDate ?? moment().subtract(30, "days").toDate();
+	const to = toDate ?? new Date();
 
 	try {
-		// First, get project-level statistics (same as V1)
-		const projectStats = await getProjectDetailedUsageStats(orgId, projectId, fromDate, toDate);
+		const { where, params } = buildWhereConditions(orgId, projectId, undefined, from, to);
 
-		// Then, get daily statistics
-		const { where, params } = buildWhereConditions(
-			orgId,
-			projectId,
-			undefined,
-			fromDateStr,
-			toDateStr,
-		);
-
-		const dailyResult = await clickhouseClient.query({
-			query: QUERIES.PROJECT_DAILY_STATS(CLICKHOUSE_TABLES.LOGS, where),
-			query_params: params,
-			format: "JSONEachRow",
-		});
+		// The daily buckets do not depend on the V1 block, so they are read alongside it
+		// rather than after it.
+		const [projectStats, dailyResult] = await Promise.all([
+			getProjectDetailedUsageStats(orgId, projectId, fromDate, toDate),
+			clickhouseClient.query({
+				query: QUERIES.PROJECT_DAILY_STATS(CLICKHOUSE_TABLES.LOGS, where),
+				query_params: params,
+				format: "JSONEachRow",
+			}),
+		]);
 
 		const dailyData = (await dailyResult.json()) as ClickHouseProjectDailyStatsRow[];
 
@@ -687,8 +717,9 @@ export async function getProjectUsageWithDailyStats(
 
 		// Generate all dates in the range and fill missing dates with zeros
 		const daily_stats: ProjectDailyUsageStats[] = [];
-		const startDate = moment(fromDateStr);
-		const endDate = moment(toDateStr);
+		// UTC, to line up with the `toDate(timestamp)` buckets the query groups by.
+		const startDate = moment.utc(from);
+		const endDate = moment.utc(to);
 		const currentDate = startDate.clone();
 
 		while (currentDate.isSameOrBefore(endDate, "day")) {
@@ -718,8 +749,9 @@ export async function getProjectUsageWithDailyStats(
 }
 
 export async function countRunsByDate(startDate: Date, endDate: Date): Promise<number> {
-	const fromDateStr = moment(startDate).format("YYYY-MM-DD HH:mm:ss");
-	const toDateStr = moment(endDate).format("YYYY-MM-DD HH:mm:ss");
+	// UTC like every other timestamp that reaches ClickHouse -- see formatClickHouseTimestamp.
+	const fromDateStr = formatClickHouseTimestamp(startDate);
+	const toDateStr = formatClickHouseTimestamp(endDate);
 
 	try {
 		const result = await clickhouseClient.query({
