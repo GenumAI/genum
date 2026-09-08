@@ -92,6 +92,11 @@ export function mapMessagesAnthropic(request: ProviderRequest) {
 					})),
 				],
 			});
+		} else if (message.role === "user") {
+			turns.push({
+				role: "user" as const,
+				content: message.content,
+			});
 		} else {
 			turns.push({
 				role: "user" as const,

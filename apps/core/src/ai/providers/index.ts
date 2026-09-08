@@ -37,7 +37,9 @@ export type ToolCall = {
  */
 export type ConversationMessage =
 	| { role: "assistant"; content: string; toolCalls?: ToolCall[] }
-	| { role: "tool"; toolCallId: string; name: string; content: string };
+	| { role: "tool"; toolCallId: string; name: string; content: string }
+	/** A reply the human typed after the model answered -- the next turn's question. */
+	| { role: "user"; content: string };
 
 export type ProviderResponse = {
 	answer: string;

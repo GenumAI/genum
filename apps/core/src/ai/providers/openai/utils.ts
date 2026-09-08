@@ -113,24 +113,29 @@ export function inputMapper(request: ProviderRequest) {
 
 	type ExtraItem =
 		| { type: "function_call"; call_id: string; name: string; arguments: string }
-		| { type: "function_call_output"; call_id: string; output: string };
+		| { type: "function_call_output"; call_id: string; output: string }
+		| { role: "user"; content: string };
 
-	const extra: ExtraItem[] = request.messages.flatMap((message): ExtraItem[] =>
-		message.role === "assistant"
-			? (message.toolCalls ?? []).map((call) => ({
-					type: "function_call",
-					call_id: call.id,
-					name: call.name,
-					arguments: JSON.stringify(call.args),
-				}))
-			: [
-					{
-						type: "function_call_output",
-						call_id: message.toolCallId,
-						output: message.content,
-					},
-				],
-	);
+	const extra: ExtraItem[] = request.messages.flatMap((message): ExtraItem[] => {
+		if (message.role === "assistant") {
+			return (message.toolCalls ?? []).map((call) => ({
+				type: "function_call",
+				call_id: call.id,
+				name: call.name,
+				arguments: JSON.stringify(call.args),
+			}));
+		}
+		if (message.role === "user") {
+			return [{ role: "user", content: message.content }];
+		}
+		return [
+			{
+				type: "function_call_output",
+				call_id: message.toolCallId,
+				output: message.content,
+			},
+		];
+	});
 
 	const openingItems =
 		typeof opening === "string" ? [{ role: "user" as const, content: opening }] : opening;

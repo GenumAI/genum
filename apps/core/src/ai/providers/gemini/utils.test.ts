@@ -103,4 +103,17 @@ describe("mapContentsToGeminiFormat with a conversation", () => {
 			},
 		]);
 	});
+
+	it("maps a user reply to a plain user turn, not a functionResponse", () => {
+		const contents = mapContentsToGeminiFormat(
+			request({
+				messages: [
+					{ role: "assistant", content: "one" },
+					{ role: "user", content: "and in London?" },
+				],
+			}),
+		);
+
+		expect(contents).toContainEqual({ role: "user", parts: [{ text: "and in London?" }] });
+	});
 });

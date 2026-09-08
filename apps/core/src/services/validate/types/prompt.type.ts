@@ -97,6 +97,12 @@ const ConversationMessageSchema = z.discriminatedUnion("role", [
 			content: z.string().max(MAX_MESSAGE_CONTENT),
 		})
 		.strict(),
+	z
+		.object({
+			role: z.literal("user"),
+			content: z.string().min(1).max(MAX_MESSAGE_CONTENT),
+		})
+		.strict(),
 ]);
 
 export const PromptRunSchema = z

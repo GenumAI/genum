@@ -49,3 +49,18 @@ describe("mapMessagesAnthropic with no conversation", () => {
 		]);
 	});
 });
+
+describe("mapMessagesAnthropic with a conversation", () => {
+	it("maps a user reply to a plain user turn, not a tool_result block", () => {
+		const turns = mapMessagesAnthropic(
+			request({
+				messages: [
+					{ role: "assistant", content: "one", toolCalls: [] },
+					{ role: "user", content: "and in London?" },
+				],
+			}),
+		);
+
+		expect(turns).toContainEqual({ role: "user", content: "and in London?" });
+	});
+});

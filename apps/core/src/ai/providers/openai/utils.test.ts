@@ -2,6 +2,13 @@ import { describe, it, expect } from "vitest";
 import { inputMapper } from "./utils";
 import type { ProviderRequest } from "..";
 
+function withUserReply(): ProviderRequest["messages"] {
+	return [
+		{ role: "assistant", content: "one", toolCalls: [] },
+		{ role: "user", content: "and in London?" },
+	];
+}
+
 function request(overrides: Partial<ProviderRequest> = {}): ProviderRequest {
 	return {
 		apikey: "key",
@@ -43,5 +50,13 @@ describe("inputMapper with no conversation", () => {
 				],
 			},
 		]);
+	});
+});
+
+describe("inputMapper with a conversation", () => {
+	it("maps a user reply to a user message item, not an assistant one", () => {
+		const result = inputMapper(request({ messages: withUserReply() }));
+
+		expect(result).toContainEqual({ role: "user", content: "and in London?" });
 	});
 });

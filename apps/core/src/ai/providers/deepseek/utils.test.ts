@@ -132,4 +132,17 @@ describe("mapMessagesDeepSeek with a conversation", () => {
 			{ role: "user", content: "Hello" },
 		]);
 	});
+
+	it("maps a user reply to a user message, not an assistant one", () => {
+		const messages = mapMessagesDeepSeek(
+			request({
+				messages: [
+					{ role: "assistant", content: "one", toolCalls: [] },
+					{ role: "user", content: "and in London?" },
+				],
+			}),
+		);
+
+		expect(messages).toContainEqual({ role: "user", content: "and in London?" });
+	});
 });

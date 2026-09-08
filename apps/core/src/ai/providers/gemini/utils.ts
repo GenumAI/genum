@@ -179,6 +179,11 @@ export function mapContentsToGeminiFormat(request: ProviderRequest): ContentList
 				// An empty text part still beats an empty parts array.
 				parts: parts.length > 0 ? parts : [{ text: "" }],
 			});
+		} else if (message.role === "user") {
+			contents.push({
+				role: "user",
+				parts: [{ text: message.content }],
+			});
 		} else {
 			contents.push({
 				role: "user",

@@ -30,6 +30,11 @@ export function mapMessagesDeepSeek(request: ProviderRequest): ChatCompletionMes
 					function: { name: call.name, arguments: JSON.stringify(call.args) },
 				})),
 			});
+		} else if (message.role === "user") {
+			messages.push({
+				role: "user",
+				content: message.content,
+			});
 		} else {
 			messages.push({
 				role: "tool",
