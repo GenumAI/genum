@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { effectiveSteps } from "./session";
 import type { Step, StepsConfig } from "./types";
 
 /**
@@ -28,19 +29,37 @@ export const FinalStepSchema = z
 	})
 	.strict();
 
-export const StepSchema = z.discriminatedUnion("kind", [ToolCallStepSchema, FinalStepSchema]);
+export const UserStepSchema = z
+	.object({
+		kind: z.literal("user"),
+		// A blank reply would send an empty message to the provider and compare nothing.
+		text: z.string().min(1),
+		enabled: z.boolean().optional(),
+	})
+	.strict();
+
+export const StepSchema = z.discriminatedUnion("kind", [
+	ToolCallStepSchema,
+	FinalStepSchema,
+	UserStepSchema,
+]);
 
 export const StepsSchema = z.array(StepSchema);
 
 /**
- * The one definition of "this trajectory asserts something". `enabled` is optional and
- * absent means enabled (see ToolCallStep/FinalStep in ./types.ts), which is why the
- * predicate is `!== false` and not `=== true` -- the same test `compareSteps` applies.
- * Shared by the write boundary (`EnabledStepsSchema`) and the read boundary
- * (`readExpectedSteps`) so the two halves cannot drift into an always-green testcase.
+ * The one definition of "this trajectory asserts something", shared by the write
+ * boundary (`EnabledStepsSchema`) and the read boundary (`readExpectedSteps`).
+ *
+ * Two rules, and both are needed. It runs on the EFFECTIVE list, because steps past a
+ * truncation are dead and a session cut at turn 1 must not pass on the strength of
+ * enabled steps in turn 3. It counts only comparable steps, because a user reply is
+ * replayed verbatim and never compared, so a session of nothing but replies asserts
+ * nothing. Either rule alone lets an always-green testcase through -- and on the read
+ * side that is worse than a validation miss, because `readExpectedSteps` returning null
+ * does not error, it silently reclassifies the testcase as a text one.
  */
-export function hasEnabledStep(steps: readonly { enabled?: boolean }[]): boolean {
-	return steps.some((step) => step.enabled !== false);
+export function hasEnabledStep(steps: Step[]): boolean {
+	return effectiveSteps(steps).some((step) => step.kind !== "user" && step.enabled !== false);
 }
 
 export const StepsConfigSchema = z.object({ orderMatters: z.boolean() }).strict();

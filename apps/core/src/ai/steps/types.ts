@@ -18,7 +18,28 @@ export type FinalStep = {
 	enabled?: boolean;
 };
 
-export type Step = ToolCallStep | FinalStep;
+/**
+ * A reply the author typed after the model answered. It is an input, not an output: it
+ * is replayed verbatim and never compared, which is why `enabled` means something else
+ * here than on the other kinds.
+ *
+ * `enabled === false` ends the session at this reply. A conversation cannot have a hole
+ * in the middle -- skipping a reply would replay the following turn into a context that
+ * never contained this one -- so the only thing unticking can mean is "stop here".
+ */
+export type UserStep = {
+	kind: "user";
+	text: string;
+	enabled?: boolean;
+};
+
+export type Step = ToolCallStep | FinalStep | UserStep;
+
+/** A turn of the conversation. `start` is the turn's first index in the flat array. */
+export type Turn = {
+	start: number;
+	steps: Step[];
+};
 
 export type StepsConfig = {
 	orderMatters: boolean;
