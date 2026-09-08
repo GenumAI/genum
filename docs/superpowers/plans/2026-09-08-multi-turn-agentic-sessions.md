@@ -408,11 +408,14 @@ git commit -m "feat(providers): carry a user reply through the conversation"
 
 **Files:**
 - Modify: `apps/core/src/ai/steps/replay.ts`
+- Modify: `apps/core/src/controllers/testcase.controller.ts:219-235` (the call site this task's signature change breaks)
 - Test: `apps/core/src/ai/steps/replay.test.ts`
 
 **Interfaces:**
 - Consumes: `effectiveSteps`, `turnsOf`, `Step`, `Turn` (Task 1); the `user` role (Task 2).
 - Produces: `ReplayParams.recorded: Step[]` (was `ToolCallStep[]`); `ReplayStop.turn?: number`; `maxStepsForRecording(steps: Step[]): number` (was `(recordedToolCalls: number)`).
+
+This task changes two signatures, so it also updates their callers — a task that breaks a signature and leaves the fix to a later task cannot honestly run the type-check its own verification step demands.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -683,15 +686,40 @@ export async function replayTrajectory({
 
 Add `import { effectiveSteps, turnsOf } from "./session";` and keep the existing `ToolCallStep` import.
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [ ] **Step 6: Update the two callers this task breaks**
 
-Run: `pnpm turbo run test:run --filter=core`
-Expected: PASS. Existing single-turn replay tests must still pass unchanged — if one now fails because it passed `ToolCallStep[]`, update the call site's type, not the behaviour.
+`apps/core/src/ai/steps/replay.test.ts` passes a number to `maxStepsForRecording` in five places (lines 121, 134-136, 160, 166 before your edits). Move each to the new signature: `maxStepsForRecording(nine)` rather than `maxStepsForRecording(nine.length)`, and the three standalone assertions become recordings of that many tool calls, e.g.
 
-- [ ] **Step 7: Commit**
+```ts
+const callsOf = (n: number): Step[] =>
+	Array.from({ length: n }, () => ({ kind: "tool_call", name: "t", recordedResult: "{}" }));
+
+expect(maxStepsForRecording(callsOf(0))).toBe(DEFAULT_MAX_STEPS);
+expect(maxStepsForRecording(callsOf(3))).toBe(DEFAULT_MAX_STEPS);
+expect(maxStepsForRecording(callsOf(9))).toBe(10);
+```
+
+`callsOf(9)` is nine tool calls in one turn: 9 + 1 = 10, the same bound the old `n + 1` gave, which is what keeps these three assertions a genuine regression test of the single-turn case rather than a rewrite to match new behaviour.
+
+In `apps/core/src/controllers/testcase.controller.ts` the recording is currently filtered down to tool calls before replay:
+
+```ts
+const recorded = expectedSteps.filter(
+	(step): step is ToolCallStep => step.kind === "tool_call",
+);
+```
+
+Delete the filter and pass `expectedSteps` itself — replay now derives turns from the whole session, and a list stripped of its `user` and `final` steps has exactly one turn no matter how many the author pinned. The `maxSteps` argument becomes `maxStepsForRecording(expectedSteps)`. Drop the now-unused `ToolCallStep` import if nothing else in the file uses it.
+
+- [ ] **Step 7: Run tests and type-check to verify they pass**
+
+Run: `pnpm turbo run test:run --filter=core` then `pnpm turbo run type-check --filter=core`
+Expected: PASS, clean. The pre-existing single-turn replay tests must still pass on their behaviour — only the argument they pass has changed.
+
+- [ ] **Step 8: Commit**
 
 ```bash
-git add apps/core/src/ai/steps/replay.ts apps/core/src/ai/steps/replay.test.ts
+git add apps/core/src/ai/steps/replay.ts apps/core/src/ai/steps/replay.test.ts apps/core/src/controllers/testcase.controller.ts
 git commit -m "feat(replay): replay a whole session, turn by turn"
 ```
 
@@ -880,7 +908,7 @@ git commit -m "feat(compare): match a session turn by turn, reporting flat indic
 - Test: `apps/core/src/controllers/testcase.controller.test.ts`
 
 **Interfaces:**
-- Consumes: `effectiveSteps`, `turnsOf` (Task 1); `maxStepsForRecording(steps)` and `ReplayStop.turn` (Task 3); `compareSteps` (Task 4).
+- Consumes: `effectiveSteps`, `turnsOf` (Task 1); `ReplayStop.turn` (Task 3 — which also already moved this file's replay call to the new signature); `compareSteps` (Task 4).
 - Produces: `expectedOutput` cascaded on every `expectedSteps` write.
 
 - [ ] **Step 1: Write the failing tests**
@@ -951,7 +979,7 @@ if (Array.isArray(data.expectedSteps)) {
 
 In `readExpectedSteps`, return the parsed steps unchanged — truncation is applied by the consumers, which all call `effectiveSteps`. Update its doc comment to say so, so the next reader does not add a second cut.
 
-At the run site, pass the whole pinned list to replay and to `compareSteps` — both apply `effectiveSteps` themselves (Tasks 3 and 4) — and derive the budget with `maxStepsForRecording(expectedSteps)`.
+At the run site, pass the whole pinned list to `compareSteps` — it applies `effectiveSteps` itself (Task 4). The replay call beside it already passes the whole list and the whole-list budget: Task 3 changed it when it changed the signature.
 
 - [ ] **Step 5: Report the turn on divergence**
 
@@ -985,8 +1013,7 @@ git commit -m "feat(testcases): cascade expectedOutput and run a session by turn
 ## Task 6: The `user` span
 
 **Files:**
-- Modify: `apps/core/src/services/logger/spans.ts`
-- Modify: `apps/core/src/services/logger/types.ts` (the `SpanRow` shape)
+- Modify: `apps/core/src/services/logger/spans.ts` (the `SpanRow` type at `:14` and `toSpanRows` below it)
 - Modify: `apps/core/src/ai/steps/turn.ts`
 - Test: `apps/core/src/services/logger/spans.test.ts`, `apps/core/src/ai/steps/turn.test.ts`
 
@@ -1026,21 +1053,44 @@ it("numbers spans across every kind, not only tool calls", () => {
 And in `apps/core/src/ai/steps/turn.test.ts`:
 
 ```ts
-it("emits the reply that opened this turn as a step", () => {
+it("emits the reply on the request the reply itself triggered", () => {
 	// Otherwise the reply is recorded nowhere: the root `logs` row holds only the
 	// session's first question, and `spansToSteps` would rebuild a session that jumps
 	// from one answer to the next with nothing in between.
 	const { steps } = completedTurnSteps(
 		[
-			{ role: "assistant", content: "21 in Paris" },
-			{ role: "user", content: "and in London?" },
 			{ role: "assistant", content: "", toolCalls: [{ id: "1", name: "t", args: {} }] },
 			{ role: "tool", toolCallId: "1", name: "t", content: "{}" },
+			{ role: "assistant", content: "21 in Paris" },
+			{ role: "user", content: "and in London?" },
+		],
+		{ answer: "", toolCalls: [{ id: "2", name: "t", args: {} }] },
+	);
+	// Nothing else: the previous turn's call and final already have their spans, and
+	// this turn's call is not answered until the next request.
+	expect(steps).toEqual([{ kind: "user", text: "and in London?" }]);
+});
+
+it("does not emit the reply again on the next request of the same turn", () => {
+	// The dangerous half. One request later the same reply is still in the conversation,
+	// now sitting before the last assistant message. Emitting it again writes a second
+	// `user` span for one reply and shifts every later index by one.
+	const { steps } = completedTurnSteps(
+		[
+			{ role: "assistant", content: "", toolCalls: [{ id: "1", name: "t", args: {} }] },
+			{ role: "tool", toolCallId: "1", name: "t", content: "{}" },
+			{ role: "assistant", content: "21 in Paris" },
+			{ role: "user", content: "and in London?" },
+			{ role: "assistant", content: "", toolCalls: [{ id: "2", name: "t", args: {} }] },
+			{ role: "tool", toolCallId: "2", name: "t", content: "{}" },
 		],
 		{ answer: "14 in London" },
 	);
-	expect(steps[0]).toEqual({ kind: "user", text: "and in London?" });
-	expect(steps.at(-1)).toEqual({ kind: "final", text: "14 in London" });
+	expect(steps.some((step) => step.kind === "user")).toBe(false);
+	expect(steps).toEqual([
+		{ kind: "tool_call", name: "t", args: {}, recordedResult: "{}" },
+		{ kind: "final", text: "14 in London" },
+	]);
 });
 
 it("counts every span an earlier turn wrote, not only its tool calls", () => {
@@ -1072,7 +1122,9 @@ Expected: FAIL — a user step is written as `llm` with an empty `output`.
 
 - [ ] **Step 3: Widen the row type**
 
-In `apps/core/src/services/logger/types.ts`, change `span_type` to `"llm" | "tool" | "user"` and document it:
+`span_type` is declared in two places and only one of them is yours. `SpanRow` in `apps/core/src/services/logger/spans.ts:14` carries the narrow union and is what `toSpanRows` produces; `types.ts:267` types the row ClickHouse hands back and is already a plain `string`, so it needs no change, and `logger.ts:833` casts through `SpanRow["span_type"]` and follows automatically.
+
+In `spans.ts`, change `span_type` to `"llm" | "tool" | "user"` and document it:
 
 ```ts
 /**
@@ -1100,19 +1152,19 @@ output: step.kind === "final" ? step.text : step.kind === "user" ? step.text : "
 Emit the reply that opened this turn, before the turn's tool calls:
 
 ```ts
-// The reply that opened this turn. It is emitted here rather than in the controller for
-// the same reason everything else in this function is derived here: the conversation is
-// the only state, and a reply recorded anywhere else would not survive the next
-// stateless request.
-const lastAssistantAt = conversation.findLastIndex((message) => message.role === "assistant");
-const openingReply =
-	lastAssistantAt > 0
-		? conversation.slice(0, lastAssistantAt).findLast((message) => message.role === "user")
-		: undefined;
+// The reply that opened this turn, emitted on the one request it triggered -- the request
+// whose conversation ENDS with it, because nothing has answered it yet. One request later
+// the same reply is still in the conversation, and any rule that finds it by scanning
+// would write its span a second time.
+//
+// It is derived here rather than in the controller for the same reason everything else in
+// this function is: the conversation is the only state, and a reply recorded anywhere else
+// would not survive the next stateless request.
+const lastMessage = conversation[conversation.length - 1];
 
 const steps: Step[] = [];
-if (openingReply?.role === "user") {
-	steps.push({ kind: "user", text: openingReply.content });
+if (lastMessage?.role === "user") {
+	steps.push({ kind: "user", text: lastMessage.content });
 }
 ```
 
@@ -1136,9 +1188,18 @@ const spanIndexOffset =
 	) + conversation.filter((message) => message.role === "user").length;
 ```
 
+Two things about that expression are easy to "simplify" wrongly, so both are stated here.
+
+The `: 1` branch is not a guard against an empty array — an assistant turn either asked
+for tools or gave an answer, and the one that gave an answer wrote exactly one `llm` span.
+Dropping the branch undercounts every plain answer in the session.
+
 The reply count runs over the whole conversation rather than the part before the last
-turn, because the only reply after that point is the one opening THIS turn -- whose
-`user` step is pushed first, so the offset must already include it.
+assistant turn, and it deliberately includes the reply this very request is about to write.
+That compensates for the last assistant turn being excluded from `earlierTurns`: on the
+request a reply triggers, that excluded turn is a final whose span was already written.
+Traced across a three-turn session the offsets come out 0, 0, 2, 3, 5, 6 — each equal to
+the number of spans already in the table.
 
 - [ ] **Step 6: Run tests to verify they pass**
 
@@ -1148,7 +1209,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add apps/core/src/services/logger apps/core/src/ai/steps/turn.ts
+git add apps/core/src/services/logger/spans.ts apps/core/src/services/logger/spans.test.ts apps/core/src/ai/steps/turn.ts apps/core/src/ai/steps/turn.test.ts
 git commit -m "feat(spans): record a user reply so a session can be read back"
 ```
 
@@ -1159,7 +1220,9 @@ git commit -m "feat(spans): record a user reply so a session can be read back"
 **Files:**
 - Modify: `apps/core/src/controllers/prompt.controller.ts`
 - Modify: `apps/core/src/services/validate/types/prompt.type.ts`
-- Test: `apps/core/src/controllers/prompt.controller.test.ts`
+- Test: `apps/core/src/controllers/prompt.controller.run.test.ts`
+
+Note the filename: merging `origin/main` brought a `prompt.controller.test.ts` of its own, and this branch's run tests moved to `prompt.controller.run.test.ts` beside it. Yours are the ones in `…run.test.ts`.
 
 **Interfaces:**
 - Consumes: the `user` role (Task 2), the `user` span (Task 6).
@@ -1463,7 +1526,7 @@ git commit -m "feat(web): a step row that scales to a multi-turn session"
 - Modify: `apps/web/src/pages/prompt/playground-tabs/logs/components/LogTrajectorySection.tsx`
 
 **Interfaces:**
-- Consumes: `turnsOf`, `effectiveSteps` (Task 8); `StepRow`'s new props (Task 10).
+- Consumes: `turnsOf`, `effectiveSteps` (Task 8); `StepRow`'s new props (Task 10). Deliberately NOT `withFinalText` — see Step 3.
 
 - [ ] **Step 1: Group the rows**
 
@@ -1475,7 +1538,15 @@ Steps after a truncation render with `outcome="not-reached"` and their controls 
 
 - [ ] **Step 3: Wire the final-answer editor**
 
-`onTextChange` on a final row saves `withFinalText`-style — patch that step's text and send the whole `expectedSteps`. The server derives `expectedOutput` from it (Task 5), so the panel sends nothing else and no second writer appears.
+`onTextChange` on a final row patches THAT row by its flat index and sends the whole `expectedSteps`:
+
+```ts
+const next = steps.map((step, i) => (i === index ? { ...step, text } : step));
+```
+
+Not `withFinalText`: that helper searches for the last final because its caller — the separate expected-output editor — has only the text. The panel has the index of the row the author actually typed in, and searching from a row you can already name would silently edit the last turn whenever the author edited an earlier one.
+
+The server derives `expectedOutput` from the array it receives (Task 5), so the panel sends nothing else and no second writer of that field appears.
 
 - [ ] **Step 4: Mirror the grouping in the log dialog**
 
