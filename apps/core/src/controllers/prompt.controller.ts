@@ -487,6 +487,7 @@ export class PromptsController {
 
 		const result = await getPromptLogs(
 			metadata.orgID,
+			metadata.projID,
 			promptId,
 			query.page,
 			query.pageSize,
@@ -515,6 +516,7 @@ export class PromptsController {
 
 		const detail = await getLogDetail({
 			orgId: metadata.orgID,
+			projectId: metadata.projID,
 			promptId,
 			logId,
 			timestamp,

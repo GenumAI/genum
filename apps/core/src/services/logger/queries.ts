@@ -28,12 +28,15 @@ export const QUERIES = {
 	/**
 	 * Every column a log LIST needs, and no more.
 	 *
-	 * Named explicitly rather than `SELECT *` on purpose. `ORDER BY timestamp DESC LIMIT n`
-	 * cannot read in sorting-key order here -- the key is (orgId, project_id, timestamp)
-	 * and the prompt-logs filter leaves `project_id` free -- so ClickHouse reads every
-	 * matching row and sorts. Under `SELECT *` that carried `in`, `out` and `placeholders`
-	 * for the whole scan to return ten rows, which is what exhausted the query memory
-	 * limit in production. The payload belongs to GET_LOG_DETAIL.
+	 * Named explicitly rather than `SELECT *` on purpose. Under `SELECT *` a page of ten
+	 * carried `in`, `out` and `placeholders` for every row the query touched, which is what
+	 * exhausted the query memory limit in production. The payload belongs to
+	 * GET_LOG_DETAIL.
+	 *
+	 * How many rows it touches is decided by the caller, not here: every caller must pin
+	 * `project_id` so the filter completes the sorting key (orgId, project_id, timestamp)
+	 * and `ORDER BY timestamp DESC LIMIT n` can read in key order instead of sorting the
+	 * whole match set.
 	 *
 	 * Both this and GET_LOG_DETAIL must be sent with QUOTE_64BIT_INTEGERS -- see there.
 	 */
@@ -224,6 +227,6 @@ export const QUERIES = {
 	COUNT_BY_DATE: (table: string) => `
 		SELECT count() as total
 		FROM ${table}
-		WHERE timestamp >= {fromDate: DateTime} AND timestamp <= {toDate: DateTime}
+		WHERE timestamp >= {fromDate: DateTime64(3)} AND timestamp <= {toDate: DateTime64(3)}
 	`,
 } as const;

@@ -76,6 +76,28 @@ describe("QUOTE_64BIT_INTEGERS", () => {
 	});
 });
 
+describe("WhereBuilder.dateRange", () => {
+	it("keeps the instant the UI asked for instead of widening it to whole days", () => {
+		// A UTC+2 user picking 24 Aug - 8 Sep sends these. Truncating them to `YYYY-MM-DD`
+		// and padding with 00:00:00 / 23:59:59 did not just widen the window, it moved it:
+		// 23 Aug came in at the bottom and the tail of 7 Sep fell off.
+		const { where, params } = WhereBuilder.forOrg(4)
+			.dateRange(new Date("2026-08-23T22:00:00.000Z"), new Date("2026-09-07T21:59:59.999Z"))
+			.build();
+
+		expect(where).toContain("timestamp >= {param_1: DateTime64(3)}");
+		expect(where).toContain("timestamp <= {param_2: DateTime64(3)}");
+		expect(params.param_1).toBe("2026-08-23 22:00:00.000");
+		expect(params.param_2).toBe("2026-09-07 21:59:59.999");
+	});
+
+	it("adds nothing for an absent bound", () => {
+		expect(WhereBuilder.forOrg(4).dateRange(undefined, undefined).build().where).toBe(
+			"orgId = {param_0: Int64}",
+		);
+	});
+});
+
 describe("WhereBuilder detail conditions", () => {
 	it("pins an exact timestamp so the lookup prunes to one monthly partition", () => {
 		const { where, params } = WhereBuilder.forOrg(4)
