@@ -56,8 +56,32 @@ export interface LogDocument {
 	placeholders?: Record<string, string>;
 }
 
+/**
+ * One row of a log LIST -- deliberately `LogDocument` minus its payload.
+ *
+ * `in`, `out` and `placeholders` are absent because a list must never read them: they are
+ * unbounded (a model answer is routinely megabytes) and a page of 10 used to drag them
+ * through a scan of every matching row. They come from `getLogDetail` instead, addressed
+ * by `log_id`.
+ */
+export type LogListEntry = Omit<LogDocument, "in" | "out" | "memory_key" | "placeholders"> & {
+	/**
+	 * `UInt64` as a string: JSON cannot hold it exactly, and nothing here does arithmetic
+	 * on it -- it is an address that goes back out to ClickHouse unchanged.
+	 */
+	log_id: string;
+};
+
+/** The payload half, fetched for one row when the details dialog opens. */
+export interface LogDetail {
+	log_id: string;
+	in: string;
+	out: string;
+	placeholders?: Record<string, string>;
+}
+
 export interface LogSearchResult {
-	logs: LogDocument[];
+	logs: LogListEntry[];
 	total: number;
 	page: number;
 	pageSize: number;
@@ -175,7 +199,12 @@ export interface OrganizationDetailedUsageStats extends OrganizationUsageStats {
 }
 
 // ClickHouse row types
-export interface ClickHouseLogRow {
+/**
+ * The columns the list query names. Kept in step with `QUERIES.LOG_LIST_COLUMNS` -- adding
+ * a field here without adding it there yields `undefined` at runtime, not a type error.
+ */
+export interface ClickHouseLogListRow {
+	log_id: string;
 	timestamp: string;
 	source: string;
 	log_lvl: string;
@@ -194,11 +223,15 @@ export interface ClickHouseLogRow {
 	tokens_sum: number;
 	cost: number;
 	response_ms: number;
+}
+
+/** The payload columns, read for one row at a time and never for a list. */
+export interface ClickHouseLogDetailRow {
+	log_id: string;
 	in: string;
 	out: string;
 	memory_key: string | null;
 	placeholders: Record<string, string>;
-	stage?: string;
 }
 
 export interface ClickHouseCountRow {

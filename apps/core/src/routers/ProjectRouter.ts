@@ -69,6 +69,10 @@ export function createProjectRouter(): Router {
 
 	// Logs
 	router.get("/logs", asyncHandler(projectController.getProjectLogs.bind(projectController)));
+	router.get(
+		"/logs/detail",
+		asyncHandler(projectController.getProjectLogDetail.bind(projectController)),
+	);
 
 	return router;
 }

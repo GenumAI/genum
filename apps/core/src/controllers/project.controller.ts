@@ -4,8 +4,9 @@ import { OrganizationRole } from "@/prisma";
 import { ProjectService } from "@/services/project.service";
 import {
 	getProjectUsageWithDailyStats,
+	getLogDetail,
 	getProjectLogs,
-	type LogDocument,
+	type LogListEntry,
 	type PromptUsageStats,
 } from "../services/logger/logger";
 import {
@@ -16,6 +17,7 @@ import {
 	ProjectUsageStatsSchema,
 	ProjectLogsQuerySchema,
 	ProjectUpdateSchema,
+	LogDetailQuerySchema,
 } from "@/services/validate";
 import type { LogLevel, SourceType } from "@/services/logger";
 
@@ -232,7 +234,7 @@ export class ProjectController {
 		const promptNamesAll = await db.prompts.getPromptNames(metadata.projID);
 		const usedPromptIds = new Set(
 			(logs.logs || [])
-				.map((log: LogDocument) => log.prompt_id)
+				.map((log: LogListEntry) => log.prompt_id)
 				.filter((id: number | undefined) => id != null),
 		);
 		const promptNames = promptNamesAll.filter((p) => usedPromptIds.has(p.id));
@@ -241,5 +243,28 @@ export class ProjectController {
 			...logs,
 			promptNames,
 		});
+	}
+
+	/**
+	 * The payload of a single log row on the project logs page. Here the project IS the
+	 * access boundary, so it is part of the lookup -- and it also completes the sorting-key
+	 * prefix (orgId, project_id, timestamp), so this reads one granule.
+	 */
+	public async getProjectLogDetail(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		const { logId, timestamp } = LogDetailQuerySchema.parse(req.query);
+
+		const detail = await getLogDetail({
+			orgId: metadata.orgID,
+			projectId: metadata.projID,
+			logId,
+			timestamp,
+		});
+
+		if (!detail) {
+			return res.status(404).json({ error: "Log not found" });
+		}
+
+		res.status(200).json(detail);
 	}
 }

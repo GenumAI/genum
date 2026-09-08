@@ -3,6 +3,18 @@
  * All queries use parameterized WHERE clauses for SQL injection protection
  */
 
+/**
+ * Send this with any query that selects `log_id`.
+ *
+ * `@clickhouse/client` turns JSONEachRow into objects with `JSON.parse`, and it ships with
+ * `output_format_json_quote_64bit_integers` OFF -- so an unquoted `UInt64` arrives as a
+ * double and silently loses its low digits: 15725040608634065115 comes back as
+ * ...065000, and every detail lookup built from it addresses a row that does not exist.
+ * Quoting on the server is the only place this can be fixed; `String(row.log_id)` in
+ * TypeScript runs after the damage.
+ */
+export const QUOTE_64BIT_INTEGERS = { output_format_json_quote_64bit_integers: 1 } as const;
+
 export const QUERIES = {
 	/**
 	 * Count total records matching WHERE clause
@@ -14,14 +26,66 @@ export const QUERIES = {
 	`,
 
 	/**
+	 * Every column a log LIST needs, and no more.
+	 *
+	 * Named explicitly rather than `SELECT *` on purpose. `ORDER BY timestamp DESC LIMIT n`
+	 * cannot read in sorting-key order here -- the key is (orgId, project_id, timestamp)
+	 * and the prompt-logs filter leaves `project_id` free -- so ClickHouse reads every
+	 * matching row and sorts. Under `SELECT *` that carried `in`, `out` and `placeholders`
+	 * for the whole scan to return ten rows, which is what exhausted the query memory
+	 * limit in production. The payload belongs to GET_LOG_DETAIL.
+	 *
+	 * Both this and GET_LOG_DETAIL must be sent with QUOTE_64BIT_INTEGERS -- see there.
+	 */
+	LOG_LIST_COLUMNS: `
+		log_id,
+		timestamp,
+		source,
+		log_lvl,
+		log_type,
+		description,
+		orgId,
+		project_id,
+		prompt_id,
+		user_id,
+		api_key_id,
+		testcase_id,
+		vendor,
+		model,
+		tokens_in,
+		tokens_out,
+		tokens_sum,
+		cost,
+		response_ms
+	`,
+
+	/**
 	 * Get logs with pagination
 	 */
 	GET_LOGS: (table: string, where: string) => `
-		SELECT * 
+		SELECT ${QUERIES.LOG_LIST_COLUMNS}
 		FROM ${table}
 		WHERE ${where}
 		ORDER BY timestamp DESC
 		LIMIT {limit: UInt64} OFFSET {offset: UInt64}
+	`,
+
+	/**
+	 * The payload of a single row, for the details dialog.
+	 *
+	 * `where` always pins an exact `timestamp`, which prunes to the one monthly partition
+	 * (`PARTITION BY toYYYYMM(timestamp)`) before `log_id` picks the row out of it. Without
+	 * that predicate this would scan the organisation: `log_id` is materialised, not part
+	 * of any index.
+	 *
+	 * `LIMIT 1` because `log_id` is a hash, not an enforced key -- two rows agreeing on all
+	 * fourteen hashed fields including the millisecond are indistinguishable here anyway.
+	 */
+	GET_LOG_DETAIL: (table: string, where: string) => `
+		SELECT log_id, \`in\`, \`out\`, memory_key, placeholders
+		FROM ${table}
+		WHERE ${where}
+		LIMIT 1
 	`,
 
 	/**

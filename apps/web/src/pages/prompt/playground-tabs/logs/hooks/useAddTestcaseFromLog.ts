@@ -4,21 +4,32 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/useToast";
 import { useCreateTestcase } from "@/hooks/useCreateTestcase";
 import { promptApi } from "@/api/prompt/prompt.api";
-import type { Log } from "@/types/logs";
+import type { Log, LogDetail } from "@/types/logs";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 interface UseAddTestcaseFromLogParams {
 	promptId?: number;
 	selectedLog: Log | null;
+	/**
+	 * The payload of `selectedLog`. A testcase IS its input and output, so this is not
+	 * optional context -- without it there is nothing to create, hence the guard below.
+	 */
+	logDetail: LogDetail | null;
 }
 
-export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseFromLogParams) {
+export function useAddTestcaseFromLog({
+	promptId,
+	selectedLog,
+	logDetail,
+}: UseAddTestcaseFromLogParams) {
 	const { toast } = useToast();
 	const { createTestcase, loading: creatingTestcase } = useCreateTestcase();
 	const queryClient = useQueryClient();
 
 	const handleAddTestcaseFromLog = useCallback(async () => {
-		if (!selectedLog) return;
+		// `logDetail` is still loading, or failed: creating a testcase now would silently
+		// make an empty one.
+		if (!selectedLog || !logDetail) return;
 
 		const targetPromptId = Number(selectedLog.prompt_id ?? promptId);
 		if (!targetPromptId) return;
@@ -26,10 +37,10 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 		try {
 			const { ok, unresolvedPlaceholders } = await createTestcase({
 				promptId: targetPromptId,
-				input: selectedLog.in || "",
-				expectedOutput: selectedLog.out || "",
-				lastOutput: selectedLog.out || "",
-				placeholders: selectedLog.placeholders ?? {},
+				input: logDetail.in || "",
+				expectedOutput: logDetail.out || "",
+				lastOutput: logDetail.out || "",
+				placeholders: logDetail.placeholders ?? {},
 			});
 
 			if (ok) {
@@ -80,7 +91,7 @@ export function useAddTestcaseFromLog({ promptId, selectedLog }: UseAddTestcaseF
 				variant: "destructive",
 			});
 		}
-	}, [createTestcase, promptId, queryClient, selectedLog, toast]);
+	}, [createTestcase, logDetail, promptId, queryClient, selectedLog, toast]);
 
 	return {
 		handleAddTestcaseFromLog,

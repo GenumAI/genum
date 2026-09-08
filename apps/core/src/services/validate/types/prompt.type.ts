@@ -95,6 +95,23 @@ export const PromptLogsQuerySchema = z
 
 export type PromptLogsQueryType = z.infer<typeof PromptLogsQuerySchema>;
 
+/**
+ * Addresses one log row for the details endpoint.
+ *
+ * `logId` stays a string all the way to ClickHouse: it is a `UInt64`, and `z.coerce.number`
+ * would round it to the nearest double and address a row that does not exist. `timestamp`
+ * is not redundant with it -- the table is partitioned by month, so it is the predicate
+ * that keeps the lookup off every part the organisation owns.
+ */
+export const LogDetailQuerySchema = z
+	.object({
+		logId: z.string().regex(/^\d+$/, "logId must be an unsigned integer"),
+		timestamp: z.coerce.date(),
+	})
+	.strict();
+
+export type LogDetailQueryType = z.infer<typeof LogDetailQuerySchema>;
+
 export const AssertionEditorSchema = z
 	.object({
 		query: z.string().optional(),

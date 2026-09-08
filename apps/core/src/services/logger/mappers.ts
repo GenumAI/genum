@@ -17,6 +17,25 @@ export function mapApiKeyStatsRow(row: ClickHouseApiKeyStatsRow): ApiKeyUsageSta
 	};
 }
 
+/** The shape ClickHouse renders a `DateTime64(3)` in, and the only one it parses back. */
+const CLICKHOUSE_TIMESTAMP = "YYYY-MM-DD HH:mm:ss.SSS";
+
+/**
+ * ClickHouse renders `DateTime64(3)` without a zone -- "2026-09-07 15:41:25.368". Handing
+ * that to `new Date()` reads it in the PROCESS timezone, so the same row came back as a
+ * different instant depending on where the server ran, and a detail lookup keyed on the
+ * timestamp it returned would miss by the offset. The columns carry no zone because the
+ * ClickHouse server keeps them in UTC, so UTC is what parses them.
+ */
+export function parseClickHouseTimestamp(value: string): Date {
+	return value ? moment.utc(value, CLICKHOUSE_TIMESTAMP).toDate() : new Date();
+}
+
+/** The inverse: an instant back into the literal a `DateTime64(3)` parameter accepts. */
+export function formatClickHouseTimestamp(value: Date): string {
+	return moment.utc(value).format(CLICKHOUSE_TIMESTAMP);
+}
+
 export function toLogPlaceholders(resolved: Record<string, string | null>): Record<string, string> {
 	return Object.fromEntries(Object.entries(resolved).map(([key, name]) => [key, name ?? ""]));
 }

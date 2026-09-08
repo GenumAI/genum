@@ -105,6 +105,11 @@ export function createPromptsRouter(): Router {
 
 	// Execution endpoints
 	router.get("/:id/logs", asyncHandler(promptsController.getPromptLogs.bind(promptsController)));
+	// Registered after "/:id/logs" but on a distinct path, so ordering is not load-bearing.
+	router.get(
+		"/:id/logs/detail",
+		asyncHandler(promptsController.getPromptLogDetail.bind(promptsController)),
+	);
 	router.post("/:id/run", asyncHandler(promptsController.runPrompt.bind(promptsController)));
 
 	// Version control

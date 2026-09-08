@@ -14,10 +14,17 @@ import { createClient } from "@clickhouse/client";
 import moment from "moment";
 import { env } from "@/env";
 import { WhereBuilder } from "./where.builder";
-import { QUERIES } from "./queries";
-import { mapApiKeyStatsRow, resolveLogPlaceholders } from "./mappers";
+import { QUERIES, QUOTE_64BIT_INTEGERS } from "./queries";
+import {
+	formatClickHouseTimestamp,
+	mapApiKeyStatsRow,
+	parseClickHouseTimestamp,
+	resolveLogPlaceholders,
+} from "./mappers";
 import type {
 	LogDocument,
+	LogListEntry,
+	LogDetail,
 	LogSearchResult,
 	ProjectUsageStats,
 	PromptUsageStats,
@@ -30,7 +37,8 @@ import type {
 	ProjectLogsFilter,
 	OrganizationUsageStats,
 	OrganizationDetailedUsageStats,
-	ClickHouseLogRow,
+	ClickHouseLogListRow,
+	ClickHouseLogDetailRow,
 	ClickHouseCountRow,
 	ClickHouseProjectStatsRow,
 	ClickHousePromptStatsRow,
@@ -49,6 +57,8 @@ import type {
 // Export types for external use
 export type {
 	LogDocument,
+	LogListEntry,
+	LogDetail,
 	LogSearchResult,
 	ProjectUsageStats,
 	PromptUsageStats,
@@ -61,7 +71,8 @@ export type {
 	ProjectLogsFilter,
 	OrganizationUsageStats,
 	OrganizationDetailedUsageStats,
-	ClickHouseLogRow,
+	ClickHouseLogListRow,
+	ClickHouseLogDetailRow,
 	ClickHouseCountRow,
 	ClickHouseProjectStatsRow,
 	ClickHousePromptStatsRow,
@@ -150,10 +161,11 @@ function buildWhereConditions(
 	return builder.build();
 }
 
-// Helper function to transform ClickHouse row to LogDocument
-function transformRowToLogDocument(row: ClickHouseLogRow): LogDocument {
+// Helper function to transform a ClickHouse list row to a LogListEntry
+function transformRowToLogListEntry(row: ClickHouseLogListRow): LogListEntry {
 	return {
-		timestamp: row.timestamp ? new Date(row.timestamp) : new Date(),
+		log_id: String(row.log_id),
+		timestamp: parseClickHouseTimestamp(row.timestamp),
 		source: row.source as SourceType,
 		log_lvl: row.log_lvl as LogLevel,
 		log_type: row.log_type as LogType,
@@ -171,9 +183,6 @@ function transformRowToLogDocument(row: ClickHouseLogRow): LogDocument {
 		tokens_sum: row.tokens_sum,
 		cost: row.cost,
 		response_ms: row.response_ms,
-		in: row.in,
-		out: row.out,
-		placeholders: resolveLogPlaceholders(row),
 	};
 }
 
@@ -181,8 +190,10 @@ export async function logUsage(document: LogDocument): Promise<void> {
 	const timestamp = document.timestamp ?? new Date();
 
 	try {
-		// Format timestamp as YYYY-MM-DD HH:mm:ss.SSS for ClickHouse DateTime64
-		const timestampStr = moment(timestamp).format("YYYY-MM-DD HH:mm:ss.SSS");
+		// UTC, matching `parseClickHouseTimestamp` on the way back out: the column carries
+		// no zone, so writing in the process timezone and reading in UTC would shift every
+		// row by the offset on any server that is not itself UTC.
+		const timestampStr = formatClickHouseTimestamp(timestamp);
 
 		await clickhouseClient.insert({
 			table: CLICKHOUSE_TABLES.LOGS,
@@ -269,11 +280,12 @@ export async function getPromptLogs(
 		const logsResult = await clickhouseClient.query({
 			query: QUERIES.GET_LOGS(CLICKHOUSE_TABLES.LOGS, where),
 			query_params: queryParams,
+			clickhouse_settings: QUOTE_64BIT_INTEGERS,
 			format: "JSONEachRow",
 		});
 
-		const logsData = (await logsResult.json()) as ClickHouseLogRow[];
-		const logs = logsData.map(transformRowToLogDocument);
+		const logsData = (await logsResult.json()) as ClickHouseLogListRow[];
+		const logs = logsData.map(transformRowToLogListEntry);
 
 		return {
 			logs,
@@ -283,6 +295,64 @@ export async function getPromptLogs(
 		};
 	} catch (error) {
 		console.error("Error getting logs from ClickHouse:", error);
+		throw error;
+	}
+}
+
+/**
+ * The payload of one log row, for the details dialog.
+ *
+ * `orgId` is the caller's, never the client's; `projectId` is passed only where the
+ * project is itself the access boundary (the project logs page). It is deliberately NOT
+ * passed for a prompt's logs: access there is already settled by `checkPromptAccess`, and
+ * requiring `project_id` to match would hide rows a prompt accumulated while it lived in
+ * another project.
+ *
+ * Returns `null` for a row that is not there rather than throwing -- a log outside the
+ * retention window is a 404, not a fault.
+ */
+export async function getLogDetail(params: {
+	orgId: number;
+	logId: string;
+	timestamp: Date;
+	promptId?: number;
+	projectId?: number;
+}): Promise<LogDetail | null> {
+	try {
+		const builder = WhereBuilder.forOrg(params.orgId);
+
+		if (params.projectId !== undefined) {
+			builder.projectId(params.projectId);
+		}
+		if (params.promptId !== undefined) {
+			builder.promptId(params.promptId);
+		}
+
+		builder.timestampExact(formatClickHouseTimestamp(params.timestamp)).logId(params.logId);
+
+		const { where, params: queryParams } = builder.build();
+
+		const result = await clickhouseClient.query({
+			query: QUERIES.GET_LOG_DETAIL(CLICKHOUSE_TABLES.LOGS, where),
+			query_params: queryParams,
+			clickhouse_settings: QUOTE_64BIT_INTEGERS,
+			format: "JSONEachRow",
+		});
+
+		const rows = (await result.json()) as ClickHouseLogDetailRow[];
+		const row = rows[0];
+		if (!row) {
+			return null;
+		}
+
+		return {
+			log_id: String(row.log_id),
+			in: row.in,
+			out: row.out,
+			placeholders: resolveLogPlaceholders(row),
+		};
+	} catch (error) {
+		console.error("Error getting log detail from ClickHouse:", error);
 		throw error;
 	}
 }
@@ -510,11 +580,12 @@ export async function getProjectLogs(
 		const logsResult = await clickhouseClient.query({
 			query: QUERIES.GET_LOGS(CLICKHOUSE_TABLES.LOGS, where),
 			query_params: queryParams,
+			clickhouse_settings: QUOTE_64BIT_INTEGERS,
 			format: "JSONEachRow",
 		});
 
-		const logsData = (await logsResult.json()) as ClickHouseLogRow[];
-		const logs = logsData.map(transformRowToLogDocument);
+		const logsData = (await logsResult.json()) as ClickHouseLogListRow[];
+		const logs = logsData.map(transformRowToLogListEntry);
 
 		return {
 			logs,

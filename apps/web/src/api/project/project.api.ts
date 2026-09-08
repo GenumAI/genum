@@ -1,6 +1,6 @@
 import { apiClient, type ApiRequestConfig } from "../client";
 import type { OrganizationRole } from "../organization";
-import type { PromptName } from "@/types/logs";
+import type { Log, LogDetail, LogsResponse, PromptName } from "@/types/logs";
 
 // ============================================================================
 // Enums
@@ -99,31 +99,8 @@ export interface LogsQueryParams {
 	query?: string;
 }
 
-export interface Log {
-	log_lvl: string;
-	timestamp: string;
-	source: string;
-	vendor: string;
-	model: string;
-	tokens_sum: number;
-	cost: number;
-	response_ms: number;
-	description?: string;
-	tokens_in?: number;
-	tokens_out?: number;
-	in?: string;
-	out?: string;
-	log_type?: string;
-	user_name?: string;
-	placeholders?: Record<string, string>;
-	api?: string;
-	prompt_id?: number;
-}
-
-export interface LogsResponse {
-	logs: Log[];
-	total: number;
-}
+/** Canonical shape lives in `@/types/logs`; re-exported so the three copies cannot drift. */
+export type { Log, LogDetail, LogsResponse };
 
 export interface ProjectAPIKey {
 	id: string | number;
@@ -258,6 +235,21 @@ export const projectApi = {
 		const queryString = queryParams.toString();
 		const url = `/project/logs${queryString ? `?${queryString}` : ""}`;
 		const response = await apiClient.get<LogsResponse>(url, config);
+		return response.data;
+	},
+
+	/**
+	 * The payload of one log row on the project logs page. See `promptApi.getLogDetail`.
+	 */
+	getLogDetail: async (
+		params: { logId: string; timestamp: string },
+		config?: ApiRequestConfig,
+	): Promise<LogDetail> => {
+		const queryString = new URLSearchParams(params).toString();
+		const response = await apiClient.get<LogDetail>(
+			`/project/logs/detail?${queryString}`,
+			config,
+		);
 		return response.data;
 	},
 

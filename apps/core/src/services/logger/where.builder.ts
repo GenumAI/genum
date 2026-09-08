@@ -68,6 +68,31 @@ export class WhereBuilder {
 	}
 
 	/**
+	 * Pin one row's exact timestamp.
+	 *
+	 * Exact rather than a range because the table is `PARTITION BY toYYYYMM(timestamp)`:
+	 * this is what lets a detail lookup touch one month of parts instead of every part the
+	 * organisation owns.
+	 */
+	timestampExact(timestamp: string): this {
+		const paramName = this.nextParamName();
+		this.conditions.push(`timestamp = {${paramName}: DateTime64(3)}`);
+		this.params[paramName] = timestamp;
+		return this;
+	}
+
+	/**
+	 * Add log id condition. Passed as a string: `log_id` is a `UInt64` and JSON rounds one
+	 * off, so it is never turned into a JS number anywhere on the way in or out.
+	 */
+	logId(logId: string): this {
+		const paramName = this.nextParamName();
+		this.conditions.push(`log_id = {${paramName}: UInt64}`);
+		this.params[paramName] = logId;
+		return this;
+	}
+
+	/**
 	 * Add source condition
 	 */
 	source(source: SourceType): this {
