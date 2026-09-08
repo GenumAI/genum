@@ -1,4 +1,4 @@
-import { CaretDown, CaretUp } from "phosphor-react";
+import { CaretDown, CaretUp } from "@phosphor-icons/react";
 
 interface SortIconProps {
 	isSorted: false | "asc" | "desc";

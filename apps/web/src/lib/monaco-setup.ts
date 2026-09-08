@@ -1,25 +1,26 @@
 import { loader } from "@monaco-editor/react";
 
-import * as monaco from "monaco-editor";
+// edcore.main is the editor plus all of its contributions -- find, multi-cursor, folding,
+// word/line operations, suggest. Importing the narrower editor.api instead would drop those
+// and quietly cost the prompt editor Ctrl+F and word navigation.
+//
+// The basic-languages registry is only its 83 *.contribution.js stubs (~78 KB, mostly license
+// banners); each grammar itself stays behind a `loader: () => import(...)`, so the 698 KB of
+// actual grammars is still fetched one language at a time. It is registered in full rather than
+// per-language because markdown embeds whatever a fenced block names -- markdown.js resolves
+// ```python and friends through `nextEmbedded`, so a narrower list silently renders fenced code
+// blocks as plain text in the main prompt editor.
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
+import "monaco-editor/esm/vs/editor/edcore.main";
+import "monaco-editor/esm/vs/language/json/monaco.contribution";
+import "monaco-editor/esm/vs/basic-languages/monaco.contribution";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
-import cssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
-import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
-import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 
 self.MonacoEnvironment = {
 	getWorker(_, label) {
 		if (label === "json") {
 			return new jsonWorker();
-		}
-		if (label === "css" || label === "scss" || label === "less") {
-			return new cssWorker();
-		}
-		if (label === "html" || label === "handlebars" || label === "razor") {
-			return new htmlWorker();
-		}
-		if (label === "typescript" || label === "javascript") {
-			return new tsWorker();
 		}
 		return new editorWorker();
 	},

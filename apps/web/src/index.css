@@ -134,7 +134,7 @@ body {
 		--field-background: 0 0% 100%;
 		--editor-input-background: 0 0% 100% / 0;
 		--invite-logo-image: url("./assets/genum_logo/light_theme_logo.png");
-		--invite-background-image: url("./assets/background/light_theme_background.png");
+		--invite-background-image: url("./assets/background/light_theme_background.webp");
 		--avatar-1: 249 100% 91%;
 		--avatar-2: 227 100% 87%;
 		--avatar-3: 211 100% 87%;
@@ -217,7 +217,7 @@ body {
 		--field-background: 223 15% 15%;
 		--editor-input-background: 223 15% 14%;
 		--invite-logo-image: url("./assets/genum_logo/dark_theme_logo.png");
-		--invite-background-image: url("./assets/background/dark_theme_background.png");
+		--invite-background-image: url("./assets/background/dark_theme_background.webp");
 		--avatar-1: 262 24% 37%;
 		--avatar-2: 226 32% 35%;
 		--avatar-3: 197 35% 33%;

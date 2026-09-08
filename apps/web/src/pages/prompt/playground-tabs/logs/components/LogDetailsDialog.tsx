@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import MonacoEditor from "@/components/ui/MonacoEditor";
 import { parseJson } from "@/lib/jsonUtils";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { Eye, EyeClosed, CornersOut } from "phosphor-react";
+import { Eye, EyeClosed, CornersOut } from "@phosphor-icons/react";
 import { formatUserLocalDateTime } from "@/lib/formatUserLocalDateTime";
 import AIPreview from "@/pages/prompt/playground-tabs/playground/components/input-textarea/components/AIPreview";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";

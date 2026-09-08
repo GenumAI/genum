@@ -133,10 +133,10 @@ export class TestcasesRepository {
 	}
 
 	// `includePlaceholders` is opt-in and defaults to off. getTestcasesByPromptId is
-	// called from several places that only read status/summary fields (getProjectPrompts
-	// and getPromptById's status-count reducers, the prompt-auditor and assertion-editor
-	// context builders in ai/runner/system.ts) -- none of them touch placeholderValues,
-	// and the nested join isn't free. It is turned on in exactly one place:
+	// called from several places that only read status/summary fields (the prompt-auditor
+	// and assertion-editor context builders in ai/runner/system.ts, the canvas agent's
+	// testcase summary) -- none of them touch placeholderValues, and the nested join
+	// isn't free. It is turned on in exactly one place:
 	// PromptsController.getTestcasesByPromptId (the `GET /prompts/:id/testcases` route),
 	// which backs the playground's testcase list and is what the placeholder chips seed
 	// their pin from (Task 9 fix round 2).
@@ -164,6 +164,31 @@ export class TestcasesRepository {
 			orderBy: {
 				createdAt: "desc",
 			},
+		});
+	}
+
+	// The prompt list and the prompt page render a handful of integers per prompt. Tallying
+	// them from the rows meant transferring every testcase in the project to count it --
+	// input, expectedOutput and lastOutput are unbounded TEXT -- and one query per prompt
+	// on top. Both aggregates group by promptId as well as status so a single pivot in the
+	// controller serves the list and the single prompt alike.
+	//
+	// groupBy emits no row for a status that has no testcases, which is exactly the absent
+	// key the per-row reducer these replaced produced and the web client already reads as
+	// zero.
+	public async countByStatusForProject(projectId: number) {
+		return await this.prisma.testCase.groupBy({
+			by: ["promptId", "status"],
+			where: { prompt: { projectId } },
+			_count: true,
+		});
+	}
+
+	public async countByStatusForPrompt(promptId: number) {
+		return await this.prisma.testCase.groupBy({
+			by: ["promptId", "status"],
+			where: { promptId },
+			_count: true,
 		});
 	}
 

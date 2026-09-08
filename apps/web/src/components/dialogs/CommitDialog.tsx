@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { CircleNotch } from "phosphor-react";
+import { CircleNotch } from "@phosphor-icons/react";
 import AIGenerateButton from "@/pages/prompt/playground-tabs/playground/components/settings-block/models-settings/components/ai-interface-editor/shared/code-editor/components/AIGenerateButton";
 
 export interface CommitDialogProps {

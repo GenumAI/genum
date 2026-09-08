@@ -8,6 +8,23 @@ const EnvSchema = z.object({
 	CORE_PORT: z.coerce.number().int().positive(),
 	INSTANCE_TYPE: z.enum(["local", "cloud"]).default("local"),
 	AUTH_BCRYPT_ROUNDS: z.coerce.number().int().positive().default(10),
+	// Rate limiting
+	//
+	// TRUST_PROXY_HOPS is how many reverse proxies sit in front of core. It stays 0 for the
+	// shipped docker-compose topology, where core is reached directly. Put core behind a
+	// TLS-terminating proxy without raising it and every caller arrives wearing the proxy's
+	// address, which collapses all three limiters into one bucket for the whole deployment --
+	// the eleventh login attempt by anyone, anywhere, would then be refused. It must be an exact
+	// hop count and never `true`: express-rate-limit rejects a permissive setting outright,
+	// because a client could otherwise forge X-Forwarded-For and evade the limiter entirely.
+	TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
+	// Windows are milliseconds: 900000 is 15 minutes, 60000 is one minute.
+	RATE_LIMIT_CREDENTIAL_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
+	RATE_LIMIT_CREDENTIAL_MAX: z.coerce.number().int().positive().default(10),
+	RATE_LIMIT_API_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+	RATE_LIMIT_API_MAX: z.coerce.number().int().positive().default(600),
+	RATE_LIMIT_GLOBAL_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+	RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().positive().default(1000),
 	// Database
 	DATABASE_URL: z.url(),
 	// ClickHouse

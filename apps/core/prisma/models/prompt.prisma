@@ -28,6 +28,8 @@ model Prompt {
     placeholders Placeholder[]
     chat         PromptChat[]
     audit        Audit?
+
+    @@index([projectId])
 }
 
 model PromptChat {
@@ -97,4 +99,6 @@ model PromptVersion {
     author   User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
     createdAt DateTime @default(now())
+
+    @@index([branchId])
 }
