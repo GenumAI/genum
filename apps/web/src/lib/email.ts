@@ -9,11 +9,15 @@
  */
 
 /**
- * The pattern core validates against (`z.regexes.unicodeEmail`). It deliberately allows
- * non-ASCII on both sides of the `@`: an IDN domain (`user@müller.de`) and, under
- * SMTPUTF8, an internationalized local part (`jörg@example.com`).
+ * The pattern core validates against. It allows non-ASCII on both sides of the `@` -- an
+ * IDN domain (`user@müller.de`) and, under SMTPUTF8, an internationalized local part
+ * (`jörg@example.com`) -- while still requiring the domain to be two or more non-empty
+ * dot-separated labels, so `user@gmailcom` is caught as the typo it is.
+ *
+ * Must stay byte-identical to EMAIL_PATTERN in apps/core/src/utils/email.ts, which carries
+ * the reasoning behind each half of it.
  */
-export const EMAIL_PATTERN = /^[^\s@"]{1,64}@[^\s@]{1,255}$/u;
+export const EMAIL_PATTERN = /^[^\s@"]{1,64}@(?=[^\s@]{1,255}$)[^\s@.]+(?:\.[^\s@.]+)+$/u;
 
 /**
  * Trim, compose, lowercase, compose again -- the same four steps as the server, in the

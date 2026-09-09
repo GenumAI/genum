@@ -1,5 +1,7 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { emailSchema, emailsMatch, normalizeEmail } from "./email";
+import { EMAIL_PATTERN, emailSchema, emailsMatch, normalizeEmail } from "./email";
 
 // `ö` written both ways: composed (U+00F6) and decomposed (`o` + U+0308). They render
 // identically, so nothing but a byte comparison tells them apart -- which is also why the
@@ -40,6 +42,7 @@ describe("emailSchema", () => {
 		["the punycode form of that domain", "user@xn--mller-kva.de"],
 		["a plus-addressed mailbox", "a.person+genum@example.com"],
 		["an address pasted with whitespace around it", "  a.person@example.com \n"],
+		["a two-letter domain and TLD", "a@b.co"],
 	])("accepts %s", (_label, email) => {
 		expect(emailSchema.safeParse(email).success).toBe(true);
 	});
@@ -50,6 +53,12 @@ describe("emailSchema", () => {
 		["a space inside", "a person@example.com"],
 		["two @", "a@b@example.com"],
 		["empty", ""],
+		// The domain must be dotted. Zod's own unicodeEmail accepts all four of these.
+		["a dotless domain", "a.person@localhost"],
+		["a missing dot -- the everyday typo", "a.person@gmailcom"],
+		["an empty leading label", "a.person@.example.com"],
+		["an empty label in the middle", "a.person@example..com"],
+		["a trailing root dot", "a.person@example.com."],
 	])("rejects %s", (_label, email) => {
 		expect(emailSchema.safeParse(email).success).toBe(false);
 	});
@@ -66,5 +75,26 @@ describe("emailsMatch", () => {
 
 	it("does not match different mailboxes", () => {
 		expect(emailsMatch(NFC_UMLAUT, "jorg@example.com")).toBe(false);
+	});
+});
+
+describe("the web copy of the pattern", () => {
+	// apps/web/src/lib/email.ts duplicates EMAIL_PATTERN on purpose (a shared workspace
+	// package is not worth it for one regex) and its comment promises the two stay
+	// byte-identical. Nothing enforced that promise, and drift here is invisible in the
+	// worst direction: the form silently rejects an address the API would have accepted,
+	// which is the exact shape of the bug this whole module exists to fix.
+	it("is byte-identical to the one core validates against", () => {
+		// Vitest runs with apps/core as the working directory (its config lives there and
+		// scopes `include` to `src/**`). Asserting the file is where we expect keeps a
+		// future move from turning this guard into a silent pass.
+		const webModule = resolve(process.cwd(), "../web/src/lib/email.ts");
+		expect(existsSync(webModule), `${webModule} does not exist`).toBe(true);
+
+		const source = readFileSync(webModule, "utf8");
+		const declaration = source.match(/export const EMAIL_PATTERN = (.+);/);
+
+		expect(declaration, "EMAIL_PATTERN not found in apps/web/src/lib/email.ts").not.toBeNull();
+		expect(declaration?.[1]).toBe(EMAIL_PATTERN.toString());
 	});
 });
