@@ -161,7 +161,7 @@ export function usePlaygroundController({
 		resetPlaygroundState,
 	});
 
-	const { handleRun, handleToolResult } = usePlaygroundPromptRun({
+	const { handleRun, handleToolResult, handleReply } = usePlaygroundPromptRun({
 		promptId,
 		testcaseId,
 		testcase,
@@ -268,6 +268,7 @@ export function usePlaygroundController({
 			steps: trajectory.steps,
 			pendingTool: trajectory.pending[0]?.call.name ?? null,
 			onToolResult: handleToolResult,
+			onReply: handleReply,
 		},
 		actions: {
 			prompt: {

@@ -334,6 +334,124 @@ export function usePlaygroundPromptRun({
 		],
 	);
 
+	// The author typed a follow-up after the model's final answer. Mirrors
+	// `handleToolResult`'s continuation shape (append, send, branch on the next tool
+	// calls) with a `user` message instead of a `tool` one, and the same generation
+	// guard: a fresh "Run" mid-flight must discard this continuation exactly the same
+	// way it discards a tool-result continuation.
+	const handleReply = useCallback(
+		async (text: string) => {
+			if (!promptId) return;
+			// A pending tool call means the session is not actually waiting on the author's
+			// words yet -- TrajectorySteps only shows this control once it is, but a stale
+			// callback closed over an earlier render must not send a reply into the middle
+			// of an unresolved tool cycle.
+			if (trajectory.pending.length > 0) return;
+
+			const userMessage: ConversationMessage = { role: "user", content: text };
+			const messagesSoFar = [...trajectory.messages, userMessage];
+			const stepsSoFar: typeof trajectory.steps = [
+				...trajectory.steps,
+				{ kind: "user", text },
+			];
+
+			const traceId = trajectory.traceId;
+			setTrajectory((prev) => ({
+				...prev,
+				steps: stepsSoFar,
+				messages: messagesSoFar,
+			}));
+			// Same reason as in handleToolResult: the Run button's spinner is fed by the
+			// session store, not the prompt store.
+			setRunState({ loading: true });
+			setRunLoading(true);
+			setRunError(null);
+			// A "Run" (or a testcase/prompt switch) mid-flight discards this trajectory;
+			// the response that lands afterwards must not write into whatever replaced it.
+			const generation = trajectoryGeneration.current;
+
+			try {
+				const nextResult = await promptApi.runPrompt(promptId, {
+					question: inputContent,
+					...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
+					placeholders: placeholderSelection,
+					messages: messagesSoFar,
+					...(traceId ? { traceId } : {}),
+				});
+				if (trajectoryGeneration.current !== generation) return;
+				setLastRunResult(nextResult);
+				setOutputContent(nextResult);
+				warnAboutIgnoredPlaceholders(nextResult.placeholders?.ignored);
+
+				const nextToolCalls = nextResult.toolCalls;
+				if (nextToolCalls && nextToolCalls.length > 0) {
+					const baseIndex = stepsSoFar.length;
+					const newSteps: ToolCallStep[] = nextToolCalls.map((call) => ({
+						kind: "tool_call",
+						name: call.name,
+						args: call.args,
+					}));
+					setTrajectory((prev) => ({
+						...prev,
+						steps: [...prev.steps, ...newSteps],
+						messages: [
+							...prev.messages,
+							{
+								role: "assistant",
+								content: nextResult.answer,
+								toolCalls: nextToolCalls,
+							},
+						],
+						pending: nextToolCalls.map((call, index) => ({
+							call,
+							stepIndex: baseIndex + index,
+						})),
+					}));
+				} else {
+					setTrajectory((prev) => ({
+						...prev,
+						steps: [...prev.steps, { kind: "final", text: nextResult.answer }],
+						messages: prev.messages,
+						pending: [],
+					}));
+				}
+			} catch (err: unknown) {
+				if (trajectoryGeneration.current !== generation) return;
+				const error = err instanceof Error ? err : new Error("Failed to continue the run");
+				console.error("Failed to continue the agentic run:", err);
+				setRunError(error.message);
+				toast({
+					title: "Error",
+					description: error.message,
+					variant: "destructive",
+					duration: 6000,
+				});
+			} finally {
+				// A newer run owns the spinner now; clearing it here would hide theirs.
+				if (trajectoryGeneration.current === generation) {
+					setRunState({ loading: false });
+					setRunLoading(false);
+				}
+			}
+		},
+		[
+			promptId,
+			trajectory,
+			setTrajectory,
+			trajectoryGeneration,
+			inputContent,
+			selectedFiles,
+			placeholderSelection,
+			setRunState,
+			setRunLoading,
+			setRunError,
+			setLastRunResult,
+			setOutputContent,
+			warnAboutIgnoredPlaceholders,
+			toast,
+		],
+	);
+
 	useEffect(() => {
 		if (!storeOutputContent || !testcaseId || !testcase || !wasRun) {
 			return;
@@ -357,5 +475,5 @@ export function usePlaygroundPromptRun({
 		setRunState,
 	]);
 
-	return { handleRun, handleToolResult };
+	return { handleRun, handleToolResult, handleReply };
 }

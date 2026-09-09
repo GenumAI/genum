@@ -4,8 +4,10 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/useToast";
 import CompareDiffEditor from "@/components/ui/DiffEditor";
 import type { PromptResponse } from "@/api/prompt";
+import type { Step } from "@/types/steps";
 import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
 import { usePlaygroundOutput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundOutput";
+import { TestcaseStepPickerDialog } from "@/components/dialogs/TestcaseStepPickerDialog";
 
 import { useExpectedOutput } from "./hooks/useExpectedOutput";
 import { useAssertions } from "./hooks/useAssertions";
@@ -30,6 +32,8 @@ interface OutputBlockProps {
 	isRunning?: boolean;
 	serverAssertionType?: string;
 	serverAssertionValue?: string;
+	/** The in-memory trajectory being authored in the playground, if any. */
+	trajectorySteps?: Step[];
 }
 
 const OutputBlock: React.FC<OutputBlockProps> = ({
@@ -41,6 +45,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	isRunning,
 	serverAssertionType,
 	serverAssertionValue,
+	trajectorySteps,
 }) => {
 	// Route params
 	const { id } = useParams<{ id: string }>();
@@ -80,10 +85,11 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		handleAssertionValueBlur,
 	} = useAssertions({ promptId, serverAssertionType, serverAssertionValue });
 
-	const { isTestcaseLoading, createTestcase } = useTestcaseActions({
+	const { isTestcaseLoading, createTestcase, stepPicker } = useTestcaseActions({
 		promptId,
 		onTestcaseAdded,
 		selectedFiles,
+		trajectorySteps,
 	});
 
 	// Register clear function
@@ -185,6 +191,8 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 				onAddTestcase={handleAddTestcase}
 				isRunning={isRunning}
 			/>
+
+			{stepPicker.open && <TestcaseStepPickerDialog {...stepPicker} />}
 		</div>
 	);
 };

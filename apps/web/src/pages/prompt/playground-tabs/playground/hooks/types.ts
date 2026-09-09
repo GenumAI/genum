@@ -161,6 +161,8 @@ export interface PlaygroundTrajectoryGroup {
 	steps: Step[];
 	pendingTool: string | null;
 	onToolResult: (name: string, result: string) => void;
+	/** The author typed a follow-up after the model's final answer; continues the session. */
+	onReply: (text: string) => void;
 }
 
 /**

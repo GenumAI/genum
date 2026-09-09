@@ -146,6 +146,7 @@ export default function Playground() {
 								steps={trajectory.steps}
 								pendingTool={trajectory.pendingTool}
 								onToolResult={trajectory.onToolResult}
+								onReply={trajectory.onReply}
 								isRunning={ui.loading.run}
 							/>
 						)}
@@ -161,6 +162,7 @@ export default function Playground() {
 							isRunning={ui.loading.run}
 							serverAssertionType={prompt.data?.prompt?.assertionType}
 							serverAssertionValue={prompt.data?.prompt?.assertionValue}
+							trajectorySteps={trajectory.steps}
 						/>
 					</div>
 

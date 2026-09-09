@@ -13,6 +13,12 @@ interface TrajectoryStepsProps {
 	pendingTool: string | null;
 	onToolResult: (name: string, result: string) => void;
 	/**
+	 * The author typed a follow-up after the model's final answer. Continues the same
+	 * session -- what makes a finished run distinguishable from an agentic one that has
+	 * simply run out of input for now.
+	 */
+	onReply: (text: string) => void;
+	/**
 	 * A turn is in flight. Between submitting a tool result and the model's reply there
 	 * is no pending tool and no new step, so without this the pane is a static list with
 	 * no sign that anything is happening.
@@ -29,9 +35,17 @@ export function TrajectorySteps({
 	steps,
 	pendingTool,
 	onToolResult,
+	onReply,
 	isRunning = false,
 }: TrajectoryStepsProps) {
 	const [result, setResult] = useState("");
+	const [reply, setReply] = useState("");
+
+	// A follow-up only makes sense once the model has finished answering: no tool call is
+	// still waiting on a result, no turn is in flight, and the session has not simply run
+	// out of steps (an empty trajectory renders nothing here at all -- see Playground.tsx).
+	const lastStep = steps[steps.length - 1];
+	const canReply = !isRunning && !pendingTool && lastStep?.kind === "final";
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -92,6 +106,29 @@ export function TrajectorySteps({
 							onClick={() => {
 								onToolResult(pendingTool, result);
 								setResult("");
+							}}
+						>
+							Continue
+						</Button>
+					</CardContent>
+				</Card>
+			)}
+
+			{canReply && (
+				<Card>
+					<CardContent className="flex flex-col gap-2 p-3">
+						<div className="text-sm">Continue the session</div>
+						<Textarea
+							value={reply}
+							onChange={(event) => setReply(event.target.value)}
+							placeholder="Ask a follow-up..."
+						/>
+						<Button
+							className="self-end"
+							disabled={!reply.trim()}
+							onClick={() => {
+								onReply(reply);
+								setReply("");
 							}}
 						>
 							Continue

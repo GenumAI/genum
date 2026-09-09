@@ -64,7 +64,8 @@ export type ToolCall = {
  */
 export type ConversationMessage =
 	| { role: "assistant"; content: string; toolCalls?: ToolCall[] }
-	| { role: "tool"; toolCallId: string; name: string; content: string };
+	| { role: "tool"; toolCallId: string; name: string; content: string }
+	| { role: "user"; content: string };
 
 /**
  * One expected step the last run did not match. `index` points into the testcase's

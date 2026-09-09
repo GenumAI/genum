@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { promptApi } from "@/api/prompt/prompt.api";
 import type { TestcasePayload } from "@/hooks/useCreateTestcase";
@@ -6,17 +6,36 @@ import { useToast } from "@/hooks/useToast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePlaceholderSelection } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaceholderSelection";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
+import type { Step } from "@/types/steps";
+
+/** Stable identity: a fresh `[]` here would re-fire the picker dialog's reset effect forever. */
+const NO_STEPS: Step[] = [];
 
 interface UseTestcaseActionsProps {
 	promptId: number | undefined;
 	onTestcaseAdded?: () => void;
 	selectedFiles?: Array<{ id: string }>;
+	/**
+	 * The in-memory trajectory being authored in the playground, if any. Used, not a
+	 * round trip through ClickHouse, because it is what the author just watched -- see
+	 * `TestcaseStepPickerDialog`'s callers for the same reasoning.
+	 */
+	trajectorySteps?: Step[];
+}
+
+/** Captured at "Add testcase" click time, so a later run cannot move what the picker saves. */
+interface PendingCreate {
+	input: string;
+	expectedOutput: string;
+	lastOutput: string;
+	steps: Step[];
 }
 
 export const useTestcaseActions = ({
 	promptId,
 	onTestcaseAdded,
 	selectedFiles,
+	trajectorySteps,
 }: UseTestcaseActionsProps) => {
 	const { toast } = useToast();
 	// The same reading the run uses. Posting the raw store here is what reported a key
@@ -24,6 +43,8 @@ export const useTestcaseActions = ({
 	// selection was dead either way, and only one of the two surfaces said so.
 	const { selection: placeholderSelection } = usePlaceholderSelection(promptId);
 	const queryClient = useQueryClient();
+	const [pendingCreate, setPendingCreate] = useState<PendingCreate | null>(null);
+
 	const createTestcaseMutation = useMutation({
 		mutationKey: testcaseKeys.create(promptId),
 		mutationFn: async (payload: TestcasePayload) => {
@@ -46,8 +67,13 @@ export const useTestcaseActions = ({
 		},
 	});
 
-	const createTestcase = useCallback(
-		async (input: string, expectedOutput: string, lastOutput: string) => {
+	const performCreate = useCallback(
+		async (
+			input: string,
+			expectedOutput: string,
+			lastOutput: string,
+			expectedSteps?: Step[],
+		) => {
 			if (!promptId) {
 				toast({
 					title: "Failed to add test case",
@@ -67,6 +93,11 @@ export const useTestcaseActions = ({
 					selectedFiles && selectedFiles.length > 0
 						? selectedFiles.map((f) => f.id)
 						: undefined,
+				// Left unset for a plain text testcase: the backend rejects an empty array,
+				// and a testcase that pins no steps is a text testcase by definition.
+				...(expectedSteps && expectedSteps.length > 0
+					? { expectedSteps, stepsConfig: { orderMatters: false } }
+					: {}),
 			};
 
 			let success = false;
@@ -105,8 +136,46 @@ export const useTestcaseActions = ({
 		[promptId, placeholderSelection, selectedFiles, toast, createTestcaseMutation],
 	);
 
+	const createTestcase = useCallback(
+		async (input: string, expectedOutput: string, lastOutput: string) => {
+			// A trajectory is in hand: a run full of tool calls (or a reply mid-session)
+			// must not silently become a plain text testcase -- ask which steps to pin
+			// rather than dropping them. A session with no tool calls and one turn has an
+			// empty trajectory and keeps today's behaviour: no picker.
+			if (Array.isArray(trajectorySteps) && trajectorySteps.length > 0) {
+				setPendingCreate({ input, expectedOutput, lastOutput, steps: trajectorySteps });
+				return { success: false };
+			}
+
+			return performCreate(input, expectedOutput, lastOutput);
+		},
+		[trajectorySteps, performCreate],
+	);
+
+	const confirmSteps = useCallback(
+		async (steps: Step[]) => {
+			if (!pendingCreate) return;
+			const result = await performCreate(
+				pendingCreate.input,
+				pendingCreate.expectedOutput,
+				pendingCreate.lastOutput,
+				steps,
+			);
+			if (result.success) setPendingCreate(null);
+		},
+		[pendingCreate, performCreate],
+	);
+
 	return {
 		isTestcaseLoading: createTestcaseMutation.isPending,
 		createTestcase,
+		/** Props for `TestcaseStepPickerDialog`; the picker is open when a create is pending. */
+		stepPicker: {
+			open: pendingCreate !== null,
+			trajectory: pendingCreate?.steps ?? NO_STEPS,
+			saving: createTestcaseMutation.isPending,
+			onCancel: () => setPendingCreate(null),
+			onConfirm: confirmSteps,
+		},
 	};
 };
