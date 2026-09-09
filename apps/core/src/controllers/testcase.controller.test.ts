@@ -762,7 +762,7 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		expect(logSpans).not.toHaveBeenCalled();
 	});
 
-	it("writes the trace of a stopped replay too", async () => {
+	it("writes no batch when the replay stops on the first turn's first tool call", async () => {
 		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
 		modelTurn({ answer: "", toolCalls: [{ id: "c1", name: "send_email", args: {} }] });
 		const { res } = makeRes();
@@ -776,6 +776,54 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		// recorded, so the replay produced zero completed turns -- and, same as a failed
 		// run, the writer is not called at all rather than with an empty batch.
 		expect(logSpans).not.toHaveBeenCalled();
+	});
+
+	it("keeps turn 1's batch when turn 2 stops on its own first tool call", async () => {
+		// Before per-turn batching there was one write for the whole run, so this question
+		// could not arise. Now it can: a replay that finishes turn 1 and then aborts inside
+		// turn 2 must not lose turn 1's already-completed batch along with it.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({
+				expectedSteps: [
+					{ kind: "final", text: "It is 12°" },
+					{ kind: "user", text: "and tomorrow?" },
+					{
+						kind: "tool_call",
+						name: "send_email",
+						args: {},
+						recordedResult: "sent",
+					},
+					{ kind: "final", text: "done" },
+				],
+			}),
+		);
+		modelTurn({ answer: "It is 12°" });
+		// Turn 2's own first call: an unrecorded tool, so replayTrajectory stops right here.
+		modelTurn({ answer: "", toolCalls: [{ id: "c2", name: "send_sms", args: {} }] });
+		const { res } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		const batches = vi.mocked(logSpans).mock.calls.map(([batch]) => batch);
+
+		// Turn 1's real batch is there, and it is not empty.
+		const turn0 = batches.find((batch) => batch.turn_index === 0);
+		expect(turn0).toBeDefined();
+		expect(turn0?.steps).toEqual([{ kind: "final", text: "It is 12°" }]);
+
+		// Turn 2's aborted attempt is never written: no batch carries the unrecorded tool
+		// call, or the model turn that made it, at all. `replayTrajectory` does record
+		// turn 2's own opening user reply (pushed on the transition out of turn 1, before
+		// its first model call is even made) as a one-step "turn_index: 1" batch of its
+		// own -- that reply really happened, independent of what turn 2's model call went
+		// on to do, so it is legitimate telemetry rather than the aborted turn's content.
+		for (const batch of batches) {
+			const hasAbortedCall = batch.steps.some(
+				(step) => step.kind === "tool_call" && step.name === "send_sms",
+			);
+			expect(hasAbortedCall).toBe(false);
+		}
+		expect(batches.every((batch) => batch.steps.length > 0)).toBe(true);
 	});
 
 	it("fails and names the tool when an argument changed", async () => {
