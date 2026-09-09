@@ -1,4 +1,5 @@
 import { UserSchema as UserSchemaGenerated } from "@/prisma-types";
+import { emailSchema } from "@/utils/email";
 import { z } from "zod";
 
 const UserSchema = UserSchemaGenerated.extend({
@@ -31,7 +32,7 @@ export type FeedbackCreateType = z.infer<typeof FeedbackCreateSchema>;
 
 export const LocalUserRegisterSchema = z
 	.object({
-		email: z.email(),
+		email: emailSchema,
 		name: z.string(),
 		password: z.string().min(8),
 	})
@@ -40,7 +41,7 @@ export type LocalUserRegisterType = z.infer<typeof LocalUserRegisterSchema>;
 
 export const LocalUserLoginSchema = z
 	.object({
-		email: z.email(),
+		email: emailSchema,
 		password: z.string().min(8),
 	})
 	.strict();

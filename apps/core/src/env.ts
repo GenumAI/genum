@@ -1,3 +1,4 @@
+import { emailSchema } from "@/utils/email";
 import { z } from "zod";
 
 type RuntimeEnv = Record<string, string | undefined>;
@@ -35,7 +36,11 @@ const EnvSchema = z.object({
 	// Frontend
 	FRONTEND_URL: z.url(),
 	// Admin User
-	ADMIN_EMAIL: z.email().optional().default("admin@admin.com"),
+	// Shares the API's validator so the bootstrapped admin is stored in exactly the form a
+	// later login normalizes to. Set `ADMIN_EMAIL=Jörg@Firma.de` against a plain `z.email()`
+	// and the row is written as typed while the login lowercases -- the admin is locked out
+	// of the instance they just created.
+	ADMIN_EMAIL: emailSchema.optional().default("admin@admin.com"),
 	ADMIN_PASSWORD: z.string().min(8).optional().default("changeme"),
 	// AI Provider
 	OPENAI_KEY: z.string().optional(),
