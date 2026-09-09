@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { deriveTurnTraceId, toSpanRows } from "./spans";
 import { replayTrajectory } from "@/ai/steps/replay";
 import type { Step } from "@/ai/steps/types";
+import { uuidSchema } from "@/services/validate/types/generic.type";
 
 const steps: Step[] = [
 	{
@@ -270,9 +271,15 @@ describe("deriveTurnTraceId", () => {
 		expect(deriveTurnTraceId("session-1", 0)).not.toBe(deriveTurnTraceId("session-2", 0));
 	});
 
-	it("is shaped like a UUID", () => {
-		expect(deriveTurnTraceId("session-1", 0)).toMatch(
-			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-		);
+	it("is a VALID uuid, not merely uuid-shaped", () => {
+		// Shape alone is not enough. Nothing validates `trace_id` on the way in, so a
+		// value with hash nibbles where the version and variant belong passes unnoticed
+		// here and fails wherever something does validate -- `uuidSchema` is `z.uuid()`,
+		// which rejects roughly six of every seven raw-hash values. Checked over many
+		// inputs because a single sample passes by luck about one time in seven.
+		for (let turn = 0; turn < 50; turn++) {
+			expect(uuidSchema.safeParse(deriveTurnTraceId("session-1", turn)).success).toBe(true);
+			expect(uuidSchema.safeParse(deriveTurnTraceId(`s-${turn}`, 0)).success).toBe(true);
+		}
 	});
 });

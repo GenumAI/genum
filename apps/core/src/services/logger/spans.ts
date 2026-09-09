@@ -62,13 +62,14 @@ export type SpanRow = {
  */
 export function deriveTurnTraceId(sessionId: string, turnIndex: number): string {
 	const hex = createHash("sha256").update(`${sessionId}:${turnIndex}`).digest("hex");
-	return [
-		hex.slice(0, 8),
-		hex.slice(8, 12),
-		hex.slice(12, 16),
-		hex.slice(16, 20),
-		hex.slice(20, 32),
-	].join("-");
+	// Stamped into a well-formed v5 UUID rather than left as raw hash nibbles. A
+	// UUID-SHAPED value that is not a valid UUID passes unnoticed here -- nothing validates
+	// `trace_id` today -- and then fails somewhere that does: `uuidSchema` is `z.uuid()`,
+	// which rejects roughly six of every seven raw-hash values. The ingest and dedup work
+	// this function exists to keep reachable is exactly the work that would hit it.
+	const version = `5${hex.slice(13, 16)}`;
+	const variant = `${((Number.parseInt(hex[16], 16) & 0x3) | 0x8).toString(16)}${hex.slice(17, 20)}`;
+	return [hex.slice(0, 8), hex.slice(8, 12), version, variant, hex.slice(20, 32)].join("-");
 }
 
 export type SpanBatch = {
