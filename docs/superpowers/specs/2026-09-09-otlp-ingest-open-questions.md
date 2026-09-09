@@ -22,29 +22,66 @@ versions of the prompt.
 Replay never executes a tool, so what the recording must supply is each tool call's name,
 arguments and result. What the prompt must supply is the tool schemas the model is offered.
 
+## Decided
+
+These were the blocking questions. They were researched against how Langfuse and LangSmith
+solve the same problems, and answered on 2026-09-09.
+
+**Authentication, org and project: one endpoint, a project API key.** A single
+`POST /api/public/otel/v1/traces`, authenticated by `ProjectApiKey` — whose `publicKey` /
+`key` pair is already the Basic Auth shape Langfuse uses — with the project, and through it
+the organisation, derived from the key. Never from a header or a path segment the caller
+supplies: those are strings, and the key is the thing that was authenticated.
+
+**The prompt comes from a span attribute, with a default on the key.** `genum.prompt.id`
+on the chat span, mirroring how Langfuse links a prompt (`langfuse.observation.prompt.*`,
+set on the generation span rather than the trace root). An API key may also name a default
+prompt, which covers the single-prompt customer with two lines of exporter config and no
+attributes at all.
+
+A prompt id in the URL path was considered and rejected: `OTEL_EXPORTER_OTLP_ENDPOINT` is
+configured once per application, so a per-prompt URL forces one exporter per prompt and
+cannot be produced by an off-the-shelf collector or by any framework integration that
+targets a single endpoint.
+
+**Duplicate delivery: deterministic span ids, deduplicated on `(trace_id, span_id)`.**
+OTLP is at-least-once — an exporter retries a timeout whose first attempt may have
+succeeded — so backend deduplication is mandatory, not optional. Genum's own writers stop
+using `randomUUID()` and derive a span id from trace, turn and step index, so a retried
+write lands on the row it already wrote. The table becomes `ReplacingMergeTree` keyed to
+make that identity real.
+
+This also closes the continuation-retry defect parked in the multi-turn work, where a
+retried continuation could double-write spans: it was deferred for wanting "a server-side
+dedupe key", which ingest requires regardless. One mechanism, both problems.
+
+**A trace whose tools do not match the prompt is stored, not refused.** A trace is
+diagnostic data, and refusing it removes observability exactly when something has drifted.
+It stays pinnable, and the mismatch surfaces at run time through the existing
+`missing_recording` stop, which is what that stop is for.
+
+**Ingested usage is displayed, never summed into Genum's aggregates.** Ingested spans carry
+tokens and costs computed by someone else's instrumentation. Genum's cost and token SUMs
+are computed from its own provider calls and underlie billing; mixing in numbers we did not
+produce makes billing unverifiable. Ingested usage gets its own accounting.
+
+**Operations Genum does not model are stored as an inert step kind.** `embeddings`,
+`retrieval`, `invoke_agent` and anything else the conventions carry are displayed and
+excluded from replay — never silently dropped, because a displayed trajectory that
+disagrees with what actually ran is the defect class this work keeps catching.
+
+**Prompt version is not linked.** Langfuse links a prompt version alongside its name;
+Genum has no equivalent need today, because a prompt has one live version — the latest
+commit — and an ingested trace always replays against it. That is the behaviour a
+regression test wants: a trace recorded before a prompt change, replayed against the
+change. Revisit if pinning a testcase to a historical version ever becomes a feature.
+
 ## Blocking questions
 
-**How does a sender authenticate, and what identifies the org, project and prompt?**
-Genum's routes carry the org and project in `lab-org-id` / `lab-proj-id` headers behind
-JWT or cookie auth; a collector sends OTLP, usually with a bearer token and no notion of
-either. The three ids are required columns on every span row. Whether this is an API key
-per project, a resource attribute the sender sets, or both, is undecided.
-
-**Which prompt does an ingested trace belong to?** `prompt_id` is a required column and
-the replay needs the prompt's tool schemas. Nothing in the conventions names a prompt. The
-candidates are a resource or span attribute the customer sets, a lookup by the system
-prompt's content hash, or refusing traces that do not declare one.
-
-**What happens to a trace whose tools do not match the prompt's?** A recording naming a
-tool the prompt does not offer cannot be replayed — the model will never call it. Whether
-that trace is refused at ingest, stored but unpinnable, or stored and allowed to fail at
-run time, is undecided. It is the ingest equivalent of the `missing_recording` stop.
-
-**Is ingested data trusted for billing and analytics?** Ingested spans carry real
-`gen_ai.usage.*` tokens and real costs, computed by someone else's instrumentation. Genum's
-cost and token SUMs are today computed from its own provider calls on `logs` rows. Whether
-ingested usage enters those aggregates, sits in a separate accounting, or is displayed
-without being summed, is a product and a billing decision, not a technical one.
+**Do ingested traces count against a quota, and in what unit?** `ProjectApiKey` is already
+tied to quota management (`services/access/AccessService.ts`). Ingest is a stream the
+customer controls entirely, writing into our ClickHouse. Whether it is metered, and whether
+in spans, traces or bytes, is a product and pricing decision.
 
 ## Structural questions
 
@@ -54,20 +91,17 @@ step means diffing a turn's input messages against the previous turn's to find w
 new. Cheap when the sender includes full history on every turn; ambiguous when it does
 not, or when the history was summarised or truncated between turns.
 
-**Operations we do not model.** `embeddings`, `retrieval`, `invoke_agent` and anything
-else the conventions carry have no step kind in Genum, whose model is deliberately one
-loop: chat, tools, replies. Whether such spans are dropped, stored as an inert kind that
-displays but never replays, or refuse the whole trace, is undecided. Dropping them
-silently would make a displayed trajectory disagree with what actually ran.
-
 **Nested spans.** The session model assumes one loop and a flat step list. A conforming
 sender may still emit a tree — a sub-agent, a chain, a retriever. Storing depth is a
 schema question (`parent_span_id` exists and is always null today); displaying and
 replaying it is a much larger one.
 
-**Span id format.** Ours are `randomUUID()`; OTEL ids are 16 hex characters for a span and
-32 for a trace. The column is a `String` and accepts both, but any code that assumes one
-format — or any join between an ingested id and a generated one — needs to know.
+**Span id format.** OTEL ids are 16 hex characters for a span and 32 for a trace; ours are
+`randomUUID()` today and become derived from trace, turn and step index under the
+deduplication decision. Whether that derivation should also adopt the OTEL widths — so that
+every id in the table has one shape, ingested or not — is open. The column is a `String`
+and accepts both, but any code that assumes a format, or joins an ingested id to a
+generated one, depends on the answer.
 
 **Ordering an ingested session.** `turn_index` is derived by us, so ingest must decide the
 order of a session's traces at the moment it writes them. Traces of one conversation can
@@ -75,11 +109,11 @@ arrive out of order, late, or interleaved with a live turn. Whether the ordinal 
 on arrival, recomputed per session on each write, or derived from timestamps with a
 documented tie-break, is undecided.
 
-**Partial and repeated delivery.** OTLP senders retry, and a collector may deliver the
-same span twice or a session's traces across several batches minutes apart. `trace_spans`
-is append-only and has no unique key, so a duplicate delivery is a duplicated step unless
-ingest deduplicates on `(trace_id, span_id)`. This is the same class of problem as the
-continuation retry already parked in the multi-turn work.
+**Late and partial delivery.** Deduplication is decided above, but arrival timing is not:
+a session's traces can be delivered across several batches minutes apart, so a session read
+today may be missing turns that arrive later. Whether a session is ever "complete", and
+whether a testcase pinned from a half-delivered session is a problem or simply what the
+author saw, is unresolved.
 
 ## Non-questions
 

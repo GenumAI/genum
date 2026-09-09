@@ -187,6 +187,15 @@ still serves the read below, because a session's traces are selected by `session
 then ordered in the query. Changing a MergeTree sort key means rewriting the table, and
 this design does not need it.
 
+**Anticipated here, decided elsewhere.** The ingest work resolved that span identity must
+become meaningful — deterministic span ids, deduplicated on `(trace_id, span_id)` — because
+OTLP delivers at least once. That same mechanism closes the continuation-retry defect this
+codebase already carries, which is a defect under the present model and not only under
+ingest. It is deliberately **not** part of this design: it changes how ids are generated
+and possibly the table engine, and folding it in would make a self-contained storage change
+into a table rewrite. Whoever plans it should know it is queued and touches these same
+rows.
+
 ## Reading a session
 
 `GET_SPANS` today selects the spans of one trace, ordered by `span_index`. It becomes a
