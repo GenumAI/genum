@@ -149,9 +149,18 @@ export function usePlaygroundTestcaseController({
 		return testcases.find((tc) => tc.id === Number(testcaseId)) || null;
 	}, [testcases, testcaseId]);
 
-	// `testcase` comes from the query cache, which only learns about a TrajectoryPanel edit
-	// once that edit's PUT resolves. Between the click and the response our copy of
+	// `testcase` comes from the query cache, which only learns about a trajectory edit once
+	// that edit's PUT resolves. Between the click and the response our copy of
 	// `expectedSteps` is known to be behind, so the expected-output save must not write it.
+	//
+	// Since the conversation thread replaced the two surfaces that each wrote the whole
+	// array, `expectedSaveFor` routes a trajectory testcase's expected answer to
+	// `setStepText` and a text testcase's to this handler, so the two writers are now
+	// mutually exclusive and the collision this guards against cannot occur. The guard
+	// stays: its cost is one boolean, and it is the only thing standing between a future
+	// caller that routes a trajectory save back through here and a silently reverted
+	// untick. A guard removed because "nothing calls it that way today" is a guard the
+	// next feature has to rediscover the hard way.
 	const trajectoryWriteInFlight =
 		useIsMutating({ mutationKey: testcaseKeys.updateTrajectory(testcaseId ?? undefined) }) > 0;
 

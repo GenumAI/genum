@@ -16,7 +16,6 @@ interface OutputHeaderProps {
 	onAssertionValueBlur: (value: string) => void;
 	setAssertionValue: (value: string) => void;
 	toast: any;
-	onExpand: () => void;
 }
 
 export const OutputHeader: React.FC<OutputHeaderProps> = ({
@@ -30,7 +29,6 @@ export const OutputHeader: React.FC<OutputHeaderProps> = ({
 	onAssertionValueBlur,
 	setAssertionValue,
 	toast,
-	onExpand,
 }) => {
 	return (
 		<div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 pb-2 pt-4">
@@ -50,24 +48,6 @@ export const OutputHeader: React.FC<OutputHeaderProps> = ({
 					setAssertionValue={setAssertionValue}
 					toast={toast}
 				/>
-
-				<TooltipProvider>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-6 w-6 shrink-0 text-foreground [&_svg]:size-3"
-								onClick={onExpand}
-							>
-								<CornersOut style={{ width: "20px", height: "20px" }} />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>
-							<p>Expand</p>
-						</TooltipContent>
-					</Tooltip>
-				</TooltipProvider>
 			</div>
 		</div>
 	);

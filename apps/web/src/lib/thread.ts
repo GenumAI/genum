@@ -122,16 +122,34 @@ export function liveThread(params: {
 	 * simply carries no metrics.
 	 */
 	metricsByTurn: (ThreadMetrics | undefined)[];
+	/**
+	 * The author's expected answer, keyed by the answer's FLAT index -- the same way
+	 * mismatches, saves and enable/disable address a step, so no caller has to translate
+	 * between two schemes. A live run has nothing stored, so these are in-memory drafts,
+	 * and an absent one means "not written yet", which renders as an empty expectation --
+	 * not as the produced answer. Prefilling it with what the model said would make every
+	 * run look already approved and leave "Save as expected" nothing to do.
+	 */
+	expectedByIndex?: Record<number, string>;
 }): ThreadMessage[] {
-	const { steps, metricsByTurn } = params;
+	const { steps, metricsByTurn, expectedByIndex } = params;
 	const messages: ThreadMessage[] = [];
 	turnsOf(steps).forEach((turn, turnPosition) => {
 		turn.steps.forEach((step, position) => {
-			const metrics = step.kind === "final" ? metricsByTurn[turnPosition] : undefined;
+			const index = turn.start + position;
+			if (step.kind !== "final") {
+				messages.push({ step, index });
+				return;
+			}
+			// The same pair the saved testcase shows: what the run produced, beside what
+			// is expected of it. One shape for both sources is the point -- a live answer
+			// that renders differently from a saved one is how the two surfaces became
+			// three in the first place.
 			messages.push({
-				step,
-				index: turn.start + position,
-				...(metrics ? { metrics } : {}),
+				step: { ...step, text: expectedByIndex?.[index] ?? "" },
+				index,
+				produced: step.text,
+				...(metricsByTurn[turnPosition] ? { metrics: metricsByTurn[turnPosition] } : {}),
 			});
 		});
 	});

@@ -139,6 +139,56 @@ describe("liveThread", () => {
 		const messages = liveThread({ steps: TWO_TURNS, metricsByTurn: [] });
 		expect(messages.every((message) => message.outcome === undefined)).toBe(true);
 	});
+
+	it("shows the model's answer as produced and leaves the expectation empty", () => {
+		// The pair, live. Prefilling the expectation with the produced answer would make
+		// every fresh run look already approved and leave "Save as expected" with nothing
+		// to do -- and the author would have no way to see that they had never actually
+		// approved it.
+		const messages = liveThread({
+			steps: [{ kind: "final", text: "the model said this" }],
+			metricsByTurn: [],
+		});
+		expect(messages[0].produced).toBe("the model said this");
+		expect(messages[0].step).toMatchObject({ kind: "final", text: "" });
+	});
+
+	it("uses the author's draft as the expectation for the answer it belongs to", () => {
+		// Keyed by flat index: turn two's answer is at index 2, and addressing it by turn
+		// position instead would put the draft on the wrong answer the moment a turn
+		// contains a tool call.
+		const messages = liveThread({
+			steps: TWO_TURNS,
+			metricsByTurn: [],
+			expectedByIndex: { 2: "what turn two should say" },
+		});
+		const finals = messages.filter((message) => message.step.kind === "final");
+		expect(finals.map((message) => (message.step as { text: string }).text)).toEqual([
+			"",
+			"what turn two should say",
+		]);
+		// The produced side is untouched by the draft.
+		expect(finals.map((message) => message.produced)).toEqual([
+			"expected one",
+			"expected two",
+		]);
+	});
+
+	it("leaves a tool call and a reply exactly as they came in", () => {
+		const messages = liveThread({
+			steps: [
+				{ kind: "tool_call", name: "weather", args: { city: "Berlin" } },
+				{ kind: "final", text: "12 degrees" },
+			],
+			metricsByTurn: [],
+		});
+		expect(messages[0].step).toEqual({
+			kind: "tool_call",
+			name: "weather",
+			args: { city: "Berlin" },
+		});
+		expect(messages[0].produced).toBeUndefined();
+	});
 });
 
 describe("canAddMessage", () => {

@@ -4,8 +4,6 @@ import { Loader2 } from "lucide-react";
 import TextEditor from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/TextEditor";
 import PlaceholderChips from "@/pages/prompt/playground-tabs/playground/components/prompt-editor/components/PlaceholderChips";
 import OutputBlock from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
-import { TrajectorySteps } from "@/pages/prompt/playground-tabs/components/TrajectorySteps";
-import { TrajectoryPanel } from "@/pages/prompt/playground-tabs/components/TrajectoryPanel";
 import { Button } from "@/components/ui/button";
 import SettingsBar from "./components/settings-block/models-settings/SettingsBar";
 import { TestcaseAssertionModal } from "@/components/dialogs/TestcaseAssertionDialog";
@@ -135,26 +133,17 @@ export default function Playground() {
 						</div>
 
 						{/*
-						 * The trajectory sits ABOVE the output block, never in place of it:
-						 * replacing it hid "add test case" and "save as expected" for good
-						 * once a trajectory had completed, since nothing but a new run
-						 * clears one -- and those are the very affordances this feature is
-						 * being built to feed.
+						 * The trajectory used to be two components above this one: a card
+						 * list for the live run and a step panel for the saved testcase,
+						 * with the output block's diff drawing the same answer a third
+						 * time. They had to sit ABOVE the output block rather than replace
+						 * it, because nothing but a new run cleared them and replacing it
+						 * hid "add test case" and "save as expected" for good.
+						 *
+						 * They are one component now, and it is inside the output block --
+						 * so that constraint holds by construction: the affordances cannot
+						 * be hidden by the thread, because they are part of it.
 						 */}
-						{trajectory.steps.length > 0 && (
-							<TrajectorySteps
-								steps={trajectory.steps}
-								pendingTool={trajectory.pendingTool}
-								onToolResult={trajectory.onToolResult}
-								onReply={trajectory.onReply}
-								error={trajectory.error}
-								onRetry={trajectory.onRetry}
-								isRunning={ui.loading.run}
-							/>
-						)}
-
-						<TrajectoryPanel testcaseId={testcaseId} testcase={testcase.data} />
-
 						<OutputBlock
 							onSaveAsExpected={actions.testcase.saveAsExpected}
 							onTestcaseAdded={actions.testcase.onAdded}
@@ -164,7 +153,8 @@ export default function Playground() {
 							isRunning={ui.loading.run}
 							serverAssertionType={prompt.data?.prompt?.assertionType}
 							serverAssertionValue={prompt.data?.prompt?.assertionValue}
-							trajectorySteps={trajectory.steps}
+							trajectory={trajectory}
+							testcase={testcase.data}
 						/>
 					</div>
 
