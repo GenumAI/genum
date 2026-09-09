@@ -57,14 +57,11 @@ export interface StepRowProps {
 	 */
 	onTextChange?: (text: string) => boolean | undefined | Promise<boolean | undefined>;
 	/**
-	 * What the last run actually produced for this answer, when that is a different thing
-	 * from what the row expects. Present only on a `final` of a testcase that has been
-	 * run: the produced text becomes the row's body and the expectation moves into a
-	 * collapsible below it. Absent -- a live run, or a testcase never run -- and the row
-	 * behaves exactly as before, editing its own text in place.
-	 *
-	 * The two are never both shown as plain text. Showing one string twice under two
-	 * headings is the thing this surface was rebuilt to stop doing.
+	 * What the last run actually produced for this answer, as distinct from what the row
+	 * expects of it. Given, and with an expectation to set beside it, the row becomes two
+	 * columns: produced on the left, expected on the right. Given with no expectation yet,
+	 * it is the row's body and the expectation is an invitation below. Absent -- a
+	 * testcase never run -- the row edits its own text in place, as it always did.
 	 */
 	produced?: string;
 	/**
@@ -173,24 +170,25 @@ function EditableFinalText({
 }
 
 /**
- * The expected answer, shown under the produced one. Collapsed by default because on a
- * matching turn the two are the same string, and a thread that prints every answer twice
- * is what this surface replaced.
+ * The invitation to write an expectation, for an answer that has none. Collapsed: an
+ * empty textarea open under every unapproved answer is a column of nothing, and most
+ * answers in a long thread never get one.
+ *
+ * Once an expectation exists the row switches to the two-column layout instead -- this
+ * is only ever the empty case.
  */
 function ExpectedAnswer({
 	expected,
 	readOnly,
 	disabled,
-	defaultOpen,
 	onTextChange,
 }: {
 	expected: string;
 	readOnly: boolean;
 	disabled: boolean;
-	defaultOpen: boolean;
 	onTextChange?: (text: string) => boolean | undefined | Promise<boolean | undefined>;
 }) {
-	const [open, setOpen] = useState(defaultOpen);
+	const [open, setOpen] = useState(false);
 
 	return (
 		<Collapsible open={open} onOpenChange={setOpen} className="mt-2">
@@ -337,18 +335,49 @@ export function StepRow({
 								disabled={disabled}
 								onTextChange={onTextChange}
 							/>
+						) : step.text ? (
+							// Both sides exist, so show them side by side: what the run
+							// produced on the left, what is expected of it on the right.
+							// Stacked below one another they read as two paragraphs of the
+							// same answer, which is exactly the confusion the old
+							// Last/Expected pair caused -- side by side, the comparison is
+							// the layout.
+							<div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
+								<div className="min-w-0">
+									<div className="text-xs font-medium text-muted-foreground">
+										Produced
+									</div>
+									<div className="mt-1 whitespace-pre-wrap text-sm">
+										{produced}
+									</div>
+								</div>
+								<div
+									className={cn(
+										"min-w-0 sm:border-l sm:pl-3",
+										outcome === "mismatched" && "sm:border-l-destructive",
+									)}
+								>
+									<div className="text-xs font-medium text-muted-foreground">
+										Expected
+									</div>
+									<EditableFinalText
+										text={step.text}
+										readOnly={readOnly}
+										disabled={disabled}
+										onTextChange={onTextChange}
+									/>
+								</div>
+							</div>
 						) : (
+							// Nothing is expected of this answer yet. A second, empty column
+							// would be a column of nothing; the invitation to fill it is
+							// enough, and it stays out of the way until taken up.
 							<>
 								<div className="mt-1 whitespace-pre-wrap text-sm">{produced}</div>
 								<ExpectedAnswer
 									expected={step.text}
 									readOnly={readOnly}
 									disabled={disabled}
-									// Open on a mismatch: that is the one state where the
-									// author came here to read the expectation, and making
-									// them click to see why a row is red is a step for
-									// nothing.
-									defaultOpen={outcome === "mismatched"}
 									onTextChange={onTextChange}
 								/>
 							</>

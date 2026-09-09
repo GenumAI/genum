@@ -346,6 +346,10 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 			)}
 
 			<OutputActions
+				// A run has produced something. `messages` is not the test: a testcase
+				// selected but never run has messages (its expectation) and nothing to
+				// build a new testcase from.
+				hasOutput={!!content?.answer}
 				testcaseId={testcaseId}
 				isTestcaseLoading={isTestcaseLoading}
 				modifiedValue={effectiveExpected}
