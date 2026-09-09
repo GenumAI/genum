@@ -42,7 +42,7 @@ import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
 import type { ModelConfigParameters } from "@/ai/models/types";
 import { type LogDocument, LogType, logSpans, logUsage, SourceType } from "@/services/logger";
-import { completedTurnSteps, conversationNumberingProblem } from "@/ai/steps/turn";
+import { finishedTurnSteps, conversationNumberingProblem } from "@/ai/steps/turn";
 import { HttpError } from "@/utils/errors";
 import { renamePlaceholderKey } from "@genum/placeholders";
 import { fileService } from "@/services/file.service";
@@ -171,21 +171,21 @@ export class PromptsController {
 			});
 		}
 
-		// Append-only: this turn writes the steps it completed, at the offset the
-		// conversation it carried implies. See `completedTurnSteps`. The opening turn
-		// completes nothing -- its calls have no results until the author supplies them.
-		const { steps } = traceId ? completedTurnSteps(messages, run) : { steps: [] };
-		if (traceId && turnUsage && steps.length > 0) {
+		// One batch per turn, written on the request the turn ends on. `traceId` addresses
+		// the SESSION -- it always has -- and the turn gets its own trace id here, so that
+		// a trace is one turn, the way the GenAI conventions have it.
+		const turn = traceId ? finishedTurnSteps(messages, run) : null;
+		if (traceId && turnUsage && turn && turn.steps.length > 0) {
 			await logSpans({
-				trace_id: traceId,
+				trace_id: randomUUID(),
+				session_id: traceId,
+				turn_index: turn.turnIndex,
 				orgId: turnUsage.orgId,
 				project_id: turnUsage.project_id,
 				prompt_id: turnUsage.prompt_id,
 				vendor: turnUsage.vendor,
 				model: turnUsage.model,
-				steps,
-				session_id: traceId,
-				turn_index: 0,
+				steps: turn.steps,
 			});
 		}
 

@@ -174,9 +174,10 @@ describe("PromptsController.runPrompt", () => {
 
 		expect(logSpans).toHaveBeenCalledTimes(1);
 		const batch = vi.mocked(logSpans).mock.calls[0][0];
-		expect(batch.trace_id).toBe(TRACE);
-		// Placeholder values (Task 1): session_id mirrors the wire traceId correctly, but
-		// turn_index is a stand-in until Task 3 gives this call site its real ordinal.
+		// `traceId` addresses the SESSION; the turn gets its own fresh trace id, so that a
+		// trace is one turn, the way the GenAI conventions have it.
+		expect(batch.trace_id).not.toBe(TRACE);
+		expect(batch.trace_id).toMatch(/^[0-9a-f-]{36}$/);
 		expect(batch.session_id).toBe(TRACE);
 		expect(batch.turn_index).toBe(0);
 		expect(batch.steps).toEqual([
@@ -190,10 +191,7 @@ describe("PromptsController.runPrompt", () => {
 		]);
 	});
 
-	// Real per-turn offsetting is Task 3's job; today this call site only stamps the
-	// placeholder turn_index (see the test above), so this checks the steps a third turn
-	// resolves, not a span_index offset that does not exist yet.
-	it("resolves a third turn's own steps, distinct from the earlier turns' calls", async () => {
+	it("emits a turn's every tool call, not only the last request's, when the turn ends", async () => {
 		mockRun({ answer: "Done." });
 		const { res } = makeRes();
 
@@ -221,7 +219,55 @@ describe("PromptsController.runPrompt", () => {
 
 		const batch = vi.mocked(logSpans).mock.calls[0][0];
 		expect(batch.turn_index).toBe(0);
-		expect(batch.steps.map((step) => step.kind)).toEqual(["tool_call", "final"]);
+		expect(batch.steps.map((step) => step.kind)).toEqual(["tool_call", "tool_call", "final"]);
+	});
+
+	it("writes nothing mid-turn and one whole batch on the request the turn ends on", async () => {
+		// The model asks for a SECOND tool inside the same turn: nothing is known yet, so
+		// nothing is written.
+		mockRun({ answer: "", toolCalls: [{ id: "call_2", name: "get_time", args: {} }] });
+		const { res: midRes } = makeRes();
+		await controller.runPrompt(
+			makeReq({
+				question: "weather?",
+				traceId: TRACE,
+				messages: [
+					{
+						role: "assistant",
+						content: "",
+						toolCalls: [{ id: "call_1", name: "get_weather", args: {} }],
+					},
+					{ role: "tool", toolCallId: "call_1", name: "get_weather", content: "12C" },
+				],
+			}),
+			midRes,
+		);
+		expect(logSpans).not.toHaveBeenCalled();
+
+		// The turn ends here: one batch, carrying the SESSION id and the turn's own trace.
+		mockRun({ answer: "12 in Zagreb" });
+		const { res: endRes } = makeRes();
+		await controller.runPrompt(
+			makeReq({
+				question: "weather?",
+				traceId: TRACE,
+				messages: [
+					{
+						role: "assistant",
+						content: "",
+						toolCalls: [{ id: "call_1", name: "get_weather", args: {} }],
+					},
+					{ role: "tool", toolCallId: "call_1", name: "get_weather", content: "12C" },
+				],
+			}),
+			endRes,
+		);
+
+		expect(logSpans).toHaveBeenCalledTimes(1);
+		const batch = vi.mocked(logSpans).mock.calls[0][0];
+		expect(batch.session_id).toBe(TRACE);
+		expect(batch.trace_id).not.toBe(TRACE);
+		expect(batch.trace_id).toMatch(/^[0-9a-f-]{36}$/);
 	});
 
 	it("forwards the conversation to the runner unchanged", async () => {
