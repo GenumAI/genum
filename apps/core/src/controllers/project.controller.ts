@@ -6,7 +6,7 @@ import {
 	getProjectUsageWithDailyStats,
 	getLogDetail,
 	getProjectLogs,
-	getTraceSpans,
+	getSessionSpans,
 	type LogListEntry,
 	type PromptUsageStats,
 } from "../services/logger/logger";
@@ -251,7 +251,7 @@ export class ProjectController {
 		const metadata = req.genumMeta.ids;
 		const traceId = uuidSchema.parse(req.params.traceId);
 
-		const spans = await getTraceSpans(traceId, metadata.orgID, metadata.projID);
+		const spans = await getSessionSpans(traceId, metadata.orgID, metadata.projID);
 
 		res.status(200).json({ spans });
 	}

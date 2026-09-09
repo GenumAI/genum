@@ -802,23 +802,21 @@ export async function getProjectUsageWithDailyStats(
 const MAX_TRACE_SPANS = 1000;
 
 /**
- * Reads the spans of one trace, ordered by `span_index`. Scoped by org and project the
- * same way every other logger query is -- a trace_id from another org's run never matches.
+ * Reads the spans of one session across all its turns, ordered by `turn_index` and then
+ * `span_index`. Scoped by org and project the same way every other logger query is -- a
+ * session_id from another org's run never matches.
  */
-export async function getTraceSpans(
-	traceId: string,
+export async function getSessionSpans(
+	sessionId: string,
 	orgId: number,
 	projectId: number,
 ): Promise<SpanRow[]> {
 	try {
-		const { where, params } = WhereBuilder.forOrg(orgId)
-			.projectId(projectId)
-			.traceId(traceId)
-			.build();
+		const { where, params } = WhereBuilder.forOrg(orgId).projectId(projectId).build();
 
 		const result = await clickhouseClient.query({
 			query: QUERIES.GET_SPANS(CLICKHOUSE_TABLES.TRACE_SPANS, where),
-			query_params: { ...params, limit: MAX_TRACE_SPANS },
+			query_params: { ...params, session: sessionId, limit: MAX_TRACE_SPANS },
 			format: "JSONEachRow",
 		});
 

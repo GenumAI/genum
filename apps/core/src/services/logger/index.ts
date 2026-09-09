@@ -12,7 +12,7 @@ export {
 	getProjectLogs,
 	getOrganizationDailyUsageStats,
 	getProjectUsageWithDailyStats,
-	getTraceSpans,
+	getSessionSpans,
 	countRunsByDate,
 	clickhouseClient,
 	clickhouseUrl,

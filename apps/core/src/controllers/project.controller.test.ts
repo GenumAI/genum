@@ -22,11 +22,11 @@ vi.mock("@/database/db", () => ({
 }));
 
 vi.mock("../services/logger/logger", () => ({
-	getTraceSpans: vi.fn(),
+	getSessionSpans: vi.fn(),
 }));
 
 import { db } from "@/database/db";
-import { getTraceSpans } from "../services/logger/logger";
+import { getSessionSpans } from "../services/logger/logger";
 import { ProjectController } from "./project.controller";
 
 const CALLER_ORG = 1;
@@ -138,7 +138,7 @@ describe("ProjectController.getTraceSpans", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		controller = new ProjectController();
-		vi.mocked(getTraceSpans).mockResolvedValue([]);
+		vi.mocked(getSessionSpans).mockResolvedValue([]);
 	});
 
 	it("scopes the read to the caller's org and project, not the request body or query", async () => {
@@ -153,7 +153,7 @@ describe("ProjectController.getTraceSpans", () => {
 
 		await controller.getTraceSpans(req, res);
 
-		expect(getTraceSpans).toHaveBeenCalledWith(TRACE_ID, CALLER_ORG, CALLER_PROJECT);
+		expect(getSessionSpans).toHaveBeenCalledWith(TRACE_ID, CALLER_ORG, CALLER_PROJECT);
 	});
 
 	// The write path validates a trace id as a uuid (`z.uuid()` in prompt.type.ts); the
@@ -164,6 +164,6 @@ describe("ProjectController.getTraceSpans", () => {
 		const req = makeReq({ params: { traceId: "t1" } });
 
 		await expect(controller.getTraceSpans(req, res)).rejects.toThrow();
-		expect(getTraceSpans).not.toHaveBeenCalled();
+		expect(getSessionSpans).not.toHaveBeenCalled();
 	});
 });

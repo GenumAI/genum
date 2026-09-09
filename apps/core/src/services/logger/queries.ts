@@ -237,15 +237,25 @@ export const QUERIES = {
 	`,
 
 	/**
-	 * Get the spans of one trace, in step order. Bounded like GET_LOGS: a trace's span
-	 * count is unbounded across turns -- each request caps its own steps, the trace does
-	 * not -- so an unlimited SELECT returns a whole conversation's rows in one response.
+	 * Get the spans of one SESSION, in turn order and then step order. A session is one or
+	 * more traces -- one per turn -- grouped by `session_id`.
+	 *
+	 * The disjunction is what makes a row written before the session model readable: those
+	 * rows have no `session_id` and their `trace_id` IS the session, which was true of them
+	 * when they were written. ClickHouse is append-only here, so they are never rewritten
+	 * and this branch is permanent.
+	 *
+	 * Bounded like GET_LOGS: a session's span count is unbounded across turns -- each
+	 * request caps its own steps, the session does not -- so an unlimited SELECT returns a
+	 * whole conversation's rows in one response.
 	 */
 	GET_SPANS: (table: string, where: string) => `
 		SELECT *
 		FROM ${table}
 		WHERE ${where}
-		ORDER BY span_index ASC
+		  AND (session_id = {session: String}
+		       OR (session_id = '' AND trace_id = {session: String}))
+		ORDER BY turn_index ASC, span_index ASC
 		LIMIT {limit: UInt64}
 	`,
 

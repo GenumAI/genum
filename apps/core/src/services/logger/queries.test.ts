@@ -3,6 +3,12 @@ import { QUERIES, QUOTE_64BIT_INTEGERS } from "./queries";
 import { WhereBuilder } from "./where.builder";
 import type { ClickHouseLogListRow } from "./types";
 
+// `trace_spans` mirrors `CLICKHOUSE_TABLES.TRACE_SPANS` from `./logger`, not imported
+// verbatim: importing `logger.ts` here would drag in `env.ts`'s Zod validation, which this
+// suite deliberately runs without an environment (see the other `describe` blocks, which
+// pass table names as string literals for the same reason).
+const TRACE_SPANS_TABLE = "trace_spans";
+
 /**
  * A complete list row. Typed, so adding a field to `ClickHouseLogListRow` fails to compile
  * until it is added here -- which is what makes the column test below a closed world
@@ -263,5 +269,20 @@ describe("cost and token sums are NOT filtered by log_type", () => {
 		expect(sql).toMatch(/sum\(tokens_sum\)\s+as tokens/);
 		expect(sql).toMatch(/sum\(cost\)\s+as cost/);
 		expect(sql).not.toMatch(/sumIf/);
+	});
+});
+
+describe("GET_SPANS", () => {
+	it("reads a session across its turns, and a pre-change trace as a session of one", () => {
+		const sql = QUERIES.GET_SPANS(TRACE_SPANS_TABLE, "orgId = 1");
+
+		// Both shapes, in one query. Rows written before the session model carry no
+		// `session_id` and ARE their session; they are never rewritten, so this disjunction is
+		// permanent rather than a migration window.
+		expect(sql).toContain("session_id = {session: String}");
+		expect(sql).toContain("session_id = '' AND trace_id = {session: String}");
+		// Turn order first, then step order within the turn. Ordering by `span_index` alone
+		// would interleave the turns, since each one now numbers from zero.
+		expect(sql).toContain("ORDER BY turn_index ASC, span_index ASC");
 	});
 });
