@@ -63,7 +63,16 @@ export function toSpanRows(batch: SpanBatch): SpanRow[] {
 		orgId: batch.orgId,
 		project_id: batch.project_id,
 		prompt_id: batch.prompt_id,
-		name: step.kind === "tool_call" ? step.name : batch.model,
+		// A tool span is named for its tool and an `llm` span for the model that produced
+		// it. A user reply was produced by neither: stamping the model's name on it says,
+		// durably and in an append-only table nobody can correct later, that the model
+		// wrote words the author typed.
+		name:
+			step.kind === "tool_call"
+				? step.name
+				: step.kind === "user"
+					? "user reply"
+					: batch.model,
 		input: "",
 		output: step.kind === "final" ? step.text : step.kind === "user" ? step.text : "",
 		tool_args: step.kind === "tool_call" ? JSON.stringify(step.args ?? {}) : "",

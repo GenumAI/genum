@@ -171,6 +171,9 @@ describe("toSpanRows", () => {
 		});
 		expect(rows[0].span_type).toBe("user");
 		expect(rows[0].output).toBe("and in London?");
+		// Not the model's name: the model did not write this, and the row is permanent.
+		expect(rows[0].name).not.toBe(baseBatch.model);
+		expect(rows[0].name).toBe("user reply");
 		expect(rows[0].tool_args).toBe("");
 		expect(rows[0].tool_result).toBe("");
 	});
