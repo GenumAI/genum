@@ -6,10 +6,14 @@ export interface SpanRow {
 	/** Set by ClickHouse on insert, so it is present on every row read back. */
 	timestamp?: string;
 	trace_id: string;
+	// Deliberately no `session_id` / `turn_index` here, even though core's `SpanRow` has
+	// them: this side renders a session the server has already selected and ordered, so it
+	// never needs to group or order rows by either column itself. Not an oversight.
 	span_id: string;
 	parent_span_id: string | null;
 	span_index: number;
-	span_type: "llm" | "tool" | "user";
+	/** Mirrors `SpanRow` in apps/core/src/services/logger/spans.ts. `llm`/`tool` are legacy. */
+	span_type: "chat" | "execute_tool" | "user" | "llm" | "tool";
 	orgId: number;
 	project_id: number;
 	prompt_id: number;

@@ -158,4 +158,28 @@ describe("spansToSteps", () => {
 		]);
 		expect(steps[2]).toEqual({ kind: "user", text: "and in London?" });
 	});
+
+	it("reads both the old vocabulary and the new one", () => {
+		// Rows written before the session model say `llm`/`tool` and are never rewritten --
+		// ClickHouse is append-only here. Both vocabularies are permanent, not a migration.
+		const { steps } = spansToSteps([
+			row({ span_type: "tool", name: "weather", tool_args: "{}", tool_result: "12" }),
+			row({ span_type: "llm", output: "old answer" }),
+			row({ span_type: "execute_tool", name: "weather", tool_args: "{}", tool_result: "9" }),
+			row({ span_type: "chat", output: "new answer" }),
+		]);
+
+		expect(steps.map((step) => step.kind)).toEqual(["tool_call", "final", "tool_call", "final"]);
+	});
+
+	it("gives a tool step the tool's own name, not the span's operation-prefixed one", () => {
+		// `replayTrajectory` matches a recorded call by name. A step called
+		// "execute_tool weather" matches nothing the model ever calls, so every testcase
+		// pinned from a new-vocabulary trace would stop at `missing_recording`.
+		const { steps } = spansToSteps([
+			row({ span_type: "execute_tool", name: "execute_tool weather", tool_args: "{}" }),
+		]);
+
+		expect(steps[0]).toMatchObject({ kind: "tool_call", name: "weather" });
+	});
 });

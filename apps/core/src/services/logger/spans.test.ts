@@ -56,8 +56,8 @@ describe("toSpanRows", () => {
 			steps,
 		});
 
-		expect(tool.span_type).toBe("tool");
-		expect(tool.name).toBe("get_weather");
+		expect(tool.span_type).toBe("execute_tool");
+		expect(tool.name).toBe("execute_tool get_weather");
 		expect(JSON.parse(tool.tool_args)).toEqual({ city: "Berlin" });
 		expect(tool.tool_result).toBe('{"temp":12}');
 	});
@@ -75,7 +75,7 @@ describe("toSpanRows", () => {
 			steps,
 		});
 
-		expect(rows[1].span_type).toBe("llm");
+		expect(rows[1].span_type).toBe("chat");
 		expect(rows[1].output).toBe("It is 12°");
 		expect(rows[1].tool_args).toBe("");
 	});
@@ -227,5 +227,32 @@ describe("toSpanRows", () => {
 		expect(rows.every((row) => row.session_id === "session-1")).toBe(true);
 		expect(rows.every((row) => row.turn_index === 2)).toBe(true);
 		expect(rows.every((row) => row.trace_id === "turn-trace")).toBe(true);
+	});
+
+	it("names spans the way the GenAI conventions do", () => {
+		// `gen_ai.operation.name` values, and `{operation} {model|tool}` for the span name.
+		// This is the cheap half of ingest compatibility: a conforming span then maps field
+		// to field instead of being interpreted.
+		const rows = toSpanRows({
+			trace_id: "t",
+			session_id: "s",
+			turn_index: 0,
+			orgId: 1,
+			project_id: 2,
+			prompt_id: 3,
+			vendor: "openai",
+			model: "gpt-4",
+			steps: [
+				{ kind: "tool_call", name: "weather", args: {}, recordedResult: "{}" },
+				{ kind: "final", text: "done" },
+				{ kind: "user", text: "and London?" },
+			],
+		});
+
+		expect(rows[0]).toMatchObject({ span_type: "execute_tool", name: "execute_tool weather" });
+		expect(rows[1]).toMatchObject({ span_type: "chat", name: "chat gpt-4" });
+		// The reply is ours, not the conventions': there a human turn is an entry in
+		// `gen_ai.input.messages`, not a span. Its name must still not be the model's.
+		expect(rows[2]).toMatchObject({ span_type: "user", name: "user reply" });
 	});
 });

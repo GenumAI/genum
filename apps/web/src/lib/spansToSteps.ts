@@ -36,7 +36,7 @@ export function spansToSteps(spans: SpanRow[]): MappedTrajectory {
 		if (row.span_type === "user") {
 			return { kind: "user" as const, text: row.output };
 		}
-		if (row.span_type !== "tool") {
+		if (row.span_type !== "execute_tool" && row.span_type !== "tool") {
 			return { kind: "final" as const, text: row.output };
 		}
 
@@ -47,7 +47,9 @@ export function spansToSteps(spans: SpanRow[]): MappedTrajectory {
 
 		return {
 			kind: "tool_call" as const,
-			name: row.name,
+			name: row.name.startsWith("execute_tool ")
+				? row.name.slice("execute_tool ".length)
+				: row.name,
 			...args,
 			recordedResult: row.tool_result,
 		};

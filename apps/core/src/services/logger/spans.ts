@@ -21,11 +21,15 @@ export type SpanRow = {
 	parent_span_id: string | null;
 	span_index: number;
 	/**
-	 * `user` is a reply the human typed to continue the session; its text is in `output`.
-	 * Without it a multi-turn trace cannot be read back -- every non-tool span would look
-	 * like a model answer, and the root `logs` row records only the session's first question.
+	 * `gen_ai.operation.name` from the GenAI conventions, so an ingested span maps field to
+	 * field. `user` is ours and has no counterpart there -- a human reply is an entry in
+	 * `gen_ai.input.messages` on the chat span, not a span -- but the replay engine and the
+	 * comparison need the reply as an addressable step, so it stays as our normal form.
+	 *
+	 * `llm` and `tool` are the vocabulary rows written before the session model carry. They
+	 * are never written again and never rewritten, so readers accept them permanently.
 	 */
-	span_type: "llm" | "tool" | "user";
+	span_type: "chat" | "execute_tool" | "user" | "llm" | "tool";
 	orgId: number;
 	project_id: number;
 	prompt_id: number;
@@ -64,7 +68,8 @@ export function toSpanRows(batch: SpanBatch): SpanRow[] {
 		span_id: randomUUID(),
 		parent_span_id: null,
 		span_index: index,
-		span_type: step.kind === "tool_call" ? "tool" : step.kind === "user" ? "user" : "llm",
+		span_type:
+			step.kind === "tool_call" ? "execute_tool" : step.kind === "user" ? "user" : "chat",
 		orgId: batch.orgId,
 		project_id: batch.project_id,
 		prompt_id: batch.prompt_id,
@@ -74,10 +79,10 @@ export function toSpanRows(batch: SpanBatch): SpanRow[] {
 		// wrote words the author typed.
 		name:
 			step.kind === "tool_call"
-				? step.name
+				? `execute_tool ${step.name}`
 				: step.kind === "user"
 					? "user reply"
-					: batch.model,
+					: `chat ${batch.model}`,
 		input: "",
 		output: step.kind === "final" ? step.text : step.kind === "user" ? step.text : "",
 		tool_args: step.kind === "tool_call" ? JSON.stringify(step.args ?? {}) : "",
