@@ -80,17 +80,24 @@ export function mapMessagesAnthropic(request: ProviderRequest) {
 
 	for (const message of request.messages ?? []) {
 		if (message.role === "assistant") {
+			// `PromptRunSchema` permits an assistant message with no tool calls, and the
+			// client now appends one for every turn's answer, so an empty text with no
+			// calls is reachable: it maps to `content: []`, which Anthropic rejects, and a
+			// valid request could only fail at the provider. Same guard Gemini already
+			// carries (`gemini/utils.ts`).
+			const blocks = [
+				...(message.content ? [{ type: "text" as const, text: message.content }] : []),
+				...(message.toolCalls ?? []).map((call) => ({
+					type: "tool_use" as const,
+					id: call.id,
+					name: call.name,
+					input: call.args,
+				})),
+			];
 			turns.push({
 				role: "assistant" as const,
-				content: [
-					...(message.content ? [{ type: "text" as const, text: message.content }] : []),
-					...(message.toolCalls ?? []).map((call) => ({
-						type: "tool_use" as const,
-						id: call.id,
-						name: call.name,
-						input: call.args,
-					})),
-				],
+				// An empty text block still beats an empty content array.
+				content: blocks.length > 0 ? blocks : [{ type: "text" as const, text: "" }],
 			});
 		} else if (message.role === "user") {
 			turns.push({

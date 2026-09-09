@@ -63,4 +63,15 @@ describe("mapMessagesAnthropic with a conversation", () => {
 
 		expect(turns).toContainEqual({ role: "user", content: "and in London?" });
 	});
+
+	it("never emits an empty content array, even for an empty assistant turn", () => {
+		// Anthropic rejects `content: []`. Reachable since the client appends an assistant
+		// message for every turn's answer, and a turn can answer with an empty string.
+		const turns = mapMessagesAnthropic(
+			request({ messages: [{ role: "assistant", content: "" }] }),
+		) as { role: string; content: unknown }[];
+
+		expect(Array.isArray(turns[1].content)).toBe(true);
+		expect((turns[1].content as unknown[]).length).toBeGreaterThan(0);
+	});
 });
