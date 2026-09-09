@@ -33,7 +33,7 @@ vi.mock("@/services/logger", async (importOriginal) => ({
 import { checkPromptAccess } from "@/services/access/AccessService";
 import { runPrompt } from "@/ai/runner/run";
 import { fileService } from "@/services/file.service";
-import { logSpans, logUsage } from "@/services/logger";
+import { deriveTurnTraceId, logSpans, logUsage } from "@/services/logger";
 import type { LogDocument } from "@/services/logger";
 import { PromptsController } from "./prompt.controller";
 
@@ -174,10 +174,11 @@ describe("PromptsController.runPrompt", () => {
 
 		expect(logSpans).toHaveBeenCalledTimes(1);
 		const batch = vi.mocked(logSpans).mock.calls[0][0];
-		// `traceId` addresses the SESSION; the turn gets its own fresh trace id, so that a
-		// trace is one turn, the way the GenAI conventions have it.
+		// `traceId` addresses the SESSION; the turn gets its own trace id, derived from
+		// (session, turn index) rather than random, so a retried request lands on the same
+		// trace and the queued (trace_id, span_id) dedup can actually collapse it.
 		expect(batch.trace_id).not.toBe(TRACE);
-		expect(batch.trace_id).toMatch(/^[0-9a-f-]{36}$/);
+		expect(batch.trace_id).toBe(deriveTurnTraceId(TRACE, 0));
 		expect(batch.session_id).toBe(TRACE);
 		expect(batch.turn_index).toBe(0);
 		expect(batch.steps).toEqual([
@@ -267,7 +268,38 @@ describe("PromptsController.runPrompt", () => {
 		const batch = vi.mocked(logSpans).mock.calls[0][0];
 		expect(batch.session_id).toBe(TRACE);
 		expect(batch.trace_id).not.toBe(TRACE);
-		expect(batch.trace_id).toMatch(/^[0-9a-f-]{36}$/);
+		expect(batch.trace_id).toBe(deriveTurnTraceId(TRACE, 0));
+	});
+
+	it("retries the SAME turn-ending request onto the same trace, so dedup can collapse it", async () => {
+		// OTLP delivers at least once and the playground retries a turn-ending request it
+		// never got a response for. The retry must land on the same trace id as the
+		// original write -- a random per-call id would defeat the queued (trace_id,
+		// span_id) dedup entirely.
+		mockRun({ answer: "12 in Zagreb" });
+		const { res: firstRes } = makeRes();
+		const body = {
+			question: "weather?",
+			traceId: TRACE,
+			messages: [
+				{
+					role: "assistant",
+					content: "",
+					toolCalls: [{ id: "call_1", name: "get_weather", args: {} }],
+				},
+				{ role: "tool", toolCallId: "call_1", name: "get_weather", content: "12C" },
+			],
+		};
+		await controller.runPrompt(makeReq(body), firstRes);
+
+		mockRun({ answer: "12 in Zagreb" });
+		const { res: retryRes } = makeRes();
+		await controller.runPrompt(makeReq(body), retryRes);
+
+		expect(logSpans).toHaveBeenCalledTimes(2);
+		const [first, retry] = vi.mocked(logSpans).mock.calls.map((call) => call[0]);
+		expect(retry.trace_id).toBe(first.trace_id);
+		expect(retry.trace_id).toBe(deriveTurnTraceId(TRACE, 0));
 	});
 
 	it("forwards the conversation to the runner unchanged", async () => {

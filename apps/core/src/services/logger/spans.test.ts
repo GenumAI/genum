@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { toSpanRows } from "./spans";
+import { deriveTurnTraceId, toSpanRows } from "./spans";
 import { replayTrajectory } from "@/ai/steps/replay";
 import type { Step } from "@/ai/steps/types";
 
@@ -254,5 +254,25 @@ describe("toSpanRows", () => {
 		// The reply is ours, not the conventions': there a human turn is an entry in
 		// `gen_ai.input.messages`, not a span. Its name must still not be the model's.
 		expect(rows[2]).toMatchObject({ span_type: "user", name: "user reply" });
+	});
+});
+
+describe("deriveTurnTraceId", () => {
+	it("is stable for the same session and turn index, so a retried write lands on the same trace", () => {
+		expect(deriveTurnTraceId("session-1", 0)).toBe(deriveTurnTraceId("session-1", 0));
+	});
+
+	it("differs across turn indices within the same session", () => {
+		expect(deriveTurnTraceId("session-1", 0)).not.toBe(deriveTurnTraceId("session-1", 1));
+	});
+
+	it("differs across sessions for the same turn index", () => {
+		expect(deriveTurnTraceId("session-1", 0)).not.toBe(deriveTurnTraceId("session-2", 0));
+	});
+
+	it("is shaped like a UUID", () => {
+		expect(deriveTurnTraceId("session-1", 0)).toMatch(
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+		);
 	});
 });

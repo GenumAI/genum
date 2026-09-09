@@ -41,7 +41,14 @@ import type { CanvasAgentMessage, CanvasAgentParams, CanvasMessage } from "@/ai/
 import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
 import type { ModelConfigParameters } from "@/ai/models/types";
-import { type LogDocument, LogType, logSpans, logUsage, SourceType } from "@/services/logger";
+import {
+	deriveTurnTraceId,
+	type LogDocument,
+	LogType,
+	logSpans,
+	logUsage,
+	SourceType,
+} from "@/services/logger";
 import { finishedTurnSteps, conversationNumberingProblem } from "@/ai/steps/turn";
 import { HttpError } from "@/utils/errors";
 import { renamePlaceholderKey } from "@genum/placeholders";
@@ -177,7 +184,7 @@ export class PromptsController {
 		const turn = traceId ? finishedTurnSteps(messages, run) : null;
 		if (traceId && turnUsage && turn && turn.steps.length > 0) {
 			await logSpans({
-				trace_id: randomUUID(),
+				trace_id: deriveTurnTraceId(traceId, turn.turnIndex),
 				session_id: traceId,
 				turn_index: turn.turnIndex,
 				orgId: turnUsage.orgId,

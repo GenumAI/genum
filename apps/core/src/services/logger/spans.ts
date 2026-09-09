@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Step } from "@/ai/steps/types";
 
 export type SpanRow = {
@@ -47,6 +47,29 @@ export type SpanRow = {
 	duration_ms: number;
 	status: string;
 };
+
+/**
+ * The turn's trace id, derived from `(session_id, turn_index)` rather than minted with
+ * `randomUUID`. OTLP delivers at least once and the playground retries a turn-ending
+ * request it never got a response for, so the same turn can be written twice. Dedup on
+ * `(trace_id, span_id)` is the queued remedy for that -- but it only works if the retry
+ * lands on the SAME trace id as the original write. A random id defeats it: the retry
+ * would mint a different trace carrying the same `turn_index`, dedup would never see the
+ * two as related, and the session would read back with that turn duplicated and
+ * interleaved (both traces tie on `span_index` under `ORDER BY turn_index, span_index`).
+ * Deriving the id here instead makes a retry of the same turn produce the same trace id,
+ * which is what lets that dedup collapse it.
+ */
+export function deriveTurnTraceId(sessionId: string, turnIndex: number): string {
+	const hex = createHash("sha256").update(`${sessionId}:${turnIndex}`).digest("hex");
+	return [
+		hex.slice(0, 8),
+		hex.slice(8, 12),
+		hex.slice(12, 16),
+		hex.slice(16, 20),
+		hex.slice(20, 32),
+	].join("-");
+}
 
 export type SpanBatch = {
 	trace_id: string;

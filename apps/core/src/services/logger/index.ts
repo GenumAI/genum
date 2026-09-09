@@ -19,6 +19,8 @@ export {
 	clickhouseDatabase,
 } from "./logger";
 
+export { deriveTurnTraceId } from "./spans";
+
 // Export types
 export type {
 	SpanBatch,

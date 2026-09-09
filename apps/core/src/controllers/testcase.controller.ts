@@ -20,6 +20,7 @@ import { hasEnabledStep, StepsSchema, StepsConfigSchema } from "@/ai/steps/schem
 import { DEFAULT_STEPS_CONFIG, type Step, type StepsConfig } from "@/ai/steps/types";
 import { system_prompt } from "@/ai/runner/system";
 import {
+	deriveTurnTraceId,
 	type LogDocument,
 	LogLevel,
 	logSpans,
@@ -467,7 +468,7 @@ async function logTrajectoryRun(
 	const spanTurns = turnsOf(steps);
 	for (let turnIndex = 0; turnIndex < spanTurns.length; turnIndex++) {
 		await logSpans({
-			trace_id: randomUUID(),
+			trace_id: deriveTurnTraceId(traceId, turnIndex),
 			session_id: traceId,
 			turn_index: turnIndex,
 			orgId: base.orgId,
