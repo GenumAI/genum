@@ -42,6 +42,19 @@ describe("enabledCount", () => {
 	it("is zero when every step is unticked", () => {
 		expect(enabledCount(steps.map((step) => ({ ...step, enabled: false })))).toBe(0);
 	});
+
+	it("counts only comparable steps, so a session of replies asserts nothing", () => {
+		expect(enabledCount([{ kind: "user", text: "a" }, { kind: "user", text: "b" }])).toBe(0);
+	});
+
+	it("does not count steps past a truncation", () => {
+		expect(
+			enabledCount([
+				{ kind: "user", text: "stop", enabled: false },
+				{ kind: "tool_call", name: "t" },
+			]),
+		).toBe(0);
+	});
 });
 
 describe("withFinalText", () => {
@@ -64,6 +77,21 @@ describe("withFinalText", () => {
 		// would invent an assertion the author never pinned.
 		const toolsOnly: Step[] = [{ kind: "tool_call", name: "search" }];
 		expect(withFinalText(toolsOnly, "new")).toBe(toolsOnly);
+	});
+
+	it("rewrites the LAST final, not the first", () => {
+		// The separate expected-output editor shows the session's answer, which is the last
+		// turn's. Targeting the first would edit a turn the author is not looking at.
+		const steps: Step[] = [
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "again" },
+			{ kind: "final", text: "two" },
+		];
+		expect(withFinalText(steps, "new")).toEqual([
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "again" },
+			{ kind: "final", text: "new" },
+		]);
 	});
 });
 

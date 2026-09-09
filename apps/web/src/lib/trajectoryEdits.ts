@@ -1,3 +1,4 @@
+import { effectiveSteps } from "@/lib/session";
 import type { Step, StepMismatch, ToolCallStep } from "@/types/steps";
 
 /** A patch an author can apply to one step from the panel. */
@@ -15,21 +16,43 @@ export function withStepPatch(steps: Step[], index: number, patch: StepPatch): S
 /**
  * `enabled` is optional and absent means enabled -- the same rule `compareSteps` applies.
  * Reading it as `=== true` would report a freshly-picked trajectory as asserting nothing.
+ *
+ * Counts only comparable steps within `effectiveSteps`: a `user` reply is replayed
+ * verbatim and never compared, so it never counts, and nothing past a truncation counts
+ * either -- the session simply does not reach it.
  */
 export function enabledCount(steps: Step[]): number {
-	return steps.filter((step) => step.enabled !== false).length;
+	return effectiveSteps(steps).filter((step) => step.kind !== "user" && step.enabled !== false)
+		.length;
 }
 
 /**
- * Rewrites the final step's text, which for a trajectory testcase IS the expected answer:
- * the verdict comes from the step comparison and never reads `expectedOutput`.
+ * Rewrites the LAST final step's text, which for a trajectory testcase IS the expected
+ * answer the author is looking at: the expected-output editor beside the panel shows the
+ * session's answer, which is the answer to the last question asked. Targeting the first
+ * final would silently edit a turn the author is not looking at.
+ *
+ * `enabled` is deliberately not part of the search -- the author is editing the answer
+ * they can see, and the server decides separately which final `expectedOutput` follows
+ * (the last ENABLED final), because an unticked final is excluded from the assertion and
+ * must not become the testcase's expected answer.
  *
  * A trajectory whose last turn still asked for a tool has no final step, and that is a
  * legitimate recording -- the steps come back untouched rather than gaining an assertion
  * the author never pinned.
+ *
+ * A reverse loop rather than `findLastIndex`: apps/web targets ES2020, where that method
+ * is not in the lib, and web's vitest does not typecheck -- the error would surface only
+ * in `pnpm --filter web build`.
  */
 export function withFinalText(steps: Step[], text: string): Step[] {
-	const finalIndex = steps.findIndex((step) => step.kind === "final");
+	let finalIndex = -1;
+	for (let i = steps.length - 1; i >= 0; i--) {
+		if (steps[i].kind === "final") {
+			finalIndex = i;
+			break;
+		}
+	}
 	if (finalIndex === -1) return steps;
 
 	return steps.map((step, i) => (i === finalIndex ? { ...step, text } : step));
