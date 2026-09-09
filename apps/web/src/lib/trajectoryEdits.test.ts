@@ -47,6 +47,23 @@ describe("enabledCount", () => {
 		expect(enabledCount([{ kind: "user", text: "a" }, { kind: "user", text: "b" }])).toBe(0);
 	});
 
+	it("reports nothing enabled when a cut reply hides the only ticked steps", () => {
+		// The picker's block on "Create testcase" reads this. A count of its own -- every
+		// step with `enabled !== false`, which is what the picker used to do -- returns 2
+		// here (turn 2's two steps) and offers the author a testcase the server would
+		// judge as asserting nothing: `hasEnabledStep` runs on `effectiveSteps`, which
+		// ends at the unticked reply.
+		expect(
+			enabledCount([
+				{ kind: "tool_call", name: "search", enabled: false },
+				{ kind: "final", text: "first answer", enabled: false },
+				{ kind: "user", text: "and in London?", enabled: false },
+				{ kind: "tool_call", name: "search" },
+				{ kind: "final", text: "second answer" },
+			]),
+		).toBe(0);
+	});
+
 	it("does not count steps past a truncation", () => {
 		expect(
 			enabledCount([

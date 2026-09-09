@@ -165,7 +165,7 @@ export function StepRow({
 	// Collapsed by default: at five turns of tool calls, the pretty-printed args for
 	// every one of them is a wall.
 	const [expanded, setExpanded] = useState(false);
-	const endsSessionId = useId();
+	const continuesSessionId = useId();
 
 	return (
 		<div className="flex items-start gap-3">
@@ -259,25 +259,39 @@ export function StepRow({
 					</>
 				) : (
 					<>
+						{/*
+						 * Named the way a `final` row is named. Without it the reply is a
+						 * bare paragraph carrying a checkbox, and the control's subject --
+						 * whose words these are, and what unticking them does -- is left to
+						 * the reader to infer from the text itself.
+						 */}
+						<div className="font-medium text-sm">Your reply</div>
 						<div className="whitespace-pre-wrap text-sm">{step.text}</div>
 						{!readOnly && (
 							// This checkbox does not mean the same thing here as it does on a
 							// tool call: unticking a reply cannot merely exclude it from
 							// comparison (a reply is never compared), it ends the session at
 							// this turn. A bare tick would leave that meaning to guesswork.
+							//
+							// The words state what the TICK means, not what unticking does:
+							// `checked` is "the session continues", so a label reading "ends
+							// the session here" sat beside a ticked box invited exactly the
+							// backwards inference the label exists to prevent. This reading
+							// stays true in both states -- ticked, the session continues past
+							// the reply; unticked, it does not.
 							<label
-								htmlFor={endsSessionId}
+								htmlFor={continuesSessionId}
 								className="mt-1 flex w-fit items-center gap-2 text-xs text-muted-foreground"
 							>
 								<Checkbox
-									id={endsSessionId}
+									id={continuesSessionId}
 									checked={enabled}
 									disabled={disabled}
 									onCheckedChange={(checked) =>
 										onEnabledChange?.(checked === true)
 									}
 								/>
-								ends the session here
+								the session continues after this reply
 							</label>
 						)}
 					</>

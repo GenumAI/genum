@@ -10,6 +10,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { StepRow } from "@/components/steps/StepRow";
+import { enabledCount } from "@/lib/trajectoryEdits";
 import type { Step } from "@/types/steps";
 
 interface TestcaseStepPickerDialogProps {
@@ -68,7 +69,13 @@ export function TestcaseStepPickerDialog({
 	// A testcase with nothing enabled asserts nothing and can never fail -- exactly what
 	// this feature exists to prevent. The backend's `StepsSchema.min(1)` counts the array,
 	// not the ticks, so it would accept this; the block has to be here.
-	const enabledCount = steps.filter((step) => step.enabled !== false).length;
+	//
+	// `enabledCount` and not a filter of its own: the server's `hasEnabledStep` runs on
+	// `effectiveSteps` and skips `user` steps, so counting every ticked step here let a
+	// selection whose only ticks sit past a cut reply -- or are replies themselves --
+	// through a dialog that told the author it asserted something. One statement of the
+	// rule per side, and this is web's.
+	const assertedCount = enabledCount(steps);
 
 	return (
 		<Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
@@ -93,7 +100,7 @@ export function TestcaseStepPickerDialog({
 					))}
 				</div>
 
-				{enabledCount === 0 && (
+				{assertedCount === 0 && (
 					<p className="text-sm text-destructive">
 						Tick at least one step. A testcase that asserts nothing always passes.
 					</p>
@@ -105,7 +112,7 @@ export function TestcaseStepPickerDialog({
 					</Button>
 					<Button
 						onClick={() => onConfirm(steps)}
-						disabled={saving || enabledCount === 0}
+						disabled={saving || assertedCount === 0}
 					>
 						{saving ? "Creating..." : "Create testcase"}
 					</Button>
