@@ -34,6 +34,13 @@ export interface ConversationThreadProps {
 	saving?: boolean;
 	onEnabledChange?: (index: number, enabled: boolean) => void;
 	onArgsMatchChange?: (index: number, argsMatch: ArgsMatch) => void;
+	/**
+	 * Flat indices of the answers that may carry an expectation. `undefined` means all of
+	 * them. An answer left out shows what it produced and no expected field at all --
+	 * because without somewhere to store it, a field would take the author's words and
+	 * lose them on the next refetch, which is worse than not offering one.
+	 */
+	expectedEditableIndices?: Set<number>;
 	onExpectedChange?: (
 		index: number,
 		text: string,
@@ -88,6 +95,7 @@ export function ConversationThread({
 	onOrderMattersChange,
 	readOnly = false,
 	saving = false,
+	expectedEditableIndices,
 	onEnabledChange,
 	onArgsMatchChange,
 	onExpectedChange,
@@ -133,44 +141,52 @@ export function ConversationThread({
 								message.step.kind === "user" && message.step.enabled === false,
 						)}
 					>
-						{group.messages.map((message) => (
-							<StepRow
-								key={`${message.step.kind}-${message.index}`}
-								step={message.step}
-								produced={message.produced}
-								metrics={message.metrics}
-								outcome={message.outcome}
-								outcomeReason={message.outcomeReason}
-								readOnly={readOnly}
-								disabled={saving || message.outcome === "not-reached"}
-								onEnabledChange={
-									onEnabledChange &&
-									((enabled) => onEnabledChange(message.index, enabled))
-								}
-								onArgsMatchChange={
-									onArgsMatchChange &&
-									((argsMatch) => onArgsMatchChange(message.index, argsMatch))
-								}
-								onTextChange={
-									onExpectedChange &&
-									((text) => onExpectedChange(message.index, text))
-								}
-								onSaveAsExpected={
-									onSaveAsExpected &&
-									message.step.kind === "final" &&
-									message.produced !== undefined
-										? () => onSaveAsExpected(message.index)
-										: undefined
-								}
-								onCompare={
-									onCompare &&
-									message.step.kind === "final" &&
-									message.produced !== undefined
-										? () => onCompare(message.index)
-										: undefined
-								}
-							/>
-						))}
+						{group.messages.map((message) => {
+							const expectable =
+								expectedEditableIndices === undefined ||
+								expectedEditableIndices.has(message.index);
+							return (
+								<StepRow
+									key={`${message.step.kind}-${message.index}`}
+									step={message.step}
+									produced={message.produced}
+									metrics={message.metrics}
+									outcome={message.outcome}
+									outcomeReason={message.outcomeReason}
+									readOnly={readOnly}
+									disabled={saving || message.outcome === "not-reached"}
+									onEnabledChange={
+										onEnabledChange &&
+										((enabled) => onEnabledChange(message.index, enabled))
+									}
+									onArgsMatchChange={
+										onArgsMatchChange &&
+										((argsMatch) => onArgsMatchChange(message.index, argsMatch))
+									}
+									onTextChange={
+										expectable && onExpectedChange
+											? (text) => onExpectedChange(message.index, text)
+											: undefined
+									}
+									onSaveAsExpected={
+										expectable &&
+										onSaveAsExpected &&
+										message.step.kind === "final" &&
+										message.produced !== undefined
+											? () => onSaveAsExpected(message.index)
+											: undefined
+									}
+									onCompare={
+										expectable &&
+										onCompare &&
+										message.step.kind === "final" &&
+										message.produced !== undefined
+											? () => onCompare(message.index)
+											: undefined
+									}
+								/>
+							);
+						})}
 					</TurnSection>
 				);
 			})}

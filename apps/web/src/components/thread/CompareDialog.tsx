@@ -37,8 +37,16 @@ export function CompareDialog({
 			<DialogContent className="flex h-[80vh] min-h-[500px] w-full max-w-6xl flex-col gap-0 p-0">
 				<div className="border-b p-4">
 					<h2 className="font-semibold text-lg">Turn {turnNumber}</h2>
+					{/*
+					 * Said outright, because an empty diff and a broken diff look exactly
+					 * alike. Right after "Save as expected" the two sides ARE the same
+					 * string, so the editor correctly highlights nothing -- and without
+					 * this line the author reads that as the comparison having failed.
+					 */}
 					<p className="text-xs text-muted-foreground">
-						What the run produced, against what this turn expects.
+						{produced === expected
+							? "These are identical — the run produced exactly what this turn expects."
+							: "What the run produced, against what this turn expects."}
 					</p>
 				</div>
 

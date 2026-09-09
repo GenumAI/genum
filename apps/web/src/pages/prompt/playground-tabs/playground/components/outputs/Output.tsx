@@ -76,12 +76,6 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 	const [isOpenAssertion, setIsOpenAssertion] = useState(false);
 	/** The answer whose fullscreen comparison is open, by flat index; null when closed. */
 	const [compareIndex, setCompareIndex] = useState<number | null>(null);
-	/**
-	 * Expected answers the author has typed for a run that has no testcase yet, by flat
-	 * index (D7). They are drafts: nothing is written per keystroke to a testcase that
-	 * does not exist, and `Add testcase` materializes the thread.
-	 */
-	const [drafts, setDrafts] = useState<Record<number, string>>({});
 	const [confirmingRemoval, setConfirmingRemoval] = useState(false);
 
 	const {
@@ -133,6 +127,34 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		[content],
 	);
 
+	/**
+	 * The flat index of the run's last answer, or null if it has none.
+	 *
+	 * Without a pinned trajectory a testcase stores exactly ONE expected answer, the
+	 * `expectedOutput` column, and the server reads it back as the last enabled final.
+	 * So that is the only answer whose expectation can be kept: offering an editable
+	 * field on an earlier turn would take the author's words and drop them on the next
+	 * refetch. Once a trajectory is pinned, every turn has a step to hold its own.
+	 */
+	const lastFinalIndex = useMemo(() => {
+		// No `findLastIndex`: apps/web targets ES2020.
+		for (let index = trajectory.steps.length - 1; index >= 0; index--) {
+			if (trajectory.steps[index].kind === "final") return index;
+		}
+		return null;
+	}, [trajectory.steps]);
+
+	/**
+	 * Which answers may carry an expectation. `undefined` means all of them, which is the
+	 * case once a trajectory is pinned. Passed to the thread rather than decided inside
+	 * it: only this component knows where the expectation would be stored.
+	 */
+	const expectedEditable: Set<number> | undefined = useMemo(() => {
+		if (pinned.hasTrajectory) return undefined;
+		if (trajectory.steps.length === 0) return new Set([0]);
+		return lastFinalIndex === null ? new Set<number>() : new Set([lastFinalIndex]);
+	}, [pinned.hasTrajectory, trajectory.steps.length, lastFinalIndex]);
+
 	const messages: ThreadMessage[] = useMemo(() => {
 		// A testcase with a pinned trajectory: the expectation IS the trajectory, and the
 		// last run's steps are what it is measured against.
@@ -157,7 +179,11 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 			return liveThread({
 				steps: trajectory.steps,
 				metricsByTurn,
-				expectedByIndex: drafts,
+				// ONE source for the expectation, and it is `modifiedValue` -- the same
+				// value `saveModifiedValue` writes and the testcase persists. A second
+				// in-memory store here is exactly how "Save as expected" appeared to do
+				// nothing: it wrote one of them and the thread rendered the other.
+				expectedByIndex: lastFinalIndex === null ? {} : { [lastFinalIndex]: modifiedValue },
 			});
 		}
 
@@ -181,7 +207,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		pinned.comparisonRecorded,
 		testcase?.lastSteps,
 		trajectory.steps,
-		drafts,
+		lastFinalIndex,
 		content?.answer,
 		modifiedValue,
 		runMetrics,
@@ -197,11 +223,11 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 			text,
 		});
 		if (save.kind === "expectedSteps") return pinned.setStepText(save.index, save.text);
-		if (save.kind === "expectedOutput") {
-			await saveModifiedValue(save.answer);
-			return true;
-		}
-		setDrafts((previous) => ({ ...previous, [index]: save.text }));
+		// `expectedOutput` and `draft` land on the same call on purpose:
+		// `saveModifiedValue` updates the value the thread renders and then persists it
+		// ONLY when a testcase exists, which is precisely D7. Splitting them was what
+		// gave the expectation two homes.
+		await saveModifiedValue(save.kind === "expectedOutput" ? save.answer : save.text);
 		return true;
 	};
 
@@ -224,26 +250,8 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		}
 	};
 
-	/**
-	 * The expected answer a new testcase would be created with. `modifiedValue` alone is
-	 * no longer it: for a run with no testcase the author's expectation goes into
-	 * `drafts` (D7), so gating "Add testcase" on `modifiedValue` would leave the button
-	 * dead for exactly the runs the thread was built to capture. The LAST answer's draft
-	 * is the one that counts -- it is the answer `expectedOutput` mirrors.
-	 */
-	const effectiveExpected = useMemo(() => {
-		// No `findLast`: apps/web targets ES2020.
-		for (let position = messages.length - 1; position >= 0; position--) {
-			const message = messages[position];
-			if (message.step.kind !== "final") continue;
-			const draft = drafts[message.index];
-			return draft !== undefined && draft.trim() ? draft : modifiedValue;
-		}
-		return modifiedValue;
-	}, [messages, drafts, modifiedValue]);
-
 	const handleAddTestcase = async () => {
-		await createTestcase(inputValue || "", effectiveExpected, content?.answer || "");
+		await createTestcase(inputValue || "", modifiedValue, content?.answer || "");
 		// "deferred" opens the step picker (rendered below); the hook finishes the create
 		// once the author confirms which steps to pin.
 	};
@@ -309,6 +317,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 							}
 						: undefined
 				}
+				expectedEditableIndices={expectedEditable}
 				onExpectedChange={handleExpectedChange}
 				onSaveAsExpected={handleSaveAsExpected}
 				onCompare={setCompareIndex}
@@ -352,7 +361,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 				hasOutput={!!content?.answer}
 				testcaseId={testcaseId}
 				isTestcaseLoading={isTestcaseLoading}
-				modifiedValue={effectiveExpected}
+				modifiedValue={modifiedValue}
 				onAddTestcase={handleAddTestcase}
 				isRunning={isRunning}
 			/>

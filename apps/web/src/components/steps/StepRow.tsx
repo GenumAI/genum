@@ -174,6 +174,11 @@ function EditableFinalText({
  * empty textarea open under every unapproved answer is a column of nothing, and most
  * answers in a long thread never get one.
  *
+ * "instead" is load-bearing. This sits next to "Save as expected", and the two do
+ * opposite things -- that button ACCEPTS the answer the model gave, this link is for
+ * typing a different one by hand. Worded as a bare "Set an expected answer" the pair read
+ * as two ways to do the same thing, and the author had to click one to find out which.
+ *
  * Once an expectation exists the row switches to the two-column layout instead -- this
  * is only ever the empty case.
  */
@@ -201,7 +206,7 @@ function ExpectedAnswer({
 						className={cn("shrink-0 transition-transform", open && "rotate-90")}
 						size={12}
 					/>
-					{expected ? "Expected answer" : "Set an expected answer"}
+					{expected ? "Expected answer" : "Type an expected answer instead"}
 				</button>
 			</CollapsibleTrigger>
 			<CollapsibleContent>
@@ -301,10 +306,23 @@ export function StepRow({
 						{!readOnly && (
 							<Select
 								value={step.argsMatch ?? "exact"}
-								disabled={disabled}
-								onValueChange={(value) => onArgsMatchChange?.(value as ArgsMatch)}
+								// NOT `disabled`. Choosing a value starts a write, the write
+								// flips `disabled` true, and the trigger is disabled in the
+								// same moment its own menu is closing -- so the browser has
+								// nowhere to put focus, drops it on <body>, and the page
+								// jumps to the top while the author is still looking at the
+								// step. The control stays focusable and merely refuses the
+								// change instead; the write is still rejected, and the
+								// author keeps their place on the page.
+								onValueChange={(value) => {
+									if (disabled) return;
+									onArgsMatchChange?.(value as ArgsMatch);
+								}}
 							>
-								<SelectTrigger className="mt-1 w-64">
+								<SelectTrigger
+									aria-disabled={disabled}
+									className={cn("mt-1 w-64", disabled && "opacity-50")}
+								>
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -335,6 +353,13 @@ export function StepRow({
 								disabled={disabled}
 								onTextChange={onTextChange}
 							/>
+						) : !onTextChange && !readOnly ? (
+							// Nowhere to keep an expectation for this answer -- see the
+							// thread's `expectedEditableIndices`. Showing an editable field
+							// that silently discards what is typed into it is worse than
+							// showing none, so this answer is reported and nothing is asked
+							// of the author.
+							<div className="mt-1 whitespace-pre-wrap text-sm">{produced}</div>
 						) : step.text ? (
 							// Both sides exist, so show them side by side: what the run
 							// produced on the left, what is expected of it on the right.
