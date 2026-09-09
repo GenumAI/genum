@@ -80,11 +80,12 @@ export function mapMessagesAnthropic(request: ProviderRequest) {
 
 	for (const message of request.messages ?? []) {
 		if (message.role === "assistant") {
-			// `PromptRunSchema` permits an assistant message with no tool calls, and the
-			// client now appends one for every turn's answer, so an empty text with no
-			// calls is reachable: it maps to `content: []`, which Anthropic rejects, and a
-			// valid request could only fail at the provider. Same guard Gemini already
-			// carries (`gemini/utils.ts`).
+			// `PromptRunSchema` permits an assistant message with no tool calls, and both
+			// the client and `replayTrajectory` now append one for every turn's answer, so
+			// an empty text with no calls is reachable. It maps to `content: []`, which
+			// Anthropic rejects -- and an empty TEXT BLOCK does not save it either: the API
+			// requires a text block's text to be non-empty, so the request would still fail
+			// at the provider, only with a different 400.
 			const blocks = [
 				...(message.content ? [{ type: "text" as const, text: message.content }] : []),
 				...(message.toolCalls ?? []).map((call) => ({
@@ -94,11 +95,11 @@ export function mapMessagesAnthropic(request: ProviderRequest) {
 					input: call.args,
 				})),
 			];
-			turns.push({
-				role: "assistant" as const,
-				// An empty text block still beats an empty content array.
-				content: blocks.length > 0 ? blocks : [{ type: "text" as const, text: "" }],
-			});
+			// So the turn is dropped instead. An assistant message with neither text nor a
+			// tool call carries nothing the model needs to see, and dropping it is the only
+			// mapping Anthropic accepts.
+			if (blocks.length === 0) continue;
+			turns.push({ role: "assistant" as const, content: blocks });
 		} else if (message.role === "user") {
 			turns.push({
 				role: "user" as const,

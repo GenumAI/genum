@@ -64,14 +64,36 @@ describe("mapMessagesAnthropic with a conversation", () => {
 		expect(turns).toContainEqual({ role: "user", content: "and in London?" });
 	});
 
-	it("never emits an empty content array, even for an empty assistant turn", () => {
-		// Anthropic rejects `content: []`. Reachable since the client appends an assistant
-		// message for every turn's answer, and a turn can answer with an empty string.
+	it("drops an empty assistant turn rather than emitting an empty block for it", () => {
+		// Anthropic rejects `content: []` AND rejects a text block whose text is empty, so
+		// neither an empty array nor `[{type:"text", text:""}]` is a valid mapping -- the
+		// turn has to go. Reachable since the client and `replayTrajectory` both append an
+		// assistant message for every turn's answer, and a turn can answer with "".
 		const turns = mapMessagesAnthropic(
 			request({ messages: [{ role: "assistant", content: "" }] }),
 		) as { role: string; content: unknown }[];
 
-		expect(Array.isArray(turns[1].content)).toBe(true);
-		expect((turns[1].content as unknown[]).length).toBeGreaterThan(0);
+		expect(turns.some((turn) => turn.role === "assistant")).toBe(false);
+	});
+
+	it("keeps an assistant turn that has only tool calls", () => {
+		// The other half: dropping empties must not drop a turn whose text is empty
+		// because it called a tool instead of answering.
+		const turns = mapMessagesAnthropic(
+			request({
+				messages: [
+					{
+						role: "assistant",
+						content: "",
+						toolCalls: [{ id: "1", name: "weather", args: { city: "Paris" } }],
+					},
+				],
+			}),
+		) as { role: string; content: { type: string }[] }[];
+
+		const assistant = turns.find((turn) => turn.role === "assistant");
+		expect(assistant?.content).toEqual([
+			{ type: "tool_use", id: "1", name: "weather", input: { city: "Paris" } },
+		]);
 	});
 });
