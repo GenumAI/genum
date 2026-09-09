@@ -6,6 +6,7 @@ import { env } from "@/env";
 import { webhooks } from "@/services/webhooks/webhooks";
 import { OrganizationService } from "@/services/organization.service";
 import { UserService } from "@/services/user.service";
+import { emailsMatch } from "@/utils/email";
 
 export class UserController {
 	private readonly organizationService: OrganizationService;
@@ -59,7 +60,10 @@ export class UserController {
 
 		// Both conditions must be enforced independently: a forwarded invite must not
 		// let the wrong account in, and a matching email must not resurrect an expired one.
-		if (invitation.email !== user.email || invitation.expiresAt < new Date()) {
+		// The address is compared through `emailsMatch` rather than `!==` because two
+		// encodings of the same umlaut are unequal as strings, and the recipient of an
+		// invitation must not be locked out of it by how their address happened to be typed.
+		if (!emailsMatch(invitation.email, user.email) || invitation.expiresAt < new Date()) {
 			res.status(400).json({ error: "Invitation is not found or expired" });
 			return;
 		}
@@ -82,7 +86,7 @@ export class UserController {
 		const invite = await db.organization.getInvitationByToken(token);
 
 		// check if invite is found and email matches
-		if (!invite || invite.email !== user.email) {
+		if (!invite || !emailsMatch(invite.email, user.email)) {
 			res.status(404).json({ error: "Invitation not found" });
 			return;
 		}

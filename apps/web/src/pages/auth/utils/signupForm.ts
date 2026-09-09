@@ -1,4 +1,5 @@
 import type { RegisterOptions } from "react-hook-form";
+import { EMAIL_PATTERN } from "@/lib/email";
 
 export type SignupFormData = {
 	name: string;
@@ -10,8 +11,6 @@ export type SignupFormData = {
 type SignupFormValidationRules = {
 	[K in keyof SignupFormData]: RegisterOptions<SignupFormData, K>;
 };
-
-const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
 
 export const signupDefaultValues: SignupFormData = {
 	name: "",
@@ -30,8 +29,11 @@ export const signupFormValidationRules: SignupFormValidationRules = {
 	},
 	email: {
 		required: "Email is required",
+		// The previous pattern here was ASCII-only and rejected every internationalized
+		// address outright. EMAIL_PATTERN is the one core validates against, so what the
+		// form accepts and what the API accepts cannot drift apart.
 		pattern: {
-			value: emailRegex,
+			value: EMAIL_PATTERN,
 			message: "Invalid email address",
 		},
 	},
