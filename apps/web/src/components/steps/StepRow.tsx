@@ -48,7 +48,9 @@ export interface StepRowProps {
 	 * Committed on blur, for a `final` step's editable text. Returning (or resolving to)
 	 * `false` means the commit was not accepted -- a save already in flight elsewhere,
 	 * say -- and the field must keep its draft and stay dirty rather than silently
-	 * dropping the author's edit. Anything else (including `void`) counts as accepted.
+	 * dropping the author's edit. `true` or `undefined` (a callback with no return
+	 * statement included) counts as accepted; a rejected `Promise` counts as not accepted,
+	 * the same as a resolved `false`.
 	 */
 	onTextChange?: (text: string) => boolean | undefined | Promise<boolean | undefined>;
 }
@@ -131,10 +133,16 @@ function EditableFinalText({
 				// let the resync effect above accept the next `text` prop and silently
 				// overwrite a draft that was never saved. `Promise.resolve` normalizes the
 				// sync (guard-rejected) and async (network-rejected) cases onto one path;
-				// only an explicit `false` means "not accepted".
-				Promise.resolve(onTextChange?.(draft)).then((committed) => {
-					if (committed !== false) dirty.current = false;
-				});
+				// only an explicit `false` means "not accepted". `setStepText` catches its
+				// own rejections today, so `.catch` here is currently unreachable -- but the
+				// prop type permits any `Promise`, and a future caller that lets one reject
+				// must not turn into an unhandled rejection. A rejection is exactly a
+				// not-accepted commit, so it does nothing: `dirty` was never cleared for it.
+				Promise.resolve(onTextChange?.(draft))
+					.then((committed) => {
+						if (committed !== false) dirty.current = false;
+					})
+					.catch(() => {});
 			}}
 		/>
 	);

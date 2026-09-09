@@ -23,14 +23,21 @@ export interface TurnSectionProps {
 }
 
 /**
- * One turn, collapsed to a single header line by default -- the point of grouping,
- * since a five-turn session of tool calls is otherwise a wall. The header itself is the
- * trigger and stays visible however the turn is collapsed, so a turn that needs
- * attention keeps saying so even when the author closes it: a turn that collapses a red
- * mark out of sight is worse than no collapsing. `open`'s initial value, not `open`
- * itself, reads `hasMismatch`/`isCutTurn` -- once the author has toggled a turn by hand,
- * a later re-render (a save landing, a mismatch clearing) must not silently reopen or
- * reclose it out from under them.
+ * One turn, collapsible to a single header line -- an affordance for a long session, not
+ * a default that hides the author's own data. Every turn starts OPEN: a freshly pinned,
+ * never-run trajectory and a single-turn recorded log both need every step visible on
+ * first render, and nothing here can tell "long session, collapse for space" apart from
+ * "nothing to see yet" well enough to guess a better default. The header itself is the
+ * trigger and stays visible however the turn is collapsed, so a turn the author DOES
+ * close by hand still says whether it holds a mismatch or the cut -- a turn that
+ * collapses a red mark out of sight is worse than no collapsing.
+ *
+ * The content stays mounted even while closed (`forceMount` + the `hidden` attribute,
+ * not Radix's default unmount-on-close): a `final` row's editable text buffers an
+ * uncommitted draft in local state, and collapsing the turn must not be a way to lose it.
+ * Rendering `hidden` content still costs a render, which is fine at the scale a session's
+ * step count reaches; it is not fine to make "the author closed this turn" a data-loss
+ * event.
  */
 export function TurnSection({
 	turnNumber,
@@ -40,7 +47,7 @@ export function TurnSection({
 	isCutTurn = false,
 	children,
 }: TurnSectionProps) {
-	const [open, setOpen] = useState(hasMismatch || isCutTurn);
+	const [open, setOpen] = useState(true);
 
 	return (
 		<Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-2">
@@ -73,7 +80,9 @@ export function TurnSection({
 					</span>
 				</button>
 			</CollapsibleTrigger>
-			<CollapsibleContent className="flex flex-col gap-3 pl-4">{children}</CollapsibleContent>
+			<CollapsibleContent forceMount hidden={!open} className="flex flex-col gap-3 pl-4">
+				{children}
+			</CollapsibleContent>
 		</Collapsible>
 	);
 }
