@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { StepRow } from "@/components/steps/StepRow";
+import { TurnSection } from "@/components/steps/TurnSection";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { effectiveSteps, turnsOf } from "@/lib/session";
@@ -24,10 +25,14 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 	// failed save also logs an unhandled promise rejection.
 	const alreadyReported = () => {};
 
-	// The prefix the session actually runs. Everything at or past this length is stored
-	// but dead -- the session never reaches it -- so those rows render "not-reached" with
-	// their controls disabled rather than a checkbox that would change nothing.
-	const effectiveLength = effectiveSteps(trajectory.steps).length;
+	// `effectiveSteps` slices UP TO but NOT INCLUDING the unticked `user` step that ends
+	// the session, so its length equals that step's OWN flat index. That step is the live
+	// control that created the cut, not one the session failed to reach -- it must stay
+	// enabled so the cut can be undone from this panel -- so only steps STRICTLY AFTER it
+	// (index > cutIndex) are dead. With no cut, `cutIndex` is `steps.length`, past every
+	// valid index, so nothing is ever dead.
+	const cutIndex = effectiveSteps(trajectory.steps).length;
+	const hasCut = cutIndex < trajectory.steps.length;
 
 	return (
 		<div className="flex flex-col gap-3 rounded-[6px] border p-4">
@@ -52,39 +57,47 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 			</div>
 
 			<div className="flex flex-col gap-4">
-				{turnsOf(trajectory.steps).map((turn, turnPosition) => (
-					<div key={turn.start} className="flex flex-col gap-3">
-						<p className="font-medium text-xs text-muted-foreground">
-							Turn {turnPosition + 1} · {turn.steps.length}{" "}
-							{turn.steps.length === 1 ? "step" : "steps"}
-						</p>
-						{turn.steps.map((step, position) => {
-							// The row's flat index -- what `mismatchByIndex` and every save
-							// call address it by. A turn-local index would silently mark or
-							// save the wrong step.
-							const index = turn.start + position;
-							const reason = trajectory.mismatchByIndex.get(index);
-							// Steps at or past the truncation are stored but the session
-							// never reaches them: rendered distinctly, controls disabled --
-							// a checkbox that changes nothing is worse than no checkbox.
-							const dead = index >= effectiveLength;
+				{turnsOf(trajectory.steps).map((turn, turnPosition) => {
+					const rows = turn.steps.map((step, position) => {
+						// The row's flat index -- what `mismatchByIndex` and every save
+						// call address it by. A turn-local index would silently mark or
+						// save the wrong step.
+						const index = turn.start + position;
+						const reason = trajectory.mismatchByIndex.get(index);
+						const dead = index > cutIndex;
 
-							// Gated on a comparison having been recorded, not on the
-							// testcase having been run: a run that produced a verdict
-							// without comparing the steps (a tool the recording does not
-							// cover, an AI or MANUAL assertion) gets no marks at all rather
-							// than a row of green ticks beside its NOK.
-							const outcome = dead
-								? ("not-reached" as const)
-								: !trajectory.comparisonRecorded
-									? undefined
-									: step.enabled === false
-										? ("not-asserted" as const)
-										: reason
-											? ("mismatched" as const)
-											: ("matched" as const);
+						// Gated on a comparison having been recorded, not on the
+						// testcase having been run: a run that produced a verdict
+						// without comparing the steps (a tool the recording does not
+						// cover, an AI or MANUAL assertion) gets no marks at all rather
+						// than a row of green ticks beside its NOK.
+						const outcome = dead
+							? ("not-reached" as const)
+							: !trajectory.comparisonRecorded
+								? undefined
+								: step.enabled === false
+									? ("not-asserted" as const)
+									: reason
+										? ("mismatched" as const)
+										: ("matched" as const);
 
-							return (
+						return { step, index, reason, dead, outcome };
+					});
+
+					const liveCount = rows.filter((row) => !row.dead).length;
+					const hasMismatch = rows.some((row) => row.outcome === "mismatched");
+					const isCutTurn = hasCut && rows.some((row) => row.index === cutIndex);
+
+					return (
+						<TurnSection
+							key={turn.start}
+							turnNumber={turnPosition + 1}
+							liveStepCount={liveCount === 0 ? null : liveCount}
+							totalStepCount={rows.length}
+							hasMismatch={hasMismatch}
+							isCutTurn={isCutTurn}
+						>
+							{rows.map(({ step, index, reason, dead, outcome }) => (
 								<StepRow
 									key={`${step.kind}-${index}`}
 									step={step}
@@ -105,14 +118,12 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 											.setStepArgsMatch(index, argsMatch)
 											.catch(alreadyReported);
 									}}
-									onTextChange={(text) => {
-										trajectory.setStepText(index, text).catch(alreadyReported);
-									}}
+									onTextChange={(text) => trajectory.setStepText(index, text)}
 								/>
-							);
-						})}
-					</div>
-				))}
+							))}
+						</TurnSection>
+					);
+				})}
 			</div>
 
 			<div className="flex items-center gap-2">

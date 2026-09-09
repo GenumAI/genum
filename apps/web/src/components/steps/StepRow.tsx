@@ -44,8 +44,13 @@ export interface StepRowProps {
 	disabled?: boolean;
 	onEnabledChange?: (enabled: boolean) => void;
 	onArgsMatchChange?: (argsMatch: ArgsMatch) => void;
-	/** Committed on blur, for a `final` step's editable text. */
-	onTextChange?: (text: string) => void;
+	/**
+	 * Committed on blur, for a `final` step's editable text. Returning (or resolving to)
+	 * `false` means the commit was not accepted -- a save already in flight elsewhere,
+	 * say -- and the field must keep its draft and stay dirty rather than silently
+	 * dropping the author's edit. Anything else (including `void`) counts as accepted.
+	 */
+	onTextChange?: (text: string) => boolean | undefined | Promise<boolean | undefined>;
 }
 
 const OUTCOME_LABEL: Record<NonNullable<StepRowProps["outcome"]>, string> = {
@@ -76,7 +81,7 @@ function EditableFinalText({
 	text: string;
 	readOnly: boolean;
 	disabled: boolean;
-	onTextChange?: (text: string) => void;
+	onTextChange?: (text: string) => boolean | undefined | Promise<boolean | undefined>;
 }) {
 	const [draft, setDraft] = useState(text);
 	// Whether the author has typed since the last resync/commit. This, not focus, is
@@ -119,8 +124,17 @@ function EditableFinalText({
 				// authority here, not a `draft !== text` comparison alone: without it, a
 				// field that sat focused-but-untouched while a newer `text` arrived would
 				// still hold the old value and would commit it over the new one.
-				if (dirty.current && draft !== text) onTextChange?.(draft);
-				dirty.current = false;
+				if (!(dirty.current && draft !== text)) return;
+				// Disabling the focused control -- a save elsewhere flips `disabled` while
+				// this field still has focus -- blurs it, landing here. `dirty` must
+				// survive that unless the commit actually lands: clearing it unconditionally
+				// let the resync effect above accept the next `text` prop and silently
+				// overwrite a draft that was never saved. `Promise.resolve` normalizes the
+				// sync (guard-rejected) and async (network-rejected) cases onto one path;
+				// only an explicit `false` means "not accepted".
+				Promise.resolve(onTextChange?.(draft)).then((committed) => {
+					if (committed !== false) dirty.current = false;
+				});
 			}}
 		/>
 	);

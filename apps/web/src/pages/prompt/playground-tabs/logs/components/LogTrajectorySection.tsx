@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { projectApi } from "@/api/project/project.api";
 import { StepRow } from "@/components/steps/StepRow";
+import { TurnSection } from "@/components/steps/TurnSection";
 import { turnsOf } from "@/lib/session";
 import { spansToSteps } from "@/lib/spansToSteps";
 import { logsKeys } from "@/query-keys/logs.keys";
@@ -46,12 +47,17 @@ export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
 				)}
 				{data && data.steps.length > 0 && (
 					<div className="flex flex-col gap-4">
+						{/* A recorded trace has no truncation and no comparison of its own --
+						    it is simply what happened -- so every turn is fully live and
+						    nothing here forces a turn open by default the way a mismatch or
+						    a live cut would in the panel. */}
 						{turnsOf(data.steps).map((turn, turnPosition) => (
-							<div key={turn.start} className="flex flex-col gap-3">
-								<p className="font-medium text-xs text-muted-foreground">
-									Turn {turnPosition + 1} · {turn.steps.length}{" "}
-									{turn.steps.length === 1 ? "step" : "steps"}
-								</p>
+							<TurnSection
+								key={turn.start}
+								turnNumber={turnPosition + 1}
+								liveStepCount={turn.steps.length}
+								totalStepCount={turn.steps.length}
+							>
 								{turn.steps.map((step, position) => {
 									// The row's flat index -- what `unreadableArgsIndices`
 									// addresses it by.
@@ -65,7 +71,7 @@ export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
 										/>
 									);
 								})}
-							</div>
+							</TurnSection>
 						))}
 					</div>
 				)}

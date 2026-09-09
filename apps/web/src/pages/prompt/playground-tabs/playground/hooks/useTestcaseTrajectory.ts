@@ -136,12 +136,26 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 	// the text. Here the row the author typed in is already named, and searching from it
 	// would silently edit a later turn's final whenever an earlier one is edited. The
 	// server derives `expectedOutput` from the array it receives, so nothing else is sent.
+	//
+	// Returns whether the edit actually landed. The caller is a buffered textarea, unlike
+	// every other control here, which re-reads persisted state and so needs no such
+	// signal -- a `false` here is the difference between the textarea keeping its draft
+	// (and staying dirty, so a later resync cannot silently overwrite it with the still-old
+	// persisted text) and losing the author's edit with no trace once the guard or the
+	// network rejects it.
 	const setStepText = useCallback(
-		async (index: number, text: string) => {
-			if (expectedWriteInFlight) return;
-			await mutateAsync({
-				expectedSteps: steps.map((step, i) => (i === index ? { ...step, text } : step)),
-			});
+		async (index: number, text: string): Promise<boolean> => {
+			if (expectedWriteInFlight) return false;
+			try {
+				await mutateAsync({
+					expectedSteps: steps.map((step, i) => (i === index ? { ...step, text } : step)),
+				});
+				return true;
+			} catch {
+				// `onError` above already reports it (toast); the caller only needs to
+				// know the write did not land.
+				return false;
+			}
 		},
 		[expectedWriteInFlight, mutateAsync, steps],
 	);
