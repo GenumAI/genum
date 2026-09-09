@@ -781,9 +781,10 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 	});
 
 	it("clears lastMismatches when the verdict did not come from step comparison", async () => {
-		// An AI or MANUAL verdict, or a replay that stopped, explains itself in
-		// assertionThoughts. Leaving the previous run's per-step marks beside a verdict
-		// that did not produce them would mark steps that were never compared.
+		// An AI or MANUAL verdict explains itself in assertionThoughts. Leaving the
+		// previous run's per-step marks beside a verdict that did not produce them would
+		// mark steps that were never compared. (A stopped replay is NOT in this set: it
+		// does compare, up to the stop -- see decision 5, tested below.)
 		vi.mocked(checkTestcaseAccess).mockResolvedValue(
 			makeTrajectoryTestcase({
 				prompt: {
@@ -814,6 +815,27 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		expect(captured.statusCode).toBe(200);
 		expect(updatePayload().status).toBe("NOK");
 		expect(updatePayload().assertionThoughts).toContain("send_email");
+	});
+
+	it("keeps the comparison the stopped replay did produce (decision 5)", async () => {
+		// The recording's first turn is a `get_weather` call and a final. This run makes
+		// the call correctly, then diverges on a tool the recording does not cover -- so
+		// the comparison up to the stop has step 0 met and step 1 (the final, never
+		// reached) unmet. Nulling `lastMismatches` here threw that away and left the panel
+		// unable to mark a single step on the one path where the author most needs to see
+		// how far the run got.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
+		modelTurn({
+			answer: "",
+			toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
+		});
+		modelTurn({ answer: "", toolCalls: [{ id: "c2", name: "send_email", args: {} }] });
+		const { res } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(updatePayload().status).toBe("NOK");
+		expect(updatePayload().lastMismatches).toEqual([expect.objectContaining({ index: 1 })]);
 	});
 
 	it("records the trajectory but asserts nothing when the prompt is MANUAL", async () => {

@@ -82,11 +82,50 @@ describe("withFinalText", () => {
 		expect(next[1]).toBe(steps[1]);
 	});
 
-	it("keeps the final step's enabled flag, which the panel owns", () => {
-		const pinned: Step[] = [{ kind: "final", text: "old", enabled: false }];
+	it("keeps every other field of the step it rewrites", () => {
+		const pinned: Step[] = [{ kind: "final", text: "old", enabled: true }];
 		expect(withFinalText(pinned, "new")).toEqual([
-			{ kind: "final", text: "new", enabled: false },
+			{ kind: "final", text: "new", enabled: true },
 		]);
+	});
+
+	it("lands on turn 1's final when turn 2's reply is unticked", () => {
+		// The server recomputes `expectedOutput` from the last enabled final of the
+		// EFFECTIVE list. Writing the author's new answer into the literal last final
+		// instead puts it in a dead turn, the server writes the old text back, and the box
+		// reverts on refetch with no error shown.
+		const steps: Step[] = [
+			{ kind: "final", text: "first answer" },
+			{ kind: "user", text: "and in London?", enabled: false },
+			{ kind: "final", text: "second answer" },
+		];
+		expect(withFinalText(steps, "typed by the author")).toEqual([
+			{ kind: "final", text: "typed by the author" },
+			{ kind: "user", text: "and in London?", enabled: false },
+			{ kind: "final", text: "second answer" },
+		]);
+	});
+
+	it("skips an unticked final: the server would not read it either", () => {
+		const steps: Step[] = [
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "again" },
+			{ kind: "final", text: "two", enabled: false },
+		];
+		expect(withFinalText(steps, "new")).toEqual([
+			{ kind: "final", text: "new" },
+			{ kind: "user", text: "again" },
+			{ kind: "final", text: "two", enabled: false },
+		]);
+	});
+
+	it("returns the steps untouched when the live session has no enabled final", () => {
+		const noneLive: Step[] = [
+			{ kind: "final", text: "old", enabled: false },
+			{ kind: "user", text: "dead", enabled: false },
+			{ kind: "final", text: "past the cut" },
+		];
+		expect(withFinalText(noneLive, "new")).toBe(noneLive);
 	});
 
 	it("returns the steps untouched when the trajectory has no final step", () => {

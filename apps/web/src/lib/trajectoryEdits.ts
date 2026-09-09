@@ -27,28 +27,37 @@ export function enabledCount(steps: Step[]): number {
 }
 
 /**
- * Rewrites the LAST final step's text, which for a trajectory testcase IS the expected
- * answer the author is looking at: the expected-output editor beside the panel shows the
- * session's answer, which is the answer to the last question asked. Targeting the first
- * final would silently edit a turn the author is not looking at.
+ * Rewrites the text of the final step the expected-output editor stands for, which for a
+ * trajectory testcase IS the expected answer: the editor beside the panel shows the
+ * session's answer, the answer to the last question the session actually asks.
  *
- * `enabled` is deliberately not part of the search -- the author is editing the answer
- * they can see, and the server decides separately which final `expectedOutput` follows
- * (the last ENABLED final), because an unticked final is excluded from the assertion and
- * must not become the testcase's expected answer.
+ * That step is the last ENABLED final of the EFFECTIVE list -- the same one the server
+ * derives `expectedOutput` from (`lastEnabledFinal` in apps/core/src/ai/steps/session.ts).
+ * It has to be the same one: the client sends both this array and `expectedOutput`, and
+ * the server recomputes `expectedOutput` from the array afterwards. Writing the author's
+ * new answer into the literal last final instead put it in a turn the session never
+ * reaches, the server recomputed the old text back over it, and the box reverted on the
+ * next refetch with nothing reported. The rule stated on this side and the rule stated on
+ * the server's must not drift; if one changes, so does the other.
  *
- * A trajectory whose last turn still asked for a tool has no final step, and that is a
- * legitimate recording -- the steps come back untouched rather than gaining an assertion
- * the author never pinned.
+ * The cut comes from `effectiveSteps` -- never re-derived here -- and the indices of that
+ * prefix are the indices of the full array, so the rewrite can be applied in place.
+ *
+ * A trajectory whose live part has no enabled final -- the last live turn still asked for
+ * a tool, or every final is unticked -- comes back untouched rather than gaining an
+ * assertion the author never pinned. The server leaves `expectedOutput` alone in exactly
+ * the same case.
  *
  * A reverse loop rather than `findLastIndex`: apps/web targets ES2020, where that method
  * is not in the lib, and web's vitest does not typecheck -- the error would surface only
  * in `pnpm --filter web build`.
  */
 export function withFinalText(steps: Step[], text: string): Step[] {
+	const live = effectiveSteps(steps);
 	let finalIndex = -1;
-	for (let i = steps.length - 1; i >= 0; i--) {
-		if (steps[i].kind === "final") {
+	for (let i = live.length - 1; i >= 0; i--) {
+		const step = live[i];
+		if (step.kind === "final" && step.enabled !== false) {
 			finalIndex = i;
 			break;
 		}

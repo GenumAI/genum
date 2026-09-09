@@ -308,6 +308,18 @@ export class TestcasesController {
 				// what a changed trajectory looks like.
 				updateData.status = TestCaseStatus.NOK;
 				updateData.assertionThoughts = replay.stopped.message;
+				// Decision 5: the verdict is NOK and `lastMismatches` holds whatever the
+				// comparison produced UP TO the stop. Leaving it null threw that away and
+				// left the panel unable to mark a single step, on the one path where the
+				// author most needs to see which of their pinned steps the run did meet
+				// before it diverged. The steps after the stop simply come back unmet --
+				// `compareSteps` reports every enabled expected step a turn the run never
+				// reached would have had, which is exactly the truth here.
+				updateData.lastMismatches = compareSteps(
+					expectedSteps,
+					replay.steps,
+					readStepsConfig(testcase.stepsConfig) ?? DEFAULT_STEPS_CONFIG,
+				);
 			} else if (assertionType === "MANUAL") {
 				updateData.status = TestCaseStatus.NEED_RUN;
 			} else if (assertionType === "AI") {

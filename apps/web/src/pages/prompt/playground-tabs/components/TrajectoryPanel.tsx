@@ -71,15 +71,24 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 						// without comparing the steps (a tool the recording does not
 						// cover, an AI or MANUAL assertion) gets no marks at all rather
 						// than a row of green ticks beside its NOK.
+						//
+						// A `user` step is never compared -- `compareSteps` filters replies
+						// out of both sides -- so no comparison outcome can be reported for
+						// one. Without this it fell through to "matched" and rendered green
+						// off a comparison that never looked at it, which is exactly what
+						// the rule above forbids, one step kind down. "not-reached" still
+						// applies: that is a fact about the session, not about a comparison.
 						const outcome = dead
 							? ("not-reached" as const)
-							: !trajectory.comparisonRecorded
+							: step.kind === "user"
 								? undefined
-								: step.enabled === false
-									? ("not-asserted" as const)
-									: reason
-										? ("mismatched" as const)
-										: ("matched" as const);
+								: !trajectory.comparisonRecorded
+									? undefined
+									: step.enabled === false
+										? ("not-asserted" as const)
+										: reason
+											? ("mismatched" as const)
+											: ("matched" as const);
 
 						return { step, index, reason, dead, outcome };
 					});
@@ -134,7 +143,12 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 						trajectory.setOrderMatters(checked === true).catch(alreadyReported);
 					}}
 				/>
-				<span className="text-sm">Steps must happen in this order</span>
+				{/*
+				 * Per turn, not per session (decision 3): the comparison matches each
+				 * turn's steps against that turn's, so the order this asserts is the order
+				 * WITHIN a turn. Turns themselves are always in order.
+				 */}
+				<span className="text-sm">Steps must happen in this order within a turn</span>
 			</div>
 
 			{confirmingRemoval && (

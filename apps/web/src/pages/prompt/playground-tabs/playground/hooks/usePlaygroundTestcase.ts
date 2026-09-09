@@ -336,8 +336,12 @@ export function usePlaygroundTestcaseController({
 					expectedChainOfThoughts: currentExpectedThoughts || "",
 				};
 
-				// For a trajectory testcase the final step IS the expected answer -- the
-				// verdict comes from the step comparison and never reads expectedOutput.
+				// For a trajectory testcase the final step IS the expected answer -- and
+				// `withFinalText` targets the step the SERVER will read it back from (the
+				// last enabled final of the effective list), so on a truncated session the
+				// author's typing lands in the live turn instead of a dead one the server
+				// then recomputes over. The verdict itself comes from the step comparison
+				// and never reads expectedOutput.
 				// Writing only the field the author can see would change nothing the test
 				// checks. expectedOutput is written too, so the text testcase underneath
 				// is already correct if the trajectory is later removed.
