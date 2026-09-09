@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 
-import { CaretRight, ChatText, Wrench } from "@phosphor-icons/react";
+import { CaretRight, ChatText, CornersOut, Wrench } from "@phosphor-icons/react";
 
+import { StepMetrics } from "@/components/steps/StepMetrics";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -13,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import type { ThreadMetrics } from "@/lib/thread";
 import type { ArgsMatch, Step } from "@/types/steps";
 
 export interface StepRowProps {
@@ -53,6 +56,27 @@ export interface StepRowProps {
 	 * the same as a resolved `false`.
 	 */
 	onTextChange?: (text: string) => boolean | undefined | Promise<boolean | undefined>;
+	/**
+	 * What the last run actually produced for this answer, when that is a different thing
+	 * from what the row expects. Present only on a `final` of a testcase that has been
+	 * run: the produced text becomes the row's body and the expectation moves into a
+	 * collapsible below it. Absent -- a live run, or a testcase never run -- and the row
+	 * behaves exactly as before, editing its own text in place.
+	 *
+	 * The two are never both shown as plain text. Showing one string twice under two
+	 * headings is the thing this surface was rebuilt to stop doing.
+	 */
+	produced?: string;
+	/**
+	 * This turn's measured usage. Rendered only when given: a recorded trajectory's spans
+	 * store zeros as placeholders, not measurements, so a caller with nothing real to
+	 * report passes nothing rather than zeros.
+	 */
+	metrics?: ThreadMetrics;
+	/** Copies `produced` into the expected text and commits it. */
+	onSaveAsExpected?: () => void;
+	/** Opens the fullscreen produced-vs-expected comparison for this turn. */
+	onCompare?: () => void;
 }
 
 const OUTCOME_LABEL: Record<NonNullable<StepRowProps["outcome"]>, string> = {
@@ -148,6 +172,52 @@ function EditableFinalText({
 	);
 }
 
+/**
+ * The expected answer, shown under the produced one. Collapsed by default because on a
+ * matching turn the two are the same string, and a thread that prints every answer twice
+ * is what this surface replaced.
+ */
+function ExpectedAnswer({
+	expected,
+	readOnly,
+	disabled,
+	defaultOpen,
+	onTextChange,
+}: {
+	expected: string;
+	readOnly: boolean;
+	disabled: boolean;
+	defaultOpen: boolean;
+	onTextChange?: (text: string) => boolean | undefined | Promise<boolean | undefined>;
+}) {
+	const [open, setOpen] = useState(defaultOpen);
+
+	return (
+		<Collapsible open={open} onOpenChange={setOpen} className="mt-2">
+			<CollapsibleTrigger asChild>
+				<button
+					type="button"
+					className="flex items-center gap-1 bg-transparent text-left text-xs text-muted-foreground"
+				>
+					<CaretRight
+						className={cn("shrink-0 transition-transform", open && "rotate-90")}
+						size={12}
+					/>
+					{expected ? "Expected answer" : "Set an expected answer"}
+				</button>
+			</CollapsibleTrigger>
+			<CollapsibleContent>
+				<EditableFinalText
+					text={expected}
+					readOnly={readOnly}
+					disabled={disabled}
+					onTextChange={onTextChange}
+				/>
+			</CollapsibleContent>
+		</Collapsible>
+	);
+}
+
 export function StepRow({
 	step,
 	unreadableArgs = false,
@@ -158,6 +228,10 @@ export function StepRow({
 	onEnabledChange,
 	onArgsMatchChange,
 	onTextChange,
+	produced,
+	metrics,
+	onSaveAsExpected,
+	onCompare,
 }: StepRowProps) {
 	// `enabled` is optional and absent means enabled -- the same rule the server's
 	// comparison uses. Reading it as `=== true` would render a pinned step as unticked.
@@ -249,13 +323,62 @@ export function StepRow({
 					</>
 				) : step.kind === "final" ? (
 					<>
-						<div className="font-medium text-sm">Turn's answer</div>
-						<EditableFinalText
-							text={step.text}
-							readOnly={readOnly}
-							disabled={disabled}
-							onTextChange={onTextChange}
-						/>
+						<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+							<div className="font-medium text-sm">Turn's answer</div>
+							{metrics && <StepMetrics metrics={metrics} />}
+						</div>
+						{produced === undefined ? (
+							// Nothing was produced to set beside the expectation -- a live
+							// run, or a testcase never run -- so the row is what it always
+							// was: one editable answer.
+							<EditableFinalText
+								text={step.text}
+								readOnly={readOnly}
+								disabled={disabled}
+								onTextChange={onTextChange}
+							/>
+						) : (
+							<>
+								<div className="mt-1 whitespace-pre-wrap text-sm">{produced}</div>
+								<ExpectedAnswer
+									expected={step.text}
+									readOnly={readOnly}
+									disabled={disabled}
+									// Open on a mismatch: that is the one state where the
+									// author came here to read the expectation, and making
+									// them click to see why a row is red is a step for
+									// nothing.
+									defaultOpen={outcome === "mismatched"}
+									onTextChange={onTextChange}
+								/>
+							</>
+						)}
+						{(onSaveAsExpected || onCompare) && !readOnly && (
+							<div className="mt-2 flex items-center justify-end gap-2">
+								{onCompare && (
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-7 text-xs"
+										onClick={onCompare}
+									>
+										<CornersOut size={14} />
+										Compare
+									</Button>
+								)}
+								{onSaveAsExpected && (
+									<Button
+										variant="outline"
+										size="sm"
+										className="h-7 text-xs"
+										disabled={disabled}
+										onClick={onSaveAsExpected}
+									>
+										Save as expected
+									</Button>
+								)}
+							</div>
+						)}
 					</>
 				) : (
 					<>
