@@ -11,7 +11,12 @@ export type SpanRow = {
 	span_id: string;
 	parent_span_id: string | null;
 	span_index: number;
-	span_type: "llm" | "tool";
+	/**
+	 * `user` is a reply the human typed to continue the session; its text is in `output`.
+	 * Without it a multi-turn trace cannot be read back -- every non-tool span would look
+	 * like a model answer, and the root `logs` row records only the session's first question.
+	 */
+	span_type: "llm" | "tool" | "user";
 	orgId: number;
 	project_id: number;
 	prompt_id: number;
@@ -54,13 +59,13 @@ export function toSpanRows(batch: SpanBatch): SpanRow[] {
 		span_id: randomUUID(),
 		parent_span_id: null,
 		span_index: offset + index,
-		span_type: step.kind === "tool_call" ? "tool" : "llm",
+		span_type: step.kind === "tool_call" ? "tool" : step.kind === "user" ? "user" : "llm",
 		orgId: batch.orgId,
 		project_id: batch.project_id,
 		prompt_id: batch.prompt_id,
 		name: step.kind === "tool_call" ? step.name : batch.model,
 		input: "",
-		output: step.kind === "final" ? step.text : "",
+		output: step.kind === "final" ? step.text : step.kind === "user" ? step.text : "",
 		tool_args: step.kind === "tool_call" ? JSON.stringify(step.args ?? {}) : "",
 		tool_result: step.kind === "tool_call" ? (step.recordedResult ?? "") : "",
 		tool_error: null,

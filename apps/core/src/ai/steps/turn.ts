@@ -23,11 +23,16 @@ export function completedTurnSteps(
 	const assistantTurns = conversation.filter((message) => message.role === "assistant");
 	const lastTurn = assistantTurns[assistantTurns.length - 1];
 
-	// Every call from every assistant turn BEFORE the last one already has its span; the
-	// last turn's calls are the ones this request carried results for.
-	const spanIndexOffset = assistantTurns
-		.slice(0, -1)
-		.reduce((sum, turn) => sum + (turn.toolCalls?.length ?? 0), 0);
+	// Every span an earlier turn wrote, not only its tool calls: a turn that answered
+	// plainly wrote an `llm` span, and each reply wrote a `user` span. `trace_spans` is
+	// append-only and ordered by this index, so undercounting writes this turn's rows onto
+	// indices that are already taken.
+	const earlierTurns = assistantTurns.slice(0, -1);
+	const spanIndexOffset =
+		earlierTurns.reduce(
+			(sum, turn) => sum + (turn.toolCalls?.length ? turn.toolCalls.length : 1),
+			0,
+		) + conversation.filter((message) => message.role === "user").length;
 
 	const recordedResults = new Map<string, string>();
 	for (const message of conversation) {
@@ -36,13 +41,30 @@ export function completedTurnSteps(
 		}
 	}
 
-	const steps: Step[] = (lastTurn?.toolCalls ?? []).map(
-		(call): ToolCallStep => ({
-			kind: "tool_call",
-			name: call.name,
-			args: call.args,
-			recordedResult: recordedResults.get(call.id),
-		}),
+	// The reply that opened this turn, emitted on the one request it triggered -- the request
+	// whose conversation ENDS with it, because nothing has answered it yet. One request later
+	// the same reply is still in the conversation, and any rule that finds it by scanning
+	// would write its span a second time.
+	//
+	// It is derived here rather than in the controller for the same reason everything else in
+	// this function is: the conversation is the only state, and a reply recorded anywhere else
+	// would not survive the next stateless request.
+	const lastMessage = conversation[conversation.length - 1];
+
+	const steps: Step[] = [];
+	if (lastMessage?.role === "user") {
+		steps.push({ kind: "user", text: lastMessage.content });
+	}
+
+	steps.push(
+		...(lastTurn?.toolCalls ?? []).map(
+			(call): ToolCallStep => ({
+				kind: "tool_call",
+				name: call.name,
+				args: call.args,
+				recordedResult: recordedResults.get(call.id),
+			}),
+		),
 	);
 
 	// The model asked for nothing further, so this answer ends the trajectory.

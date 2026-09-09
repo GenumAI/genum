@@ -13,6 +13,15 @@ const steps: Step[] = [
 	{ kind: "final", text: "It is 12°" },
 ];
 
+const baseBatch = {
+	trace_id: "t1",
+	orgId: 1,
+	project_id: 2,
+	prompt_id: 3,
+	vendor: "OPENAI",
+	model: "gpt-5",
+};
+
 describe("toSpanRows", () => {
 	it("numbers spans in order and stamps the trace id on each", () => {
 		const rows = toSpanRows({
@@ -153,5 +162,29 @@ describe("toSpanRows", () => {
 		});
 
 		expect(tool.tool_result).toBe("");
+	});
+
+	it("writes a user reply as its own span, carrying the text", () => {
+		const rows = toSpanRows({
+			...baseBatch,
+			steps: [{ kind: "user", text: "and in London?" }],
+		});
+		expect(rows[0].span_type).toBe("user");
+		expect(rows[0].output).toBe("and in London?");
+		expect(rows[0].tool_args).toBe("");
+		expect(rows[0].tool_result).toBe("");
+	});
+
+	it("numbers spans across every kind, not only tool calls", () => {
+		const rows = toSpanRows({
+			...baseBatch,
+			spanIndexOffset: 3,
+			steps: [
+				{ kind: "user", text: "again" },
+				{ kind: "tool_call", name: "t", recordedResult: "{}" },
+				{ kind: "final", text: "done" },
+			],
+		});
+		expect(rows.map((r) => r.span_index)).toEqual([3, 4, 5]);
 	});
 });

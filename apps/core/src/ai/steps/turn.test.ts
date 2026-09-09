@@ -78,4 +78,65 @@ describe("completedTurnSteps", () => {
 
 		expect(steps.map((step) => step.kind)).toEqual(["tool_call"]);
 	});
+
+	it("emits the reply on the request the reply itself triggered", () => {
+		// Otherwise the reply is recorded nowhere: the root `logs` row holds only the
+		// session's first question, and `spansToSteps` would rebuild a session that jumps
+		// from one answer to the next with nothing in between.
+		const { steps } = completedTurnSteps(
+			[
+				{ role: "assistant", content: "", toolCalls: [{ id: "1", name: "t", args: {} }] },
+				{ role: "tool", toolCallId: "1", name: "t", content: "{}" },
+				{ role: "assistant", content: "21 in Paris" },
+				{ role: "user", content: "and in London?" },
+			],
+			{ answer: "", toolCalls: [{ id: "2", name: "t", args: {} }] },
+		);
+		// Nothing else: the previous turn's call and final already have their spans, and
+		// this turn's call is not answered until the next request.
+		expect(steps).toEqual([{ kind: "user", text: "and in London?" }]);
+	});
+
+	it("does not emit the reply again on the next request of the same turn", () => {
+		// The dangerous half. One request later the same reply is still in the conversation,
+		// now sitting before the last assistant message. Emitting it again writes a second
+		// `user` span for one reply and shifts every later index by one.
+		const { steps } = completedTurnSteps(
+			[
+				{ role: "assistant", content: "", toolCalls: [{ id: "1", name: "t", args: {} }] },
+				{ role: "tool", toolCallId: "1", name: "t", content: "{}" },
+				{ role: "assistant", content: "21 in Paris" },
+				{ role: "user", content: "and in London?" },
+				{ role: "assistant", content: "", toolCalls: [{ id: "2", name: "t", args: {} }] },
+				{ role: "tool", toolCallId: "2", name: "t", content: "{}" },
+			],
+			{ answer: "14 in London" },
+		);
+		expect(steps.some((step) => step.kind === "user")).toBe(false);
+		expect(steps).toEqual([
+			{ kind: "tool_call", name: "t", args: {}, recordedResult: "{}" },
+			{ kind: "final", text: "14 in London" },
+		]);
+	});
+
+	it("counts every span an earlier turn wrote, not only its tool calls", () => {
+		// The offset addresses an append-only table. A turn that answered plainly wrote an
+		// `llm` span and a reply wrote a `user` span; counting only tool calls hands the next
+		// turn an index two rows behind, and the trace reads back in the wrong order.
+		const { spanIndexOffset } = completedTurnSteps(
+			[
+				// turn 1: one call, then a final -> 2 spans
+				{ role: "assistant", content: "", toolCalls: [{ id: "1", name: "t", args: {} }] },
+				{ role: "tool", toolCallId: "1", name: "t", content: "{}" },
+				{ role: "assistant", content: "21 in Paris" },
+				// the reply -> 1 span
+				{ role: "user", content: "and in London?" },
+				// turn 2, the last: its calls are what THIS request answered
+				{ role: "assistant", content: "", toolCalls: [{ id: "2", name: "t", args: {} }] },
+				{ role: "tool", toolCallId: "2", name: "t", content: "{}" },
+			],
+			{ answer: "14 in London" },
+		);
+		expect(spanIndexOffset).toBe(3);
+	});
 });
