@@ -369,6 +369,52 @@ describe("compareSteps", () => {
 		expect(compareSteps(expected, actual, { orderMatters: false })).toEqual([]);
 	});
 
+	it("restarts the ordered cursor in every turn", () => {
+		// `compareStepsOrdered` walks `actual` with a cursor that only moves forward.
+		// Comparison is per turn now, so each turn is walked against ITS OWN actual list
+		// and the cursor has to start at 0 again; a cursor carried across turns would sit
+		// past the end of turn 2's three-step list before turn 2 is even looked at, and
+		// report every one of its steps missing on a run that reproduced the recording
+		// exactly. Two turns with the SAME steps is what makes that visible -- with
+		// different tools per turn a stale cursor could still be blamed on the tools.
+		const session: Step[] = [
+			{ kind: "tool_call", name: "get_weather", args: { city: "Paris" } },
+			{ kind: "tool_call", name: "get_time", args: { tz: "CET" } },
+			{ kind: "final", text: "21 in Paris, 14:00" },
+			{ kind: "user", text: "and in London?" },
+			{ kind: "tool_call", name: "get_weather", args: { city: "Paris" } },
+			{ kind: "tool_call", name: "get_time", args: { tz: "CET" } },
+			{ kind: "final", text: "21 in Paris, 14:00" },
+		];
+
+		expect(compareSteps(session, [...session], { orderMatters: true })).toEqual([]);
+	});
+
+	it("still catches an out-of-order turn 2 once the cursor has restarted", () => {
+		// The other half: restarting the cursor must not stop the order being checked
+		// inside the turn it restarted in.
+		const expected: Step[] = [
+			{ kind: "tool_call", name: "get_weather", args: { city: "Paris" } },
+			{ kind: "final", text: "21 in Paris" },
+			{ kind: "user", text: "and in London?" },
+			{ kind: "tool_call", name: "get_weather", args: { city: "London" } },
+			{ kind: "tool_call", name: "get_time", args: { tz: "GMT" } },
+			{ kind: "final", text: "14 in London" },
+		];
+		const actual: Step[] = [
+			{ kind: "tool_call", name: "get_weather", args: { city: "Paris" } },
+			{ kind: "final", text: "21 in Paris" },
+			{ kind: "user", text: "and in London?" },
+			// Turn 2's two calls, swapped.
+			{ kind: "tool_call", name: "get_time", args: { tz: "GMT" } },
+			{ kind: "tool_call", name: "get_weather", args: { city: "London" } },
+			{ kind: "final", text: "14 in London" },
+		];
+
+		const mismatches = compareSteps(expected, actual, { orderMatters: true });
+		expect(mismatches.map((mismatch) => mismatch.index)).toEqual([4]);
+	});
+
 	it("compares a truncated session only up to the cut", () => {
 		const expected: Step[] = [
 			{ kind: "final", text: "one" },
