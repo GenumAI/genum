@@ -33,6 +33,9 @@ export function spansToSteps(spans: SpanRow[]): MappedTrajectory {
 	const unreadableArgsIndices = new Set<number>();
 
 	const steps: Step[] = spans.map((row, index) => {
+		if (row.span_type === "user") {
+			return { kind: "user" as const, text: row.output };
+		}
 		if (row.span_type !== "tool") {
 			return { kind: "final" as const, text: row.output };
 		}

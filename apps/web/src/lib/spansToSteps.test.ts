@@ -148,4 +148,14 @@ describe("spansToSteps", () => {
 
 		expect(unreadableArgsIndices.size).toBe(0);
 	});
+
+	it("rebuilds a user reply from its span", () => {
+		const { steps } = spansToSteps([
+			row({ span_type: "tool", name: "t", tool_result: "{}" }),
+			row({ span_type: "llm", output: "one" }),
+			row({ span_type: "user", output: "and in London?" }),
+			row({ span_type: "llm", output: "two" }),
+		]);
+		expect(steps[2]).toEqual({ kind: "user", text: "and in London?" });
+	});
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { TestCase } from "./TestСase";
-import type { ArgsMatch, Step, StepMismatch, StepsConfig } from "./steps";
+import type { ArgsMatch, Step, StepMismatch, StepsConfig, Turn } from "./steps";
 
 // These shapes are restated from apps/core, not imported, so nothing but a test stops
 // them drifting. Each assertion is a compile-time claim wearing a runtime disguise: if a
@@ -28,6 +28,16 @@ describe("step type mirrors", () => {
 	it("allows a tool call with neither enabled nor argsMatch, since both are optional", () => {
 		const step: Step = { kind: "tool_call", name: "search" };
 		expect(step.enabled).toBeUndefined();
+	});
+
+	it("describes a user reply the way core does", () => {
+		const step: Step = { kind: "user", text: "and in London?", enabled: false };
+		expect(step.kind).toBe("user");
+	});
+
+	it("describes a turn as a flat start index plus its steps", () => {
+		const turn: Turn = { start: 2, steps: [{ kind: "user", text: "again" }] };
+		expect(turn.start).toBe(2);
 	});
 
 	it("describes a mismatch as an index into expectedSteps plus a reason", () => {

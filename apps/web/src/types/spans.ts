@@ -9,7 +9,7 @@ export interface SpanRow {
 	span_id: string;
 	parent_span_id: string | null;
 	span_index: number;
-	span_type: "llm" | "tool";
+	span_type: "llm" | "tool" | "user";
 	orgId: number;
 	project_id: number;
 	prompt_id: number;
