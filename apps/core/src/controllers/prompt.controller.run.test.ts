@@ -251,6 +251,41 @@ describe("PromptsController.runPrompt", () => {
 		expect(row.log_type).toBe("prt");
 	});
 
+	it("refuses a continuation whose reply lost the answer it replies to, before billing", async () => {
+		// The shape a stale browser bundle sends after a deploy, and one any third-party
+		// caller may send. It parses -- every message is individually valid -- and would
+		// write the tool call a second time plus a `user` span onto an index the turn's
+		// `final` already holds, into an append-only table that can never be corrected.
+		mockRun({ answer: "whatever" });
+		const { res } = makeRes();
+
+		await expect(
+			controller.runPrompt(
+				makeReq({
+					question: "q",
+					traceId: TRACE,
+					messages: [
+						{
+							role: "assistant",
+							content: "",
+							toolCalls: [{ id: "1", name: "t", args: {} }],
+						},
+						{ role: "tool", toolCallId: "1", name: "t", content: "{}" },
+						{ role: "user", content: "and in London?" },
+					],
+				}),
+				res,
+			),
+		).rejects.toMatchObject({ statusCode: 400 });
+
+		// Refused before the provider is called and before anything is written: a
+		// rejection that still bills the turn and still writes the corrupt spans would
+		// be no rejection at all.
+		expect(runPrompt).not.toHaveBeenCalled();
+		expect(logUsage).not.toHaveBeenCalled();
+		expect(logSpans).not.toHaveBeenCalled();
+	});
+
 	it("still rejects a traceId sent without messages", async () => {
 		mockRun({ answer: "done" });
 		const { res } = makeRes();
@@ -292,7 +327,13 @@ describe("PromptsController.runPrompt", () => {
 			makeReq({
 				question: "q",
 				traceId: TRACE,
-				messages: [{ role: "user", content: "again" }],
+				// The answer the reply replies to travels with it: a continuation without
+				// it is refused, because its spans cannot be numbered (see
+				// `conversationNumberingProblem`).
+				messages: [
+					{ role: "assistant", content: "the previous answer" },
+					{ role: "user", content: "again" },
+				],
 			}),
 			userRes,
 		);

@@ -42,7 +42,8 @@ import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
 import type { ModelConfigParameters } from "@/ai/models/types";
 import { type LogDocument, LogType, logSpans, logUsage, SourceType } from "@/services/logger";
-import { completedTurnSteps } from "@/ai/steps/turn";
+import { completedTurnSteps, conversationNumberingProblem } from "@/ai/steps/turn";
+import { HttpError } from "@/utils/errors";
 import { renamePlaceholderKey } from "@genum/placeholders";
 import { fileService } from "@/services/file.service";
 
@@ -105,6 +106,17 @@ export class PromptsController {
 			messages,
 			traceId: continuedTraceId,
 		} = PromptRunSchema.parse(req.body);
+
+		// Before anything is billed or written: a conversation whose shape the trace
+		// numbering cannot read is refused rather than repaired, because `trace_spans` is
+		// append-only and a mis-numbered span is permanent. See
+		// `conversationNumberingProblem`. Checked here, not inside `PromptRunSchema`,
+		// because it is an invariant BETWEEN messages that only the code deriving the
+		// numbering can state -- and it belongs beside that code, in `turn.ts`.
+		const numberingProblem = conversationNumberingProblem(messages);
+		if (numberingProblem) {
+			throw new HttpError(400, numberingProblem);
+		}
 
 		const metadata = req.genumMeta.ids;
 		const files = await fileService.getFileObjectsByIds(filesIds, metadata.projID);

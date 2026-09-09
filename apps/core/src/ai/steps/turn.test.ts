@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { completedTurnSteps } from "./turn";
+import { completedTurnSteps, conversationNumberingProblem } from "./turn";
 import type { ConversationMessage } from "@/ai/providers";
 
 const askForWeather: ConversationMessage = {
@@ -138,5 +138,75 @@ describe("completedTurnSteps", () => {
 			{ answer: "14 in London" },
 		);
 		expect(spanIndexOffset).toBe(3);
+	});
+});
+
+// The numbering above reads the conversation's SHAPE, and nothing else checks it:
+// `PromptRunSchema` validates each message on its own, so a conversation no numbering can
+// be correct for parses fine and writes corrupt rows into an append-only table. These pin
+// the rejection.
+describe("conversationNumberingProblem", () => {
+	it("passes a first request, which carries no conversation at all", () => {
+		expect(conversationNumberingProblem(undefined)).toBeNull();
+	});
+
+	it("passes a tool continuation", () => {
+		expect(
+			conversationNumberingProblem([
+				askForWeather,
+				{ role: "tool", toolCallId: "call_1", name: "get_weather", content: "12C" },
+			]),
+		).toBeNull();
+	});
+
+	it("passes a user continuation that carries the answer it replies to", () => {
+		expect(
+			conversationNumberingProblem([
+				askForWeather,
+				{ role: "tool", toolCallId: "call_1", name: "get_weather", content: "12C" },
+				{ role: "assistant", content: "It is 12 degrees." },
+				{ role: "user", content: "and in London?" },
+			]),
+		).toBeNull();
+	});
+
+	it("passes a plain-answer continuation: turn 1 never called a tool", () => {
+		expect(
+			conversationNumberingProblem([
+				{ role: "assistant", content: "hi" },
+				{ role: "user", content: "now the real question" },
+			]),
+		).toBeNull();
+	});
+
+	it("rejects a reply that arrives without the answer it replies to", () => {
+		// Exactly what the pre-fix web bundle sent. `completedTurnSteps` would emit the
+		// tool call a second time and write a `user` span onto the index the turn's
+		// `final` already holds.
+		const problem = conversationNumberingProblem([
+			askForWeather,
+			{ role: "tool", toolCallId: "call_1", name: "get_weather", content: "12C" },
+			{ role: "user", content: "and in London?" },
+		]);
+		expect(problem).toContain("message 3");
+		expect(problem).toContain("numbered");
+	});
+
+	it("rejects a reply that follows an assistant turn which only asked for a tool", () => {
+		expect(
+			conversationNumberingProblem([askForWeather, { role: "user", content: "next" }]),
+		).not.toBeNull();
+	});
+
+	it("rejects a mid-conversation reply that lost its answer, not only a trailing one", () => {
+		// A reply in the middle mis-numbers every span after it just as thoroughly.
+		expect(
+			conversationNumberingProblem([
+				askForWeather,
+				{ role: "tool", toolCallId: "call_1", name: "get_weather", content: "12C" },
+				{ role: "user", content: "and in London?" },
+				{ role: "assistant", content: "14 in London" },
+			]),
+		).not.toBeNull();
 	});
 });
