@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { CaretRight, ChatText, Wrench } from "@phosphor-icons/react";
 
@@ -79,12 +79,18 @@ function EditableFinalText({
 	onTextChange?: (text: string) => void;
 }) {
 	const [draft, setDraft] = useState(text);
+	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 	// The row is keyed by kind+index, not by content, so a step that keeps its position
 	// but gets new text from underneath (a refetch, a different trajectory) would
-	// otherwise leave stale keystrokes in the box.
+	// otherwise leave stale keystrokes in the box -- EXCEPT while the author is actively
+	// typing in it. Without the focus check, an incoming `text` from a refetch or a
+	// sibling row's write (the panel refetches the whole trajectory) would silently
+	// overwrite unsaved keystrokes -- loss of work, not mere staleness.
 	useEffect(() => {
-		setDraft(text);
+		if (document.activeElement !== textareaRef.current) {
+			setDraft(text);
+		}
 	}, [text]);
 
 	if (readOnly) {
@@ -93,11 +99,18 @@ function EditableFinalText({
 
 	return (
 		<Textarea
+			ref={textareaRef}
 			className="mt-1 text-sm"
 			value={draft}
 			disabled={disabled}
 			onChange={(event) => setDraft(event.target.value)}
-			onBlur={() => onTextChange?.(draft)}
+			onBlur={() => {
+				// Every commit sends the whole `expectedSteps` array and the panel
+				// freezes its controls while it's in flight -- firing on a blur that
+				// changed nothing (tabbing through, clicking away) would cost the author
+				// that freeze for a write with no effect.
+				if (draft !== text) onTextChange?.(draft);
+			}}
 		/>
 	);
 }
