@@ -79,16 +79,21 @@ function EditableFinalText({
 	onTextChange?: (text: string) => void;
 }) {
 	const [draft, setDraft] = useState(text);
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	// Whether the author has typed since the last resync/commit. This, not focus, is
+	// what gates the resync below: being present in a field is not the same as having
+	// edited it, and a field can sit focused-but-untouched while a prop update arrives
+	// (tab into it, look, tab out) -- gating on focus alone made that sequence commit the
+	// stale `draft` back over the newer `text` on blur, reverting it. A ref, not state:
+	// nothing here needs to trigger a render on its own.
+	const dirty = useRef(false);
 
 	// The row is keyed by kind+index, not by content, so a step that keeps its position
 	// but gets new text from underneath (a refetch, a different trajectory) would
-	// otherwise leave stale keystrokes in the box -- EXCEPT while the author is actively
-	// typing in it. Without the focus check, an incoming `text` from a refetch or a
-	// sibling row's write (the panel refetches the whole trajectory) would silently
-	// overwrite unsaved keystrokes -- loss of work, not mere staleness.
+	// otherwise leave stale text in the box -- EXCEPT while the author has unsaved
+	// keystrokes in it. Accepting the incoming `text` there would silently overwrite
+	// those keystrokes -- loss of work, not mere staleness.
 	useEffect(() => {
-		if (document.activeElement !== textareaRef.current) {
+		if (!dirty.current) {
 			setDraft(text);
 		}
 	}, [text]);
@@ -99,17 +104,23 @@ function EditableFinalText({
 
 	return (
 		<Textarea
-			ref={textareaRef}
 			className="mt-1 text-sm"
 			value={draft}
 			disabled={disabled}
-			onChange={(event) => setDraft(event.target.value)}
+			onChange={(event) => {
+				dirty.current = true;
+				setDraft(event.target.value);
+			}}
 			onBlur={() => {
 				// Every commit sends the whole `expectedSteps` array and the panel
-				// freezes its controls while it's in flight -- firing on a blur that
-				// changed nothing (tabbing through, clicking away) would cost the author
-				// that freeze for a write with no effect.
-				if (draft !== text) onTextChange?.(draft);
+				// freezes its controls while it's in flight -- firing when the author
+				// never actually typed (tabbed through, focused then blurred untouched)
+				// would cost them that freeze for a write with no effect. `dirty` is the
+				// authority here, not a `draft !== text` comparison alone: without it, a
+				// field that sat focused-but-untouched while a newer `text` arrived would
+				// still hold the old value and would commit it over the new one.
+				if (dirty.current && draft !== text) onTextChange?.(draft);
+				dirty.current = false;
 			}}
 		/>
 	);
