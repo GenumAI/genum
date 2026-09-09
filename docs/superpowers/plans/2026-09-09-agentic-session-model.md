@@ -448,6 +448,12 @@ it("emits a turn that answered without calling a tool", () => {
 
 In `apps/core/src/controllers/prompt.controller.run.test.ts`, add a test asserting that a mid-turn request writes no spans and a turn-ending request writes exactly one batch carrying `session_id` and the turn's own fresh `trace_id`. Follow whatever mocking that file already uses for `logSpans`; assert on the call, not on rows.
 
+**One existing test in that file must change, and it is a trap.** `"resolves a third turn's own steps, distinct from the earlier turns' calls"` (around line 196) sends a conversation with TWO completed tool calls — `get_weather` then `get_time` — and a model response that answers plainly. It asserts `batch.steps` has kinds `["tool_call", "final"]`.
+
+That assertion pins the OLD behaviour, where each request wrote only the last assistant message's calls, because a turn was recorded in fragments. Under `finishedTurnSteps` this conversation is ONE turn containing both calls, so the correct result is `["tool_call", "tool_call", "final"]`.
+
+Update the assertion to the three-step form and rename the test to say what it now checks — that a turn is emitted whole, with every call it made across all the requests it took. **Do not** change `finishedTurnSteps` to emit only the last assistant message's calls in order to keep this test green: emitting the whole turn is the entire point of the task, and a turn's earlier calls would otherwise never be recorded at all.
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm turbo run test:run --filter=core`
