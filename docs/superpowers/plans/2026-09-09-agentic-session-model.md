@@ -232,17 +232,19 @@ it("reads both the old vocabulary and the new one", () => {
 	// Rows written before the session model say `llm`/`tool` and are never rewritten --
 	// ClickHouse is append-only here. Both vocabularies are permanent, not a migration.
 	const { steps } = spansToSteps([
-		spanRow({ span_type: "tool", name: "weather", tool_args: "{}", tool_result: "12" }),
-		spanRow({ span_type: "llm", output: "old answer" }),
-		spanRow({ span_type: "execute_tool", name: "weather", tool_args: "{}", tool_result: "9" }),
-		spanRow({ span_type: "chat", output: "new answer" }),
+		row({ span_type: "tool", name: "weather", tool_args: "{}", tool_result: "12" }),
+		row({ span_type: "llm", output: "old answer" }),
+		row({ span_type: "execute_tool", name: "weather", tool_args: "{}", tool_result: "9" }),
+		row({ span_type: "chat", output: "new answer" }),
 	]);
 
 	expect(steps.map((step) => step.kind)).toEqual(["tool_call", "final", "tool_call", "final"]);
 });
 ```
 
-Use whatever row-building helper `spansToSteps.test.ts` already has; if it has none, write `spanRow` as a local helper that fills every `SpanRow` field with a benign default and spreads the override.
+`row` is the helper this file already has at the top — `function row(overrides: Partial<SpanRow>): SpanRow`, filling every field with a benign default and spreading the override. Use it; do not add a second one.
+
+**Note on the mirror.** `apps/web/src/types/spans.ts` deliberately does NOT gain `session_id` or `turn_index`, even though core's `SpanRow` has them. The web side renders a session the server has already selected and ordered, so it reads neither column. Put that in a comment beside the web `SpanRow`, or the next reader takes the difference for an oversight in a mirror that is otherwise supposed to match field for field.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -329,7 +331,7 @@ it("gives a tool step the tool's own name, not the span's operation-prefixed one
 	// "execute_tool weather" matches nothing the model ever calls, so every testcase
 	// pinned from a new-vocabulary trace would stop at `missing_recording`.
 	const { steps } = spansToSteps([
-		spanRow({ span_type: "execute_tool", name: "execute_tool weather", tool_args: "{}" }),
+		row({ span_type: "execute_tool", name: "execute_tool weather", tool_args: "{}" }),
 	]);
 
 	expect(steps[0]).toMatchObject({ kind: "tool_call", name: "weather" });
