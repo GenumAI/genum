@@ -662,9 +662,30 @@ that a failed run records no steps, and not calling the writer states that more 
 than calling it with nothing. Do not add an empty-batch call back to preserve the old
 assertion.
 
-Check the neighbouring `toHaveBeenCalledTimes(1)` assertions (lines 672 and 744) while you
-are there: they stay correct for a single-turn trajectory, which is what those cases build,
-but if either arranges more than one turn it now expects one call per turn.
+The neighbouring `toHaveBeenCalledTimes(1)` assertions (lines 672 and 744) stay correct:
+both cases build a single-turn trajectory, and a single-turn replay is still one batch.
+
+**But line 674 encodes the old identity model and must change.** It asserts
+
+```ts
+expect(spans.trace_id).toBe(root.trace_id);
+```
+
+— that the span batch's trace is the same value as the `logs` row's. Under this task they
+are deliberately different things: `root.trace_id` is the SESSION (that is what
+`logs.trace_id` has always held, and it does not change), while the batch's `trace_id` is
+this turn's own, freshly minted. Replace it with the two assertions that state the new
+relationship:
+
+```ts
+expect(spans.session_id).toBe(root.trace_id);
+expect(spans.trace_id).not.toBe(root.trace_id);
+```
+
+Do **not** satisfy the old assertion by reusing the session id as the batch's trace id.
+A trace that spans every turn of a conversation is precisely the shape this work exists to
+end, and reusing it would also collide the numbering the moment a second turn is written,
+in a table where no row can be corrected.
 
 - [ ] **Step 4: Run tests and type-check**
 
