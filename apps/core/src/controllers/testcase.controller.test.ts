@@ -671,7 +671,8 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 
 		expect(logSpans).toHaveBeenCalledTimes(1);
 		const spans = vi.mocked(logSpans).mock.calls[0][0];
-		expect(spans.trace_id).toBe(root.trace_id);
+		expect(spans.session_id).toBe(root.trace_id);
+		expect(spans.trace_id).not.toBe(root.trace_id);
 		expect(spans.vendor).toBe("OPENAI");
 		expect(spans.model).toBe("gpt-4o");
 		// The spans carry the real tool result, not an empty string.
@@ -684,6 +685,35 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 			},
 			{ kind: "final", text: "It is 12°" },
 		]);
+	});
+
+	it("writes one trace per replayed turn, sharing one session", async () => {
+		// A replay knows all its turns at once. Writing them as one trace would rebuild the
+		// session-wide numbering this whole change removes, and would say -- in an append-only
+		// table -- that a three-turn conversation was one request.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({
+				expectedSteps: [
+					{ kind: "final", text: "It is 12°" },
+					{ kind: "user", text: "and tomorrow?" },
+					{ kind: "final", text: "Sunny tomorrow" },
+				],
+			}),
+		);
+		modelTurn({ answer: "It is 12°" });
+		modelTurn({ answer: "Sunny tomorrow" });
+		const { res, captured } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(captured.statusCode).toBe(200);
+		const batches = vi.mocked(logSpans).mock.calls.map(([batch]) => batch);
+
+		expect(batches).toHaveLength(2);
+		expect(new Set(batches.map((batch) => batch.session_id)).size).toBe(1);
+		expect(batches.map((batch) => batch.turn_index)).toEqual([0, 1]);
+		expect(new Set(batches.map((batch) => batch.trace_id)).size).toBe(2);
+		expect(batches.every((batch) => batch.steps.length > 0)).toBe(true);
 	});
 
 	it("records the completed turns when a later turn throws, and still rethrows", async () => {
@@ -710,8 +740,9 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		// A run that died partway is not a successful run.
 		expect(row.log_type).toBe("pre");
 		expect(row.log_lvl).toBe("ERROR");
-		// The steps died with the replay; none are invented.
-		expect(logSpans).toHaveBeenCalledWith(expect.objectContaining({ steps: [] }));
+		// The steps died with the replay: zero turns, so the writer is never called at all
+		// -- more direct than calling it with an empty batch.
+		expect(logSpans).not.toHaveBeenCalled();
 		// The verdict is never written for a run that threw.
 		expect(db.testcases.updateTestcaseByID).not.toHaveBeenCalled();
 	});
@@ -741,7 +772,10 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		// The provider calls happened and cost money: they are logged whatever the
 		// assertion concluded.
 		expect(logUsage).toHaveBeenCalledTimes(1);
-		expect(logSpans).toHaveBeenCalledTimes(1);
+		// The stop fires on the turn's first tool call, before any step of that turn is
+		// recorded, so the replay produced zero completed turns -- and, same as a failed
+		// run, the writer is not called at all rather than with an empty batch.
+		expect(logSpans).not.toHaveBeenCalled();
 	});
 
 	it("fails and names the tool when an argument changed", async () => {

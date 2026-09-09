@@ -461,17 +461,23 @@ async function logTrajectoryRun(
 		response_ms: turns.reduce((sum, turn) => sum + turn.response_ms, 0),
 	});
 
-	await logSpans({
-		trace_id: traceId,
-		orgId: base.orgId,
-		project_id: base.project_id,
-		prompt_id: base.prompt_id,
-		vendor: base.vendor,
-		model: base.model,
-		steps,
-		session_id: traceId,
-		turn_index: 0,
-	});
+	// One trace per turn, all under the session the run was logged against. `turnsOf`
+	// derives the turns from the steps themselves -- the same rule the panel and the
+	// comparison use -- so this cannot disagree with how the session is read back.
+	const spanTurns = turnsOf(steps);
+	for (let turnIndex = 0; turnIndex < spanTurns.length; turnIndex++) {
+		await logSpans({
+			trace_id: randomUUID(),
+			session_id: traceId,
+			turn_index: turnIndex,
+			orgId: base.orgId,
+			project_id: base.project_id,
+			prompt_id: base.prompt_id,
+			vendor: base.vendor,
+			model: base.model,
+			steps: spanTurns[turnIndex].steps,
+		});
+	}
 }
 
 /**
