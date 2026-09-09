@@ -638,6 +638,26 @@ No new imports: `randomUUID` (line 1), `turnsOf` and `effectiveSteps` (line 18) 
 
 Do **not** apply `effectiveSteps` here. These are the steps the replay actually produced, not an expectation being truncated; every one of them happened and every one is recorded.
 
+- [ ] **Step 3a: Update the failed-run assertion**
+
+`apps/core/src/controllers/testcase.controller.test.ts:714` asserts
+`expect(logSpans).toHaveBeenCalledWith(expect.objectContaining({ steps: [] }))`. That
+passes today because a failed run calls `logTrajectoryRun(traceId, turns, [], { failed: true })`
+(line 266) and the old code called `logSpans` unconditionally, leaving `logSpans` itself to
+return early on an empty batch.
+
+Under the loop there are zero turns, so `logSpans` is not called at all. Change that
+assertion to `expect(logSpans).not.toHaveBeenCalled()`.
+
+This is a strict improvement and must not be "fixed" the other way: the test's intent is
+that a failed run records no steps, and not calling the writer states that more directly
+than calling it with nothing. Do not add an empty-batch call back to preserve the old
+assertion.
+
+Check the neighbouring `toHaveBeenCalledTimes(1)` assertions (lines 672 and 744) while you
+are there: they stay correct for a single-turn trajectory, which is what those cases build,
+but if either arranges more than one turn it now expects one call per turn.
+
 - [ ] **Step 4: Run tests and type-check**
 
 Run: `pnpm turbo run test:run --filter=core` then `pnpm turbo run type-check --filter=core`
