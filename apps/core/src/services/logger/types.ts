@@ -261,6 +261,8 @@ export interface ClickHouseCountRow {
 export interface ClickHouseSpanRow {
 	timestamp: string;
 	trace_id: string;
+	session_id: string;
+	turn_index: number;
 	span_id: string;
 	parent_span_id: string | null;
 	span_index: number;

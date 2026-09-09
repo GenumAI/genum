@@ -469,6 +469,8 @@ async function logTrajectoryRun(
 		vendor: base.vendor,
 		model: base.model,
 		steps,
+		session_id: traceId,
+		turn_index: 0,
 	});
 }
 

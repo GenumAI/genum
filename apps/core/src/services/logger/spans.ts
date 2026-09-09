@@ -8,6 +8,15 @@ export type SpanRow = {
 	 */
 	timestamp?: string;
 	trace_id: string;
+	/**
+	 * The conversation this turn belongs to. Empty on every row written before the session
+	 * model, where one trace WAS the session -- the read path treats empty as "this trace
+	 * is a session by itself", which is true of those rows and of any ingested trace whose
+	 * sender had no conversation id to give (the GenAI conventions forbid inventing one).
+	 */
+	session_id: string;
+	/** The turn's ordinal in the session, 0-based. Derived by us; not a protocol field. */
+	turn_index: number;
 	span_id: string;
 	parent_span_id: string | null;
 	span_index: number;
@@ -43,22 +52,18 @@ export type SpanBatch = {
 	vendor: string;
 	model: string;
 	steps: Step[];
-	/**
-	 * Where these steps start in the trace. A trajectory authored in the playground is
-	 * appended one turn at a time -- `trace_spans` is append-only, so a later turn cannot
-	 * renumber an earlier one -- and each turn passes the number of steps already written.
-	 * Absent (0) for a caller that writes a whole trajectory at once.
-	 */
-	spanIndexOffset?: number;
+	session_id: string;
+	turn_index: number;
 };
 
 export function toSpanRows(batch: SpanBatch): SpanRow[] {
-	const offset = batch.spanIndexOffset ?? 0;
 	return batch.steps.map((step, index) => ({
 		trace_id: batch.trace_id,
+		session_id: batch.session_id,
+		turn_index: batch.turn_index,
 		span_id: randomUUID(),
 		parent_span_id: null,
-		span_index: offset + index,
+		span_index: index,
 		span_type: step.kind === "tool_call" ? "tool" : step.kind === "user" ? "user" : "llm",
 		orgId: batch.orgId,
 		project_id: batch.project_id,

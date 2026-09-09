@@ -175,7 +175,10 @@ describe("PromptsController.runPrompt", () => {
 		expect(logSpans).toHaveBeenCalledTimes(1);
 		const batch = vi.mocked(logSpans).mock.calls[0][0];
 		expect(batch.trace_id).toBe(TRACE);
-		expect(batch.spanIndexOffset).toBe(0);
+		// Placeholder values (Task 1): session_id mirrors the wire traceId correctly, but
+		// turn_index is a stand-in until Task 3 gives this call site its real ordinal.
+		expect(batch.session_id).toBe(TRACE);
+		expect(batch.turn_index).toBe(0);
 		expect(batch.steps).toEqual([
 			{
 				kind: "tool_call",
@@ -187,7 +190,10 @@ describe("PromptsController.runPrompt", () => {
 		]);
 	});
 
-	it("offsets a third turn's spans past the ones earlier turns already wrote", async () => {
+	// Real per-turn offsetting is Task 3's job; today this call site only stamps the
+	// placeholder turn_index (see the test above), so this checks the steps a third turn
+	// resolves, not a span_index offset that does not exist yet.
+	it("resolves a third turn's own steps, distinct from the earlier turns' calls", async () => {
 		mockRun({ answer: "Done." });
 		const { res } = makeRes();
 
@@ -214,7 +220,7 @@ describe("PromptsController.runPrompt", () => {
 		);
 
 		const batch = vi.mocked(logSpans).mock.calls[0][0];
-		expect(batch.spanIndexOffset).toBe(1);
+		expect(batch.turn_index).toBe(0);
 		expect(batch.steps.map((step) => step.kind)).toEqual(["tool_call", "final"]);
 	});
 

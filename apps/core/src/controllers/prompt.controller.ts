@@ -174,9 +174,7 @@ export class PromptsController {
 		// Append-only: this turn writes the steps it completed, at the offset the
 		// conversation it carried implies. See `completedTurnSteps`. The opening turn
 		// completes nothing -- its calls have no results until the author supplies them.
-		const { steps, spanIndexOffset } = traceId
-			? completedTurnSteps(messages, run)
-			: { steps: [], spanIndexOffset: 0 };
+		const { steps } = traceId ? completedTurnSteps(messages, run) : { steps: [] };
 		if (traceId && turnUsage && steps.length > 0) {
 			await logSpans({
 				trace_id: traceId,
@@ -186,7 +184,8 @@ export class PromptsController {
 				vendor: turnUsage.vendor,
 				model: turnUsage.model,
 				steps,
-				spanIndexOffset,
+				session_id: traceId,
+				turn_index: 0,
 			});
 		}
 

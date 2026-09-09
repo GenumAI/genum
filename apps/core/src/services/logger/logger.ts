@@ -827,6 +827,8 @@ export async function getTraceSpans(
 		return data.map((row) => ({
 			timestamp: row.timestamp,
 			trace_id: row.trace_id,
+			session_id: row.session_id,
+			turn_index: Number(row.turn_index),
 			span_id: row.span_id,
 			parent_span_id: row.parent_span_id,
 			span_index: Number(row.span_index),
