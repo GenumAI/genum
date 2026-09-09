@@ -42,8 +42,9 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 
 	// Whether the last run compared the pinned steps. The panel gates its per-step marks
 	// on this and not on "has been run": a run that produced a verdict without comparing
-	// (a tool the recording does not cover, an AI or MANUAL assertion) leaves every step
-	// unmarked rather than green.
+	// (an AI or MANUAL assertion) leaves every step unmarked rather than green. A replay
+	// stopped by a tool the recording does not cover DOES compare, up to the stop, and its
+	// marks are reported like any other comparison's.
 	const comparisonRecorded = useMemo(
 		() => hasStepComparison(testcase?.lastMismatches),
 		[testcase?.lastMismatches],

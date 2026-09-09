@@ -3,7 +3,7 @@
 // Bodies must stay identical to the original: a divergence here is a bug that no test in
 // either package would catch.
 
-import type { Step, Turn } from "@/types/steps";
+import type { FinalStep, Step, Turn } from "@/types/steps";
 
 /**
  * The session as it actually runs. Unticking a user reply ends the session there, so
@@ -20,6 +20,28 @@ import type { Step, Turn } from "@/types/steps";
 export function effectiveSteps(steps: Step[]): Step[] {
 	const cut = steps.findIndex((step) => step.kind === "user" && step.enabled === false);
 	return cut === -1 ? steps : steps.slice(0, cut);
+}
+
+/**
+ * The final the session actually ends on: the last ENABLED `final` of the EFFECTIVE
+ * list. This is the one `expectedOutput` mirrors (decision 7), and it is derived here so
+ * that create and update cannot disagree -- a copy of the rule on the create path is
+ * exactly how a testcase ends up pinning an answer from a turn it never reaches.
+ *
+ * Returns undefined when the session ends without an enabled final (a truncated session
+ * whose last live turn still asked for a tool, or one whose finals are all unticked).
+ * Callers must leave `expectedOutput` alone in that case: it is a non-nullable column,
+ * and blanking it would make the plain-text testcase underneath assert an empty answer.
+ */
+export function lastEnabledFinal(steps: Step[]): FinalStep | undefined {
+	const effective = effectiveSteps(steps);
+	for (let index = effective.length - 1; index >= 0; index--) {
+		const step = effective[index];
+		if (step.kind === "final" && step.enabled !== false) {
+			return step;
+		}
+	}
+	return undefined;
 }
 
 /**
