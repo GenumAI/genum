@@ -84,6 +84,13 @@ export async function replayTrajectory({
 			// to carry the same turn structure as `expectedSteps`, or the panel can group
 			// the expectation and not the actual run.
 			steps.push({ kind: "user", text: reply.text });
+			// The model's own answer goes back into the conversation before the reply that
+			// answers it -- exactly what the playground client does when it records
+			// (`usePlaygroundPromptRun.ts`). Without it record and replay send the provider
+			// DIFFERENT conversations: the replayed model answers a follow-up with no memory
+			// of what it just said, and turn 2's pinned final was produced in a context the
+			// replay cannot reproduce, so a correct agent is written NOK on every run.
+			messages.push({ role: "assistant", content: turn.answer });
 			messages.push({ role: "user", content: reply.text });
 			turnIndex += 1;
 			seen = new Map();

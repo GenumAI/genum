@@ -242,6 +242,70 @@ describe("replayTrajectory", () => {
 		expect(seen[2]).toContainEqual({ role: "user", content: "and in London?" });
 	});
 
+	it("carries the model's own answer into the next turn's conversation", async () => {
+		// Record and replay must send the provider the SAME conversation. The playground
+		// client appends `{role:"assistant", content: answer}` before the next reply
+		// (`usePlaygroundPromptRun.ts`); a replay that pushes only the reply asks the model
+		// to answer a follow-up with no memory of what it just said, and the pinned final
+		// of turn 2 was produced in a context the replay never reproduces -- a correct
+		// agent goes NOK forever.
+		const recorded: Step[] = [
+			{ kind: "final", text: "It's 12 °C in Paris." },
+			{ kind: "user", text: "And London?" },
+			{ kind: "final", text: "It's 9 °C in London." },
+		];
+		const seen: ConversationMessage[][] = [];
+		const answers: ModelTurn[] = [
+			{ answer: "It's 12 °C in Paris." },
+			{ answer: "It's 9 °C in London." },
+		];
+		let turn = 0;
+		const result = await replayTrajectory({
+			callModel: async (messages) => {
+				seen.push([...messages]);
+				return answers[turn++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		// Order matters as much as presence: the answer precedes the reply it answered.
+		expect(seen[1]).toEqual([
+			{ role: "assistant", content: "It's 12 °C in Paris." },
+			{ role: "user", content: "And London?" },
+		]);
+	});
+
+	it("carries a tool turn's answer into the next turn's conversation too", async () => {
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "get_weather", recordedResult: '{"t":12}' },
+			{ kind: "final", text: "21 in Paris" },
+			{ kind: "user", text: "and in London?" },
+			{ kind: "final", text: "14 in London" },
+		];
+		const seen: ConversationMessage[][] = [];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "get_weather", args: { city: "Paris" } }] },
+			{ answer: "21 in Paris" },
+			{ answer: "14 in London" },
+		];
+		let turn = 0;
+		await replayTrajectory({
+			callModel: async (messages) => {
+				seen.push([...messages]);
+				return answers[turn++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(seen[2].slice(-2)).toEqual([
+			{ role: "assistant", content: "21 in Paris" },
+			{ role: "user", content: "and in London?" },
+		]);
+	});
+
 	it("takes the second turn's recording for the second turn's call of the same tool", async () => {
 		// Turn 1's recording holds TWO calls of `t` but the model only makes ONE of them,
 		// so a global, never-reset ordinal would leave it at 1 going into turn 2 and hand
