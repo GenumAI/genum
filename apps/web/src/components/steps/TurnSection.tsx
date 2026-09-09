@@ -32,12 +32,19 @@ export interface TurnSectionProps {
  * close by hand still says whether it holds a mismatch or the cut -- a turn that
  * collapses a red mark out of sight is worse than no collapsing.
  *
- * The content stays mounted even while closed (`forceMount` + the `hidden` attribute,
- * not Radix's default unmount-on-close): a `final` row's editable text buffers an
- * uncommitted draft in local state, and collapsing the turn must not be a way to lose it.
- * Rendering `hidden` content still costs a render, which is fine at the scale a session's
- * step count reaches; it is not fine to make "the author closed this turn" a data-loss
- * event.
+ * The content stays mounted even while closed (`forceMount`, not Radix's default
+ * unmount-on-close): a `final` row's editable text buffers an uncommitted draft in local
+ * state, and collapsing the turn must not be a way to lose it. Rendering hidden content
+ * still costs a render, which is fine at the scale a session's step count reaches; it is
+ * not fine to make "the author closed this turn" a data-loss event.
+ *
+ * The closed state is hidden by swapping `flex` for `hidden` IN THE CLASSNAME, not by the
+ * native `hidden` attribute: this project's Tailwind preflight declares `[hidden]` without
+ * `!important`, so on an element that also carries a `display` utility, source order (not
+ * the semantics of the attribute) decides which wins -- and `.flex` came out ahead here,
+ * making the attribute a no-op that left the content on screen, in the tab order, and in
+ * the accessibility tree while "collapsed". Never applying `flex` and `hidden` to the same
+ * element at once removes the tie entirely.
  */
 export function TurnSection({
 	turnNumber,
@@ -80,7 +87,10 @@ export function TurnSection({
 					</span>
 				</button>
 			</CollapsibleTrigger>
-			<CollapsibleContent forceMount hidden={!open} className="flex flex-col gap-3 pl-4">
+			<CollapsibleContent
+				forceMount
+				className={cn(open ? "flex flex-col gap-3 pl-4" : "hidden")}
+			>
 				{children}
 			</CollapsibleContent>
 		</Collapsible>
