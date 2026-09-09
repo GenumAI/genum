@@ -131,6 +131,21 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 		[expectedWriteInFlight, mutateAsync, steps],
 	);
 
+	// Patches the row at THIS flat index, not `withFinalText`: that helper searches for
+	// the last final because its caller (the separate expected-output editor) has only
+	// the text. Here the row the author typed in is already named, and searching from it
+	// would silently edit a later turn's final whenever an earlier one is edited. The
+	// server derives `expectedOutput` from the array it receives, so nothing else is sent.
+	const setStepText = useCallback(
+		async (index: number, text: string) => {
+			if (expectedWriteInFlight) return;
+			await mutateAsync({
+				expectedSteps: steps.map((step, i) => (i === index ? { ...step, text } : step)),
+			});
+		},
+		[expectedWriteInFlight, mutateAsync, steps],
+	);
+
 	const setOrderMatters = useCallback(
 		async (orderMatters: boolean) => {
 			await mutateAsync({ stepsConfig: { orderMatters } });
@@ -167,6 +182,7 @@ export function useTestcaseTrajectory({ testcaseId, testcase }: UseTestcaseTraje
 		wouldEmptyTrajectory,
 		setStepEnabled,
 		setStepArgsMatch,
+		setStepText,
 		setOrderMatters,
 		removeTrajectory,
 	};

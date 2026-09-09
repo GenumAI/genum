@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { projectApi } from "@/api/project/project.api";
 import { StepRow } from "@/components/steps/StepRow";
+import { turnsOf } from "@/lib/session";
 import { spansToSteps } from "@/lib/spansToSteps";
 import { logsKeys } from "@/query-keys/logs.keys";
 
@@ -44,14 +45,27 @@ export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
 					<p className="text-sm text-muted-foreground">This run recorded no steps.</p>
 				)}
 				{data && data.steps.length > 0 && (
-					<div className="flex flex-col gap-3">
-						{data.steps.map((step, index) => (
-							<StepRow
-								key={`${step.kind}-${index}`}
-								step={step}
-								unreadableArgs={data.unreadableArgsIndices.has(index)}
-								readOnly
-							/>
+					<div className="flex flex-col gap-4">
+						{turnsOf(data.steps).map((turn, turnPosition) => (
+							<div key={turn.start} className="flex flex-col gap-3">
+								<p className="font-medium text-xs text-muted-foreground">
+									Turn {turnPosition + 1} · {turn.steps.length}{" "}
+									{turn.steps.length === 1 ? "step" : "steps"}
+								</p>
+								{turn.steps.map((step, position) => {
+									// The row's flat index -- what `unreadableArgsIndices`
+									// addresses it by.
+									const index = turn.start + position;
+									return (
+										<StepRow
+											key={`${step.kind}-${index}`}
+											step={step}
+											unreadableArgs={data.unreadableArgsIndices.has(index)}
+											readOnly
+										/>
+									);
+								})}
+							</div>
 						))}
 					</div>
 				)}

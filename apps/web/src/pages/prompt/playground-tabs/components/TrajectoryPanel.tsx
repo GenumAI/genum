@@ -3,6 +3,7 @@ import { useState } from "react";
 import { StepRow } from "@/components/steps/StepRow";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { effectiveSteps, turnsOf } from "@/lib/session";
 import { useTestcaseTrajectory } from "@/pages/prompt/playground-tabs/playground/hooks/useTestcaseTrajectory";
 import type { TestCase } from "@/types/TestСase";
 
@@ -22,6 +23,11 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 	// rollback. Swallowing the rejection is therefore the whole handler: without it each
 	// failed save also logs an unhandled promise rejection.
 	const alreadyReported = () => {};
+
+	// The prefix the session actually runs. Everything at or past this length is stored
+	// but dead -- the session never reaches it -- so those rows render "not-reached" with
+	// their controls disabled rather than a checkbox that would change nothing.
+	const effectiveLength = effectiveSteps(trajectory.steps).length;
 
 	return (
 		<div className="flex flex-col gap-3 rounded-[6px] border p-4">
@@ -45,89 +51,68 @@ export function TrajectoryPanel({ testcaseId, testcase }: TrajectoryPanelProps) 
 				</p>
 			</div>
 
-			<div className="flex flex-col gap-3">
-				{trajectory.steps.map((step, index) => {
-					const reason = trajectory.mismatchByIndex.get(index);
-					// Gated on a comparison having been recorded, not on the testcase
-					// having been run: a run that produced a verdict without comparing the
-					// steps (a tool the recording does not cover, an AI or MANUAL
-					// assertion) gets no marks at all rather than a row of green ticks
-					// beside its NOK.
-					const outcome = !trajectory.comparisonRecorded
-						? undefined
-						: step.enabled === false
-							? ("not-asserted" as const)
-							: reason
-								? ("mismatched" as const)
-								: ("matched" as const);
+			<div className="flex flex-col gap-4">
+				{turnsOf(trajectory.steps).map((turn, turnPosition) => (
+					<div key={turn.start} className="flex flex-col gap-3">
+						<p className="font-medium text-xs text-muted-foreground">
+							Turn {turnPosition + 1} · {turn.steps.length}{" "}
+							{turn.steps.length === 1 ? "step" : "steps"}
+						</p>
+						{turn.steps.map((step, position) => {
+							// The row's flat index -- what `mismatchByIndex` and every save
+							// call address it by. A turn-local index would silently mark or
+							// save the wrong step.
+							const index = turn.start + position;
+							const reason = trajectory.mismatchByIndex.get(index);
+							// Steps at or past the truncation are stored but the session
+							// never reaches them: rendered distinctly, controls disabled --
+							// a checkbox that changes nothing is worse than no checkbox.
+							const dead = index >= effectiveLength;
 
-					if (step.kind === "final") {
-						return (
-							<div key={`${step.kind}-${index}`} className="flex items-start gap-3">
-								<Checkbox
-									className="mt-1"
-									checked={step.enabled !== false}
-									disabled={trajectory.saving}
-									onCheckedChange={(checked) => {
-										if (
-											checked !== true &&
-											trajectory.wouldEmptyTrajectory(index)
-										) {
+							// Gated on a comparison having been recorded, not on the
+							// testcase having been run: a run that produced a verdict
+							// without comparing the steps (a tool the recording does not
+							// cover, an AI or MANUAL assertion) gets no marks at all rather
+							// than a row of green ticks beside its NOK.
+							const outcome = dead
+								? ("not-reached" as const)
+								: !trajectory.comparisonRecorded
+									? undefined
+									: step.enabled === false
+										? ("not-asserted" as const)
+										: reason
+											? ("mismatched" as const)
+											: ("matched" as const);
+
+							return (
+								<StepRow
+									key={`${step.kind}-${index}`}
+									step={step}
+									outcome={outcome}
+									outcomeReason={reason}
+									disabled={trajectory.saving || dead}
+									onEnabledChange={(enabled) => {
+										if (!enabled && trajectory.wouldEmptyTrajectory(index)) {
 											setConfirmingRemoval(true);
 											return;
 										}
 										trajectory
-											.setStepEnabled(index, checked === true)
+											.setStepEnabled(index, enabled)
 											.catch(alreadyReported);
 									}}
+									onArgsMatchChange={(argsMatch) => {
+										trajectory
+											.setStepArgsMatch(index, argsMatch)
+											.catch(alreadyReported);
+									}}
+									onTextChange={(text) => {
+										trajectory.setStepText(index, text).catch(alreadyReported);
+									}}
 								/>
-								<div className="min-w-0 flex-1">
-									<div className="font-medium">Final answer</div>
-									<p className="text-xs text-muted-foreground">
-										Its text is the Expected Output below.
-									</p>
-									{outcome && (
-										<p
-											className={
-												outcome === "mismatched"
-													? "mt-1 text-xs text-destructive"
-													: "mt-1 text-xs text-muted-foreground"
-											}
-										>
-											{outcome === "mismatched"
-												? `did not match: ${reason}`
-												: outcome === "matched"
-													? "matched"
-													: "not checked"}
-										</p>
-									)}
-								</div>
-							</div>
-						);
-					}
-
-					return (
-						<StepRow
-							key={`${step.kind}-${index}`}
-							step={step}
-							outcome={outcome}
-							outcomeReason={reason}
-							disabled={trajectory.saving}
-							onEnabledChange={(enabled) => {
-								if (!enabled && trajectory.wouldEmptyTrajectory(index)) {
-									setConfirmingRemoval(true);
-									return;
-								}
-								trajectory.setStepEnabled(index, enabled).catch(alreadyReported);
-							}}
-							onArgsMatchChange={(argsMatch) => {
-								trajectory
-									.setStepArgsMatch(index, argsMatch)
-									.catch(alreadyReported);
-							}}
-						/>
-					);
-				})}
+							);
+						})}
+					</div>
+				))}
 			</div>
 
 			<div className="flex items-center gap-2">
