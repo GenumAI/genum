@@ -7,7 +7,7 @@ import type { PromptResponse } from "@/api/prompt";
 import type { PromptSettings } from "@/types/Prompt";
 import type { TestCase } from "@/types/TestСase";
 import type { FileMetadata } from "@/api/files";
-import type { ConversationMessage, ToolCallStep } from "@/types/steps";
+import type { ConversationMessage, Step, ToolCallStep } from "@/types/steps";
 import type { TrajectoryDraft } from "@/stores/playground.store";
 import { useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
@@ -124,6 +124,7 @@ export function usePlaygroundPromptRun({
 							// Minted by the server for this turn; every continuation
 							// echoes it back so the turns log as one run, not N.
 							traceId: result.traceId ?? null,
+							error: null,
 						}));
 					}
 				}
@@ -192,56 +193,20 @@ export function usePlaygroundPromptRun({
 		trajectoryGeneration,
 	]);
 
-	// The author supplied a result for the tool the run is paused on. Once every tool
-	// call from the last turn has a result, the accumulated conversation is sent back so
-	// the model can continue -- an empty string is a valid, deliberate result (e.g. a
-	// tool that legitimately returns nothing) and is sent through unchanged.
-	const handleToolResult = useCallback(
-		async (name: string, result: string) => {
+	// The second half of every continuation -- posting the accumulated conversation and
+	// applying the model's next turn -- shared by handleToolResult, handleReply, and a
+	// retry after either one fails. `stepsSoFar`/`messagesSoFar` are the trajectory AS OF
+	// the request about to be sent: the tool result or reply that triggered this attempt
+	// is already folded in (by the caller, or -- for a retry -- by the failed attempt
+	// before it, since nothing rolls back on error). The response's own steps are always
+	// appended past them.
+	const sendContinuation = useCallback(
+		async (messagesSoFar: ConversationMessage[], stepsSoFar: Step[]) => {
 			if (!promptId) return;
-
-			const [front, ...restPending] = trajectory.pending;
-			if (!front) return;
-			// The queue, not the argument, is authoritative for which call this resolves --
-			// `name` only round-trips what TrajectorySteps was showing, so a mismatch means
-			// the UI and the queue drifted apart rather than a case to special-case here.
-			if (front.call.name !== name) {
-				console.warn(
-					`Tool result for "${name}" applied to pending call "${front.call.name}"; the trajectory queue may be out of sync.`,
-				);
-			}
-
-			const toolMessage: ConversationMessage = {
-				role: "tool",
-				toolCallId: front.call.id,
-				name: front.call.name,
-				content: result,
-			};
-			const messagesSoFar = [...trajectory.messages, toolMessage];
-			const stepsSoFar = trajectory.steps.map((step, index) =>
-				index === front.stepIndex && step.kind === "tool_call"
-					? { ...step, recordedResult: result }
-					: step,
-			);
-
-			if (restPending.length > 0) {
-				// More tool calls from the same turn are still waiting on a result.
-				setTrajectory((prev) => ({
-					...prev,
-					steps: stepsSoFar,
-					messages: messagesSoFar,
-					pending: restPending,
-				}));
-				return;
-			}
-
 			const traceId = trajectory.traceId;
-			setTrajectory((prev) => ({
-				...prev,
-				steps: stepsSoFar,
-				messages: messagesSoFar,
-				pending: [],
-			}));
+			// Cleared at the start of every attempt, including a retry, so a second failure
+			// replaces the first message on the pane instead of stacking under it.
+			setTrajectory((prev) => ({ ...prev, error: null }));
 			// The Run button's spinner is fed by the session store, not the prompt store:
 			// without this the whole continuation round trip showed no sign of life --
 			// `pendingTool` is already null, so the pane is just a static list.
@@ -290,10 +255,21 @@ export function usePlaygroundPromptRun({
 						})),
 					}));
 				} else {
+					// The server numbers the trace from `messages` alone (`completedTurnSteps`
+					// in apps/core/src/ai/steps/turn.ts): without the assistant's answer
+					// appended here, `assistantTurns` still ends on the tool-call turn on the
+					// NEXT continuation, so its tool_call steps get emitted a second time and
+					// every later span index collides with one already written. The provider
+					// mapper drops assistant text at the model call regardless, so appending
+					// it here costs nothing there -- it exists purely so the server can tell
+					// this turn is finished.
 					setTrajectory((prev) => ({
 						...prev,
 						steps: [...prev.steps, { kind: "final", text: nextResult.answer }],
-						messages: prev.messages,
+						messages: [
+							...prev.messages,
+							{ role: "assistant", content: nextResult.answer },
+						],
 						pending: [],
 					}));
 				}
@@ -302,6 +278,12 @@ export function usePlaygroundPromptRun({
 				const error = err instanceof Error ? err : new Error("Failed to continue the run");
 				console.error("Failed to continue the agentic run:", err);
 				setRunError(error.message);
+				// Persisted on the trajectory, not only a transient toast: `steps` already
+				// ends on the tool result or reply that triggered this attempt, which is
+				// never a `final`, so without this the pane has no pending tool, is not
+				// running, and shows no control at all -- a dead end the author can only
+				// escape by discarding the whole recording with a fresh "Run".
+				setTrajectory((prev) => ({ ...prev, error: error.message }));
 				toast({
 					title: "Error",
 					description: error.message,
@@ -318,7 +300,7 @@ export function usePlaygroundPromptRun({
 		},
 		[
 			promptId,
-			trajectory,
+			trajectory.traceId,
 			setTrajectory,
 			trajectoryGeneration,
 			inputContent,
@@ -332,6 +314,60 @@ export function usePlaygroundPromptRun({
 			warnAboutIgnoredPlaceholders,
 			toast,
 		],
+	);
+
+	// The author supplied a result for the tool the run is paused on. Once every tool
+	// call from the last turn has a result, the accumulated conversation is sent back so
+	// the model can continue -- an empty string is a valid, deliberate result (e.g. a
+	// tool that legitimately returns nothing) and is sent through unchanged.
+	const handleToolResult = useCallback(
+		async (name: string, result: string) => {
+			if (!promptId) return;
+
+			const [front, ...restPending] = trajectory.pending;
+			if (!front) return;
+			// The queue, not the argument, is authoritative for which call this resolves --
+			// `name` only round-trips what TrajectorySteps was showing, so a mismatch means
+			// the UI and the queue drifted apart rather than a case to special-case here.
+			if (front.call.name !== name) {
+				console.warn(
+					`Tool result for "${name}" applied to pending call "${front.call.name}"; the trajectory queue may be out of sync.`,
+				);
+			}
+
+			const toolMessage: ConversationMessage = {
+				role: "tool",
+				toolCallId: front.call.id,
+				name: front.call.name,
+				content: result,
+			};
+			const messagesSoFar = [...trajectory.messages, toolMessage];
+			const stepsSoFar = trajectory.steps.map((step, index) =>
+				index === front.stepIndex && step.kind === "tool_call"
+					? { ...step, recordedResult: result }
+					: step,
+			);
+
+			if (restPending.length > 0) {
+				// More tool calls from the same turn are still waiting on a result.
+				setTrajectory((prev) => ({
+					...prev,
+					steps: stepsSoFar,
+					messages: messagesSoFar,
+					pending: restPending,
+				}));
+				return;
+			}
+
+			setTrajectory((prev) => ({
+				...prev,
+				steps: stepsSoFar,
+				messages: messagesSoFar,
+				pending: [],
+			}));
+			await sendContinuation(messagesSoFar, stepsSoFar);
+		},
+		[promptId, trajectory, setTrajectory, sendContinuation],
 	);
 
 	// The author typed a follow-up after the model's final answer. Mirrors
@@ -350,107 +386,24 @@ export function usePlaygroundPromptRun({
 
 			const userMessage: ConversationMessage = { role: "user", content: text };
 			const messagesSoFar = [...trajectory.messages, userMessage];
-			const stepsSoFar: typeof trajectory.steps = [
-				...trajectory.steps,
-				{ kind: "user", text },
-			];
+			const stepsSoFar: Step[] = [...trajectory.steps, { kind: "user", text }];
 
-			const traceId = trajectory.traceId;
 			setTrajectory((prev) => ({
 				...prev,
 				steps: stepsSoFar,
 				messages: messagesSoFar,
 			}));
-			// Same reason as in handleToolResult: the Run button's spinner is fed by the
-			// session store, not the prompt store.
-			setRunState({ loading: true });
-			setRunLoading(true);
-			setRunError(null);
-			// A "Run" (or a testcase/prompt switch) mid-flight discards this trajectory;
-			// the response that lands afterwards must not write into whatever replaced it.
-			const generation = trajectoryGeneration.current;
-
-			try {
-				const nextResult = await promptApi.runPrompt(promptId, {
-					question: inputContent,
-					...(selectedFiles.length > 0 && { files: selectedFiles.map((f) => f.id) }),
-					placeholders: placeholderSelection,
-					messages: messagesSoFar,
-					...(traceId ? { traceId } : {}),
-				});
-				if (trajectoryGeneration.current !== generation) return;
-				setLastRunResult(nextResult);
-				setOutputContent(nextResult);
-				warnAboutIgnoredPlaceholders(nextResult.placeholders?.ignored);
-
-				const nextToolCalls = nextResult.toolCalls;
-				if (nextToolCalls && nextToolCalls.length > 0) {
-					const baseIndex = stepsSoFar.length;
-					const newSteps: ToolCallStep[] = nextToolCalls.map((call) => ({
-						kind: "tool_call",
-						name: call.name,
-						args: call.args,
-					}));
-					setTrajectory((prev) => ({
-						...prev,
-						steps: [...prev.steps, ...newSteps],
-						messages: [
-							...prev.messages,
-							{
-								role: "assistant",
-								content: nextResult.answer,
-								toolCalls: nextToolCalls,
-							},
-						],
-						pending: nextToolCalls.map((call, index) => ({
-							call,
-							stepIndex: baseIndex + index,
-						})),
-					}));
-				} else {
-					setTrajectory((prev) => ({
-						...prev,
-						steps: [...prev.steps, { kind: "final", text: nextResult.answer }],
-						messages: prev.messages,
-						pending: [],
-					}));
-				}
-			} catch (err: unknown) {
-				if (trajectoryGeneration.current !== generation) return;
-				const error = err instanceof Error ? err : new Error("Failed to continue the run");
-				console.error("Failed to continue the agentic run:", err);
-				setRunError(error.message);
-				toast({
-					title: "Error",
-					description: error.message,
-					variant: "destructive",
-					duration: 6000,
-				});
-			} finally {
-				// A newer run owns the spinner now; clearing it here would hide theirs.
-				if (trajectoryGeneration.current === generation) {
-					setRunState({ loading: false });
-					setRunLoading(false);
-				}
-			}
+			await sendContinuation(messagesSoFar, stepsSoFar);
 		},
-		[
-			promptId,
-			trajectory,
-			setTrajectory,
-			trajectoryGeneration,
-			inputContent,
-			selectedFiles,
-			placeholderSelection,
-			setRunState,
-			setRunLoading,
-			setRunError,
-			setLastRunResult,
-			setOutputContent,
-			warnAboutIgnoredPlaceholders,
-			toast,
-		],
+		[promptId, trajectory, setTrajectory, sendContinuation],
 	);
+
+	// Retries the last continuation after it failed, without re-adding the tool result or
+	// reply that triggered it -- `trajectory.steps`/`trajectory.messages` already carry it,
+	// untouched since the failure (sendContinuation's catch never rolls anything back).
+	const handleRetry = useCallback(() => {
+		return sendContinuation(trajectory.messages, trajectory.steps);
+	}, [sendContinuation, trajectory.messages, trajectory.steps]);
 
 	useEffect(() => {
 		if (!storeOutputContent || !testcaseId || !testcase || !wasRun) {
@@ -475,5 +428,5 @@ export function usePlaygroundPromptRun({
 		setRunState,
 	]);
 
-	return { handleRun, handleToolResult, handleReply };
+	return { handleRun, handleToolResult, handleReply, handleRetry };
 }

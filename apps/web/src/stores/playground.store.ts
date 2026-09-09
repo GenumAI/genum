@@ -44,6 +44,14 @@ export type TrajectoryDraft = {
 	 * continuation so N requests are logged as one run; null until a tool is called.
 	 */
 	traceId: string | null;
+	/**
+	 * The last continuation's round trip failed, with this message. `steps`/`messages`
+	 * already carry the tool result or reply that triggered it -- nothing here is rolled
+	 * back on failure -- so without this the pane has no pending tool, is not running, and
+	 * its last step is not a `final`: a dead end with no control of any kind. Cleared at the
+	 * start of every continuation attempt (including a retry) and on a successful one.
+	 */
+	error: string | null;
 };
 
 const EMPTY_TRAJECTORY: TrajectoryDraft = {
@@ -51,6 +59,7 @@ const EMPTY_TRAJECTORY: TrajectoryDraft = {
 	messages: [],
 	pending: [],
 	traceId: null,
+	error: null,
 };
 
 interface PlaygroundDraftData {

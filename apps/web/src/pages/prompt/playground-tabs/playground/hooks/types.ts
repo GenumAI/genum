@@ -163,6 +163,10 @@ export interface PlaygroundTrajectoryGroup {
 	onToolResult: (name: string, result: string) => void;
 	/** The author typed a follow-up after the model's final answer; continues the session. */
 	onReply: (text: string) => void;
+	/** The last continuation's round trip failed, with this message; null otherwise. */
+	error: string | null;
+	/** Retries the failed continuation without re-adding the tool result or reply. */
+	onRetry: () => void;
 }
 
 /**

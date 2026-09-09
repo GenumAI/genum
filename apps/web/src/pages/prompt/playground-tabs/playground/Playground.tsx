@@ -147,6 +147,8 @@ export default function Playground() {
 								pendingTool={trajectory.pendingTool}
 								onToolResult={trajectory.onToolResult}
 								onReply={trajectory.onReply}
+								error={trajectory.error}
+								onRetry={trajectory.onRetry}
 								isRunning={ui.loading.run}
 							/>
 						)}

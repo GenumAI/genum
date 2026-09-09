@@ -117,10 +117,12 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 
 	const handleAddTestcase = async () => {
 		const result = await createTestcase(inputValue || "", modifiedValue, content?.answer || "");
-		if (result.success) {
+		if (result.status === "created") {
 			// Clear the form after successful creation
 			// The hook already handles showing toast
 		}
+		// "deferred" opens the step picker (rendered below); the hook finishes the create
+		// once the author confirms which steps to pin.
 	};
 
 	const handleOpenPlayground = () => {

@@ -19,6 +19,15 @@ interface TrajectoryStepsProps {
 	 */
 	onReply: (text: string) => void;
 	/**
+	 * The last continuation's round trip failed, with this message; null otherwise. A
+	 * failed turn ends on a step that is neither a pending tool nor a `final` -- without
+	 * showing this and a way to retry, the pane would be a dead end with no control at
+	 * all, recoverable only by discarding the whole recording with a fresh "Run".
+	 */
+	error: string | null;
+	/** Retries the failed continuation without re-adding the tool result or reply. */
+	onRetry: () => void;
+	/**
 	 * A turn is in flight. Between submitting a tool result and the model's reply there
 	 * is no pending tool and no new step, so without this the pane is a static list with
 	 * no sign that anything is happening.
@@ -36,6 +45,8 @@ export function TrajectorySteps({
 	pendingTool,
 	onToolResult,
 	onReply,
+	error,
+	onRetry,
 	isRunning = false,
 }: TrajectoryStepsProps) {
 	const [result, setResult] = useState("");
@@ -72,6 +83,17 @@ export function TrajectorySteps({
 											</span>
 										</div>
 									)}
+								</>
+							) : step.kind === "user" ? (
+								// Labeled, unlike `final`: in a five-step list of `final`/`user`
+								// rows sharing one icon and one plain-text rendering, the author
+								// could not otherwise tell their own words from the model's --
+								// the exact readability complaint this feature exists to fix.
+								<>
+									<div className="text-xs font-medium text-muted-foreground">
+										You
+									</div>
+									<div className="whitespace-pre-wrap">{step.text}</div>
 								</>
 							) : (
 								<div className="whitespace-pre-wrap">{step.text}</div>
@@ -127,11 +149,25 @@ export function TrajectorySteps({
 							className="self-end"
 							disabled={!reply.trim()}
 							onClick={() => {
-								onReply(reply);
+								// Untrimmed, this pins surrounding whitespace into durable step
+								// text -- the button is disabled on the same `.trim()`, so a
+								// click here always has something worth sending.
+								onReply(reply.trim());
 								setReply("");
 							}}
 						>
 							Continue
+						</Button>
+					</CardContent>
+				</Card>
+			)}
+
+			{error && !isRunning && (
+				<Card className="border-destructive">
+					<CardContent className="flex flex-col gap-2 p-3">
+						<div className="text-sm text-destructive">Turn failed: {error}</div>
+						<Button className="self-end" variant="outline" onClick={onRetry}>
+							Retry
 						</Button>
 					</CardContent>
 				</Card>

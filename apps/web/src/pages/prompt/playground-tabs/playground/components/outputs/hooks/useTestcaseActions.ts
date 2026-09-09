@@ -137,17 +137,26 @@ export const useTestcaseActions = ({
 	);
 
 	const createTestcase = useCallback(
-		async (input: string, expectedOutput: string, lastOutput: string) => {
+		async (
+			input: string,
+			expectedOutput: string,
+			lastOutput: string,
+			// `"deferred"` is not a failure -- opening the picker is success for this call;
+			// `performCreate` has not run yet and will not until the author confirms steps.
+			// A plain `{ success: false }` here would tell the next caller the same thing a
+			// genuine failure does, which is exactly the lie this shape exists to avoid.
+		): Promise<{ status: "created" | "deferred" | "failed" }> => {
 			// A trajectory is in hand: a run full of tool calls (or a reply mid-session)
 			// must not silently become a plain text testcase -- ask which steps to pin
 			// rather than dropping them. A session with no tool calls and one turn has an
 			// empty trajectory and keeps today's behaviour: no picker.
 			if (Array.isArray(trajectorySteps) && trajectorySteps.length > 0) {
 				setPendingCreate({ input, expectedOutput, lastOutput, steps: trajectorySteps });
-				return { success: false };
+				return { status: "deferred" };
 			}
 
-			return performCreate(input, expectedOutput, lastOutput);
+			const { success } = await performCreate(input, expectedOutput, lastOutput);
+			return { status: success ? "created" : "failed" };
 		},
 		[trajectorySteps, performCreate],
 	);
