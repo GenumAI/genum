@@ -2,21 +2,23 @@ import type { ConversationMessage, ToolCall } from "@/ai/providers";
 import type { Step } from "./types";
 
 /**
- * Whether this conversation is one `completedTurnSteps` can number, and what is wrong
+ * Whether this conversation is one `finishedTurnSteps` can number, and what is wrong
  * with it if not. Returns `null` for a conversation that is fine.
  *
- * `completedTurnSteps` derives BOTH the emitted steps and `spanIndexOffset` from the
- * shape of `messages` alone -- there is no server-side state to check it against -- and
- * `trace_spans` is append-only, so a mis-numbered turn can never be corrected. The
- * numbering assumes the shape the playground actually produces: a turn ends when the
- * model answers, so the model's answer is in the conversation as an assistant message
- * with no tool calls, and only then does the author's reply follow.
+ * `finishedTurnSteps` derives a turn's ordinal from the shape of `messages` alone -- there
+ * is no server-side state to check it against -- and `trace_spans` is append-only, so a
+ * mis-numbered turn can never be corrected. The numbering assumes the shape the
+ * playground actually produces: a turn ends when the model answers, so the model's
+ * answer is in the conversation as an assistant message with no tool calls, and only
+ * then does the author's reply follow.
  *
  * `[assistant(toolCalls), tool, user]` -- exactly what a pre-fix web bundle sent, and
  * what any third-party caller of `/prompts/:id/run` may send -- satisfies every
- * per-message rule `PromptRunSchema` has and still breaks the numbering: the last
- * assistant turn is the tool-call one, so its calls are emitted a SECOND time, and the
- * offset counts one span for a reply on an index the turn's `final` already occupies.
+ * per-message rule `PromptRunSchema` has and still breaks the numbering: the reply is
+ * counted as closing a turn, so `turnIndex` is 1 and the batch starts at that reply,
+ * losing the tool call before it entirely -- and the ordinal itself is wrong, because it
+ * counts a turn whose spans were never written (the assistant only asked for a tool; it
+ * never answered) as though it had, attributing this reply to a turn that never finished.
  *
  * This is a rejection rather than a repair on purpose. There is no way to tell which of
  * the two readings the caller meant -- an answer that was never sent, or a reply sent

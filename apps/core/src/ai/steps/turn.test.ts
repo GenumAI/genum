@@ -94,6 +94,64 @@ describe("finishedTurnSteps", () => {
 			],
 		});
 	});
+
+	it("emits every call from every assistant message of the turn, each matched to its own result", () => {
+		// A turn whose calls span TWO assistant messages, one of which calls the SAME tool
+		// twice with different arguments. This is the one fixture that catches three wrong
+		// shortcuts at once: emitting only the last assistant message's calls (loses the
+		// first message's call entirely), emitting only a message's first call (loses the
+		// second `get_time` call), and keying `recordedResult` by tool name instead of call
+		// id (crosses the two `get_time` results).
+		const result = finishedTurnSteps(
+			[
+				{ role: "assistant", content: "turn 1 answer" },
+				{ role: "user", content: "weather and time?" },
+				{
+					role: "assistant",
+					content: "",
+					toolCalls: [{ id: "call_1", name: "get_weather", args: { city: "Zagreb" } }],
+				},
+				{ role: "tool", toolCallId: "call_1", name: "get_weather", content: "12C" },
+				{
+					role: "assistant",
+					content: "",
+					toolCalls: [
+						{ id: "call_2", name: "get_time", args: { tz: "UTC" } },
+						{ id: "call_3", name: "get_time", args: { tz: "CET" } },
+					],
+				},
+				{ role: "tool", toolCallId: "call_2", name: "get_time", content: "10:00" },
+				{ role: "tool", toolCallId: "call_3", name: "get_time", content: "11:00" },
+			],
+			{ answer: "12C in Zagreb, 10:00 UTC / 11:00 CET" },
+		);
+
+		expect(result).toEqual({
+			turnIndex: 1,
+			steps: [
+				{ kind: "user", text: "weather and time?" },
+				{
+					kind: "tool_call",
+					name: "get_weather",
+					args: { city: "Zagreb" },
+					recordedResult: "12C",
+				},
+				{
+					kind: "tool_call",
+					name: "get_time",
+					args: { tz: "UTC" },
+					recordedResult: "10:00",
+				},
+				{
+					kind: "tool_call",
+					name: "get_time",
+					args: { tz: "CET" },
+					recordedResult: "11:00",
+				},
+				{ kind: "final", text: "12C in Zagreb, 10:00 UTC / 11:00 CET" },
+			],
+		});
+	});
 });
 
 // The numbering above reads the conversation's SHAPE, and nothing else checks it:
@@ -135,9 +193,9 @@ describe("conversationNumberingProblem", () => {
 	});
 
 	it("rejects a reply that arrives without the answer it replies to", () => {
-		// Exactly what the pre-fix web bundle sent. `completedTurnSteps` would emit the
-		// tool call a second time and write a `user` span onto the index the turn's
-		// `final` already holds.
+		// Exactly what the pre-fix web bundle sent. `finishedTurnSteps` would count the
+		// reply as closing a turn, losing the tool call before it and attributing the
+		// reply to a turn that never actually answered.
 		const problem = conversationNumberingProblem([
 			askForWeather,
 			{ role: "tool", toolCallId: "call_1", name: "get_weather", content: "12C" },
