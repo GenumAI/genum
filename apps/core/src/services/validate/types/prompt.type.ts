@@ -113,8 +113,17 @@ export const PromptRunSchema = z
 		/**
 		 * Turns after the opening question, for an agentic run. Absent for a single-shot
 		 * run, which is every caller that existed before trajectory testcases.
+		 *
+		 * `min(1)`: an empty array is not a continuation of anything, and without this
+		 * floor `{ messages: [] }` would still classify as a tool continuation (its last
+		 * entry is not a user message) and log `prt` -- a real, billed run excluded from
+		 * every `RUN_COUNT` in `queries.ts`, which counts `log_type != 'prt'`.
 		 */
-		messages: z.array(ConversationMessageSchema).max(MAX_CONVERSATION_MESSAGES).optional(),
+		messages: z
+			.array(ConversationMessageSchema)
+			.min(1)
+			.max(MAX_CONVERSATION_MESSAGES)
+			.optional(),
 		/**
 		 * The trace the first turn of this trajectory minted and returned. The playground's
 		 * loop is client-side, so the server only learns that N requests are one trajectory

@@ -139,10 +139,13 @@ export class PromptsController {
 		const isUserContinuation = lastMessage?.role === "user";
 		const isToolContinuation = messages !== undefined && !isUserContinuation;
 		// A trace exists once the session continued, not once a tool was called: a session
-		// that answers plainly and then asks the real question is worth recording too. Turn
-		// 1 mints one when the model asks for a tool OR the client continues without one
-		// (the client only echoes a trace it was given -- it never mints its own), and a
-		// continuation carries the one it was given, or gets one minted here if it has none.
+		// that answers plainly and then asks the real question is worth recording too --
+		// though only from turn 2 on, since turn 1's row is already written with no
+		// trace_id by the time turn 2 mints one, and ClickHouse is append-only so it can
+		// never be joined to that trace afterwards. Turn 1 mints one when the model asks
+		// for a tool OR the client continues without one (the client only echoes a trace
+		// it was given -- it never mints its own), and a continuation carries the one it
+		// was given, or gets one minted here if it has none.
 		const startsTrajectory = messages === undefined && !!run.toolCalls?.length;
 		const traceId =
 			continuedTraceId ??

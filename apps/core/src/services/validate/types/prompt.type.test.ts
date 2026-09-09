@@ -137,6 +137,13 @@ describe("PromptRunSchema", () => {
 		expect(() => PromptRunSchema.parse({ question: "hi", traceId: TRACE })).toThrow();
 	});
 
+	it("rejects an empty messages array: it is not a continuation of anything", () => {
+		// Without a floor on the array, `{ messages: [] }` still parses, mints a trace (no
+		// user-role last message), and logs `prt` -- a real run excluded from every
+		// `RUN_COUNT` in queries.ts.
+		expect(() => PromptRunSchema.parse({ question: "hi", messages: [] })).toThrow();
+	});
+
 	it("rejects a trace id that is not a uuid", () => {
 		expect(() =>
 			PromptRunSchema.parse({
