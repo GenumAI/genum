@@ -157,18 +157,15 @@ export class PromptsController {
 		// ten-question conversation one run with its success rate over a denominator of one.
 		const isUserContinuation = lastMessage?.role === "user";
 		const isToolContinuation = messages !== undefined && !isUserContinuation;
-		// A trace exists once the session continued, not once a tool was called: a session
-		// that answers plainly and then asks the real question is worth recording too --
-		// though only from turn 2 on, since turn 1's row is already written with no
-		// trace_id by the time turn 2 mints one, and ClickHouse is append-only so it can
-		// never be joined to that trace afterwards. Turn 1 mints one when the model asks
-		// for a tool OR the client continues without one (the client only echoes a trace
-		// it was given -- it never mints its own), and a continuation carries the one it
-		// was given, or gets one minted here if it has none.
-		const startsTrajectory = messages === undefined && !!run.toolCalls?.length;
-		const traceId =
-			continuedTraceId ??
-			(messages !== undefined || startsTrajectory ? randomUUID() : undefined);
+		// Every run opens a session, whether or not it called a tool. A plainly answered
+		// question is a session of one turn that the author may continue with a follow-up,
+		// and ClickHouse is append-only: a session minted later can never be joined to the
+		// `logs` row and the spans of the turn that came before it. Minting only once a
+		// tool was called is what made a plain first answer uncontinuable -- turn 1 was
+		// recorded under no session, so turn 2 had nothing to attach to and the reply
+		// control had nowhere to appear. A continuation carries back the session it was
+		// given (the client only echoes; it never mints one of its own).
+		const traceId = continuedTraceId ?? randomUUID();
 
 		if (turnUsage) {
 			await logUsage({
@@ -181,8 +178,8 @@ export class PromptsController {
 		// One batch per turn, written on the request the turn ends on. `traceId` addresses
 		// the SESSION -- it always has -- and the turn gets its own trace id here, so that
 		// a trace is one turn, the way the GenAI conventions have it.
-		const turn = traceId ? finishedTurnSteps(messages, run) : null;
-		if (traceId && turnUsage && turn && turn.steps.length > 0) {
+		const turn = finishedTurnSteps(messages, run);
+		if (turnUsage && turn && turn.steps.length > 0) {
 			await logSpans({
 				trace_id: deriveTurnTraceId(traceId, turn.turnIndex),
 				session_id: traceId,

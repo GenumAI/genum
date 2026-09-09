@@ -4,7 +4,7 @@ import { projectApi } from "@/api/project/project.api";
 import { StepRow } from "@/components/steps/StepRow";
 import { TurnSection } from "@/components/steps/TurnSection";
 import { turnsOf } from "@/lib/session";
-import { spansToSteps } from "@/lib/spansToSteps";
+import { isSingleAnswer, spansToSteps } from "@/lib/spansToSteps";
 import { logsKeys } from "@/query-keys/logs.keys";
 
 interface LogTrajectorySectionProps {
@@ -20,13 +20,25 @@ export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
 		},
 	});
 
+	// Every run opens a session now, so almost every log row has a trace and this
+	// component mounts on almost every log. A session of one plain answer has nothing to
+	// show -- one row repeating the output field already on screen above it -- so it
+	// renders nothing at all rather than a header over a duplicate. The same silence
+	// covers the load: the alternative is a "Trajectory / Loading the trace…" box
+	// flashing on every plain log and then vanishing.
+	//
+	// An EMPTY list is excluded deliberately -- that is a session whose turn was
+	// abandoned, and "This run recorded no steps." below is the thing worth saying
+	// about it.
+	if (isLoading || (data && !isError && data.steps.length > 0 && isSingleAnswer(data.steps)))
+		return null;
+
 	return (
 		<div>
 			<p className="mb-1 font-medium text-xs leading-none tracking-normal text-muted-foreground">
 				Trajectory
 			</p>
 			<div className="rounded-[6px] border p-4">
-				{isLoading && <p className="text-sm text-muted-foreground">Loading the trace…</p>}
 				{/* An empty list and a failed read look identical if the failure is silent,
 				    and they mean opposite things: "this run called no tools" versus "we
 				    could not tell you what it did".

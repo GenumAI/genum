@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/useToast";
 import { useCreateTestcase } from "@/hooks/useCreateTestcase";
 import { projectApi } from "@/api/project";
 import { promptApi } from "@/api/prompt/prompt.api";
-import { spansToSteps } from "@/lib/spansToSteps";
+import { isSingleAnswer, spansToSteps } from "@/lib/spansToSteps";
 import type { Log, LogDetail } from "@/types/logs";
 import type { Step } from "@/types/steps";
 import { logsKeys } from "@/query-keys/logs.keys";
@@ -169,7 +169,12 @@ export function useAddTestcaseFromLog({
 				fetchFailed = true;
 			}
 
-			if (steps.length > 0) {
+			// `isSingleAnswer` and not `steps.length > 0`: every run opens a session now,
+			// so a plainly answered question reaches here with one `final` step. Opening
+			// the picker on it would replace the familiar one-click "add testcase" with a
+			// dialog offering a single row that duplicates the testcase's own expected
+			// output. The plain path below is still right for that shape.
+			if (!isSingleAnswer(steps)) {
 				setPending({
 					steps,
 					unreadableArgsIndices,
@@ -179,12 +184,18 @@ export function useAddTestcaseFromLog({
 				return;
 			}
 
-			// The author asked for a trajectory testcase and is about to get a plain text
-			// one -- either because the read genuinely failed, or because this session's
-			// turn never finished (it writes its `logs` row but no spans, by design, so
-			// `steps` comes back empty with no error). The toast must say which: nothing
-			// failed to load in the second case.
-			await submit(logDetail, targetPromptId, undefined, fetchFailed ? "failed" : "no-turn");
+			// A plain text testcase, for one of three reasons, only two of which the author
+			// needs telling about: the read genuinely failed; this session's turn never
+			// finished (it writes its `logs` row but no spans, by design, so `steps` comes
+			// back empty with no error); or the session is one plain answer, which is the
+			// ordinary shape of most runs and has always produced a text testcase with no
+			// remark. Warning on the third would put a note on nearly every add.
+			await submit(
+				logDetail,
+				targetPromptId,
+				undefined,
+				fetchFailed ? "failed" : steps.length === 0 ? "no-turn" : undefined,
+			);
 			return;
 		}
 

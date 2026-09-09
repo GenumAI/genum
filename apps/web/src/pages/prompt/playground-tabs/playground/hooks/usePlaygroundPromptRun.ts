@@ -107,26 +107,45 @@ export function usePlaygroundPromptRun({
 					setOutputContent(result);
 					warnAboutIgnoredPlaceholders(result.placeholders?.ignored);
 
-					// The tool is never executed by Genum: the run pauses here and the author
-					// types the result in (see handleToolResult), which is what turns this
-					// into a recordable, later replayable trajectory.
+					// Every completed run seeds the pane, not only one that asked for a
+					// tool. An answer is the end of a TURN, not of a session -- the author
+					// may have a follow-up -- and the reply control lives in the pane, so
+					// gating the pane on tool calls is what left a plainly answered question
+					// with no way to continue it.
+					//
+					// The tool, when there is one, is never executed by Genum: the run
+					// pauses here and the author types the result in (see handleToolResult),
+					// which is what turns this into a recordable, later replayable
+					// trajectory.
 					const toolCalls = result.toolCalls;
-					if (toolCalls && toolCalls.length > 0) {
-						const steps: ToolCallStep[] = toolCalls.map((call) => ({
-							kind: "tool_call",
-							name: call.name,
-							args: call.args,
-						}));
-						setTrajectory(() => ({
-							steps,
-							messages: [{ role: "assistant", content: result.answer, toolCalls }],
-							pending: toolCalls.map((call, index) => ({ call, stepIndex: index })),
-							// Minted by the server for this turn; every continuation
-							// echoes it back so the turns log as one run, not N.
-							traceId: result.traceId ?? null,
-							error: null,
-						}));
-					}
+					const steps: Step[] =
+						toolCalls && toolCalls.length > 0
+							? toolCalls.map(
+									(call): ToolCallStep => ({
+										kind: "tool_call",
+										name: call.name,
+										args: call.args,
+									}),
+								)
+							: [{ kind: "final", text: result.answer }];
+					setTrajectory(() => ({
+						steps,
+						messages: [
+							{
+								role: "assistant",
+								content: result.answer,
+								...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
+							},
+						],
+						pending: (toolCalls ?? []).map((call, index) => ({
+							call,
+							stepIndex: index,
+						})),
+						// Minted by the server for this turn; every continuation
+						// echoes it back so the turns log as one run, not N.
+						traceId: result.traceId ?? null,
+						error: null,
+					}));
 				}
 				return;
 			}

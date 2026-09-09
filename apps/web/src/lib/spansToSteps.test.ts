@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { spansToSteps } from "./spansToSteps";
+import { isSingleAnswer, spansToSteps } from "./spansToSteps";
 import type { SpanRow } from "@/types/spans";
 
 function row(overrides: Partial<SpanRow>): SpanRow {
@@ -181,5 +181,42 @@ describe("spansToSteps", () => {
 		]);
 
 		expect(steps[0]).toMatchObject({ kind: "tool_call", name: "weather" });
+	});
+});
+
+describe("isSingleAnswer", () => {
+	it("is true for a session that is one plain answer", () => {
+		// The shape every ordinary run now records, and the whole reason the predicate
+		// exists: this must not open the step picker or render a trajectory.
+		expect(isSingleAnswer([{ kind: "final", text: "sunny" }])).toBe(true);
+	});
+
+	it("is false for two turns of plain answers, with no tool anywhere", () => {
+		// The discriminating case. A rule written as "contains no tool call" would call
+		// this single too -- and a two-turn conversation IS worth pinning, because a plain
+		// text testcase cannot express a follow-up.
+		expect(
+			isSingleAnswer([
+				{ kind: "final", text: "hi" },
+				{ kind: "user", text: "the real question" },
+				{ kind: "final", text: "the real answer" },
+			]),
+		).toBe(false);
+	});
+
+	it("is false as soon as a tool was called", () => {
+		expect(
+			isSingleAnswer([
+				{ kind: "tool_call", name: "weather", args: {} },
+				{ kind: "final", text: "12 degrees" },
+			]),
+		).toBe(false);
+	});
+
+	it("is true for no steps at all", () => {
+		// An abandoned turn records none. Callers that want to say something about that
+		// case test the length themselves; this predicate says only that there is nothing
+		// to pick from, which is true of an empty session.
+		expect(isSingleAnswer([])).toBe(true);
 	});
 });

@@ -59,6 +59,24 @@ export function spansToSteps(spans: SpanRow[]): MappedTrajectory {
 }
 
 /**
+ * Whether a recorded session is nothing but one answer to one question.
+ *
+ * Every run now opens a session, so a plainly answered question records a trace too --
+ * a single `final` span carrying the same text the log's output field already shows.
+ * That is worth recording (it is what makes the answer continuable) but not worth
+ * showing as a trajectory or picking steps from: the picker would offer one row
+ * duplicating the testcase's own expected output, and pinning it asserts nothing the
+ * plain text testcase underneath does not already assert.
+ *
+ * A second turn changes that even with no tool in sight -- two questions and two answers
+ * are a shape a text testcase cannot express -- so the test is on the step COUNT, not on
+ * the presence of a tool call.
+ */
+export function isSingleAnswer(steps: Step[]): boolean {
+	return steps.length === 0 || (steps.length === 1 && steps[0].kind === "final");
+}
+
+/**
  * A ClickHouse row is not trusted input: `tool_args` can be malformed or truncated, and
  * `JSON.parse` throws on both. One bad row must not take down the whole dialog, so a
  * value we cannot read degrades to empty arguments pinned as `argsMatch: "ignore"`.

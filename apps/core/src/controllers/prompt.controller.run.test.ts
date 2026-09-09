@@ -110,19 +110,32 @@ describe("PromptsController.runPrompt", () => {
 		} as never);
 	});
 
-	it("logs a plain run exactly as before: one prs row, no trace, no spans", async () => {
+	it("opens a session for a plainly answered run and records its answer as turn 0", async () => {
+		// This used to record no session at all, on the reasoning that a plain answer had
+		// nothing agentic about it. That is what made the answer a dead end: a follow-up
+		// needs a session to attach to, and ClickHouse is append-only, so a session minted
+		// at the follow-up can never be joined to the turn that provoked it. The turn is
+		// recorded now, and the reply control in the playground has something to continue.
 		mockRun({ answer: "sunny" });
 		const { res, captured } = makeRes();
 
 		await controller.runPrompt(makeReq({ question: "weather?" }), res);
 
 		expect(captured.statusCode).toBe(200);
-		expect(captured.body.traceId).toBeUndefined();
+		const traceId = captured.body.traceId;
+		expect(traceId).toMatch(/^[0-9a-f-]{36}$/);
 		expect(logUsage).toHaveBeenCalledTimes(1);
 		const row = vi.mocked(logUsage).mock.calls[0][0];
+		// Still one `prs` row, and still one run: opening a session does not make a
+		// single-shot question into a trajectory for the analytics.
 		expect(row.log_type).toBe("prs");
-		expect(row.trace_id).toBeUndefined();
-		expect(logSpans).not.toHaveBeenCalled();
+		expect(row.trace_id).toBe(traceId);
+
+		expect(logSpans).toHaveBeenCalledTimes(1);
+		const batch = vi.mocked(logSpans).mock.calls[0][0];
+		expect(batch.session_id).toBe(traceId);
+		expect(batch.turn_index).toBe(0);
+		expect(batch.steps).toEqual([{ kind: "final", text: "sunny" }]);
 	});
 
 	it("mints a trace on the turn that first calls a tool and returns it", async () => {
@@ -384,20 +397,26 @@ describe("PromptsController.runPrompt", () => {
 		expect(runPrompt).not.toHaveBeenCalled();
 	});
 
-	it("mints a trace for a session that continued without calling a tool", async () => {
+	it("keeps a plainly answered turn and the follow-up it provoked in ONE session", async () => {
 		// "Turn 1 answers plainly, turn 2 asks the real question" is a normal agent
-		// session, and the old rule -- a trace exists only once a trajectory does --
-		// made it unrecordable. Not calling a tool is itself an answer worth pinning.
+		// session, and it is the shape the old rule -- a session exists only once a tool
+		// was called -- could not record. It did not merely lose turn 1: it minted a
+		// SECOND session at turn 2, and ClickHouse being append-only, turn 1's row could
+		// never be joined to it. The two turns must land under one session id, numbered
+		// 0 and 1, or the reply is a new conversation every time.
 		mockRun({ answer: "hi" });
 		const { res: firstRes, captured: first } = makeRes();
 		await controller.runPrompt(makeReq({ question: "hello" }), firstRes);
-		expect(first.body.traceId).toBeUndefined();
+		const session = first.body.traceId;
+		expect(session).toMatch(/^[0-9a-f-]{36}$/);
 
 		mockRun({ answer: "the real answer" });
 		const { res: secondRes, captured: second } = makeRes();
 		await controller.runPrompt(
 			makeReq({
 				question: "hello",
+				// Echoed back by the client, exactly as it was handed out.
+				traceId: session,
 				messages: [
 					{ role: "assistant", content: "hi" },
 					{ role: "user", content: "now the real question" },
@@ -405,7 +424,20 @@ describe("PromptsController.runPrompt", () => {
 			}),
 			secondRes,
 		);
-		expect(second.body.traceId).toMatch(/^[0-9a-f-]{36}$/);
+		expect(second.body.traceId).toBe(session);
+
+		const batches = vi.mocked(logSpans).mock.calls.map(([batch]) => batch);
+		expect(batches).toHaveLength(2);
+		expect(batches.map((batch) => batch.session_id)).toEqual([session, session]);
+		expect(batches.map((batch) => batch.turn_index)).toEqual([0, 1]);
+		// Each turn owns its own trace, so the two are different -- and each numbers its
+		// spans from zero.
+		expect(batches[0].trace_id).not.toBe(batches[1].trace_id);
+		expect(batches[0].steps).toEqual([{ kind: "final", text: "hi" }]);
+		expect(batches[1].steps).toEqual([
+			{ kind: "user", text: "now the real question" },
+			{ kind: "final", text: "the real answer" },
+		]);
 	});
 
 	it("counts a user reply as a run and a tool continuation as a turn", async () => {
