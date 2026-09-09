@@ -228,19 +228,86 @@ describe("PromptsController.runPrompt", () => {
 		expect(vi.mocked(runPrompt).mock.calls[0][0].messages).toEqual(messages);
 	});
 
-	it("rejects a continuation that carries no trace", async () => {
+	it("mints a trace for a continuation that carries no trace, logging it as a turn", async () => {
+		// Was: rejected outright, because the old refine required messages and traceId
+		// together. A continuation with no trace is exactly the case the server now
+		// mints one for -- "Turn 1 answers plainly, turn 2 asks the real question" never
+		// gets a traceId from the client on turn 1, so turn 2 must be allowed to arrive
+		// without one.
+		mockRun({ answer: "done" });
+		const { res, captured } = makeRes();
+
+		await controller.runPrompt(
+			makeReq({
+				question: "q",
+				messages: [{ role: "tool", toolCallId: "call_1", name: "t", content: "r" }],
+			}),
+			res,
+		);
+
+		expect(runPrompt).toHaveBeenCalledTimes(1);
+		expect(captured.body.traceId).toMatch(/^[0-9a-f-]{36}$/);
+		const row = vi.mocked(logUsage).mock.calls[0][0];
+		expect(row.log_type).toBe("prt");
+	});
+
+	it("still rejects a traceId sent without messages", async () => {
 		mockRun({ answer: "done" });
 		const { res } = makeRes();
 
 		await expect(
-			controller.runPrompt(
-				makeReq({
-					question: "q",
-					messages: [{ role: "tool", toolCallId: "call_1", name: "t", content: "r" }],
-				}),
-				res,
-			),
+			controller.runPrompt(makeReq({ question: "q", traceId: TRACE }), res),
 		).rejects.toThrow();
 		expect(runPrompt).not.toHaveBeenCalled();
+	});
+
+	it("mints a trace for a session that continued without calling a tool", async () => {
+		// "Turn 1 answers plainly, turn 2 asks the real question" is a normal agent
+		// session, and the old rule -- a trace exists only once a trajectory does --
+		// made it unrecordable. Not calling a tool is itself an answer worth pinning.
+		mockRun({ answer: "hi" });
+		const { res: firstRes, captured: first } = makeRes();
+		await controller.runPrompt(makeReq({ question: "hello" }), firstRes);
+		expect(first.body.traceId).toBeUndefined();
+
+		mockRun({ answer: "the real answer" });
+		const { res: secondRes, captured: second } = makeRes();
+		await controller.runPrompt(
+			makeReq({
+				question: "hello",
+				messages: [
+					{ role: "assistant", content: "hi" },
+					{ role: "user", content: "now the real question" },
+				],
+			}),
+			secondRes,
+		);
+		expect(second.body.traceId).toMatch(/^[0-9a-f-]{36}$/);
+	});
+
+	it("counts a user reply as a run and a tool continuation as a turn", async () => {
+		mockRun({ answer: "again" });
+		const { res: userRes } = makeRes();
+		await controller.runPrompt(
+			makeReq({
+				question: "q",
+				traceId: TRACE,
+				messages: [{ role: "user", content: "again" }],
+			}),
+			userRes,
+		);
+		expect(vi.mocked(logUsage).mock.calls[0][0].log_type).toBe("prs");
+
+		mockRun({ answer: "tool answer" });
+		const { res: toolRes } = makeRes();
+		await controller.runPrompt(
+			makeReq({
+				question: "q",
+				traceId: TRACE,
+				messages: [{ role: "tool", toolCallId: "1", name: "t", content: "{}" }],
+			}),
+			toolRes,
+		);
+		expect(vi.mocked(logUsage).mock.calls[1][0].log_type).toBe("prt");
 	});
 });

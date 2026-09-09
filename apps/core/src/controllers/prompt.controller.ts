@@ -131,22 +131,28 @@ export class PromptsController {
 			},
 		});
 
-		// A trace exists only once a trajectory does. Turn 1 mints one when the model asks
-		// for a tool; a continuation carries the one it was given. A run against a prompt
-		// that called no tool gets none, and its row is byte-for-byte what it always was.
-		const isContinuation = continuedTraceId !== undefined;
-		const startsTrajectory = !isContinuation && !!run.toolCalls?.length;
-		const traceId = isContinuation
-			? continuedTraceId
-			: startsTrajectory
-				? randomUUID()
-				: undefined;
+		const lastMessage = messages?.[messages.length - 1];
+		// A human asking the next question is a new run; the model fetching a tool result
+		// inside one question is not. Keyed on what the continuation carries, because
+		// `traceId` alone cannot tell the two apart, and counting them alike makes a
+		// ten-question conversation one run with its success rate over a denominator of one.
+		const isUserContinuation = lastMessage?.role === "user";
+		const isToolContinuation = messages !== undefined && !isUserContinuation;
+		// A trace exists once the session continued, not once a tool was called: a session
+		// that answers plainly and then asks the real question is worth recording too. Turn
+		// 1 mints one when the model asks for a tool OR the client continues without one
+		// (the client only echoes a trace it was given -- it never mints its own), and a
+		// continuation carries the one it was given, or gets one minted here if it has none.
+		const startsTrajectory = messages === undefined && !!run.toolCalls?.length;
+		const traceId =
+			continuedTraceId ??
+			(messages !== undefined || startsTrajectory ? randomUUID() : undefined);
 
 		if (turnUsage) {
 			await logUsage({
 				...turnUsage,
 				trace_id: traceId,
-				log_type: isContinuation ? LogType.PromptRunTurn : turnUsage.log_type,
+				log_type: isToolContinuation ? LogType.PromptRunTurn : turnUsage.log_type,
 			});
 		}
 

@@ -119,14 +119,21 @@ describe("PromptRunSchema", () => {
 		).toThrow();
 	});
 
-	it("rejects a continuation with no trace, and a trace with no continuation", () => {
-		expect(() =>
-			PromptRunSchema.parse({
-				question: "hi",
-				messages: [{ role: "tool", toolCallId: "c", name: "t", content: "x" }],
-			}),
-		).toThrow();
+	it("accepts a continuation with no trace: the server mints one", () => {
+		// Was: rejected, because the old refine required messages and traceId together.
+		// A trace now exists once the session continues, not once a tool is called, so a
+		// continuation the client never received a trace for -- turn 1 answered plainly --
+		// must be allowed through without one.
+		const parsed = PromptRunSchema.parse({
+			question: "hi",
+			messages: [{ role: "tool", toolCallId: "c", name: "t", content: "x" }],
+		});
 
+		expect(parsed.traceId).toBeUndefined();
+		expect(parsed.messages).toHaveLength(1);
+	});
+
+	it("rejects a trace with no conversation", () => {
 		expect(() => PromptRunSchema.parse({ question: "hi", traceId: TRACE })).toThrow();
 	});
 

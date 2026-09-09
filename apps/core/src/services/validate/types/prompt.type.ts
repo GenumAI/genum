@@ -123,10 +123,13 @@ export const PromptRunSchema = z
 		traceId: z.uuid().optional(),
 	})
 	.strict()
-	// Both or neither: a continuation with no trace would log turns that nothing ties
-	// together, and a trace with no conversation would log a root turn as a continuation.
-	.refine((body) => (body.messages === undefined) === (body.traceId === undefined), {
-		message: "messages and traceId must be sent together",
+	// A continuation may arrive without a trace -- the server mints one, which is what
+	// lets a session that answered plainly on turn 1 still be recorded once it continues
+	// on turn 2. What stays refused is a trace with no conversation: it would log a root
+	// turn as a continuation of a trajectory that was never sent.
+	.refine((body) => !(body.traceId !== undefined && body.messages === undefined), {
+		message:
+			"traceId without messages is refused: a trace requires the conversation it continues",
 		path: ["traceId"],
 	});
 
