@@ -794,7 +794,15 @@ Add `session_id` and `turn_index` to `ClickHouseSpanRow` (`apps/core/src/service
 
 - [ ] **Step 5: Update every caller of the old name**
 
-Run `grep -rn "getTraceSpans" apps/core/src` and rename each call. The identifier they pass is already the session (the wire's `traceId`), so no call site changes its argument — only the function's name.
+Run `grep -rn "getTraceSpans" apps/core/src`. The identifier every caller passes is already the session (the wire's `traceId`), so no call site changes its argument — only the function's name.
+
+**Rename the logger function and its re-export, and nothing else.** Specifically, leave all three of these as they are:
+
+- the route `"/traces/:traceId/spans"` (`apps/core/src/routers/ProjectRouter.ts:78-81`) — the web client calls it, and the identifier in that path is the session, exactly as the wire's `traceId` is;
+- the controller method `ProjectController.getTraceSpans` (`apps/core/src/controllers/project.controller.ts:250`), which is the route's handler and is named after it;
+- `WhereBuilder.traceId` (`apps/core/src/services/logger/where.builder.ts:46`), which loses its only caller in this task. It is not dead weight to remove: `logs.trace_id` still exists and is still a legitimate filter, and the builder's methods mirror columns rather than callers.
+
+Rename `getTraceSpans` → `getSessionSpans` inside `logger.ts`, update its re-export in `apps/core/src/services/logger/index.ts`, and update the import and call in `project.controller.ts`. The controller method keeps its own name while calling the renamed function — that reads oddly for one line and is correct: the HTTP surface kept its vocabulary, the internals got an accurate one.
 
 - [ ] **Step 6: Run everything**
 
