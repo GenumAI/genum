@@ -50,7 +50,7 @@ export const QUERIES = {
 	 * `trace_id` is the one agentic column here, and it is here because it is an address,
 	 * not a payload: a bounded string that tells the list whether a row has a recorded
 	 * trajectory at all. The steps themselves live in `trace_spans` and are read only when
-	 * the details dialog opens (GET_TRACE_SPANS).
+	 * the details dialog opens (GET_SPANS).
 	 *
 	 * Both this and GET_LOG_DETAIL must be sent with QUOTE_64BIT_INTEGERS -- see there.
 	 */

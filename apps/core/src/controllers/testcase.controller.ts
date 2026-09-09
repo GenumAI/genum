@@ -415,7 +415,8 @@ export class TestcasesController {
 
 /**
  * Writes the telemetry of one agentic run: a single root `logs` row summed across the
- * turns, plus that run's steps in `trace_spans`, correlated by `trace_id`.
+ * turns, plus that run's steps in `trace_spans`, correlated by `session_id` -- each
+ * turn gets its own `trace_id`, deliberately different from the session's.
  *
  * Summing is what makes the run count once. `response_ms` is summed too, deliberately:
  * the turns are sequential (the replay awaits each before issuing the next), so their

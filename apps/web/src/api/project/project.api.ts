@@ -240,7 +240,10 @@ export const projectApi = {
 	},
 
 	/**
-	 * Get the spans of one recorded trace, ordered by `span_index`.
+	 * Get the spans of one recorded session across all of its turns, ordered by
+	 * `turn_index` then `span_index`. "Trace" in this name and endpoint means session --
+	 * the wire vocabulary was kept for this HTTP surface, but a session's turns are each
+	 * their own trace internally.
 	 *
 	 * The org and project scope is not passed here -- the axios interceptor injects it as
 	 * `lab-org-id` / `lab-proj-id`, and the backend re-applies it to the query, so a

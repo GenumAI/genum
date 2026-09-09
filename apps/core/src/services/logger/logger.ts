@@ -795,9 +795,9 @@ export async function getProjectUsageWithDailyStats(
 }
 
 /**
- * A trace spans every turn of a conversation, so its span count is unbounded even though
- * each request's steps are capped. Far more than this is a runaway trace, not a trace
- * anyone is going to read.
+ * A session spans every turn of a conversation, so its span count is unbounded even
+ * though each turn's steps are capped and each turn is its own trace. Far more than this
+ * is a runaway session, not a session anyone is going to read.
  */
 const MAX_TRACE_SPANS = 1000;
 

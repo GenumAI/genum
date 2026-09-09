@@ -71,12 +71,14 @@ export function useAddTestcaseFromLog({
 			detail: LogDetail,
 			targetPromptId: number,
 			expectedSteps?: Step[],
-			// True when the log carried a trace_id but the recorded trajectory could not be
-			// turned into steps (the span fetch failed, or it came back empty) -- the author
+			// Set when the log carried a trace_id but no steps ended up pinned -- the author
 			// asked for tool-call assertions and is about to get a plain text testcase
 			// instead. Logging to console.error and falling through silently would leave
-			// them believing they pinned tool calls when they pinned nothing.
-			traceUnavailable = false,
+			// them believing they pinned tool calls when they pinned nothing. The two causes
+			// read differently to the author: "failed" is a genuine read failure (network,
+			// bad payload); "no-turn" is a session where no turn ever finished, which writes
+			// its `logs` row but no spans, by design -- nothing failed to load there.
+			traceIssue?: "failed" | "no-turn",
 		) => {
 			try {
 				const { ok, unresolvedPlaceholders } = await createTestcase({
@@ -96,10 +98,12 @@ export function useAddTestcaseFromLog({
 					// Composable: an author can hit both the trace warning and the
 					// unresolved-placeholder warning on the same create, and both must show.
 					const notes: string[] = [];
-					if (traceUnavailable) {
+					if (traceIssue === "failed") {
 						notes.push(
 							"the recorded trajectory could not be loaded, so no steps were pinned",
 						);
+					} else if (traceIssue === "no-turn") {
+						notes.push("this run recorded no steps, so no steps were pinned");
 					}
 					if (unresolvedPlaceholders.length > 0) {
 						notes.push(
@@ -150,6 +154,7 @@ export function useAddTestcaseFromLog({
 		if (selectedLog.trace_id) {
 			let steps: Step[] = [];
 			let unreadableArgsIndices: Set<number> = NO_UNREADABLE_ARGS;
+			let fetchFailed = false;
 			try {
 				const { spans } = await queryClient.fetchQuery({
 					queryKey: logsKeys.traceSpans(selectedLog.trace_id),
@@ -161,6 +166,7 @@ export function useAddTestcaseFromLog({
 				// A trace we cannot read is a reason to fall back to a text testcase, not
 				// a reason to refuse to create one -- but the author still needs to know.
 				console.error("Failed to load trace spans for log:", error);
+				fetchFailed = true;
 			}
 
 			if (steps.length > 0) {
@@ -173,11 +179,12 @@ export function useAddTestcaseFromLog({
 				return;
 			}
 
-			// Either the fetch failed above, or it succeeded with no spans to turn into
-			// steps -- either way, the author asked for a trajectory testcase and is about
-			// to get a plain text one. `traceUnavailable: true` surfaces that in the toast
-			// instead of leaving them to believe they pinned tool calls.
-			await submit(logDetail, targetPromptId, undefined, true);
+			// The author asked for a trajectory testcase and is about to get a plain text
+			// one -- either because the read genuinely failed, or because this session's
+			// turn never finished (it writes its `logs` row but no spans, by design, so
+			// `steps` comes back empty with no error). The toast must say which: nothing
+			// failed to load in the second case.
+			await submit(logDetail, targetPromptId, undefined, fetchFailed ? "failed" : "no-turn");
 			return;
 		}
 

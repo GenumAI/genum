@@ -244,6 +244,10 @@ describe("PromptsController.runPrompt", () => {
 			midRes,
 		);
 		expect(logSpans).not.toHaveBeenCalled();
+		// An abandoned turn records no spans, but its `logs` row is still written -- the
+		// author leaving mid-turn must not also lose the billed usage for the tool call
+		// they did make.
+		expect(logUsage).toHaveBeenCalledTimes(1);
 
 		// The turn ends here: one batch, carrying the SESSION id and the turn's own trace.
 		mockRun({ answer: "12 in Zagreb" });

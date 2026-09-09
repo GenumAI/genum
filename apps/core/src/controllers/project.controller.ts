@@ -247,6 +247,8 @@ export class ProjectController {
 		});
 	}
 
+	// Named for the HTTP surface it serves, which kept the "trace" vocabulary; internally
+	// it fetches a SESSION's spans across all its turns.
 	public async getTraceSpans(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 		const traceId = uuidSchema.parse(req.params.traceId);

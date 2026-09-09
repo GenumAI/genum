@@ -249,7 +249,7 @@ export function StepRow({
 					</>
 				) : step.kind === "final" ? (
 					<>
-						<div className="font-medium text-sm">Final answer</div>
+						<div className="font-medium text-sm">Turn's answer</div>
 						<EditableFinalText
 							text={step.text}
 							readOnly={readOnly}

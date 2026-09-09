@@ -125,9 +125,11 @@ export const PromptRunSchema = z
 			.max(MAX_CONVERSATION_MESSAGES)
 			.optional(),
 		/**
-		 * The trace the first turn of this trajectory minted and returned. The playground's
-		 * loop is client-side, so the server only learns that N requests are one trajectory
-		 * because the client echoes this back; a client may not choose it.
+		 * The session id, minted once (by whichever turn first needs one) and echoed back by
+		 * every continuation -- called `traceId` because that is the wire vocabulary this
+		 * field kept, not because a turn mints it: no turn mints this, the session does, once.
+		 * The playground's loop is client-side, so the server only learns that N requests are
+		 * one session because the client echoes this back; a client may not choose it.
 		 */
 		traceId: z.uuid().optional(),
 	})
