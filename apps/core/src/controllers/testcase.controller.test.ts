@@ -302,6 +302,28 @@ describe("TestcasesController.updateTestcase", () => {
 		);
 	});
 
+	it("skips a disabled final and cascades the last enabled one instead", async () => {
+		// The literal last final in the effective list is not necessarily enabled -- a
+		// disabled final is still in the list (no user step ended the session), but it is
+		// excluded from the assertion, so it must be excluded from the cascade too.
+		const { res } = makeRes();
+
+		await controller.updateTestcase(
+			makeReq({
+				expectedSteps: [
+					{ kind: "final", text: "A" },
+					{ kind: "final", text: "B", enabled: false },
+				],
+			}),
+			res,
+		);
+
+		expect(db.testcases.updateTestcaseByID).toHaveBeenCalledWith(
+			5,
+			expect.objectContaining({ expectedOutput: "A" }),
+		);
+	});
+
 	it("leaves expectedOutput alone when the update carries no expectedSteps", async () => {
 		const { res } = makeRes();
 

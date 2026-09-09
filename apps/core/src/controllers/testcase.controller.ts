@@ -144,6 +144,12 @@ export class TestcasesController {
 			const lastFinal = [...effective]
 				.reverse()
 				.find((step) => step.kind === "final" && step.enabled !== false);
+			// No branch for "no enabled final at all" -- expectedOutput is a non-nullable
+			// string column, and blanking it to "" would turn the plain-text testcase
+			// underneath into one asserting an empty answer. A stale value is safe: a
+			// trajectory testcase's verdict comes from the step comparison, never from
+			// this field, and it is only read once the trajectory is removed, at which
+			// point the author is editing expectedOutput directly anyway.
 			if (lastFinal?.kind === "final") {
 				updateData.expectedOutput = lastFinal.text;
 			}
