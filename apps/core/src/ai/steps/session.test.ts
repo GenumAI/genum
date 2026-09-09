@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectiveSteps, turnsOf } from "./session";
+import { effectiveSteps, lastEnabledFinal, turnsOf } from "./session";
 import { hasEnabledStep } from "./schema";
 import type { Step } from "./types";
 
@@ -88,5 +88,34 @@ describe("hasEnabledStep", () => {
 		// steps that would do the asserting are dead.
 		const steps = [user("stop here", false), call("a"), final("two")];
 		expect(hasEnabledStep(steps)).toBe(false);
+	});
+});
+
+// The one derivation of `expectedOutput`, shared by create and update. A copy of this
+// rule on either path is how a testcase ends up pinning an answer from a turn it never
+// reaches.
+describe("lastEnabledFinal", () => {
+	it("is the last final of a whole session", () => {
+		expect(lastEnabledFinal([final("one"), user("more"), final("two")])).toEqual(
+			final("two"),
+		);
+	});
+
+	it("stops at the truncation, not at the end of the array", () => {
+		expect(
+			lastEnabledFinal([final("one"), user("more", false), final("two")]),
+		).toEqual(final("one"));
+	});
+
+	it("skips an unticked final", () => {
+		expect(
+			lastEnabledFinal([final("one"), { kind: "final", text: "two", enabled: false }]),
+		).toEqual(final("one"));
+	});
+
+	it("is undefined when the live part of the session has no enabled final", () => {
+		// The caller must leave `expectedOutput` alone here: it is a non-nullable column,
+		// and blanking it would make the text testcase underneath assert an empty answer.
+		expect(lastEnabledFinal([call("a"), user("more", false), final("dead")])).toBeUndefined();
 	});
 });

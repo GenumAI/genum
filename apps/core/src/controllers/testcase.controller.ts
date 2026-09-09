@@ -15,7 +15,7 @@ import { db } from "@/database/db";
 import { callPromptModel, runPrompt } from "@/ai/runner/run";
 import { compareSteps, type StepMismatch } from "@/ai/steps/compare";
 import { maxStepsForRecording, replayTrajectory } from "@/ai/steps/replay";
-import { effectiveSteps, turnsOf } from "@/ai/steps/session";
+import { effectiveSteps, lastEnabledFinal, turnsOf } from "@/ai/steps/session";
 import { hasEnabledStep, StepsSchema, StepsConfigSchema } from "@/ai/steps/schema";
 import { DEFAULT_STEPS_CONFIG, type Step, type StepsConfig } from "@/ai/steps/types";
 import { system_prompt } from "@/ai/runner/system";
@@ -90,6 +90,19 @@ export class TestcasesController {
 			files: data.files,
 		};
 
+		// Decision 7's cascade, on create as well as update, from the one derivation both
+		// share. A picker selection can arrive already truncated -- the author unticks a
+		// reply before confirming -- and "add testcase from log" sends the log's whole
+		// answer as `expectedOutput` regardless. Without this, the row is born pinning an
+		// answer from a turn the session never reaches, and only an unrelated later edit
+		// of the steps would ever correct it.
+		if (Array.isArray(data.expectedSteps)) {
+			const lastFinal = lastEnabledFinal(data.expectedSteps as Step[]);
+			if (lastFinal) {
+				testcaseData.expectedOutput = lastFinal.text;
+			}
+		}
+
 		const testcase = await db.testcases.newTestcase(testcaseData);
 
 		await db.testcases.setPlaceholderSelection(testcase.id, rows);
@@ -140,17 +153,14 @@ export class TestcasesController {
 		// Save button, and a client-side cascade here would be a third writer of a field two
 		// surfaces already contend for.
 		if (Array.isArray(data.expectedSteps)) {
-			const effective = effectiveSteps(data.expectedSteps as Step[]);
-			const lastFinal = [...effective]
-				.reverse()
-				.find((step) => step.kind === "final" && step.enabled !== false);
 			// No branch for "no enabled final at all" -- expectedOutput is a non-nullable
 			// string column, and blanking it to "" would turn the plain-text testcase
 			// underneath into one asserting an empty answer. A stale value is safe: a
 			// trajectory testcase's verdict comes from the step comparison, never from
 			// this field, and it is only read once the trajectory is removed, at which
 			// point the author is editing expectedOutput directly anyway.
-			if (lastFinal?.kind === "final") {
+			const lastFinal = lastEnabledFinal(data.expectedSteps as Step[]);
+			if (lastFinal) {
 				updateData.expectedOutput = lastFinal.text;
 			}
 		}

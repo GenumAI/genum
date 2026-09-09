@@ -1014,6 +1014,59 @@ describe("TestcasesController.createTestcase with a recorded trajectory", () => 
 		);
 	});
 
+	it("derives expectedOutput from the effective last enabled final, not from the client", async () => {
+		// Decision 7's cascade applies on create too. The picker can confirm an already
+		// truncated selection, and "add testcase from log" sends the log's whole answer as
+		// `expectedOutput` regardless -- so a row created from this would be born pinning
+		// turn 2's answer for a session that ends in turn 1.
+		const { res } = makeRes();
+
+		await controller.createTestcase(
+			makeReq({
+				promptId: PROMPT,
+				input: "i",
+				expectedOutput: "second answer",
+				lastOutput: "",
+				expectedSteps: [
+					{ kind: "tool_call", name: "get_weather" },
+					{ kind: "final", text: "first answer" },
+					{ kind: "user", text: "and in London?", enabled: false },
+					{ kind: "tool_call", name: "get_weather" },
+					{ kind: "final", text: "second answer" },
+				],
+			}),
+			res,
+		);
+
+		expect(db.testcases.newTestcase).toHaveBeenCalledWith(
+			expect.objectContaining({ expectedOutput: "first answer" }),
+		);
+	});
+
+	it("keeps the client's expectedOutput when the trajectory has no enabled final", async () => {
+		// `expectedOutput` is a non-nullable column and the text testcase underneath has to
+		// stay usable, so "nothing to derive" leaves it alone rather than blanking it.
+		const { res } = makeRes();
+
+		await controller.createTestcase(
+			makeReq({
+				promptId: PROMPT,
+				input: "i",
+				expectedOutput: "keep me",
+				lastOutput: "",
+				expectedSteps: [
+					{ kind: "tool_call", name: "get_weather" },
+					{ kind: "final", text: "unticked", enabled: false },
+				],
+			}),
+			res,
+		);
+
+		expect(db.testcases.newTestcase).toHaveBeenCalledWith(
+			expect.objectContaining({ expectedOutput: "keep me" }),
+		);
+	});
+
 	it("rejects a malformed trajectory at the boundary", async () => {
 		const { res } = makeRes();
 
