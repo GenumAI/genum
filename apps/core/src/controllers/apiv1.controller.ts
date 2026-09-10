@@ -11,9 +11,9 @@ import { mergePlaceholderInput } from "@/ai/placeholders/merge-input";
 import { SourceType } from "@/services/logger";
 import { PromptService } from "@/services/prompt.service";
 import type { FileInput } from "@/services/file.service";
-import { extractBearerToken } from "@/utils/http";
 import { env } from "@/env";
 import { HttpError } from "@/utils/errors";
+import { resolveApiKey } from "@/auth/apiKey";
 import type { PlaceholderDefinition } from "@genum/placeholders";
 
 export class ApiV1Controller {
@@ -26,25 +26,9 @@ export class ApiV1Controller {
 	}
 
 	private async verifyRequest(req: Request) {
-		const apiKey = extractBearerToken(req.headers.authorization);
-		if (!apiKey) {
-			throw new HttpError(
-				401,
-				"Invalid or missing Authorization header. Expected: Bearer <token>",
-			);
-		}
-
-		const key = await db.project.getProjectApiKeyByToken(apiKey);
-		if (!key) {
-			throw new HttpError(401, "Invalid API key");
-		}
-
-		const project = await db.project.getProjectbyApiKeyById(key.id);
-		if (!project) {
-			throw new HttpError(404, "Project not found");
-		}
-
-		return { project, key };
+		// Moved to `@/auth/apiKey` so OTLP ingest authenticates through the same code
+		// rather than a second copy of it. Status codes and messages are unchanged.
+		return resolveApiKey(req.headers.authorization);
 	}
 
 	private parseApiFiles(files: { fileName: string; contentType: string; base64: string }[]) {
