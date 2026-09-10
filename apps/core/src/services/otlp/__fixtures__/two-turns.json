@@ -1,0 +1,117 @@
+{
+	"resourceSpans": [
+		{
+			"resource": {
+				"attributes": [
+					{ "key": "service.name", "value": { "stringValue": "weather-agent" } }
+				]
+			},
+			"scopeSpans": [
+				{
+					"spans": [
+						{
+							"traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+							"spanId": "00f067aa0ba902b7",
+							"name": "chat gpt-4o",
+							"startTimeUnixNano": "1757500000000000000",
+							"endTimeUnixNano": "1757500001200000000",
+							"attributes": [
+								{
+									"key": "gen_ai.operation.name",
+									"value": { "stringValue": "chat" }
+								},
+								{ "key": "gen_ai.system", "value": { "stringValue": "openai" } },
+								{
+									"key": "gen_ai.request.model",
+									"value": { "stringValue": "gpt-4o" }
+								},
+								{
+									"key": "gen_ai.conversation.id",
+									"value": { "stringValue": "conv-verify-1" }
+								},
+								{
+									"key": "gen_ai.usage.input_tokens",
+									"value": { "intValue": "120" }
+								},
+								{
+									"key": "gen_ai.usage.output_tokens",
+									"value": { "intValue": "34" }
+								},
+								{ "key": "genum.prompt.id", "value": { "intValue": "2" } },
+								{
+									"key": "gen_ai.input.messages",
+									"value": {
+										"stringValue": "[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"what is the weather in Kyiv?\"}]}]"
+									}
+								}
+							],
+							"status": { "code": 1 }
+						},
+						{
+							"traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+							"spanId": "00f067aa0ba902b8",
+							"parentSpanId": "00f067aa0ba902b7",
+							"name": "execute_tool get_weather",
+							"startTimeUnixNano": "1757500000500000000",
+							"endTimeUnixNano": "1757500000900000000",
+							"attributes": [
+								{
+									"key": "gen_ai.operation.name",
+									"value": { "stringValue": "execute_tool" }
+								},
+								{
+									"key": "gen_ai.tool.name",
+									"value": { "stringValue": "get_weather" }
+								},
+								{
+									"key": "gen_ai.conversation.id",
+									"value": { "stringValue": "conv-verify-1" }
+								},
+								{ "key": "genum.prompt.id", "value": { "intValue": "2" } },
+								{
+									"key": "gen_ai.tool.call.arguments",
+									"value": { "stringValue": "{\"city\":\"Kyiv\"}" }
+								},
+								{
+									"key": "gen_ai.tool.call.result",
+									"value": { "stringValue": "{\"c\":21}" }
+								}
+							],
+							"status": { "code": 1 }
+						},
+						{
+							"traceId": "8ac3f1f0d5b24e9fb0c7a1d2e3f40506",
+							"spanId": "11a267bb1cb913c9",
+							"name": "chat gpt-4o",
+							"startTimeUnixNano": "1757500600000000000",
+							"endTimeUnixNano": "1757500601000000000",
+							"attributes": [
+								{
+									"key": "gen_ai.operation.name",
+									"value": { "stringValue": "chat" }
+								},
+								{ "key": "gen_ai.system", "value": { "stringValue": "openai" } },
+								{
+									"key": "gen_ai.request.model",
+									"value": { "stringValue": "gpt-4o" }
+								},
+								{
+									"key": "gen_ai.conversation.id",
+									"value": { "stringValue": "conv-verify-1" }
+								},
+								{ "key": "genum.prompt.id", "value": { "intValue": "2" } },
+								{
+									"key": "gen_ai.input.messages",
+									"value": {
+										"stringValue": "[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"what is the weather in Kyiv?\"}]},{\"role\":\"assistant\",\"parts\":[{\"type\":\"text\",\"content\":\"21C and clear.\"}]},{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"and tomorrow?\"}]}]"
+									}
+								}
+							],
+							"status": { "code": 1 }
+						}
+					]
+				}
+			]
+		}
+	]
+}

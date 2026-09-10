@@ -7,6 +7,8 @@
 export {
 	logUsage,
 	logSpans,
+	insertSpanRows,
+	getSessionTraceIds,
 	getPromptLogs,
 	getProjectUsageStats,
 	getProjectLogs,

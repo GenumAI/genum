@@ -120,6 +120,40 @@ function base(
 	};
 }
 
+/**
+ * The traces a payload carries: their session, and when each one started.
+ *
+ * The endpoint needs this BEFORE mapping, because numbering a turn takes a read of what
+ * the session already holds and the mapping needs the ordinals it produces. Reading it
+ * from the payload twice is cheaper than making the mapping impure.
+ */
+export function tracesOf(
+	payload: OtlpPayload,
+): { traceId: string; sessionId: string; earliestTimestamp: string }[] {
+	const traces = new Map<
+		string,
+		{ traceId: string; sessionId: string; earliestTimestamp: string }
+	>();
+
+	for (const span of flatten(payload)) {
+		if (!span.traceId) continue;
+		const start = String(span.startTimeUnixNano ?? "");
+		const seen = traces.get(span.traceId);
+		if (!seen) {
+			traces.set(span.traceId, {
+				traceId: span.traceId,
+				sessionId: attr(span, "gen_ai.conversation.id") ?? "",
+				earliestTimestamp: start,
+			});
+			continue;
+		}
+		if (compareNanos(start, seen.earliestTimestamp) < 0) seen.earliestTimestamp = start;
+		if (!seen.sessionId) seen.sessionId = attr(span, "gen_ai.conversation.id") ?? "";
+	}
+
+	return [...traces.values()];
+}
+
 /** OTLP nests as `resourceSpans[].scopeSpans[].spans[]`; every level may be absent. */
 function flatten(payload: OtlpPayload): OtlpSpan[] {
 	const spans: OtlpSpan[] = [];

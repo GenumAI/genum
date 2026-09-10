@@ -270,14 +270,31 @@ export async function logSpans(batch: SpanBatch): Promise<void> {
 	}
 
 	try {
-		await clickhouseClient.insert({
-			table: CLICKHOUSE_TABLES.TRACE_SPANS,
-			values: rows,
-			format: "JSONEachRow",
-		});
+		await insertSpanRows(rows);
 	} catch (error) {
 		console.error("Ошибка записи span-ов в ClickHouse:", error);
 	}
+}
+
+/**
+ * Writes already-mapped span rows, and PROPAGATES a failure -- the opposite of `logSpans`
+ * above, on purpose.
+ *
+ * For our own runs a failed span insert is supplementary detail lost after the run already
+ * succeeded, so swallowing it is right. For ingest the spans ARE the request: a collector
+ * that receives 200 for a batch we did not store never sends it again, and the trace is
+ * gone. It must see the failure and retry, which read-side dedup makes safe.
+ */
+export async function insertSpanRows(rows: SpanRow[]): Promise<void> {
+	if (rows.length === 0) {
+		return;
+	}
+
+	await clickhouseClient.insert({
+		table: CLICKHOUSE_TABLES.TRACE_SPANS,
+		values: rows,
+		format: "JSONEachRow",
+	});
 }
 
 /**

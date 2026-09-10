@@ -13,6 +13,7 @@ import { createLocalUserRouter } from "./routers/LocalUserRouter";
 import { createFileRouter } from "./routers/FileRouter";
 import { createSystemRouter } from "./routers/SystemRouter";
 import { createMailServiceRouter } from "./routers/MailServiceRouter";
+import { createOtlpRouter } from "./routers/OtlpRouter";
 
 export function setupRoutes(app: Express): void {
 	const w = createAuthMiddleware();
@@ -27,6 +28,10 @@ export function setupRoutes(app: Express): void {
 
 	// service integrations (own bearer guard, no JWT)
 	app.use(`/service/mail`, createMailServiceRouter());
+
+	// OTLP trace ingest -- a customer's collector, authenticated by its project API key.
+	// Must stay ABOVE `checkJwt`: a collector has no JWT and never will.
+	app.use(`/api/public/otel`, createOtlpRouter());
 
 	// secure only
 	app.use(checkJwt); // check jwt token
