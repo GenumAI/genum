@@ -3,6 +3,7 @@ import {
 	GetPromptQuerySchema,
 	numberSchema,
 	PromptCreateSchema,
+	RenderPromptSchema,
 	RunPromptSchema,
 } from "@/services/validate";
 import { db } from "@/database/db";
@@ -10,6 +11,8 @@ import { runPrompt } from "@/ai/runner/run";
 import { mergePlaceholderInput } from "@/ai/placeholders/merge-input";
 import { toPlaceholderDefinitions } from "@/ai/placeholders/definitions";
 import { placeholderCoverage } from "@/ai/placeholders/coverage";
+import { shapeInstruction } from "@/ai/runner/instruction";
+import { renderPlaceholders } from "@genum/placeholders";
 import { SourceType } from "@/services/logger";
 import { PromptService } from "@/services/prompt.service";
 import type { FileInput } from "@/services/file.service";
@@ -221,6 +224,77 @@ export class ApiV1Controller {
 			placeholderDefinitions,
 			commitHash,
 			publicUrl,
+		});
+	}
+
+	/**
+	 * `POST /prompts/:id/render` -- the instruction Lab would send, without sending it.
+	 *
+	 * Exists because a caller running its own agent loop otherwise has to re-implement two
+	 * things to reach the same string: placeholder rendering, and the instruction transform
+	 * (`shapeInstruction`). Both were invisible from outside, so such a caller sent the raw
+	 * prompt text to its model while a Lab replay of that same session sent the transformed
+	 * version -- the replay was quietly running a differently shaped instruction than the
+	 * traffic it was meant to reproduce. Returning the exact string keeps the two identical
+	 * by construction rather than by two implementations agreeing.
+	 *
+	 * `commitHash` names the version rendered, so the caller can stamp it on its traces and
+	 * a later replay can be told whether it ran the same one.
+	 */
+	async renderPrompt(req: Request, res: Response) {
+		const { project } = await this.verifyRequest(req);
+
+		const id = numberSchema.parse(req.params.id);
+		const { placeholders, productive } = RenderPromptSchema.parse(req.body ?? {});
+
+		let prompt = await db.prompts.getPromptByIdSimpleFromProject(project.id, id);
+		if (!prompt) {
+			return res.status(404).json({ error: "Prompt not found" });
+		}
+
+		let commitHash: string | null = null;
+		let definitions: PlaceholderDefinition[] | undefined;
+
+		if (productive) {
+			const withCommit = await this.promptService.getPromptWithProductiveCommit(prompt);
+			if (withCommit) {
+				prompt = withCommit;
+				commitHash = withCommit.commitHash ?? null;
+				definitions = withCommit.placeholderDefinitions;
+			}
+		}
+
+		// Absent means the draft is being served -- the same fall-through `run.ts` does, so
+		// this endpoint renders with whatever a run of this prompt would render with.
+		if (definitions === undefined) {
+			definitions = toPlaceholderDefinitions(
+				await db.placeholders.getPlaceholdersByPromptID(prompt.id),
+			);
+		}
+
+		const render = renderPlaceholders(prompt.value, definitions, placeholders ?? {});
+
+		const { languageModel, ...rest } = prompt;
+
+		res.status(200).json({
+			// Exactly what the provider would receive. `systemPrompt` is deliberately not
+			// offered: it wraps the text in `<system_prompt>` for Lab's own internal
+			// prompts, and no API key can address one of those.
+			instruction: shapeInstruction(render.text, prompt.instructionFormat ?? "XML"),
+			instructionFormat: rest.instructionFormat,
+			languageModel,
+			languageModelConfig: rest.languageModelConfig,
+			commitHash,
+			placeholders: {
+				resolved: render.resolved,
+				// Reported, not silently dropped: `ignored` is a selection that named a
+				// value or a key this prompt does not have, and `undefinedKeys` is a hole
+				// nothing defines. Both still render -- the first falls back to the
+				// default, the second stays as literal `{{key}}` -- so neither fails the
+				// call, and neither is visible unless it is said here.
+				ignored: render.ignored,
+				undefinedKeys: render.undefinedKeys,
+			},
 		});
 	}
 

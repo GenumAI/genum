@@ -1,4 +1,8 @@
-import { AssertionTypeSchema, PromptSchema as PromptSchemaGenerated } from "@/prisma-types";
+import {
+	AssertionTypeSchema,
+	InstructionFormatSchema,
+	PromptSchema as PromptSchemaGenerated,
+} from "@/prisma-types";
 import { LogLevel, SourceType } from "@/services/logger";
 import { FunctionCallSchema } from "@/ai/models/types";
 import { PromptPlaceholdersCreateSchema } from "./placeholder.type";
@@ -40,6 +44,11 @@ export const PromptCreateSchema = PromptSchema.pick({
 		// create a prompt full of `{{holes}}` and had no way to define any of them --
 		// leaving a prompt that renders its own placeholder syntax to the model.
 		placeholders: PromptPlaceholdersCreateSchema.optional(),
+		// Omitted means XML, which is what every prompt has always been sent as. Stated
+		// explicitly by a caller whose own agent loop sends the rendered text unshaped --
+		// without it, that caller's production traffic and a Lab replay of it run
+		// differently shaped instructions and the replay is not a replay.
+		instructionFormat: InstructionFormatSchema.optional(),
 	})
 	.strict();
 
@@ -53,6 +62,7 @@ export const PromptUpdateSchema = PromptSchema.pick({
 })
 	.extend({
 		assertionType: AssertionTypeSchema.optional(),
+		instructionFormat: InstructionFormatSchema.optional(),
 	})
 	.partial()
 	.strict();

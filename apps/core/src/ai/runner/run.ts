@@ -1,7 +1,7 @@
 import { db } from "@/database/db";
 import { logUsage } from "../../services/logger/logger";
 import { AiVendor } from "@/prisma";
-import { mdToXml } from "@/utils/xml";
+import { shapeInstruction } from "./instruction";
 import { renderPlaceholders } from "@genum/placeholders";
 import { toPlaceholderDefinitions } from "../placeholders/definitions";
 import {
@@ -220,9 +220,13 @@ export async function runPrompt(data: runPromptParams) {
 		// run prompt
 		const completion = await runPromptWithProvider(model.vendor, {
 			apikey: apiKey.key,
-			instruction: data.systemPrompt
-				? `<system_prompt>${mdToXml(instruction)}</system_prompt>`
-				: mdToXml(instruction),
+			// One place, shared with the render endpoint -- see `./instruction.ts`. Inline
+			// here, this transform was invisible to a caller running its own agent loop,
+			// which sent the raw text while a replay of the same session sent the shaped
+			// one.
+			instruction: shapeInstruction(instruction, prompt.instructionFormat ?? "XML", {
+				systemPrompt: data.systemPrompt,
+			}),
 			question: data.question,
 			model: model.name,
 			parameters: prompt.languageModelConfig as ModelConfigParameters,

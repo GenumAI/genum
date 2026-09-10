@@ -257,6 +257,9 @@ export class PromptsRepository {
 			data: {
 				name: data.name,
 				value: data.value,
+				// Omitted leaves the column's own default (XML), which is what every prompt
+				// that existed before this field has.
+				...(data.instructionFormat ? { instructionFormat: data.instructionFormat } : {}),
 				languageModelConfig,
 				languageModel: {
 					connect: {

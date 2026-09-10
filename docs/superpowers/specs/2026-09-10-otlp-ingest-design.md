@@ -21,7 +21,13 @@ span maps field to field. This document is about the endpoint, not the schema's 
 One endpoint, `POST /api/public/otel/v1/traces`, authenticated by `ProjectApiKey`. Prompt
 taken from a `genum.prompt.id` span attribute with a default on the key. Deduplication on
 `(trace_id, span_id)`. Mismatched tools stored, not refused. Ingested usage displayed,
-never summed. Prompt version is always the latest commit. **Ingested traces are not
+never summed. Ingested traffic runs against the latest commit; a REPLAY of a pinned
+session runs against the prompt's live draft, and the UI says which. That asymmetry is
+deliberate rather than an oversight: the reason to replay pinned sessions is to check an
+edit before committing it, so a replay bound to the commit could only ever confirm what
+production already does. It does mean a replay is not a reproduction of the recorded run
+unless the draft and the commit agree — hence naming the version on the result rather
+than leaving the reader to assume. **Ingested traces are not
 metered and their cost is written as zero — and every ingested row must say it was
 ingested, because `trace_spans` is append-only and a row that does not say so can never
 be made to.**
