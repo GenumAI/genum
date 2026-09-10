@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClipboardText, Check } from "@phosphor-icons/react";
+import { promptAttributeSnippet } from "@/lib/otelSnippet";
 import { useApiEndpoint } from "./hooks/useApiEndpoint";
 
 const COPY_INPUT_CLASSNAME =
@@ -56,6 +58,37 @@ const ERROR_EXAMPLE = `{
   "error": "Error message"
 }`;
 
+const OTLP_SPAN_EXAMPLE = `{
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",  // one trace = one turn
+  "spanId": "00f067aa0ba902b7",
+  "name": "chat gpt-4o",
+  "startTimeUnixNano": "1757500000000000000",
+  "attributes": [
+    { "key": "genum.prompt.id",        "value": { "intValue": "YOUR_PROMPT_ID" } },
+    { "key": "gen_ai.operation.name",  "value": { "stringValue": "chat" } },
+    { "key": "gen_ai.system",          "value": { "stringValue": "openai" } },
+    { "key": "gen_ai.request.model",   "value": { "stringValue": "gpt-4o" } },
+    { "key": "gen_ai.conversation.id", "value": { "stringValue": "conv-1" } },
+    { "key": "gen_ai.usage.input_tokens",  "value": { "intValue": "120" } },
+    { "key": "gen_ai.usage.output_tokens", "value": { "intValue": "34" } }
+  ]
+}`;
+
+const OTLP_RESPONSE_EXAMPLE = `// Everything stored:
+{ "partialSuccess": {} }
+
+// Some spans could not be stored -- the rest DID land, so do not resend the batch:
+{
+  "partialSuccess": {
+    "rejectedSpans": "1",
+    "errorMessage": "span 00f0.. has no genum.prompt.id and the API key has no default prompt"
+  }
+}
+
+// Nothing in the batch could be stored (400), or the write failed on our side (503,
+// safe to retry -- redelivering the same spans never duplicates them):
+{ "status": "error", "statusCode": 400, "message": "No span could be stored. ..." }`;
+
 type CopyFieldProps = {
 	label?: string;
 	value: string;
@@ -104,19 +137,37 @@ function ReadOnlyCopyField({
 type JsonSectionProps = {
 	title: string;
 	content: string;
+	action?: React.ReactNode;
 };
 
-function JsonSection({ title, content }: JsonSectionProps) {
+function JsonSection({ title, content, action }: JsonSectionProps) {
 	return (
 		<div className="space-y-2">
-			<Label className="text-foreground">{title}</Label>
+			<div className="flex items-center justify-between gap-2">
+				<Label className="text-foreground">{title}</Label>
+				{action}
+			</div>
 			<pre className={PREVIEW_BLOCK_CLASSNAME}>{content}</pre>
 		</div>
 	);
 }
 
 export default function ApiEndpoint() {
-	const { promptId, apiUrl, copiedId, copiedURL, handleCopyId, handleCopyURL } = useApiEndpoint();
+	const {
+		promptId,
+		apiUrl,
+		otelUrl,
+		otelPostUrl,
+		otelEnv,
+		copiedId,
+		copiedURL,
+		copiedOtelURL,
+		copiedOtelEnv,
+		handleCopyId,
+		handleCopyURL,
+		handleCopyOtelURL,
+		handleCopyOtelEnv,
+	} = useApiEndpoint();
 	const promptIdValue = promptId?.toString() ?? "";
 
 	return (
@@ -137,31 +188,177 @@ export default function ApiEndpoint() {
 							disabled={!promptIdValue}
 						/>
 
-						<section className="space-y-2">
-							<Label className="text-foreground">
-								Use this URL to run your prompt via API. Replace{" "}
-								<Badge variant="outline">YOUR_PROMPT_ID</Badge> with your actual
-								prompt ID:
-							</Label>
-							<ReadOnlyCopyField
-								label=""
-								value={apiUrl}
-								buttonLabel="Copy URL"
-								copied={copiedURL}
-								onCopy={handleCopyURL}
-							/>
-						</section>
+						{/*
+						 * Two ways in, and they are not variants of one endpoint: the first
+						 * RUNS this prompt for you, the second RECEIVES an agent you run
+						 * yourself. Choosing wrongly is a wasted afternoon, so they are
+						 * named for the job rather than for the protocol.
+						 */}
+						<Tabs defaultValue="automation" className="w-full min-w-0">
+							<TabsList>
+								<TabsTrigger value="automation">Prompt Automation</TabsTrigger>
+								<TabsTrigger value="agentic">Agentic</TabsTrigger>
+							</TabsList>
 
-						<section className="space-y-2">
-							<Label className="text-foreground">
-								Method: <span className="text-primary font-medium">POST</span>
-							</Label>
-						</section>
+							<TabsContent value="automation" className="space-y-6 pt-4">
+								<p>
+									Run this prompt from your own code. Genum calls the model,
+									records the run, and returns the answer.
+								</p>
 
-						<JsonSection title="Headers:" content={HEADERS_EXAMPLE} />
-						<JsonSection title="Request Body:" content={REQUEST_BODY_EXAMPLE} />
-						<JsonSection title="Response:" content={RESPONSE_EXAMPLE} />
-						<JsonSection title="Error Responses:" content={ERROR_EXAMPLE} />
+								<section className="space-y-2">
+									<Label className="text-foreground">
+										Use this URL to run your prompt via API. Replace{" "}
+										<Badge variant="outline">YOUR_PROMPT_ID</Badge> with your
+										actual prompt ID:
+									</Label>
+									<ReadOnlyCopyField
+										label=""
+										value={apiUrl}
+										buttonLabel="Copy URL"
+										copied={copiedURL}
+										onCopy={handleCopyURL}
+									/>
+								</section>
+
+								<section className="space-y-2">
+									<Label className="text-foreground">
+										Method:{" "}
+										<span className="text-primary font-medium">POST</span>
+									</Label>
+								</section>
+
+								<JsonSection title="Headers:" content={HEADERS_EXAMPLE} />
+								<JsonSection title="Request Body:" content={REQUEST_BODY_EXAMPLE} />
+								<JsonSection title="Response:" content={RESPONSE_EXAMPLE} />
+								<JsonSection title="Error Responses:" content={ERROR_EXAMPLE} />
+							</TabsContent>
+
+							<TabsContent value="agentic" className="space-y-6 pt-4">
+								<p>
+									Send traces from an agent you run yourself, over{" "}
+									<span className="text-foreground font-medium">
+										OpenTelemetry
+									</span>
+									. Each trace becomes a session you can read in Logs and pin as a
+									test case — no Genum-specific code in your agent.
+								</p>
+
+								<section className="space-y-2">
+									<Label className="text-foreground">
+										Exporter endpoint — the base, without{" "}
+										<Badge variant="outline">/v1/traces</Badge>. Your exporter
+										appends that itself:
+									</Label>
+									<ReadOnlyCopyField
+										label=""
+										value={otelUrl}
+										buttonLabel="Copy URL"
+										copied={copiedOtelURL}
+										onCopy={handleCopyOtelURL}
+									/>
+								</section>
+
+								<JsonSection
+									title="Exporter configuration:"
+									content={otelEnv}
+									action={
+										<Button
+											size="sm"
+											variant="outline"
+											disabled={copiedOtelEnv}
+											onClick={handleCopyOtelEnv}
+										>
+											{copiedOtelEnv ? (
+												<>
+													<Check className="mr-2 h-4 w-4" />
+													Copied
+												</>
+											) : (
+												<>
+													<ClipboardText className="mr-2 h-4 w-4" />
+													Copy
+												</>
+											)}
+										</Button>
+									}
+								/>
+
+								<section className="space-y-2">
+									<Label className="text-foreground">
+										Two things your agent must set:
+									</Label>
+									<ul className="list-disc space-y-2 pl-5">
+										<li>
+											<Badge variant="outline">genum.prompt.id</Badge> on{" "}
+											<span className="text-foreground font-medium">
+												every span
+											</span>
+											— this is the only thing that ties a span to this
+											prompt. It is never guessed from your API key or service
+											name, and a span without it is rejected. Per span rather
+											than per request, because a collector merges spans from
+											several services into one batch.
+										</li>
+										<li>
+											<Badge variant="outline">http/json</Badge> as the
+											protocol. OTLP protobuf is not accepted yet.
+										</li>
+									</ul>
+								</section>
+
+								<JsonSection
+									title="In your instrumentation:"
+									content={promptAttributeSnippet(promptId)}
+								/>
+
+								<section className="space-y-2">
+									<Label className="text-foreground">
+										How your traces are read:
+									</Label>
+									<ul className="list-disc space-y-2 pl-5">
+										<li>
+											One trace is one{" "}
+											<span className="text-foreground font-medium">
+												turn
+											</span>
+											. Spans are ordered by start time within it.
+										</li>
+										<li>
+											<Badge variant="outline">gen_ai.conversation.id</Badge>{" "}
+											groups turns into one session. Without it, each trace is
+											a session of a single turn.
+										</li>
+										<li>
+											From the second turn on, the last{" "}
+											<Badge variant="outline">user</Badge> entry of{" "}
+											<Badge variant="outline">gen_ai.input.messages</Badge>{" "}
+											becomes the human reply that provoked that turn.
+										</li>
+										<li>
+											Usage from your spans is displayed but never billed or
+											added to your Genum totals — ingested traces cost
+											nothing.
+										</li>
+										<li>
+											Redelivering a batch is safe: a span that arrives twice
+											is stored once as far as every read is concerned.
+										</li>
+									</ul>
+								</section>
+
+								<section className="space-y-2">
+									<Label className="text-foreground">
+										Posting OTLP JSON directly (
+										<span className="text-primary font-medium">POST</span>{" "}
+										{otelPostUrl}):
+									</Label>
+									<JsonSection title="One span:" content={OTLP_SPAN_EXAMPLE} />
+								</section>
+
+								<JsonSection title="Response:" content={OTLP_RESPONSE_EXAMPLE} />
+							</TabsContent>
+						</Tabs>
 					</CardContent>
 				</div>
 			</Card>
