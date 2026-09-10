@@ -76,12 +76,29 @@ commit — and an ingested trace always replays against it. That is the behaviou
 regression test wants: a trace recorded before a prompt change, replayed against the
 change. Revisit if pinning a testcase to a historical version ever becomes a feature.
 
+**Ingested traces are not metered, and their cost is zero.** No quota is decremented and
+`cost` is written as 0 on every ingested span. Ingest is a stream the customer controls
+entirely, and billing someone for the privilege of sending us their telemetry is the wrong
+default to start from; pricing can be revisited once anyone is actually using it.
+
+Two consequences follow, and the second is the reason this decision needs anything written
+down at all.
+
+An API key can write without limit. That is accepted deliberately, not overlooked: a
+per-key rate limit is the remedy if it is ever abused, and a rate limit is a different
+mechanism from a quota — it protects the instance rather than billing the customer.
+
+**Ingested rows MUST be marked as ingested at write time.** `trace_spans` is append-only,
+so a row that does not say where it came from can never be made to say it later. Without
+the mark, "not metered for now" is not a decision that can be revisited — it is permanent,
+because no future query could separate the traces we should have billed from our own runs.
+The mark costs one low-cardinality column on the write path today; recovering it later
+costs the entire history. `logs` already carries `source` for exactly this reason
+(`SourceType.ui`), and `trace_spans` has no equivalent yet.
+
 ## Blocking questions
 
-**Do ingested traces count against a quota, and in what unit?** `ProjectApiKey` is already
-tied to quota management (`services/access/AccessService.ts`). Ingest is a stream the
-customer controls entirely, writing into our ClickHouse. Whether it is metered, and whether
-in spans, traces or bytes, is a product and pricing decision.
+None remain. Quota metering, the last one, was decided below.
 
 ## Structural questions
 
