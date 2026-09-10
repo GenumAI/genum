@@ -242,6 +242,107 @@ describe("replayTrajectory", () => {
 		expect(seen[2]).toContainEqual({ role: "user", content: "and in London?" });
 	});
 
+	it("ends a turn that the recording ends on a tool call", async () => {
+		// Some agents stop a turn when a particular tool fires -- one that hands the user a
+		// UI card -- so the turn has tool steps and no text, and the user speaks next.
+		// Without this the loop asks the model for an answer the recording does not have,
+		// feeds it to the next turn as context the original session never carried, and
+		// charges for the call.
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "open_card", recordedResult: '{"shown":true}' },
+			{ kind: "user", text: "close it" },
+			{ kind: "tool_call", name: "close_card", recordedResult: '{"shown":false}' },
+			{ kind: "final", text: "Closed." },
+		];
+		const seen: ConversationMessage[][] = [];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "open_card", args: {} }] },
+			{ answer: "", toolCalls: [{ id: "2", name: "close_card", args: {} }] },
+			{ answer: "Closed." },
+		];
+		let call = 0;
+		const result = await replayTrajectory({
+			callModel: async (messages) => {
+				seen.push([...messages]);
+				return answers[call++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		// Exactly three model calls: one per tool round plus the closing answer. A fourth
+		// would be the invented answer this guards against.
+		expect(call).toBe(3);
+		expect(result.steps).toEqual([
+			{
+				kind: "tool_call",
+				name: "open_card",
+				args: {},
+				recordedResult: '{"shown":true}',
+			},
+			{ kind: "user", text: "close it" },
+			{
+				kind: "tool_call",
+				name: "close_card",
+				args: {},
+				recordedResult: '{"shown":false}',
+			},
+			{ kind: "final", text: "Closed." },
+		]);
+		// The reply reached the model, and no assistant answer was invented ahead of it.
+		expect(seen[1]).toContainEqual({ role: "user", content: "close it" });
+		expect(seen[1].some((message) => message.content === "Closed.")).toBe(false);
+	});
+
+	it("still asks for an answer when the recording merely stops after a tool call", async () => {
+		// The same shape with no next turn is the last turn still in flight, or an author
+		// who unticked the answer. The model is still owed its call there -- ending the
+		// replay on the tool result would drop the answer the run exists to produce.
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "get_weather", recordedResult: '{"t":21}' },
+		];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "get_weather", args: {} }] },
+			{ answer: "21 in Paris" },
+		];
+		let call = 0;
+		const result = await replayTrajectory({
+			callModel: async () => answers[call++],
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		expect(result.steps).toContainEqual({ kind: "final", text: "21 in Paris" });
+	});
+
+	it("does not end a turn while its recorded tool calls are still unanswered", async () => {
+		// A model that asks for its tools across two rounds is mid-turn after the first.
+		// Ending there would cut the turn short and skip a recorded call.
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "a", recordedResult: "1" },
+			{ kind: "tool_call", name: "b", recordedResult: "2" },
+			{ kind: "user", text: "next" },
+			{ kind: "final", text: "done" },
+		];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "a", args: {} }] },
+			{ answer: "", toolCalls: [{ id: "2", name: "b", args: {} }] },
+			{ answer: "done" },
+		];
+		let call = 0;
+		const result = await replayTrajectory({
+			callModel: async () => answers[call++],
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		expect(result.steps.filter((step) => step.kind === "tool_call")).toHaveLength(2);
+		expect(result.steps).toContainEqual({ kind: "user", text: "next" });
+	});
+
 	it("carries the model's own answer into the next turn's conversation", async () => {
 		// Record and replay must send the provider the SAME conversation. The playground
 		// client appends `{role:"assistant", content: answer}` before the next reply

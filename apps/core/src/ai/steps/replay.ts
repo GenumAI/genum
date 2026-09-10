@@ -141,6 +141,46 @@ export async function replayTrajectory({
 				content: match.recordedResult,
 			});
 		}
+
+		// A turn that ENDS on a tool call, with no answer after it. Some agents stop a turn
+		// when a particular tool fires -- one that hands the user a UI card, say -- so the
+		// turn has tool steps and no text, and the next thing in the session is the user
+		// speaking again.
+		//
+		// Without this the loop would call the model again, because it only advances a turn
+		// on an answer with no tool calls. The model would answer into a turn the recording
+		// says was over, that answer would be fed to the next turn as context the original
+		// session never had, and the run would be paid for.
+		//
+		// Three conditions, and each excludes a case that looks the same from here:
+		//
+		//  - the turn's recording has no `final`. Necessary, not sufficient: an author who
+		//    simply unticked the answer leaves exactly this shape.
+		//  - a NEXT turn exists and opens with a user reply. This is what separates the two.
+		//    A recording that stops after a tool call is the last turn still in flight (or
+		//    an author's truncation), and the model is still owed its answer -- so the loop
+		//    is left alone there and asks for one.
+		//  - the turn's recorded tool calls are all answered. A model that asks for its
+		//    tools across two rounds is mid-turn after the first, and ending there would cut
+		//    the turn short.
+		const recordedToolCalls = turnRecording.filter(
+			(entry) => entry.kind === "tool_call",
+		).length;
+		const answered = [...seen.values()].reduce((total, count) => total + count, 0);
+		const nextReply = turns[turnIndex + 1]?.steps[0];
+
+		if (
+			!turnRecording.some((entry) => entry.kind === "final") &&
+			nextReply?.kind === "user" &&
+			answered >= recordedToolCalls
+		) {
+			// No assistant message: there was no answer to carry. Only the reply goes back
+			// -- the tool results this turn produced are already in `messages` above.
+			steps.push({ kind: "user", text: nextReply.text });
+			messages.push({ role: "user", content: nextReply.text });
+			turnIndex += 1;
+			seen = new Map();
+		}
 	}
 
 	return {
