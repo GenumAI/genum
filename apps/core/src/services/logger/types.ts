@@ -283,6 +283,11 @@ export interface ClickHouseSpanRow {
 	cost: number;
 	duration_ms: number;
 	status: string;
+	/**
+	 * Absent on every row written before the column was added; the reader defaults
+	 * those to `genum`, which is what they are.
+	 */
+	source?: string;
 }
 
 export interface ClickHouseProjectStatsRow {

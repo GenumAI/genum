@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { Step } from "@/ai/steps/types";
 
 export type SpanRow = {
@@ -46,7 +46,16 @@ export type SpanRow = {
 	cost: number;
 	duration_ms: number;
 	status: string;
+	/**
+	 * Which system produced this span: `genum` for our own runs, `otlp` for a customer's
+	 * trace we ingested. Load-bearing rather than informational -- ingested traces are not
+	 * metered, and that decision can only be revisited while the rows still say which is
+	 * which, because this table is append-only.
+	 */
+	source: SpanSource;
 };
+
+export type SpanSource = "genum" | "otlp";
 
 /**
  * The turn's trace id, derived from `(session_id, turn_index)` rather than minted with
@@ -60,16 +69,37 @@ export type SpanRow = {
  * Deriving the id here instead makes a retry of the same turn produce the same trace id,
  * which is what lets that dedup collapse it.
  */
-export function deriveTurnTraceId(sessionId: string, turnIndex: number): string {
-	const hex = createHash("sha256").update(`${sessionId}:${turnIndex}`).digest("hex");
+function derivedUuid(seed: string): string {
+	const hex = createHash("sha256").update(seed).digest("hex");
 	// Stamped into a well-formed v5 UUID rather than left as raw hash nibbles. A
 	// UUID-SHAPED value that is not a valid UUID passes unnoticed here -- nothing validates
-	// `trace_id` today -- and then fails somewhere that does: `uuidSchema` is `z.uuid()`,
+	// these columns today -- and then fails somewhere that does: `uuidSchema` is `z.uuid()`,
 	// which rejects roughly six of every seven raw-hash values. The ingest and dedup work
-	// this function exists to keep reachable is exactly the work that would hit it.
+	// these ids exist to keep reachable is exactly the work that would hit it.
 	const version = `5${hex.slice(13, 16)}`;
 	const variant = `${((Number.parseInt(hex[16], 16) & 0x3) | 0x8).toString(16)}${hex.slice(17, 20)}`;
 	return [hex.slice(0, 8), hex.slice(8, 12), version, variant, hex.slice(20, 32)].join("-");
+}
+
+export function deriveTurnTraceId(sessionId: string, turnIndex: number): string {
+	return derivedUuid(`${sessionId}:${turnIndex}`);
+}
+
+/**
+ * The span's id, derived from `(trace_id, span_index)` rather than minted with
+ * `randomUUID`.
+ *
+ * The other half of the pair `deriveTurnTraceId` began. Deduplication is on
+ * `(trace_id, span_id)`, so a stable trace id buys nothing while the span id is random:
+ * a retried write lands on the same trace with a brand new span id, the two rows match on
+ * nothing, and the duplicate is permanent in a table that cannot be rewritten. Derived,
+ * the retry reproduces the row exactly and the read collapses it.
+ *
+ * Shares `derivedUuid` with the trace id on purpose: two hand-copied stamping routines
+ * are two things that can drift into different formats in one column.
+ */
+export function deriveSpanId(traceId: string, spanIndex: number): string {
+	return derivedUuid(`${traceId}#${spanIndex}`);
 }
 
 export type SpanBatch = {
@@ -82,6 +112,8 @@ export type SpanBatch = {
 	steps: Step[];
 	session_id: string;
 	turn_index: number;
+	/** Defaults to `genum`: everything written through this function is our own run. */
+	source?: SpanSource;
 };
 
 export function toSpanRows(batch: SpanBatch): SpanRow[] {
@@ -89,7 +121,7 @@ export function toSpanRows(batch: SpanBatch): SpanRow[] {
 		trace_id: batch.trace_id,
 		session_id: batch.session_id,
 		turn_index: batch.turn_index,
-		span_id: randomUUID(),
+		span_id: deriveSpanId(batch.trace_id, index),
 		parent_span_id: null,
 		span_index: index,
 		span_type:
@@ -124,5 +156,6 @@ export function toSpanRows(batch: SpanBatch): SpanRow[] {
 		cost: 0,
 		duration_ms: 0,
 		status: "OK",
+		source: batch.source ?? "genum",
 	}));
 }

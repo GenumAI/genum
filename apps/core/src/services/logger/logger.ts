@@ -847,6 +847,9 @@ export async function getSessionSpans(
 			cost: Number(row.cost),
 			duration_ms: Number(row.duration_ms),
 			status: row.status,
+			// A row written before the column existed reads back as `genum`, which is what
+			// it is: everything predating OTLP ingest is our own run.
+			source: (row.source ?? "genum") as SpanRow["source"],
 		}));
 	} catch (error) {
 		console.error("Error getting trace spans from ClickHouse:", error);

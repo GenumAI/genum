@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { deriveTurnTraceId, toSpanRows } from "./spans";
+import { deriveSpanId, deriveTurnTraceId, toSpanRows } from "./spans";
 import { replayTrajectory } from "@/ai/steps/replay";
 import type { Step } from "@/ai/steps/types";
 import { uuidSchema } from "@/services/validate/types/generic.type";
@@ -281,5 +281,53 @@ describe("deriveTurnTraceId", () => {
 			expect(uuidSchema.safeParse(deriveTurnTraceId("session-1", turn)).success).toBe(true);
 			expect(uuidSchema.safeParse(deriveTurnTraceId(`s-${turn}`, 0)).success).toBe(true);
 		}
+	});
+});
+
+describe("deriveSpanId", () => {
+	it("is stable for the same trace and span index, so a retried write can collapse", () => {
+		// The whole point of the function. Deduplication is on `(trace_id, span_id)`, and
+		// against `randomUUID()` it can never fire: the retry writes a NEW span id, nothing
+		// matches, and the duplicate is permanent in an append-only table.
+		// `deriveTurnTraceId` made the trace id stable across a retry; this makes the span
+		// id stable, and only the pair is worth anything.
+		expect(deriveSpanId("trace-1", 0)).toBe(deriveSpanId("trace-1", 0));
+	});
+
+	it("differs across span indices within one trace", () => {
+		expect(deriveSpanId("trace-1", 0)).not.toBe(deriveSpanId("trace-1", 1));
+	});
+
+	it("differs across traces at the same index", () => {
+		expect(deriveSpanId("trace-1", 0)).not.toBe(deriveSpanId("trace-2", 0));
+	});
+
+	it("is a VALID uuid, not merely uuid-shaped", () => {
+		// Same trap `deriveTurnTraceId` fell into: nothing validates `span_id` on the way
+		// in, so hash nibbles where the version and variant belong pass unnoticed here and
+		// fail wherever something does validate. Checked over many inputs because a single
+		// sample passes by luck about one time in seven.
+		for (let index = 0; index < 50; index++) {
+			expect(uuidSchema.safeParse(deriveSpanId("trace-1", index)).success).toBe(true);
+			expect(uuidSchema.safeParse(deriveSpanId(`t-${index}`, 0)).success).toBe(true);
+		}
+	});
+});
+
+describe("span provenance and repeatability", () => {
+	it("produces identical rows for the same batch twice -- what a retry writes", () => {
+		const batch = { ...baseBatch, steps };
+		expect(toSpanRows(batch)).toEqual(toSpanRows(batch));
+	});
+
+	it("marks our own rows as ours", () => {
+		// The column the quota decision rests on: ingested traces are not metered, and
+		// that is only revisitable while the rows say which is which.
+		expect(toSpanRows({ ...baseBatch, steps })[0].source).toBe("genum");
+	});
+
+	it("carries an explicit source through when the writer gives one", () => {
+		const rows = toSpanRows({ ...baseBatch, steps, source: "otlp" as const });
+		expect(rows.every((row) => row.source === "otlp")).toBe(true);
 	});
 });
