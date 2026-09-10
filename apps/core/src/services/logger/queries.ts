@@ -269,6 +269,27 @@ export const QUERIES = {
 	`,
 
 	/**
+	 * The trace ids already stored for a session, in turn order.
+	 *
+	 * Ingest reads this before writing: a trace new to the session takes the next ordinal
+	 * after these, and one already here keeps the place it has (S5). `turn_index` goes
+	 * into an append-only table and can never be renumbered, so this read is what stops a
+	 * redelivered turn from being stored a second time under a fresh ordinal.
+	 *
+	 * `min(timestamp)` orders them the way they were assigned rather than by insertion,
+	 * and `GROUP BY` rather than `DISTINCT` because the ordering needs the aggregate.
+	 */
+	GET_SESSION_TRACE_IDS: (table: string, where: string) => `
+		SELECT trace_id
+		FROM ${table}
+		WHERE ${where}
+		  AND (session_id = {session: String}
+		       OR (session_id = '' AND trace_id = {session: String}))
+		GROUP BY trace_id
+		ORDER BY min(turn_index) ASC, min(timestamp) ASC
+	`,
+
+	/**
 	 * Count runs by date range
 	 */
 	COUNT_BY_DATE: (table: string) => `

@@ -1,6 +1,7 @@
 import { formatClickHouseTimestamp } from "@/services/logger/mappers";
 import { deriveSpanId } from "@/services/logger/spans";
 import type { SpanRow } from "@/services/logger/spans";
+import { compareNanos } from "./turnIndex";
 import type { OtlpAnyValue, OtlpMapContext, OtlpMapResult, OtlpPayload, OtlpSpan } from "./types";
 
 /**
@@ -193,18 +194,6 @@ function groupByTrace(spans: OtlpSpan[]): Map<string, OtlpSpan[]> {
 
 function byStartTime(a: OtlpSpan, b: OtlpSpan): number {
 	return compareNanos(String(a.startTimeUnixNano ?? ""), String(b.startTimeUnixNano ?? ""));
-}
-
-/**
- * Nanosecond instants compared as integers without ever becoming a `number`: 1.75e18 is
- * past `Number.MAX_SAFE_INTEGER`, so two spans microseconds apart would compare equal.
- */
-function compareNanos(a: string, b: string): number {
-	if (a === b) return 0;
-	if (!a) return 1;
-	if (!b) return -1;
-	if (a.length !== b.length) return a.length - b.length;
-	return a < b ? -1 : 1;
 }
 
 function toClickHouseTime(nanos: string | number | undefined): string {

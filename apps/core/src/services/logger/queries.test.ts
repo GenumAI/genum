@@ -302,3 +302,24 @@ describe("GET_SPANS", () => {
 		expect(sql.indexOf("LIMIT 1 BY")).toBeLessThan(sql.indexOf("{limit: UInt64}"));
 	});
 });
+
+describe("GET_SESSION_TRACE_IDS", () => {
+	it("lists a session's traces in turn order, parameterised", () => {
+		const sql = QUERIES.GET_SESSION_TRACE_IDS(TRACE_SPANS_TABLE, "orgId = 1");
+
+		expect(sql).toContain("SELECT trace_id");
+		expect(sql).toContain("GROUP BY trace_id");
+		// Turn order, not insertion order: the caller reads a trace's position in this
+		// list AS its `turn_index`, so a list in the wrong order renumbers the session.
+		expect(sql).toContain("ORDER BY min(turn_index) ASC");
+		// The session id is a parameter and never interpolated -- it arrives from a
+		// stranger's collector as `gen_ai.conversation.id`.
+		expect(sql).toContain("{session: String}");
+	});
+
+	it("finds a pre-session-model trace, which is its own session", () => {
+		const sql = QUERIES.GET_SESSION_TRACE_IDS(TRACE_SPANS_TABLE, "orgId = 1");
+
+		expect(sql).toContain("session_id = '' AND trace_id = {session: String}");
+	});
+});

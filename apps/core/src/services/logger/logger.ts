@@ -857,6 +857,39 @@ export async function getSessionSpans(
 	}
 }
 
+/**
+ * The trace ids already stored for a session, in turn order.
+ *
+ * Read by OTLP ingest before it writes, so a trace new to the session takes the ordinal
+ * after these and a redelivered one keeps the place it has. Scoped by org and project like
+ * every other logger read: a conversation id from another org's traffic never matches.
+ *
+ * Unbounded on purpose -- one short string per turn, and a cap here would silently
+ * renumber every turn past it, in a table where `turn_index` cannot be corrected.
+ */
+export async function getSessionTraceIds(
+	sessionId: string,
+	orgId: number,
+	projectId: number,
+): Promise<string[]> {
+	try {
+		const { where, params } = WhereBuilder.forOrg(orgId).projectId(projectId).build();
+
+		const result = await clickhouseClient.query({
+			query: QUERIES.GET_SESSION_TRACE_IDS(CLICKHOUSE_TABLES.TRACE_SPANS, where),
+			query_params: { ...params, session: sessionId },
+			format: "JSONEachRow",
+		});
+
+		const data = (await result.json()) as { trace_id: string }[];
+
+		return data.map((row) => row.trace_id);
+	} catch (error) {
+		console.error("Error getting session trace ids from ClickHouse:", error);
+		throw error;
+	}
+}
+
 export async function countRunsByDate(startDate: Date, endDate: Date): Promise<number> {
 	// UTC like every other timestamp that reaches ClickHouse -- see formatClickHouseTimestamp.
 	const fromDateStr = formatClickHouseTimestamp(startDate);
