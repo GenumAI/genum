@@ -100,7 +100,12 @@ function base(
 		prompt_id: promptIdOf(span, context) as number,
 		name: span.name ?? operation,
 		input: attr(span, "gen_ai.input.messages") ?? "",
-		output: attr(span, "gen_ai.output.messages") ?? "",
+		// The answer as TEXT, not as the envelope it travelled in. `spansToSteps` makes this
+		// column the text of a `final` step, so an envelope stored verbatim becomes the
+		// expected answer of any testcase pinned from this session -- and no replay can ever
+		// produce a JSON array of message objects, making every ingested regression test
+		// fail by construction.
+		output: answerText(attr(span, "gen_ai.output.messages")),
 		tool_args: attr(span, "gen_ai.tool.call.arguments") ?? "",
 		tool_result: attr(span, "gen_ai.tool.call.result") ?? "",
 		tool_error: span.status?.message ?? null,
@@ -194,15 +199,44 @@ function whyUnusable(span: OtlpSpan, context: OtlpMapContext): string | undefine
 	if (!span.traceId) return "span has no traceId";
 	if (!span.spanId) return `span in trace ${span.traceId} has no spanId`;
 	if (promptIdOf(span, context) === undefined) {
-		return `span ${span.spanId} has no genum.prompt.id and the API key has no default prompt`;
+		// Names the attribute and says which of the two things went wrong. This message is
+		// the whole of what a customer sees when their collector is misconfigured, and the
+		// fix is one line at their end -- if we say which line. It no longer mentions a
+		// default prompt on the API key: there is no such column, and pointing someone at
+		// a feature that does not exist costs them an afternoon.
+		return attr(span, "genum.prompt.id") === undefined
+			? `span ${span.spanId} has no genum.prompt.id attribute`
+			: `span ${span.spanId} has a genum.prompt.id that is not a valid prompt id`;
 	}
 	return undefined;
 }
 
+/**
+ * Every id and counter that reaches ClickHouse is a `UInt32`, and the insert does not
+ * negotiate: a value above the range WRAPS silently (5000000000 is stored as 705032704 --
+ * verified against the server), and a negative one fails the whole insert.
+ *
+ * Both are worse than they look. A wrapped id puts a customer's spans on a different
+ * prompt's page, in a table that cannot be corrected. A failed insert becomes a 503, and a
+ * collector retries a failed batch WHOLE, so a single malformed attribute blocks that
+ * session's ingest for as long as the collector keeps trying -- bypassing the
+ * partial-success path that exists so one bad span cannot take a good batch down.
+ */
+const UINT32_MAX = 4294967295;
+
+function isStorableId(value: number): boolean {
+	return Number.isInteger(value) && value > 0 && value <= UINT32_MAX;
+}
+
 function promptIdOf(span: OtlpSpan, context: OtlpMapContext): number | undefined {
 	const attribute = attr(span, "genum.prompt.id");
-	const parsed = attribute === undefined ? Number.NaN : Number(attribute);
-	if (Number.isInteger(parsed)) return parsed;
+	if (attribute !== undefined) {
+		const parsed = Number(attribute);
+		// A value that is present but unusable is REFUSED, never silently replaced by the
+		// default: the sender said which prompt they meant, and quietly filing their traces
+		// under a different one is the failure this whole path is built to avoid.
+		return isStorableId(parsed) ? parsed : undefined;
+	}
 	return context.defaultPromptId;
 }
 
@@ -253,18 +287,45 @@ function byStartTime(a: OtlpSpan, b: OtlpSpan): number {
 	return compareNanos(String(a.startTimeUnixNano ?? ""), String(b.startTimeUnixNano ?? ""));
 }
 
+/**
+ * A span's start, as the literal `DateTime64(3)` accepts.
+ *
+ * Everything unusable falls back to now, and none of it refuses the span. `BigInt` throws
+ * a `SyntaxError` on anything that is not an integer literal -- `"1757…000.0"` from an
+ * exporter that formatted a float, an ISO string from a hand-rolled one -- and uncaught it
+ * escaped as a 500 carrying the raw error text, with the collector retrying the same batch
+ * forever. A value beyond the `Date` range formats as "Invalid date", which ClickHouse
+ * rejects, failing the whole insert for one span's bad clock.
+ *
+ * Now rather than the epoch: a 1970 row lands in a partition of its own and reads as older
+ * than everything else, permanently, in a table that cannot be corrected.
+ */
 function toClickHouseTime(nanos: string | number | undefined): string {
-	// A span with no start time is stamped now rather than at the epoch: a 1970 row lands
-	// in a partition of its own and reads as older than everything else, permanently.
-	if (nanos === undefined || nanos === "") return formatClickHouseTimestamp(new Date());
-	const millis = BigInt(nanos) / 1_000_000n;
-	return formatClickHouseTimestamp(new Date(Number(millis)));
+	return formatClickHouseTimestamp(instantOf(nanos) ?? new Date());
+}
+
+function instantOf(nanos: string | number | undefined): Date | undefined {
+	if (nanos === undefined || nanos === "") return undefined;
+
+	let millis: bigint;
+	try {
+		millis = BigInt(nanos) / 1_000_000n;
+	} catch {
+		return undefined;
+	}
+
+	const instant = new Date(Number(millis));
+	return Number.isNaN(instant.getTime()) ? undefined : instant;
 }
 
 function durationOf(span: OtlpSpan): number {
-	if (span.startTimeUnixNano === undefined || span.endTimeUnixNano === undefined) return 0;
-	const millis = (BigInt(span.endTimeUnixNano) - BigInt(span.startTimeUnixNano)) / 1_000_000n;
-	return millis > 0n ? Number(millis) : 0;
+	const start = instantOf(span.startTimeUnixNano);
+	const end = instantOf(span.endTimeUnixNano);
+	if (!start || !end) return 0;
+
+	const millis = end.getTime() - start.getTime();
+	// A negative duration is a clock that moved backwards, not a measurement.
+	return millis > 0 ? millis : 0;
 }
 
 function attr(span: OtlpSpan, key: string): string | undefined {
@@ -274,7 +335,12 @@ function attr(span: OtlpSpan, key: string): string | undefined {
 
 function intAttr(span: OtlpSpan, key: string): number {
 	const value = Number(attr(span, key));
-	return Number.isFinite(value) ? value : 0;
+	// Usage counts are display-only, so a nonsensical one is worth ignoring rather than
+	// refusing the span that carried it -- but a negative or oversized value must never
+	// reach the UInt32 insert, which would fail the batch and put the collector in a
+	// retry loop over a number nobody reads.
+	if (!Number.isInteger(value) || value < 0 || value > UINT32_MAX) return 0;
+	return value;
 }
 
 /** Attributes are `{key, value: {stringValue|intValue|...}}`, and an int64 is a string. */
@@ -317,6 +383,34 @@ function lastUserMessage(spans: OtlpSpan[]): string | undefined {
 		}
 	}
 	return undefined;
+}
+
+/**
+ * The model's answer, out of `gen_ai.output.messages`.
+ *
+ * The conventions carry it as a message array, in the same two shapes the input side
+ * arrives in. A sender that puts a bare string there is not conforming, but the answer is
+ * the one field worth keeping even when the envelope is unrecognisable -- so anything
+ * unparseable is returned as it came rather than dropped.
+ */
+function answerText(raw: string | undefined): string {
+	if (!raw) return "";
+
+	let messages: unknown;
+	try {
+		messages = JSON.parse(raw);
+	} catch {
+		return raw;
+	}
+	if (!Array.isArray(messages)) return raw;
+
+	const texts = messages
+		.map((message) => textOf(message as { content?: unknown; parts?: unknown }))
+		.filter((text): text is string => Boolean(text));
+
+	// Joined rather than "the last one": a model that answers in several parts wrote one
+	// answer, and keeping only its final fragment would silently truncate it.
+	return texts.length > 0 ? texts.join("\n") : raw;
 }
 
 function textOf(message: { content?: unknown; parts?: unknown }): string | undefined {

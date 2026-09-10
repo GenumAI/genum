@@ -156,6 +156,67 @@ describe("mapOtlpSpans", () => {
 		expect(rows.every((row) => row.source === "otlp")).toBe(true);
 	});
 
+	it("stores the answer as text, not as the message envelope it arrived in", () => {
+		// `spansToSteps` makes a chat row's `output` the text of a `final` step, so an
+		// envelope stored verbatim becomes the expected answer of any testcase pinned from
+		// this session -- and no replay can ever produce a JSON array of message objects.
+		// Every ingested regression test would be NOK by construction.
+		const { rows } = mapOtlpSpans(
+			payload({
+				...CHAT,
+				attributes: [
+					...(CHAT.attributes ?? []),
+					{
+						key: "gen_ai.output.messages",
+						value: {
+							stringValue: JSON.stringify([
+								{ role: "assistant", parts: [{ type: "text", content: "21C and clear." }] },
+							]),
+						},
+					},
+				],
+			}),
+			CONTEXT,
+		);
+
+		expect(rows[0].output).toBe("21C and clear.");
+	});
+
+	it("reads the older {role, content} answer shape too", () => {
+		const { rows } = mapOtlpSpans(
+			payload({
+				...CHAT,
+				attributes: [
+					...(CHAT.attributes ?? []),
+					{
+						key: "gen_ai.output.messages",
+						value: { stringValue: JSON.stringify([{ role: "assistant", content: "sunny" }]) },
+					},
+				],
+			}),
+			CONTEXT,
+		);
+
+		expect(rows[0].output).toBe("sunny");
+	});
+
+	it("keeps an answer it cannot parse rather than dropping it", () => {
+		// A sender that puts a bare string there is not conforming, but the answer is the
+		// one thing worth keeping even when the envelope is unrecognisable.
+		const { rows } = mapOtlpSpans(
+			payload({
+				...CHAT,
+				attributes: [
+					...(CHAT.attributes ?? []),
+					{ key: "gen_ai.output.messages", value: { stringValue: "just an answer" } },
+				],
+			}),
+			CONTEXT,
+		);
+
+		expect(rows[0].output).toBe("just an answer");
+	});
+
 	it("maps a tool span's name, arguments and result", () => {
 		const { rows } = mapOtlpSpans(
 			payload({
@@ -216,6 +277,68 @@ describe("mapOtlpSpans", () => {
 		expect(rows).toHaveLength(0);
 		expect(rejected).toBe(1);
 		expect(reasons.join(" ")).toContain("prompt");
+	});
+
+	it("rejects a prompt id the column cannot hold, instead of wrapping it", () => {
+		// `prompt_id` is UInt32. Verified against the server: 5000000000 is stored as
+		// 705032704, so the spans land silently on a DIFFERENT prompt's page -- in an
+		// append-only table, permanently. A negative id is worse: the insert fails, the
+		// controller answers 503, and a collector retries a failed batch whole, so one
+		// malformed attribute blocks the session forever. Both bypass `partialSuccess`,
+		// which exists precisely so a bad span cannot take a good batch down with it.
+		for (const id of ["5000000000", "-1", "1e30"]) {
+			const { rows, rejected } = mapOtlpSpans(
+				payload({
+					...CHAT,
+					attributes: [
+						...(CHAT.attributes ?? []),
+						{ key: "genum.prompt.id", value: { stringValue: id } },
+					],
+				}),
+				// No default: the bad value must be REFUSED, not quietly replaced by one
+				// that happens to be lying around.
+				{ orgId: 1, projectId: 2 },
+			);
+
+			expect(rows).toHaveLength(0);
+			expect(rejected).toBe(1);
+		}
+	});
+
+	it("keeps usage counts the column can hold and drops the rest to zero", () => {
+		// Display-only numbers, so a nonsensical one is worth ignoring rather than
+		// refusing the span it came on -- but never worth handing to a UInt32 insert.
+		const { rows, rejected } = mapOtlpSpans(
+			payload({
+				...CHAT,
+				attributes: attrs({
+					"gen_ai.operation.name": "chat",
+					"genum.prompt.id": 2,
+					"gen_ai.usage.input_tokens": -5,
+					"gen_ai.usage.output_tokens": 9999999999,
+				}),
+			}),
+			CONTEXT,
+		);
+
+		expect(rejected).toBe(0);
+		expect(rows[0]).toMatchObject({ tokens_in: 0, tokens_out: 0 });
+	});
+
+	it("survives a start time that is not an integer, or is beyond a date", () => {
+		// `BigInt("1757500000000000000.0")` throws SyntaxError. Uncaught, it escaped the
+		// controller as a 500 carrying the raw error text, and the collector retried the
+		// same batch forever. A hand-rolled exporter sending an ISO string does the same.
+		for (const start of ["1757500000000000000.0", "2026-09-10T00:00:00Z", "1e30", ""]) {
+			const { rows, rejected } = mapOtlpSpans(
+				payload({ ...CHAT, startTimeUnixNano: start }),
+				CONTEXT,
+			);
+
+			expect(rejected).toBe(0);
+			expect(rows).toHaveLength(1);
+			expect(new Date(`${rows[0].timestamp}Z`).getUTCFullYear()).toBeGreaterThan(2020);
+		}
 	});
 
 	it("rejects a span with no trace id or no span id", () => {
