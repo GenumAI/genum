@@ -220,3 +220,67 @@ describe("isSingleAnswer", () => {
 		expect(isSingleAnswer([])).toBe(true);
 	});
 });
+
+describe("spansToSteps: what is not a step", () => {
+	it("drops a model call that only asked for tools", () => {
+		// Its output has no text part, so "" was stored for it. As a `final` step that
+		// pinned an expectation of the empty string in the middle of a turn, which no
+		// replay can satisfy -- every testcase from such a session failed by construction.
+		const { steps } = spansToSteps([
+			row({ span_type: "chat", output: "" }),
+			row({ span_type: "execute_tool", name: "execute_tool get_weather", tool_args: "{}" }),
+			row({ span_type: "chat", output: "It is 12 degrees." }),
+		]);
+
+		expect(steps).toEqual([
+			{ kind: "tool_call", name: "get_weather", args: {}, recordedResult: "" },
+			{ kind: "final", text: "It is 12 degrees." },
+		]);
+	});
+
+	it("drops a span whose operation we do not model", () => {
+		// A standard instrumentation emits these freely. Each one used to become a `final`,
+		// so pinning a session asserted its embedding calls as expected answers.
+		const { steps } = spansToSteps([
+			row({ span_type: "embeddings" as SpanRow["span_type"], output: "[0.1, 0.2]" }),
+			row({ span_type: "chat", output: "Done." }),
+		]);
+
+		expect(steps).toEqual([{ kind: "final", text: "Done." }]);
+	});
+
+	it("drops a span that never said what operation it is", () => {
+		const { steps } = spansToSteps([
+			row({ span_type: "" as SpanRow["span_type"], output: "something" }),
+			row({ span_type: "chat", output: "Done." }),
+		]);
+
+		expect(steps).toEqual([{ kind: "final", text: "Done." }]);
+	});
+
+	it("keeps a user reply even though its output is the only thing it carries", () => {
+		const { steps } = spansToSteps([
+			row({ span_type: "user", output: "and tomorrow?" }),
+			row({ span_type: "chat", output: "Also 12." }),
+		]);
+
+		expect(steps).toEqual([
+			{ kind: "user", text: "and tomorrow?" },
+			{ kind: "final", text: "Also 12." },
+		]);
+	});
+
+	it("marks the produced step as unreadable, not the span's position", () => {
+		// The two used to be the same number because every span became a step. With spans
+		// that are dropped, indexing by span position marks the wrong row -- or one that
+		// does not exist.
+		const { steps, unreadableArgsIndices } = spansToSteps([
+			row({ span_type: "chat", output: "" }),
+			row({ span_type: "embeddings" as SpanRow["span_type"] }),
+			row({ span_type: "execute_tool", name: "execute_tool get_weather", tool_args: "{{" }),
+		]);
+
+		expect(steps).toHaveLength(1);
+		expect([...unreadableArgsIndices]).toEqual([0]);
+	});
+});

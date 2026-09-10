@@ -482,6 +482,51 @@ describe("mapOtlpSpans", () => {
 	});
 });
 
+describe("what a span says it is", () => {
+	it("takes a tool's name from gen_ai.tool.name, not from the span name", () => {
+		// `spansToSteps` strips a leading `execute_tool ` and calls the rest the tool's
+		// name. A sender that names its span anything else produced a step asserting a
+		// tool literally called "weather lookup".
+		const { rows } = mapOtlpSpans(
+			payload({
+				...CHAT,
+				name: "weather lookup",
+				attributes: attrs({
+					"gen_ai.operation.name": "execute_tool",
+					"gen_ai.tool.name": "get_weather",
+				}),
+			}),
+			CONTEXT,
+		);
+
+		expect(rows[0].name).toBe("execute_tool get_weather");
+	});
+
+	it("falls back to the span name when the attribute is absent", () => {
+		const { rows } = mapOtlpSpans(
+			payload({
+				...CHAT,
+				name: "execute_tool get_weather",
+				attributes: attrs({ "gen_ai.operation.name": "execute_tool" }),
+			}),
+			CONTEXT,
+		);
+
+		expect(rows[0].name).toBe("execute_tool get_weather");
+	});
+
+	it("does not call an unlabelled span a chat", () => {
+		// It used to default to "chat", which made `spansToSteps` pin the span as the
+		// turn's expected answer -- an answer the sender never said it produced.
+		const { rows } = mapOtlpSpans(
+			payload({ ...CHAT, attributes: attrs({ "gen_ai.request.model": "gpt-4o" }) }),
+			CONTEXT,
+		);
+
+		expect(rows[0].span_type).toBe("");
+	});
+});
+
 describe("openingQuestion", () => {
 	it("reads the first user message, not the last", () => {
 		// `replyIn` reads the LAST user entry -- the reply that provoked this turn. The

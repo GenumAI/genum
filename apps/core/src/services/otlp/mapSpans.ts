@@ -93,7 +93,12 @@ function base(
 	turnIndex: number,
 	spanIndex: number,
 ): SpanRow {
-	const operation = attr(span, "gen_ai.operation.name") ?? "chat";
+	// NOT defaulted to "chat". A span that never said what operation it is has not told us
+	// it produced an answer, and calling it a chat made `spansToSteps` pin it as the turn's
+	// expected answer -- so a session from an instrumentation that labels only some of its
+	// spans acquired expected answers it never produced. Stored empty, it is still shown;
+	// it simply is not a step.
+	const operation = attr(span, "gen_ai.operation.name") ?? "";
 	return {
 		timestamp: toClickHouseTime(span.startTimeUnixNano),
 		trace_id: traceId,
@@ -109,7 +114,12 @@ function base(
 		orgId: context.orgId,
 		project_id: context.projectId,
 		prompt_id: promptIdOf(span, context) as number,
-		name: span.name ?? operation,
+		// `gen_ai.tool.name` first: it is where the conventions put a tool's name, and it
+		// is the only place the name is unambiguous. The span name is a fallback because
+		// most SDKs write `execute_tool <name>` there and the reader strips that prefix --
+		// which quietly produces a tool named after the whole span for any sender that
+		// names its spans differently.
+		name: toolName(span, operation) ?? span.name ?? operation,
 		input: attr(span, "gen_ai.input.messages") ?? "",
 		// The answer as TEXT, not as the envelope it travelled in. `spansToSteps` makes this
 		// column the text of a `final` step, so an envelope stored verbatim becomes the
@@ -396,6 +406,22 @@ function replyIn(spans: OtlpSpan[]): string | undefined {
 		if (userTexts.length > 1) return userTexts[userTexts.length - 1];
 	}
 	return undefined;
+}
+
+/**
+ * A tool span's name, spelled the way the reader on the other side expects it.
+ *
+ * `spansToSteps` takes the stored `name`, strips a leading `execute_tool `, and calls the
+ * rest the tool's name. That is right for the span names most SDKs write and wrong for
+ * everything else -- a sender naming its span `weather lookup` produced a step asserting a
+ * tool literally called "weather lookup". `gen_ai.tool.name` is the attribute the
+ * conventions define for this, so it wins, and it is re-prefixed so the stored value stays
+ * one shape rather than two.
+ */
+function toolName(span: OtlpSpan, operation: string): string | undefined {
+	if (operation !== "execute_tool") return undefined;
+	const name = attr(span, "gen_ai.tool.name");
+	return name ? `execute_tool ${name}` : undefined;
 }
 
 /**

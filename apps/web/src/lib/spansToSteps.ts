@@ -25,35 +25,64 @@ export interface MappedTrajectory {
  * A trailing `final` step is not assumed either: a trajectory whose last turn still asked
  * for a tool has none, and that is a legitimate trace, not a broken one.
  *
+ * Ordering is therefore the SENDER's contract, and it has one non-obvious clause: a `chat`
+ * span that wraps a whole turn starts before the tool spans inside it, which would put the
+ * turn's answer ahead of the tool calls that produced it. A sender must start its answering
+ * `chat` span at the last model call, not at the top of the turn. Re-sorting here cannot
+ * fix it -- this side is given a flat, already-ordered session and deliberately has no
+ * `turn_index` to group by (see `types/spans.ts`).
+ *
  * `recordedResult` rides through untouched. It is what makes the resulting testcase
  * replayable after the ClickHouse rows age out -- the picked steps are COPIED into the
  * testcase, never referenced.
  */
 export function spansToSteps(spans: SpanRow[]): MappedTrajectory {
 	const unreadableArgsIndices = new Set<number>();
+	const steps: Step[] = [];
 
-	const steps: Step[] = spans.map((row, index) => {
+	for (const row of spans) {
 		if (row.span_type === "user") {
-			return { kind: "user" as const, text: row.output };
-		}
-		if (row.span_type !== "execute_tool" && row.span_type !== "tool") {
-			return { kind: "final" as const, text: row.output };
+			steps.push({ kind: "user", text: row.output });
+			continue;
 		}
 
-		const { degraded, ...args } = parseToolArgs(row.tool_args);
-		if (degraded) {
-			unreadableArgsIndices.add(index);
+		if (row.span_type === "execute_tool" || row.span_type === "tool") {
+			const { degraded, ...args } = parseToolArgs(row.tool_args);
+			// Indexed against the steps PRODUCED, not against the span it came from. The
+			// two used to be the same number because every span became a step; now that
+			// some do not, using the span's position would mark the wrong row as
+			// unreadable -- or a row that does not exist.
+			if (degraded) {
+				unreadableArgsIndices.add(steps.length);
+			}
+
+			steps.push({
+				kind: "tool_call",
+				name: row.name.startsWith("execute_tool ")
+					? row.name.slice("execute_tool ".length)
+					: row.name,
+				...args,
+				recordedResult: row.tool_result,
+			});
+			continue;
 		}
 
-		return {
-			kind: "tool_call" as const,
-			name: row.name.startsWith("execute_tool ")
-				? row.name.slice("execute_tool ".length)
-				: row.name,
-			...args,
-			recordedResult: row.tool_result,
-		};
-	});
+		if (row.span_type === "chat" || row.span_type === "llm") {
+			// A model call that only asked for tools is not an answer. Its output has no
+			// text part, so `answerText` stored "" for it -- and turning that into a
+			// `final` step pinned an expectation of the empty string in the middle of a
+			// turn, which no replay can ever satisfy. The turn's real answer is the chat
+			// span that produced text.
+			if (!row.output) continue;
+
+			steps.push({ kind: "final", text: row.output });
+		}
+
+		// Anything else -- `invoke_agent`, `embeddings`, an operation name we do not model,
+		// or a sender that set none at all -- is stored and shown, but is not a step. It
+		// used to become a `final`, so a session instrumented by a standard SDK pinned its
+		// embedding calls as expected answers.
+	}
 
 	return { steps, unreadableArgsIndices };
 }
