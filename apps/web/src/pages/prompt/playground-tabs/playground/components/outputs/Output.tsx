@@ -155,6 +155,15 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		return lastFinalIndex === null ? new Set<number>() : new Set([lastFinalIndex]);
 	}, [pinned.hasTrajectory, trajectory.steps.length, lastFinalIndex]);
 
+	/**
+	 * Whether what is on screen is the LIVE run's thread, as opposed to a saved testcase's
+	 * or the one-message fallback. It is the same condition the `messages` memo below
+	 * branches on, and it decides whether a reply can be sent at all: a reply is a
+	 * continuation of the conversation being rendered, so a thread that is not the live one
+	 * has no conversation to continue.
+	 */
+	const isLiveThread = !pinned.hasTrajectory && trajectory.steps.length > 0;
+
 	const messages: ThreadMessage[] = useMemo(() => {
 		// A testcase with a pinned trajectory: the expectation IS the trajectory, and the
 		// last run's steps are what it is measured against.
@@ -282,14 +291,29 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 
 			<ConversationThread
 				messages={messages}
-				live={{
-					pendingTool: trajectory.pendingTool,
-					isRunning: isRunning === true,
-					onToolResult: trajectory.onToolResult,
-					onReply: trajectory.onReply,
-					error: trajectory.error,
-					onRetry: trajectory.onRetry,
-				}}
+				// Only the LIVE thread gets live controls, which is what the prop always
+				// meant ("absent on a saved testcase") and not what it was given.
+				//
+				// Passed unconditionally, "+ Add message" appeared on a saved testcase too.
+				// On a pinned trajectory the reply went out as a conversation of one message
+				// -- a real, billed model call with no history -- and the `messages` memo
+				// stayed on the pinned branch, so neither the reply nor the answer was ever
+				// rendered: the author saw the box close and nothing happen. On a text
+				// testcase it was worse, because the first reply put a step into
+				// `trajectory.steps` and flipped the memo to the live branch, replacing the
+				// original question and answer on screen with the reply alone.
+				live={
+					isLiveThread
+						? {
+								pendingTool: trajectory.pendingTool,
+								isRunning: isRunning === true,
+								onToolResult: trajectory.onToolResult,
+								onReply: trajectory.onReply,
+								error: trajectory.error,
+								onRetry: trajectory.onRetry,
+							}
+						: undefined
+				}
 				saving={pinned.saving}
 				orderMatters={pinned.stepsConfig.orderMatters}
 				onOrderMattersChange={

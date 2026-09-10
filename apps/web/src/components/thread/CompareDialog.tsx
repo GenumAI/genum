@@ -51,10 +51,24 @@ export function CompareDialog({
 				</div>
 
 				<div className="output-diff-container relative min-w-0 flex-1 overflow-hidden px-4">
+					{/*
+					 * `onBlur` only -- deliberately NOT `onChange`.
+					 *
+					 * `DiffEditor` fires `onChange` from `onDidChangeModelContent`, which is
+					 * once per keystroke. Wired to the commit, typing "abcd" started four
+					 * overlapping writes; each one that resolved changed `expected`, and a
+					 * changed `modified` prop makes the editor replace the whole model. The
+					 * text was overwritten mid-word, the cursor jumped to the end, and what
+					 * survived was whichever response landed last rather than what was
+					 * typed -- and every overwrite fired `onChange` again.
+					 *
+					 * Committing on blur alone leaves `expected` untouched while the author
+					 * is typing, so nothing re-drives the editor. This is the contract the
+					 * dialog this replaced already had; it was lost in the rewrite.
+					 */}
 					<CompareDiffEditor
 						original={produced}
 						modified={expected}
-						onChange={onExpectedChange}
 						onBlur={onExpectedChange}
 						surfaceToken="--background"
 						className="output-diff-editor w-full min-w-0"
