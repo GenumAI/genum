@@ -1,5 +1,18 @@
 name: Docker Build and Push on Release
 
+# Two kinds of release, one pipeline.
+#
+#   Stable    tag `vX.Y.Z` on main, "Set as the latest release".
+#             Publishes `genum/core:X.Y.Z` and `genum/web:X.Y.Z`, and moves `:latest`.
+#
+#   Dev       tag `vX.Y.Z-rc.N`, target ANY branch, "Set as a pre-release".
+#             Publishes only `genum/core:X.Y.Z-rc.N` and `genum/web:X.Y.Z-rc.N`.
+#             `:latest` is untouched, so nobody pulling the default tag gets it.
+#             Run it with `docker compose` by overriding the image tags.
+#
+# A prerelease is how a feature branch gets a testable set of images without being
+# merged to main first. Note that GitHub runs the copy of this file on the DEFAULT
+# branch for `release` events, so changes here only take effect once they are on main.
 on:
   release:
     types: [published]
@@ -20,7 +33,15 @@ jobs:
   test-and-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event.repository.fork == false && (github.event.release.target_commitish == 'main' || github.event.release.target_commitish == 'refs/heads/main')
+    # A stable release must come from main. A PRERELEASE may come from any branch: that
+    # is the whole point of one -- building a testable set of images from a feature branch
+    # without putting the branch on main first. A prerelease never moves `:latest` (see the
+    # manifest step), so nothing a user pulls by default can change this way.
+    if: >-
+      github.event.repository.fork == false &&
+      (github.event.release.target_commitish == 'main' ||
+       github.event.release.target_commitish == 'refs/heads/main' ||
+       github.event.release.prerelease == true)
     outputs:
       # Only the version travels between jobs. Image tags embed
       # secrets.DOCKER_HUB_USERNAME, and GitHub drops any job output containing a
@@ -33,11 +54,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: main
+          # The TAG, not `main`. Checking out a branch name builds whatever that branch
+          # holds at the moment the job runs, which for a prerelease cut from a feature
+          # branch would have been main's code published under the branch's tag -- images
+          # that look like the branch and are not it. The tag is also stricter for a stable
+          # release: it is the exact commit the release names.
+          ref: ${{ github.ref }}
           # Full history so the tag can be verified against main below.
           fetch-depth: 0
 
       - name: Verify tag is on main branch
+        # Stable releases only. A prerelease is expected to sit on a branch that main does
+        # not contain; requiring otherwise is what made a dev release impossible.
+        if: github.event.release.prerelease == false
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           if ! git branch -r --contains "$TAG" | grep -q "origin/main"; then
@@ -136,7 +165,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: main
+          # The tag, for the same reason as the gate job above: this is the code that goes
+          # into the image, and it must be the code the release names.
+          ref: ${{ github.ref }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4

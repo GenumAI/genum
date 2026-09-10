@@ -1,8 +1,9 @@
+import { emailSchema } from "@/utils/email";
 import { z } from "zod";
 
 export const AuthNewUserSchema = z
 	.object({
-		email: z.string().email(),
+		email: emailSchema,
 		name: z.string(),
 		authID: z.string(),
 		picture: z.string().optional(),

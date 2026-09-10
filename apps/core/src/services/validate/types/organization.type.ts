@@ -1,3 +1,4 @@
+import { emailSchema } from "@/utils/email";
 import { z } from "zod";
 import {
 	OrganizationSchema as OrganizationSchemaGenerated,
@@ -36,7 +37,7 @@ export type OrganizationMemberUpdateType = z.infer<typeof OrganizationMemberUpda
 
 export const OrganizationMemberInviteSchema = z
 	.object({
-		email: z.email({ message: "Invalid email address" }),
+		email: emailSchema,
 		role: z.enum(OrganizationRole).default(OrganizationRole.READER),
 	})
 	.strict();

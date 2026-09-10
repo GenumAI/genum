@@ -19,16 +19,15 @@ type SignupFormProps = {
 	onLoginClick: () => void;
 };
 
-export default function SignupForm({
-	form,
-	isLoading,
-	onSubmit,
-	onLoginClick,
-}: SignupFormProps) {
+export default function SignupForm({ form, isLoading, onSubmit, onLoginClick }: SignupFormProps) {
 	return (
 		<>
 			<Form {...form}>
-				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+				{/* noValidate hands validation to react-hook-form. A browser enforces its own
+				    ASCII-only rule on `type="email"` and would block an internationalized
+				    address before onSubmit ever fires -- the input keeps type="email" for the
+				    mobile keyboard it brings up, not for its validation. */}
+				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
 					<FormField
 						control={form.control}
 						name="name"
@@ -109,11 +108,7 @@ export default function SignupForm({
 						)}
 					/>
 
-					<Button
-						type="submit"
-						className="min-h-[40px] w-full"
-						disabled={isLoading}
-					>
+					<Button type="submit" className="min-h-[40px] w-full" disabled={isLoading}>
 						{isLoading ? (
 							<>
 								<Loader2 className="mr-2 h-4 w-4 animate-spin" />

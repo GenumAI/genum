@@ -118,6 +118,22 @@ describe("UserController.acceptInvitation", () => {
 		expect(addOrganizationMember).not.toHaveBeenCalled();
 	});
 
+	it("accepts an invitation whose umlaut is encoded differently than the account's", async () => {
+		// The invitation was written NFC and the signed-in account NFD (or the other way
+		// round -- a macOS client sends NFD). They are the same mailbox and the same person,
+		// and an exact string comparison would lock the recipient out of their own invite.
+		const nfc = "jörg@example.com".normalize("NFC");
+		vi.mocked(db.organization.getInvitationByToken).mockResolvedValue(
+			invitation({ email: nfc }) as never,
+		);
+		const { res, captured } = makeRes();
+
+		await controller.acceptInvitation(makeReq(nfc.normalize("NFD").toUpperCase()), res);
+
+		expect(captured.statusCode).toBe(200);
+		expect(addOrganizationMember).toHaveBeenCalledWith(7, 42, "OWNER");
+	});
+
 	it("404s on an unknown token", async () => {
 		vi.mocked(db.organization.getInvitationByToken).mockResolvedValue(null as never);
 		const { res, captured } = makeRes();
