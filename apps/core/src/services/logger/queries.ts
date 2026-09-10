@@ -248,6 +248,14 @@ export const QUERIES = {
 	 * Bounded like GET_LOGS: a session's span count is unbounded across turns -- each
 	 * request caps its own steps, the session does not -- so an unlimited SELECT returns a
 	 * whole conversation's rows in one response.
+	 *
+	 * `LIMIT 1 BY (trace_id, span_id)` is the deduplication. OTLP delivers at least once, so
+	 * a collector's retry stores the same span a second time and this table cannot be
+	 * rewritten to remove it. Keeping one row per span id at read time makes the duplicate
+	 * invisible from the moment it lands -- which is also why the table stays a MergeTree:
+	 * a ReplacingMergeTree collapses only when it happens to merge, so this clause would be
+	 * needed either way. It sits before the row limit, or the limit would cap the rows first
+	 * and dedup only what survived.
 	 */
 	GET_SPANS: (table: string, where: string) => `
 		SELECT *
@@ -256,6 +264,7 @@ export const QUERIES = {
 		  AND (session_id = {session: String}
 		       OR (session_id = '' AND trace_id = {session: String}))
 		ORDER BY turn_index ASC, span_index ASC
+		LIMIT 1 BY (trace_id, span_id)
 		LIMIT {limit: UInt64}
 	`,
 

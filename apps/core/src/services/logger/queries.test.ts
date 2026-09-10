@@ -285,4 +285,20 @@ describe("GET_SPANS", () => {
 		// would interleave the turns, since each one now numbers from zero.
 		expect(sql).toContain("ORDER BY turn_index ASC, span_index ASC");
 	});
+
+	it("returns each span once even when it was stored twice", () => {
+		// OTLP delivers at least once, so a collector's retry can store the same span
+		// again, and `trace_spans` cannot be rewritten to remove it. `LIMIT 1 BY` keeps
+		// one row per (trace_id, span_id) at read time, which is correct from the moment
+		// the duplicate lands -- unlike a ReplacingMergeTree, which collapses only when it
+		// happens to merge and would still need this clause in the meantime.
+		//
+		// Asserted as SQL text because there is no ClickHouse in this suite; the behaviour
+		// itself is verified against the real database in the ingest task's end-to-end step.
+		const sql = QUERIES.GET_SPANS(TRACE_SPANS_TABLE, "orgId = 1");
+
+		expect(sql).toContain("LIMIT 1 BY (trace_id, span_id)");
+		// Before the row limit, or it would cap the result first and dedup the remainder.
+		expect(sql.indexOf("LIMIT 1 BY")).toBeLessThan(sql.indexOf("{limit: UInt64}"));
+	});
 });
