@@ -1,12 +1,13 @@
 import {
 	type Content,
 	type ContentListUnion,
+	type FunctionDeclaration,
 	type GenerateContentConfig,
 	type Part,
 	ThinkingLevel,
-	Type,
 } from "@google/genai";
 import type { FunctionCall, REASONING_EFFORT } from "../../models/types";
+import { toGeminiParameters } from "./schema";
 import type { ProviderRequest } from "..";
 
 interface GeminiSchema {
@@ -52,62 +53,15 @@ function mapSchemaToGeminiFormat(schemaStr: string): GeminiSchema {
 	return mappedSchema;
 }
 
-function mapFunctionToGeminiFormat(func: FunctionCall): {
-	name: string;
-	description: string;
-	parameters: {
-		type: Type;
-		properties: Record<
-			string,
-			{
-				type: Type;
-				description?: string;
-			}
-		>;
-	};
-} {
+function mapFunctionToGeminiFormat(func: FunctionCall): FunctionDeclaration {
 	return {
 		name: func.name,
 		description: func.description || "",
-		parameters: {
-			type: Type.OBJECT,
-			properties: func.parameters.properties
-				? Object.entries(func.parameters.properties).reduce(
-						(acc, [key, value]) => {
-							acc[key] = {
-								type: mapTypeToGeminiType(value.type),
-								description: value.description || "",
-							};
-							return acc;
-						},
-						{} as Record<
-							string,
-							{
-								type: Type;
-								description: string;
-							}
-						>,
-					)
-				: {},
-		},
+		// The whole schema, converted -- see `./schema.ts`. This used to keep only `type`
+		// and `description` of each first-level property, so arrays reached the model with
+		// no `items`, nested objects arrived empty, and `enum` and `required` were gone.
+		parameters: toGeminiParameters(func.parameters),
 	};
-}
-
-function mapTypeToGeminiType(type: string): Type {
-	switch (type.toLowerCase()) {
-		case "string":
-			return Type.STRING;
-		case "number":
-			return Type.NUMBER;
-		case "boolean":
-			return Type.BOOLEAN;
-		case "object":
-			return Type.OBJECT;
-		case "array":
-			return Type.ARRAY;
-		default:
-			return Type.STRING;
-	}
 }
 
 export function mapConfigToGemini(request: ProviderRequest): GenerateContentConfig {

@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const generateContent = vi.fn();
-vi.mock("@google/genai", () => ({
+// Partial, not a replacement: the SDK's `Type` and `ThinkingLevel` enums are real values
+// read at module load by the schema converter and the config mapper, so a mock that omits
+// them fails the whole suite on import rather than on any assertion.
+vi.mock("@google/genai", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@google/genai")>()),
 	GoogleGenAI: class {
 		models = { generateContent };
 	},
