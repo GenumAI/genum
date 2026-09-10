@@ -15,7 +15,7 @@ import {
 	ProjectMemberCreateSchema,
 	ProjectMemberUpdateSchema,
 	stringSchema,
-	uuidSchema,
+	sessionIdSchema,
 	ProjectUsageStatsSchema,
 	ProjectLogsQuerySchema,
 	ProjectUpdateSchema,
@@ -251,7 +251,11 @@ export class ProjectController {
 	// it fetches a SESSION's spans across all its turns.
 	public async getTraceSpans(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
-		const traceId = uuidSchema.parse(req.params.traceId);
+		// NOT `uuidSchema`. Our own sessions are derived UUIDs, but an ingested one is
+		// identified by the sender's `gen_ai.conversation.id` (constrained in no way by the
+		// GenAI conventions) or, absent that, by a 32-hex OTLP trace id. Validated as a
+		// UUID, every ingested session 400s -- stored correctly and unreadable forever.
+		const traceId = sessionIdSchema.parse(req.params.traceId);
 
 		const spans = await getSessionSpans(traceId, metadata.orgID, metadata.projID);
 

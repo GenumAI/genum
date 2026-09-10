@@ -156,14 +156,28 @@ describe("ProjectController.getTraceSpans", () => {
 		expect(getSessionSpans).toHaveBeenCalledWith(TRACE_ID, CALLER_ORG, CALLER_PROJECT);
 	});
 
-	// The write path validates a trace id as a uuid (`z.uuid()` in prompt.type.ts); the
-	// read path accepted any string at all. Harmless with a parameterised, org-scoped
-	// query, but the two halves should agree on what a trace id is.
-	it("rejects a trace id that is not a uuid", async () => {
-		const { res } = makeRes();
-		const req = makeReq({ params: { traceId: "t1" } });
+	// This route reads a SESSION, and a session id is not a uuid. Our own are, but an
+	// ingested session is identified by the sender's `gen_ai.conversation.id` -- which the
+	// GenAI conventions constrain in no way -- or by a 32-hex OTLP trace id. Guarded as a
+	// uuid, as it was, every ingested session 400s while its rows sit in the table
+	// unreadable, and the table is append-only.
+	it("reads a session whose id came from a customer's collector", async () => {
+		for (const sessionId of ["conv-1", "4bf92f3577b34da6a3ce929d0e0e4736"]) {
+			vi.mocked(getSessionSpans).mockClear();
+			const { res } = makeRes();
 
-		await expect(controller.getTraceSpans(req, res)).rejects.toThrow();
+			await controller.getTraceSpans(makeReq({ params: { traceId: sessionId } }), res);
+
+			expect(getSessionSpans).toHaveBeenCalledWith(sessionId, CALLER_ORG, CALLER_PROJECT);
+		}
+	});
+
+	it("still refuses an id that is empty or carries control characters", async () => {
+		const { res } = makeRes();
+
+		await expect(
+			controller.getTraceSpans(makeReq({ params: { traceId: "" } }), res),
+		).rejects.toThrow();
 		expect(getSessionSpans).not.toHaveBeenCalled();
 	});
 });

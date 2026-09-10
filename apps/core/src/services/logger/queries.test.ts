@@ -127,17 +127,19 @@ describe("WhereBuilder detail conditions", () => {
 });
 
 /**
- * `prt` rows are continuation turns of one run, not runs of their own (see the comment
- * above `RUN_COUNT` in queries.ts). Every query that reports "how many runs" must exclude
- * them via `countIf(log_type != 'prt')`; every query that sums cost or tokens must NOT,
- * because a continuation turn is still a real, billed provider call. This file pins that
- * distinction at each of the nine counting positions individually, so that a tenth stats
- * query added later without the guard is a visible, named omission rather than a query
- * that silently starts overcounting runs.
+ * Two row types are not runs of ours. `prt` rows are continuation turns of one run (see
+ * the comment above `RUN_COUNT` in queries.ts), and `oti` rows are turns of a session a
+ * customer sent us over OTLP -- we neither ran nor billed those. Every query that reports
+ * "how many runs" must exclude both; every query that sums cost or tokens must NOT exclude
+ * `prt`, because a continuation turn is a real, billed provider call. (`oti` rows need no
+ * exclusion from sums: their usage columns are written as zeros, which is what lets a
+ * dozen sums stay untouched.) This file pins that distinction at each of the nine counting
+ * positions individually, so that a tenth stats query added later without the guard is a
+ * visible, named omission rather than a query that silently starts overcounting runs.
  */
-const RUN_COUNT_EXPR = "countIf(log_type != 'prt')";
+const RUN_COUNT_EXPR = "countIf(log_type NOT IN ('prt', 'oti'))";
 
-describe("QUERIES run-counting positions exclude 'prt' rows", () => {
+describe("QUERIES run-counting positions exclude 'prt' and 'oti' rows", () => {
 	it("PROJECT_STATS.total_requests", () => {
 		const sql = QUERIES.PROJECT_STATS("logs", "1=1");
 		expect(sql).toContain(`${RUN_COUNT_EXPR} as total_requests`);
@@ -191,9 +193,9 @@ describe("QUERIES.COUNT deliberately does NOT exclude 'prt' rows", () => {
 	// listing actually returns). This assertion is written to fail if someone "fixes"
 	// COUNT by adding the run-count guard to it -- that would be the listing's total
 	// silently falling out of step with what GET_LOGS actually returns.
-	it("counts every matching row, including 'prt' rows", () => {
+	it("counts every matching row, including 'prt' and 'oti' rows", () => {
 		const sql = QUERIES.COUNT("logs", "1=1");
-		expect(sql).not.toContain("log_type != 'prt'");
+		expect(sql).not.toContain("NOT IN ('prt', 'oti')");
 		expect(sql).toMatch(/count\(\)\s+as total/);
 	});
 });
@@ -202,9 +204,11 @@ describe("success_count carries the same 'prt' exclusion as total_requests", () 
 	// success_rate = success_count / total_requests. If success_count counted 'prt' rows
 	// while total_requests did not, a prompt with continuation turns could show a success
 	// rate above 100%.
-	it("PROMPT_STATS.success_count excludes 'prt' rows alongside log_lvl = 'SUCCESS'", () => {
+	it("PROMPT_STATS.success_count carries the same exclusion as total_requests", () => {
 		const sql = QUERIES.PROMPT_STATS("logs", "1=1");
-		expect(sql).toMatch(/countIf\(log_lvl = 'SUCCESS' AND log_type != 'prt'\)\s+as success_count/);
+		expect(sql).toMatch(
+			/countIf\(log_lvl = 'SUCCESS' AND log_type NOT IN \('prt', 'oti'\)\)\s+as success_count/,
+		);
 	});
 });
 

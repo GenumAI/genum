@@ -6,6 +6,8 @@ export enum SourceType {
 	ui = "ui",
 	testcase = "testcase",
 	api = "api",
+	/** A trace a customer sent us over OTLP; we did not run it and did not bill it. */
+	otlp = "otlp",
 }
 
 export enum LogLevel {
@@ -32,6 +34,25 @@ export enum LogType {
 	 * row alone.
 	 */
 	PromptRunTurn = "prt",
+	/**
+	 * One turn of a session a customer sent us over OTLP, rather than one we ran.
+	 *
+	 * It exists so an ingested session is REACHABLE: the logs list is the only entry point
+	 * to a trajectory, so a session with no row here is stored correctly and can never be
+	 * opened -- and `trace_spans` is append-only, so a row not written now cannot be
+	 * written later for traces already ingested.
+	 *
+	 * Its usage columns are deliberately ZERO. The sender's token counts live on the spans,
+	 * where they are displayed per step; summed into this table they would mix a
+	 * customer's own traffic into our billing totals, which the ingest design forbids.
+	 * Writing zeros is what makes every `sum(cost)` and `sum(tokens_*)` in `queries.ts`
+	 * correct without touching one of them -- and there are a dozen, each a chance to get
+	 * an exclusion subtly wrong.
+	 *
+	 * Excluded from run COUNTS alongside `prt` (see `RUN_COUNT`): an ingested session is
+	 * not a run of ours, and counting it would deflate every per-run average.
+	 */
+	TraceIngested = "oti",
 	PromptRunError = "pre",
 	AIError = "ae",
 	TechnicalError = "te",

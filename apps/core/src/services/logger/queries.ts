@@ -10,7 +10,7 @@
  * reason the type exists (see `LogType.PromptRunTurn`). Expressed as a `countIf` rather
  * than a WHERE clause so the sums beside it still cover every billed turn.
  */
-const RUN_COUNT = "countIf(log_type != 'prt')";
+const RUN_COUNT = "countIf(log_type NOT IN ('prt', 'oti'))";
 
 /**
  * Send this with any query that selects `log_id`.
@@ -133,7 +133,7 @@ export const QUERIES = {
 			sum(tokens_sum) as total_tokens_sum,
 			avg(response_ms) as average_response_ms,
 			sum(cost) as total_cost,
-			countIf(log_lvl = 'SUCCESS' AND log_type != 'prt') as success_count,
+			countIf(log_lvl = 'SUCCESS' AND log_type NOT IN ('prt', 'oti')) as success_count,
 			countIf(log_lvl = 'ERROR') as error_count,
 			max(timestamp) as last_used,
 			min(timestamp) as first_used

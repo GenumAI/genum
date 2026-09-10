@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OtlpController } from "./otlp.controller";
 import { db } from "@/database/db";
-import { getSessionTraceIds, insertSpanRows } from "@/services/logger";
+import { getSessionTraceIds, insertSpanRows, logUsage } from "@/services/logger";
 
 vi.mock("@/database/db", () => ({
 	db: {
@@ -17,6 +17,17 @@ vi.mock("@/database/db", () => ({
 vi.mock("@/services/logger", () => ({
 	insertSpanRows: vi.fn(),
 	getSessionTraceIds: vi.fn(),
+	logUsage: vi.fn(),
+	SourceType: { ui: "ui", testcase: "testcase", api: "api", otlp: "otlp" },
+	LogLevel: { success: "SUCCESS", info: "INFO", warn: "WARN", error: "ERROR" },
+	LogType: {
+		PromptRunSuccess: "prs",
+		PromptRunTurn: "prt",
+		TraceIngested: "oti",
+		PromptRunError: "pre",
+		AIError: "ae",
+		TechnicalError: "te",
+	},
 }));
 
 const KEY = { id: 7 };
@@ -76,6 +87,7 @@ describe("OtlpController.ingestTraces", () => {
 		vi.mocked(db.project.getProjectbyApiKeyById).mockResolvedValue(PROJECT as never);
 		vi.mocked(getSessionTraceIds).mockResolvedValue([]);
 		vi.mocked(insertSpanRows).mockResolvedValue(undefined);
+		vi.mocked(logUsage).mockResolvedValue(undefined);
 	});
 
 	it("refuses a request with no Authorization header, and writes nothing", async () => {
@@ -198,5 +210,66 @@ describe("OtlpController.ingestTraces", () => {
 		await expect(
 			controller.ingestTraces(authorized(body(span())), response()),
 		).rejects.toMatchObject({ statusCode: 503 });
+	});
+
+	describe("making the session reachable", () => {
+		it("writes one logs row per ingested trace, keyed by the session", () => {
+			// The logs list is the ONLY entry point to a trajectory. Without a row here an
+			// ingested session is stored correctly and can never be opened -- and the span
+			// table is append-only, so it cannot be fixed after the fact.
+			return controller.ingestTraces(authorized(body(span())), response()).then(() => {
+				expect(logUsage).toHaveBeenCalledTimes(1);
+				expect(vi.mocked(logUsage).mock.calls[0][0]).toMatchObject({
+					source: "otlp",
+					log_type: "oti",
+					orgId: 11,
+					project_id: 3,
+					prompt_id: 42,
+					// The SESSION, not the turn's trace: this is the id the spans read is
+					// keyed on, so a row carrying the turn id would open an empty session.
+					trace_id: "4bf92f3577b34da6a3ce929d0e0e4736",
+				});
+			});
+		});
+
+		it("writes zero usage, so no ingested traffic reaches our billing totals", async () => {
+			// The sender's token counts stay on the spans, where they are shown per step.
+			// Zeros here are what keeps every sum() in queries.ts correct without a dozen
+			// separate exclusions, each of which could be got subtly wrong.
+			await controller.ingestTraces(authorized(body(span())), response());
+
+			expect(vi.mocked(logUsage).mock.calls[0][0]).toMatchObject({
+				tokens_in: 0,
+				tokens_out: 0,
+				tokens_sum: 0,
+				cost: 0,
+			});
+		});
+
+		it("keys the row on the conversation when the sender gave one", async () => {
+			await controller.ingestTraces(
+				authorized(
+					body(
+						span({
+							attributes: [
+								...span().attributes,
+								{ key: "gen_ai.conversation.id", value: { stringValue: "conv-1" } },
+							],
+						}),
+					),
+				),
+				response(),
+			);
+
+			expect(vi.mocked(logUsage).mock.calls[0][0]).toMatchObject({ trace_id: "conv-1" });
+		});
+
+		it("writes nothing at all when the batch is refused", async () => {
+			await expect(
+				controller.ingestTraces(authorized(body(span({ attributes: [] }))), response()),
+			).rejects.toMatchObject({ statusCode: 400 });
+
+			expect(logUsage).not.toHaveBeenCalled();
+		});
 	});
 });

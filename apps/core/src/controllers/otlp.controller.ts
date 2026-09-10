@@ -1,7 +1,14 @@
 import type { Request, Response } from "express";
 
 import { resolveApiKey } from "@/auth/apiKey";
-import { getSessionTraceIds, insertSpanRows } from "@/services/logger";
+import {
+	getSessionTraceIds,
+	insertSpanRows,
+	LogLevel,
+	LogType,
+	logUsage,
+	SourceType,
+} from "@/services/logger";
 import type { SpanRow } from "@/services/logger";
 import { mapOtlpSpans, tracesOf } from "@/services/otlp/mapSpans";
 import { assignTurnIndices } from "@/services/otlp/turnIndex";
@@ -56,6 +63,7 @@ export class OtlpController {
 		}
 
 		await this.write(rows);
+		await this.announce(rows);
 
 		res.status(200).json(
 			rejected === 0
@@ -106,6 +114,54 @@ export class OtlpController {
 		}
 
 		return indices;
+	}
+
+	/**
+	 * One `logs` row per ingested trace, so the session can be OPENED.
+	 *
+	 * The logs list is the only entry point to a trajectory in the UI: spans with no row
+	 * here are stored correctly and unreachable, and `trace_spans` is append-only, so a
+	 * row not written now cannot be added later for traces already ingested.
+	 *
+	 * Two details are load-bearing. `trace_id` carries the SESSION, not the turn's own
+	 * trace, because that is the key the spans read is scoped on -- a row carrying the turn
+	 * id would open an empty session for any sender who supplied a conversation id. And
+	 * every usage column is zero: the sender's token counts live on the spans, where they
+	 * are shown per step, while summing them here would mix a customer's own traffic into
+	 * our billing totals. Zeros keep every `sum()` in `queries.ts` correct without adding
+	 * an exclusion to each of them.
+	 *
+	 * Failure is swallowed like `logUsage`'s own: the spans are already stored and the
+	 * batch already succeeded, so throwing here would make a collector resend traces we
+	 * hold. The cost is a session that is hard to find, not one that is lost.
+	 */
+	private async announce(rows: SpanRow[]): Promise<void> {
+		const seen = new Set<string>();
+
+		for (const row of rows) {
+			if (seen.has(row.trace_id)) continue;
+			seen.add(row.trace_id);
+
+			await logUsage({
+				source: SourceType.otlp,
+				log_lvl: LogLevel.success,
+				log_type: LogType.TraceIngested,
+				description: `Ingested trace ${row.trace_id}`,
+				orgId: row.orgId,
+				project_id: row.project_id,
+				prompt_id: row.prompt_id,
+				trace_id: row.session_id || row.trace_id,
+				vendor: row.vendor,
+				model: row.model,
+				tokens_in: 0,
+				tokens_out: 0,
+				tokens_sum: 0,
+				cost: 0,
+				response_ms: 0,
+				in: "",
+				out: "",
+			});
+		}
 	}
 
 	private async write(rows: SpanRow[]): Promise<void> {
