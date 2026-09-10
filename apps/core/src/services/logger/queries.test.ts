@@ -285,9 +285,12 @@ describe("GET_SPANS", () => {
 		// permanent rather than a migration window.
 		expect(sql).toContain("session_id = {session: String}");
 		expect(sql).toContain("session_id = '' AND trace_id = {session: String}");
-		// Turn order first, then step order within the turn. Ordering by `span_index` alone
-		// would interleave the turns, since each one now numbers from zero.
-		expect(sql).toContain("ORDER BY turn_index ASC, span_index ASC");
+		// Time first, then turn and step order as tie-breaks. `turn_index` is assigned by a
+		// read-then-write with nothing serialising it, so two concurrent batches of one
+		// session can take the same ordinal -- and the table is append-only, so ordering by
+		// it alone would interleave those turns forever. Ordering by `span_index` alone
+		// would interleave every turn, since each numbers from zero.
+		expect(sql).toContain("ORDER BY timestamp ASC, turn_index ASC, span_index ASC");
 	});
 
 	it("returns each span once even when it was stored twice", () => {

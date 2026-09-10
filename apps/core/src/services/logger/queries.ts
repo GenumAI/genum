@@ -245,6 +245,20 @@ export const QUERIES = {
 	 * when they were written. ClickHouse is append-only here, so they are never rewritten
 	 * and this branch is permanent.
 	 *
+	 * Ordered by TIME first, and by `turn_index` only to break a tie.
+	 *
+	 * `turn_index` is assigned on arrival from the traces a session already holds, which is
+	 * a read followed by a write with nothing serialising the two: two batches of one
+	 * session in flight together both read the same list and both take the same ordinal.
+	 * Ordering by it alone, those turns interleave, permanently -- the table is
+	 * append-only. Time is the one ordering an ingested conversation cannot disagree with,
+	 * since the spans carry the sender's own clock; for our own runs every span of a turn
+	 * shares one insert timestamp, so `turn_index` then `span_index` still decide the order
+	 * within and between turns exactly as before.
+	 *
+	 * Turns themselves are grouped from `user`-step boundaries, not from this column, so
+	 * nothing downstream depends on the ordinal being unique.
+	 *
 	 * Bounded like GET_LOGS: a session's span count is unbounded across turns -- each
 	 * request caps its own steps, the session does not -- so an unlimited SELECT returns a
 	 * whole conversation's rows in one response.
@@ -263,7 +277,7 @@ export const QUERIES = {
 		WHERE ${where}
 		  AND (session_id = {session: String}
 		       OR (session_id = '' AND trace_id = {session: String}))
-		ORDER BY turn_index ASC, span_index ASC
+		ORDER BY timestamp ASC, turn_index ASC, span_index ASC
 		LIMIT 1 BY (trace_id, span_id)
 		LIMIT {limit: UInt64}
 	`,

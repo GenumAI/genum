@@ -40,7 +40,18 @@ export function mapOtlpSpans(payload: OtlpPayload, context: OtlpMapContext): Otl
 
 		// The human reply that provoked this turn, from the chat span's input messages
 		// (S2). It goes first: everything else in the turn happened because of it.
-		const reply = turnIndex === 0 ? undefined : lastUserMessage(ordered);
+		//
+		// Decided from the messages THEMSELVES, not from the turn ordinal. A turn's input
+		// opens with the session's original question, so a turn carrying a second user
+		// entry was provoked by the last of them, and a turn carrying only one is the
+		// opening turn -- whatever ordinal it happens to have been given.
+		//
+		// Keyed on the ordinal, as it was, two deliveries could disagree: a turn arriving
+		// before the turn that preceded it (a retry after a collector restart) took ordinal
+		// 0 and lost its reply, while the earlier turn arriving second was given a spurious
+		// `user reply` holding the session's opening question -- exactly what S2 says must
+		// never become a step. Append-only, so neither was correctable.
+		const reply = replyIn(ordered);
 		if (reply !== undefined) {
 			rows.push({
 				...base(ordered[0], context, traceId, sessionId, turnIndex, 0),
@@ -360,7 +371,7 @@ function scalar(value: OtlpAnyValue): string | undefined {
  * only place it exists. Both message shapes are read -- `{role, parts:[{content}]}` from
  * the current conventions and `{role, content}` from what most SDKs still emit.
  */
-function lastUserMessage(spans: OtlpSpan[]): string | undefined {
+function replyIn(spans: OtlpSpan[]): string | undefined {
 	for (let index = spans.length - 1; index >= 0; index -= 1) {
 		const raw = attr(spans[index], "gen_ai.input.messages");
 		if (!raw) continue;
@@ -375,12 +386,14 @@ function lastUserMessage(spans: OtlpSpan[]): string | undefined {
 		}
 		if (!Array.isArray(messages)) continue;
 
-		for (let m = messages.length - 1; m >= 0; m -= 1) {
-			const message = messages[m] as { role?: string; content?: unknown; parts?: unknown };
-			if (message?.role !== "user") continue;
-			const text = textOf(message);
-			if (text) return text;
-		}
+		const userTexts = messages
+			.filter((message) => (message as { role?: string })?.role === "user")
+			.map((message) => textOf(message as { content?: unknown; parts?: unknown }))
+			.filter((text): text is string => Boolean(text));
+
+		// One user message is the session's opening question -- the testcase's `input`,
+		// never a step. Two or more means this turn was provoked by the last of them.
+		if (userTexts.length > 1) return userTexts[userTexts.length - 1];
 	}
 	return undefined;
 }

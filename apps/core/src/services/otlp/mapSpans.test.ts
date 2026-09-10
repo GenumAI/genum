@@ -432,11 +432,39 @@ describe("mapOtlpSpans", () => {
 
 		it("reads the older {role, content} message shape too", () => {
 			const { rows } = mapOtlpSpans(
-				payload(turn("t1", [{ role: "user", content: "and tomorrow?" }])),
+				payload(
+					turn("t1", [
+						{ role: "user", content: "what is the weather?" },
+						{ role: "assistant", content: "sunny" },
+						{ role: "user", content: "and tomorrow?" },
+					]),
+				),
 				{ ...CONTEXT, turnIndexByTrace: new Map([["t1", 1]]) },
 			);
 
 			expect(rows.find((row) => row.span_type === "user")?.output).toBe("and tomorrow?");
+		});
+
+		it("decides from the messages, not from the ordinal it was handed", () => {
+			// The ordinal comes from arrival order, which a collector restart can invert.
+			// Keyed on it, a turn delivered before its predecessor took ordinal 0 and lost
+			// its reply, while the predecessor arriving second was given a spurious reply
+			// holding the session's opening question -- both permanent, both invisible.
+			const openingNumberedLate = mapOtlpSpans(payload(turn("t0", OPENING)), {
+				...CONTEXT,
+				turnIndexByTrace: new Map([["t0", 5]]),
+			});
+			const replyNumberedFirst = mapOtlpSpans(payload(turn("t1", REPLY)), {
+				...CONTEXT,
+				turnIndexByTrace: new Map([["t1", 0]]),
+			});
+
+			// One user entry is the opening question, whatever ordinal it was given.
+			expect(openingNumberedLate.rows.some((row) => row.span_type === "user")).toBe(false);
+			// Two means this turn was provoked by the last of them, likewise.
+			expect(replyNumberedFirst.rows.find((row) => row.span_type === "user")?.output).toBe(
+				"and tomorrow?",
+			);
 		});
 
 		it("numbers the payload's own traces when the caller knows no ordinals", () => {
