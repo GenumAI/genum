@@ -99,22 +99,22 @@ ALTER TABLE {{DB_NAME}}.trace_spans
 than nullable so every existing row reads as ours, which is what they are. This is the
 column the quota decision depends on: without it, "not metered for now" is permanent.
 
-Deduplication needs the engine to collapse duplicates:
+**Deduplication is done on read, and the table engine is not touched.**
 
-```sql
--- ReplacingMergeTree keeps the last row per sorting key. The sorting key must therefore
--- END in span_id, so that two deliveries of the same span collapse and two different
--- spans never do.
-```
+The obvious move is `ReplacingMergeTree`, which collapses rows sharing a sorting key. But
+a `MergeTree` cannot be altered into one: it means creating a second table, copying every
+existing row, and renaming — the only destructive step in the whole feature, on the table
+holding every recorded trajectory.
 
-A `MergeTree` cannot be altered into a `ReplacingMergeTree`, so this is a create-and-swap:
-create `trace_spans_v2` with the new engine and ordering, copy, rename. **This is the only
-destructive step in the feature and it is the one place the implementer must stop and ask
-before running anything against a database that is not local.**
+It buys nothing that is needed yet. `ReplacingMergeTree` collapses *asynchronously*, so
+even with it the read must be correct before the merge happens — which means
+`LIMIT 1 BY (trace_id, span_id)` on the session query either way. That clause alone makes
+a duplicate invisible from the moment it lands. What the engine adds is reclaiming the
+duplicate's disk, and OTLP re-delivery is an exception rather than the norm.
 
-Collapsing is asynchronous, so reads must not assume it has happened: the session read
-gets `LIMIT 1 BY (trace_id, span_id)`, which makes duplicates invisible immediately and
-correct regardless of merge timing.
+So v1 is the read clause and no migration. The engine swap becomes a storage question to
+answer when storage is the problem, with the dedup behaviour already in place and tested,
+and with the option of doing it during a maintenance window rather than inside a feature.
 
 ## The endpoint
 
@@ -177,3 +177,5 @@ count is what a collector is built to read.
 - Metering (decided: none) and rate limiting (the remedy if a key is abused, not needed
   until one is).
 - Backfilling `source` for existing rows: they default to `'genum'`, which is correct.
+- Swapping `trace_spans` to `ReplacingMergeTree`. Read-side dedup makes it unnecessary for
+  correctness; it reclaims disk, and that is a maintenance decision, not a feature.
