@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { CaretRight, ChatText, CornersOut, Wrench } from "@phosphor-icons/react";
 
+import { AnswerDiff, ReadOnlyAnswer } from "@/components/steps/AnswerView";
 import { StepMetrics } from "@/components/steps/StepMetrics";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -359,46 +360,32 @@ export function StepRow({
 							// that silently discards what is typed into it is worse than
 							// showing none, so this answer is reported and nothing is asked
 							// of the author.
-							<div className="mt-1 whitespace-pre-wrap text-sm">{produced}</div>
+							<ReadOnlyAnswer text={produced} />
 						) : step.text ? (
-							// Both sides exist, so show them side by side: what the run
-							// produced on the left, what is expected of it on the right.
-							// Stacked below one another they read as two paragraphs of the
-							// same answer, which is exactly the confusion the old
-							// Last/Expected pair caused -- side by side, the comparison is
-							// the layout.
-							<div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
-								<div className="min-w-0">
-									<div className="text-xs font-medium text-muted-foreground">
-										Produced
-									</div>
-									<div className="mt-1 whitespace-pre-wrap text-sm">
-										{produced}
-									</div>
-								</div>
-								<div
-									className={cn(
-										"min-w-0 sm:border-l sm:pl-3",
-										outcome === "mismatched" && "sm:border-l-destructive",
-									)}
-								>
-									<div className="text-xs font-medium text-muted-foreground">
-										Expected
-									</div>
-									<EditableFinalText
-										text={step.text}
-										readOnly={readOnly}
-										disabled={disabled}
-										onTextChange={onTextChange}
-									/>
-								</div>
-							</div>
+							// Both sides exist, so diff them. Two plain columns showed both
+							// values but aligned neither, which for anything longer than a
+							// sentence left the author to find the differing character by
+							// eye -- the one question the pair exists to answer.
+							<AnswerDiff
+								produced={produced}
+								expected={step.text}
+								mismatched={outcome === "mismatched"}
+								// `readOnly` is a log's recorded trace: the pair is still
+								// worth diffing, but there is nothing to commit to.
+								onExpectedChange={
+									readOnly || !onTextChange
+										? undefined
+										: (text) => {
+												void onTextChange(text);
+											}
+								}
+							/>
 						) : (
-							// Nothing is expected of this answer yet. A second, empty column
-							// would be a column of nothing; the invitation to fill it is
+							// Nothing is expected of this answer yet. A second, empty pane
+							// would be a pane of nothing; the invitation to fill it is
 							// enough, and it stays out of the way until taken up.
 							<>
-								<div className="mt-1 whitespace-pre-wrap text-sm">{produced}</div>
+								<ReadOnlyAnswer text={produced} />
 								<ExpectedAnswer
 									expected={step.text}
 									readOnly={readOnly}
