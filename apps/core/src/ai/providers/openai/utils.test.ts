@@ -59,4 +59,66 @@ describe("inputMapper with a conversation", () => {
 
 		expect(result).toContainEqual({ role: "user", content: "and in London?" });
 	});
+
+	it("keeps the assistant's own answer in the conversation", () => {
+		// `replayTrajectory` puts the model's answer back before the reply that answers it,
+		// exactly as the playground client does when recording. Dropped, the replayed model
+		// answers a follow-up with no memory of what it just said -- and turn 2's pinned
+		// final was produced in a context the replay cannot reproduce, so a correct agent
+		// is written NOK on every run. Anthropic, Gemini and DeepSeek all keep this text.
+		const result = inputMapper(request({ messages: withUserReply() }));
+
+		expect(result).toContainEqual({ role: "assistant", content: "one" });
+	});
+
+	it("puts the assistant's answer BEFORE the reply that answers it", () => {
+		const result = inputMapper(request({ messages: withUserReply() })) as {
+			role?: string;
+			content?: string;
+		}[];
+
+		const answer = result.findIndex((item) => item.role === "assistant");
+		const reply = result.findIndex((item) => item.content === "and in London?");
+		expect(answer).toBeGreaterThanOrEqual(0);
+		expect(answer).toBeLessThan(reply);
+	});
+
+	it("keeps text that accompanies a tool call, and puts it before the call", () => {
+		const result = inputMapper(
+			request({
+				messages: [
+					{
+						role: "assistant",
+						content: "Let me look that up.",
+						toolCalls: [{ id: "call_1", name: "weather", args: { city: "Kyiv" } }],
+					},
+					{ role: "tool", toolCallId: "call_1", name: "weather", content: '{"c":21}' },
+				],
+			}),
+		) as { role?: string; type?: string }[];
+
+		const text = result.findIndex((item) => item.role === "assistant");
+		const call = result.findIndex((item) => item.type === "function_call");
+		expect(text).toBeGreaterThanOrEqual(0);
+		expect(text).toBeLessThan(call);
+	});
+
+	it("emits no assistant item for an answer with no text", () => {
+		// An empty string is not a message the API accepts, and a turn that produced only
+		// a tool call has nothing to say yet.
+		const result = inputMapper(
+			request({
+				messages: [
+					{
+						role: "assistant",
+						content: "",
+						toolCalls: [{ id: "call_1", name: "weather", args: {} }],
+					},
+					{ role: "tool", toolCallId: "call_1", name: "weather", content: "{}" },
+				],
+			}),
+		) as { role?: string }[];
+
+		expect(result.some((item) => item.role === "assistant")).toBe(false);
+	});
 });

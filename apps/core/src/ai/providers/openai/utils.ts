@@ -114,16 +114,35 @@ export function inputMapper(request: ProviderRequest) {
 	type ExtraItem =
 		| { type: "function_call"; call_id: string; name: string; arguments: string }
 		| { type: "function_call_output"; call_id: string; output: string }
-		| { role: "user"; content: string };
+		| { role: "user"; content: string }
+		| { role: "assistant"; content: string };
 
 	const extra: ExtraItem[] = request.messages.flatMap((message): ExtraItem[] => {
 		if (message.role === "assistant") {
-			return (message.toolCalls ?? []).map((call) => ({
-				type: "function_call",
-				call_id: call.id,
-				name: call.name,
-				arguments: JSON.stringify(call.args),
-			}));
+			return [
+				// The model's own words, kept. `replayTrajectory` puts them back into the
+				// conversation before the reply that answers them, exactly as the playground
+				// client does when recording -- so dropping them here made replay send the
+				// provider a DIFFERENT conversation than the recording did, and every
+				// multi-turn trajectory testcase on OpenAI failed no matter how correct the
+				// agent was. Anthropic, Gemini and DeepSeek all keep it; this was the one
+				// provider that did not.
+				//
+				// Before the tool calls, because that is the order they happened in: the
+				// model says what it is about to do, then does it.
+				//
+				// Skipped when empty: a turn that produced only a tool call has nothing to
+				// say yet, and an empty message is not one the API accepts.
+				...(message.content
+					? [{ role: "assistant" as const, content: message.content }]
+					: []),
+				...(message.toolCalls ?? []).map((call) => ({
+					type: "function_call" as const,
+					call_id: call.id,
+					name: call.name,
+					arguments: JSON.stringify(call.args),
+				})),
+			];
 		}
 		if (message.role === "user") {
 			return [{ role: "user", content: message.content }];
