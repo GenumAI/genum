@@ -273,6 +273,30 @@ export class PromptsRepository {
 						name: "master",
 					},
 				},
+				// Nested, so the prompt and its placeholders are one write. The caller
+				// commits immediately after this returns, and `commit()` snapshots the LIVE
+				// placeholder tables -- so a prompt that reached the commit without its
+				// placeholders would be committed with an empty snapshot, and every
+				// `productive=true` read of it would report a prompt with no definitions
+				// while its text is full of holes. Creating them afterwards cannot fix that
+				// without a second commit.
+				...(data.placeholders && data.placeholders.length > 0
+					? {
+							placeholders: {
+								create: data.placeholders.map((placeholder) => ({
+									key: placeholder.key,
+									description: placeholder.description ?? null,
+									values: {
+										create: placeholder.values.map((value) => ({
+											name: value.name,
+											content: value.content,
+											isDefault: value.isDefault ?? false,
+										})),
+									},
+								})),
+							},
+						}
+					: {}),
 			},
 		});
 	}

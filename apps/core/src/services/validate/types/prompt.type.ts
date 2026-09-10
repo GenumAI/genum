@@ -1,6 +1,7 @@
 import { AssertionTypeSchema, PromptSchema as PromptSchemaGenerated } from "@/prisma-types";
 import { LogLevel, SourceType } from "@/services/logger";
 import { FunctionCallSchema } from "@/ai/models/types";
+import { PromptPlaceholdersCreateSchema } from "./placeholder.type";
 import type { ConversationMessage } from "@/ai/providers";
 import { z } from "zod";
 
@@ -35,6 +36,10 @@ export const PromptCreateSchema = PromptSchema.pick({
 	.extend({
 		languageModelName: z.string().min(1).optional(),
 		languageModelConfig: LanguageModelConfigSchema.optional(),
+		// Placeholder CRUD otherwise exists only on the JWT routes, so an API key could
+		// create a prompt full of `{{holes}}` and had no way to define any of them --
+		// leaving a prompt that renders its own placeholder syntax to the model.
+		placeholders: PromptPlaceholdersCreateSchema.optional(),
 	})
 	.strict();
 

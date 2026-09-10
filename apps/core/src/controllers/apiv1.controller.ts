@@ -9,6 +9,7 @@ import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
 import { mergePlaceholderInput } from "@/ai/placeholders/merge-input";
 import { toPlaceholderDefinitions } from "@/ai/placeholders/definitions";
+import { placeholderCoverage } from "@/ai/placeholders/coverage";
 import { SourceType } from "@/services/logger";
 import { PromptService } from "@/services/prompt.service";
 import type { FileInput } from "@/services/file.service";
@@ -230,6 +231,11 @@ export class ApiV1Controller {
 			req.body,
 		);
 
+		// Computed before the write so a payload whose text and definitions disagree is
+		// reported alongside the prompt it created, not left for the caller to discover
+		// when the model reads a literal `{{key}}`.
+		const placeholders = placeholderCoverage(promptData.value, promptData.placeholders ?? []);
+
 		const resolvedModel = await this.promptService.resolvePromptModelOverride(
 			project.organizationId,
 			{ languageModelName, languageModelConfig },
@@ -246,10 +252,12 @@ export class ApiV1Controller {
 		);
 
 		// An uncommitted prompt has no productive version, so the API could not run
-		// what it just created — commit immediately, as the seed does.
+		// what it just created — commit immediately, as the seed does. The placeholders
+		// were created with the prompt above, so this snapshots them; created after this
+		// line they would be absent from the snapshot every productive read serves.
 		await db.prompts.commit(prompt.id, "Initial commit", key.authorId);
 		const committed = await db.prompts.changePromptCommitStatus(prompt.id, true);
 
-		res.status(200).json({ prompt: committed });
+		res.status(200).json({ prompt: committed, placeholders });
 	}
 }

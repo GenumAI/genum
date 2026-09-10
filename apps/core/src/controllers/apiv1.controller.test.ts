@@ -138,7 +138,88 @@ describe("ApiV1Controller.createPrompt", () => {
 		expect(db.prompts.commit).toHaveBeenCalledWith(42, "Initial commit", 7);
 		expect(db.prompts.changePromptCommitStatus).toHaveBeenCalledWith(42, true);
 		expect(captured.statusCode).toBe(200);
-		expect(captured.body).toEqual({ prompt: { id: 42, commited: true } });
+		expect(captured.body).toEqual({
+			prompt: { id: 42, commited: true },
+			// A prompt with no holes and no definitions has nothing to report, but the
+			// field is still present: a caller that has to distinguish "nothing wrong"
+			// from "this build does not report it" cannot do so from an absent key.
+			placeholders: { undefinedKeys: [], ignored: [] },
+		});
+	});
+
+	it("hands the placeholders to the create, so the initial commit can snapshot them", async () => {
+		// The ordering is the whole point. `commit()` snapshots the LIVE placeholder
+		// tables, so placeholders created after it would leave every `productive=true`
+		// read reporting a prompt with no definitions while its text is full of holes.
+		(db.prompts.newProjectPrompt as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 42 });
+		const { res } = makeRes();
+
+		await controller.createPrompt(
+			makeReq({
+				name: "p",
+				value: "You are {{admin_rules}}.",
+				placeholders: [
+					{
+						key: "admin_rules",
+						values: [{ name: "none", content: "a plain user", isDefault: true }],
+					},
+				],
+			}),
+			res,
+		);
+
+		const created = vi.mocked(db.prompts.newProjectPrompt).mock.calls[0][1] as {
+			placeholders?: unknown;
+		};
+		expect(created.placeholders).toEqual([
+			{
+				key: "admin_rules",
+				values: [{ name: "none", content: "a plain user", isDefault: true }],
+			},
+		]);
+		expect(vi.mocked(db.prompts.newProjectPrompt).mock.invocationCallOrder[0]).toBeLessThan(
+			vi.mocked(db.prompts.commit).mock.invocationCallOrder[0],
+		);
+	});
+
+	it("reports a hole nothing defines and a definition nothing uses", async () => {
+		(db.prompts.newProjectPrompt as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 42 });
+		const { res, captured } = makeRes();
+
+		await controller.createPrompt(
+			makeReq({
+				name: "p",
+				value: "You are {{admin_rules}}.",
+				placeholders: [
+					{ key: "tone", values: [{ name: "warm", content: "Be warm." }] },
+				],
+			}),
+			res,
+		);
+
+		const body = captured.body as { placeholders: unknown };
+		expect(body.placeholders).toEqual({
+			undefinedKeys: ["admin_rules"],
+			ignored: ["tone"],
+		});
+	});
+
+	it("rejects a placeholder payload the renderer could not use, and creates nothing", async () => {
+		const { res } = makeRes();
+
+		await expect(
+			controller.createPrompt(
+				makeReq({
+					name: "p",
+					value: "v",
+					placeholders: [{ key: "admin-rules", values: [{ name: "n", content: "c" }] }],
+				}),
+				res,
+			),
+		).rejects.toThrow();
+
+		expect(db.prompts.newProjectPrompt).not.toHaveBeenCalled();
+		expect(db.prompts.commit).not.toHaveBeenCalled();
 	});
 
 	it("does not commit when creation was rejected for an unknown model", async () => {
