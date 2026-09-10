@@ -8,6 +8,7 @@ import {
 import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
 import { mergePlaceholderInput } from "@/ai/placeholders/merge-input";
+import { toPlaceholderDefinitions } from "@/ai/placeholders/definitions";
 import { SourceType } from "@/services/logger";
 import { PromptService } from "@/services/prompt.service";
 import type { FileInput } from "@/services/file.service";
@@ -181,19 +182,45 @@ export class ApiV1Controller {
 			return res.status(404).json({ error: "Prompt not found" });
 		}
 
+		// Names the version the returned text came from, so a caller can stamp what it ran
+		// on its own records and a later replay can be told apart from it. `null` says the
+		// draft is being served -- which is a fact about this response, not a missing field,
+		// so it is reported rather than omitted.
+		let commitHash: string | null = null;
+		let placeholderDefinitions: PlaceholderDefinition[] | undefined;
+
 		if (productive) {
 			const promptWithCommit =
 				await this.promptService.getPromptWithProductiveCommit(userPrompt);
 			if (promptWithCommit) {
 				userPrompt = promptWithCommit;
+				commitHash = promptWithCommit.commitHash ?? null;
+				placeholderDefinitions = promptWithCommit.placeholderDefinitions;
 			}
+		}
+
+		// The draft case -- `productive=false`, or a prompt with no commit yet. The
+		// definitions are then whatever the placeholder tables hold now, which is exactly
+		// what a run of this prompt would render with. Omitting them made the response
+		// describe a prompt whose `{{placeholders}}` the caller had no way to resolve, and
+		// left it unable to tell a prompt with no placeholders from one it could not see.
+		if (placeholderDefinitions === undefined) {
+			placeholderDefinitions = toPlaceholderDefinitions(
+				await db.placeholders.getPlaceholdersByPromptID(userPrompt.id),
+			);
 		}
 
 		const { languageModel, ...prompt } = userPrompt;
 		const publicUrl = this.buildPromptPublicUrl(project.organizationId, project.id, prompt.id);
 
 		// return prompt with languageModel
-		res.status(200).json({ ...prompt, languageModel, publicUrl });
+		res.status(200).json({
+			...prompt,
+			languageModel,
+			placeholderDefinitions,
+			commitHash,
+			publicUrl,
+		});
 	}
 
 	async createPrompt(req: Request, res: Response) {

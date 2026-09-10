@@ -19,6 +19,11 @@ vi.mock("@/database/db", () => ({
 			commit: vi.fn(),
 			changePromptCommitStatus: vi.fn(),
 			getPromptById: vi.fn(),
+			getPromptByIdSimpleFromProject: vi.fn(),
+			getProductiveCommit: vi.fn(),
+		},
+		placeholders: {
+			getPlaceholdersByPromptID: vi.fn(),
 		},
 	},
 }));
@@ -250,5 +255,138 @@ describe("ApiV1Controller.runPrompt", () => {
 		expect(runPrompt).toHaveBeenCalledTimes(1);
 		const arg = vi.mocked(runPrompt).mock.calls[0][0];
 		expect(arg.placeholderDefinitions).toBeUndefined();
+	});
+});
+
+describe("ApiV1Controller.getPrompt", () => {
+	let controller: ApiV1Controller;
+
+	const LIVE_PROMPT = {
+		id: 1,
+		name: "p",
+		value: "live text {{k}}",
+		languageModelId: 1,
+		languageModelConfig: {},
+		languageModel: { id: 1, name: "live-model" },
+	};
+
+	const LIVE_PLACEHOLDER_ROWS = [
+		{
+			key: "k",
+			values: [{ name: "live", content: "live content", isDefault: true }],
+		},
+	];
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		controller = new ApiV1Controller();
+		(db.project.getProjectApiKeyByToken as ReturnType<typeof vi.fn>).mockResolvedValue(KEY);
+		(db.project.getProjectbyApiKeyById as ReturnType<typeof vi.fn>).mockResolvedValue(PROJECT);
+		(db.prompts.getPromptByIdSimpleFromProject as ReturnType<typeof vi.fn>).mockResolvedValue(
+			LIVE_PROMPT,
+		);
+		(db.placeholders.getPlaceholdersByPromptID as ReturnType<typeof vi.fn>).mockResolvedValue(
+			LIVE_PLACEHOLDER_ROWS,
+		);
+	});
+
+	function getReq(query: Record<string, string> = {}): Request {
+		return {
+			headers: { authorization: "Bearer valid-key" },
+			params: { id: "1" },
+			query,
+		} as unknown as Request;
+	}
+
+	it("names the committed version it served", async () => {
+		(db.prompts.getProductiveCommit as ReturnType<typeof vi.fn>).mockResolvedValue({
+			value: "committed text {{k}}",
+			languageModelId: 2,
+			languageModelConfig: {},
+			languageModel: { id: 2, name: "committed-model" },
+			commitHash: "abc123",
+			placeholders: [
+				{ key: "k", values: [{ name: "committed", content: "c", isDefault: true }] },
+			],
+		});
+		const { res, captured } = makeRes();
+
+		await controller.getPrompt(getReq({ productive: "true" }), res);
+
+		const body = captured.body as Record<string, unknown>;
+		expect(captured.statusCode).toBe(200);
+		expect(body.commitHash).toBe("abc123");
+		expect(body.value).toBe("committed text {{k}}");
+	});
+
+	it("reports the committed model, not the one the editor points at now", async () => {
+		(db.prompts.getProductiveCommit as ReturnType<typeof vi.fn>).mockResolvedValue({
+			value: "committed text",
+			languageModelId: 2,
+			languageModelConfig: {},
+			languageModel: { id: 2, name: "committed-model" },
+			commitHash: "abc123",
+			placeholders: null,
+		});
+		const { res, captured } = makeRes();
+
+		await controller.getPrompt(getReq({ productive: "true" }), res);
+
+		const body = captured.body as Record<string, unknown>;
+		expect(body.languageModelId).toBe(2);
+		expect(body.languageModel).toEqual({ id: 2, name: "committed-model" });
+	});
+
+	it("serves the draft's live placeholder definitions when there is no commit", async () => {
+		// Omitting them described a prompt whose {{holes}} the caller had no way to fill,
+		// and made "no placeholders" indistinguishable from "not shown".
+		(db.prompts.getProductiveCommit as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+		const { res, captured } = makeRes();
+
+		await controller.getPrompt(getReq({ productive: "true" }), res);
+
+		const body = captured.body as Record<string, unknown>;
+		expect(body.commitHash).toBeNull();
+		expect(body.placeholderDefinitions).toEqual([
+			{ key: "k", values: [{ name: "live", content: "live content", isDefault: true }] },
+		]);
+	});
+
+	it("serves live definitions for an explicitly non-productive read", async () => {
+		const { res, captured } = makeRes();
+
+		await controller.getPrompt(getReq({ productive: "false" }), res);
+
+		const body = captured.body as Record<string, unknown>;
+		expect(db.prompts.getProductiveCommit).not.toHaveBeenCalled();
+		expect(body.commitHash).toBeNull();
+		expect(body.value).toBe("live text {{k}}");
+		expect(body.placeholderDefinitions).toEqual([
+			{ key: "k", values: [{ name: "live", content: "live content", isDefault: true }] },
+		]);
+	});
+
+	it("does not read the live placeholder tables when the commit carried a snapshot", async () => {
+		// The committed text and its definitions must originate together; falling back to
+		// live rows here would pair committed text with definitions edited since.
+		(db.prompts.getProductiveCommit as ReturnType<typeof vi.fn>).mockResolvedValue({
+			value: "committed text {{k}}",
+			languageModelId: 2,
+			languageModelConfig: {},
+			languageModel: { id: 2, name: "committed-model" },
+			commitHash: "abc123",
+			placeholders: [
+				{ key: "k", values: [{ name: "committed", content: "c", isDefault: true }] },
+			],
+		});
+		const { res, captured } = makeRes();
+
+		await controller.getPrompt(getReq({ productive: "true" }), res);
+
+		const body = captured.body as Record<string, unknown>;
+		expect(db.placeholders.getPlaceholdersByPromptID).not.toHaveBeenCalled();
+		expect(body.placeholderDefinitions).toEqual([
+			{ key: "k", values: [{ name: "committed", content: "c", isDefault: true }] },
+		]);
 	});
 });

@@ -755,6 +755,14 @@ export class PromptsRepository {
 					promptId,
 				},
 			},
+			// The commit pins `languageModelId`, so the model it was committed with is a
+			// property of the commit, not of the prompt row. Without this include, a caller
+			// serving the committed text alongside the prompt's LIVE `languageModel` reports
+			// a text and a model that were never used together -- the prompt's model can be
+			// changed in the editor long after the commit was cut.
+			include: {
+				languageModel: true,
+			},
 			orderBy: {
 				id: "desc",
 			},
