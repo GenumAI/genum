@@ -36,7 +36,7 @@ export function mapOtlpSpans(payload: OtlpPayload, context: OtlpMapContext): Otl
 	for (const [traceId, spans] of groupByTrace(accepted)) {
 		const turnIndex = turnIndexOf(traceId);
 		const ordered = [...spans].sort(byStartTime);
-		const sessionId = attr(ordered[0], "gen_ai.conversation.id") ?? "";
+		const sessionId = sessionIdOf(ordered);
 
 		// The human reply that provoked this turn, from the chat span's input messages
 		// (S2). It goes first: everything else in the turn happened because of it.
@@ -142,16 +142,39 @@ export function tracesOf(
 		if (!seen) {
 			traces.set(span.traceId, {
 				traceId: span.traceId,
-				sessionId: attr(span, "gen_ai.conversation.id") ?? "",
+				sessionId: sessionIdOf([span]),
 				earliestTimestamp: start,
 			});
 			continue;
 		}
 		if (compareNanos(start, seen.earliestTimestamp) < 0) seen.earliestTimestamp = start;
-		if (!seen.sessionId) seen.sessionId = attr(span, "gen_ai.conversation.id") ?? "";
+		if (!seen.sessionId) seen.sessionId = sessionIdOf([span]);
 	}
 
 	return [...traces.values()];
+}
+
+/**
+ * The session a trace belongs to: the first `gen_ai.conversation.id` any of its spans
+ * carries, or empty for a trace that is a session by itself.
+ *
+ * ONE resolver, used by both passes, because they must agree permanently. They did not:
+ * the numbering pass scanned every span while the mapping read only the earliest, so a
+ * trace whose tool span started before its chat span was numbered against a session it was
+ * then stored OUTSIDE of -- invisible in that session's read, and holding an ordinal the
+ * next batch would hand to a different trace. `trace_spans` is append-only, so neither is
+ * correctable afterwards.
+ *
+ * Scanning rather than reading one span is the correct half of that pair: an instrumented
+ * agent routinely emits its tool spans from a different layer, which does not stamp the
+ * conversation id.
+ */
+function sessionIdOf(spans: OtlpSpan[]): string {
+	for (const span of spans) {
+		const sessionId = attr(span, "gen_ai.conversation.id");
+		if (sessionId) return sessionId;
+	}
+	return "";
 }
 
 /** OTLP nests as `resourceSpans[].scopeSpans[].spans[]`; every level may be absent. */

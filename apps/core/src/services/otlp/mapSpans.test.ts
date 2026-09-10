@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mapOtlpSpans } from "./mapSpans";
+import { mapOtlpSpans, tracesOf } from "./mapSpans";
 import { formatClickHouseTimestamp } from "@/services/logger/mappers";
 import type { OtlpAttribute, OtlpPayload, OtlpSpan } from "./types";
 
@@ -110,6 +110,38 @@ describe("mapOtlpSpans", () => {
 		// Empty, NOT the trace id copied across. The conventions forbid inventing a
 		// conversation id, and the read path already treats empty as a session of one trace.
 		expect(without.rows[0].session_id).toBe("");
+	});
+
+	it("finds the conversation id on ANY span of the trace, not only the earliest", () => {
+		// The numbering pass (`tracesOf`) scans every span for it, so a trace whose tool
+		// span starts before its chat span was numbered against a session it was then
+		// stored OUTSIDE of: `session_id` came out empty, the turn never appeared in the
+		// session read, and the ordinal it consumed was handed to another trace on the next
+		// batch. Both passes must agree, permanently -- the table cannot be rewritten.
+		const tool = {
+			traceId: "t1",
+			spanId: "s-tool",
+			startTimeUnixNano: "1757500000000000000",
+			attributes: attrs({
+				"gen_ai.operation.name": "execute_tool",
+				"genum.prompt.id": 2,
+			}),
+		};
+		const chat = {
+			traceId: "t1",
+			spanId: "s-chat",
+			startTimeUnixNano: "1757500009000000000",
+			attributes: attrs({
+				"gen_ai.operation.name": "chat",
+				"gen_ai.conversation.id": "conv-1",
+				"genum.prompt.id": 2,
+			}),
+		};
+
+		const { rows } = mapOtlpSpans(payload(tool, chat), CONTEXT);
+
+		expect(rows.map((row) => row.session_id)).toEqual(["conv-1", "conv-1"]);
+		expect(tracesOf(payload(tool, chat))[0].sessionId).toBe("conv-1");
 	});
 
 	it("writes cost 0 and source otlp on every row", () => {
