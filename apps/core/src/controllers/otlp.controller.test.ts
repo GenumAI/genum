@@ -264,6 +264,33 @@ describe("OtlpController.ingestTraces", () => {
 			expect(vi.mocked(logUsage).mock.calls[0][0]).toMatchObject({ trace_id: "conv-1" });
 		});
 
+		it("does not announce a trace the session already holds", async () => {
+			// A redelivery rewrites the same spans, which is harmless because the read
+			// collapses them on `(trace_id, span_id)`. `logs` has no such collapse, so
+			// announcing again would put a second identical entry in the logs list for a
+			// conversation the author already has.
+			vi.mocked(getSessionTraceIds).mockResolvedValue(["turn-0"]);
+
+			await controller.ingestTraces(
+				authorized(
+					body(
+						span({
+							traceId: "turn-0",
+							attributes: [
+								...span().attributes,
+								{ key: "gen_ai.conversation.id", value: { stringValue: "conv-1" } },
+							],
+						}),
+					),
+				),
+				response(),
+			);
+
+			// The spans are still written -- only the announcement is skipped.
+			expect(insertSpanRows).toHaveBeenCalled();
+			expect(logUsage).not.toHaveBeenCalled();
+		});
+
 		it("writes nothing at all when the batch is refused", async () => {
 			await expect(
 				controller.ingestTraces(authorized(body(span({ attributes: [] }))), response()),

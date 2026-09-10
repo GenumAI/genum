@@ -43,6 +43,12 @@
 									"value": {
 										"stringValue": "[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"what is the weather in Kyiv?\"}]}]"
 									}
+								},
+								{
+									"key": "gen_ai.output.messages",
+									"value": {
+										"stringValue": "[{\"role\":\"assistant\",\"parts\":[{\"type\":\"text\",\"content\":\"It is 21C and clear in Kyiv.\"}]}]"
+									}
 								}
 							],
 							"status": { "code": 1 }
@@ -104,6 +110,12 @@
 									"key": "gen_ai.input.messages",
 									"value": {
 										"stringValue": "[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"what is the weather in Kyiv?\"}]},{\"role\":\"assistant\",\"parts\":[{\"type\":\"text\",\"content\":\"21C and clear.\"}]},{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"and tomorrow?\"}]}]"
+									}
+								},
+								{
+									"key": "gen_ai.output.messages",
+									"value": {
+										"stringValue": "[{\"role\":\"assistant\",\"parts\":[{\"type\":\"text\",\"content\":\"Tomorrow looks similar, around 22C.\"}]}]"
 									}
 								}
 							],

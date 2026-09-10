@@ -70,7 +70,29 @@ const OTLP_SPAN_EXAMPLE = `{
     { "key": "gen_ai.request.model",   "value": { "stringValue": "gpt-4o" } },
     { "key": "gen_ai.conversation.id", "value": { "stringValue": "conv-1" } },
     { "key": "gen_ai.usage.input_tokens",  "value": { "intValue": "120" } },
-    { "key": "gen_ai.usage.output_tokens", "value": { "intValue": "34" } }
+    { "key": "gen_ai.usage.output_tokens", "value": { "intValue": "34" } },
+
+    // The conversation itself. Without these the turn is stored with an empty
+    // answer, and a test case pinned from it asserts nothing.
+    { "key": "gen_ai.input.messages",  "value": { "stringValue":
+        "[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"weather in Kyiv?\"}]}]" } },
+    { "key": "gen_ai.output.messages", "value": { "stringValue":
+        "[{\"role\":\"assistant\",\"parts\":[{\"type\":\"text\",\"content\":\"21C and clear.\"}]}]" } }
+  ]
+}
+
+// A tool call is a span of its own, and MUST say so in gen_ai.operation.name --
+// that is what makes it a replayable step rather than just another answer:
+{
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",   // the same turn
+  "spanId": "00f067aa0ba902b8",
+  "name": "execute_tool get_weather",
+  "attributes": [
+    { "key": "genum.prompt.id",            "value": { "intValue": "YOUR_PROMPT_ID" } },
+    { "key": "gen_ai.operation.name",      "value": { "stringValue": "execute_tool" } },
+    { "key": "gen_ai.tool.name",           "value": { "stringValue": "get_weather" } },
+    { "key": "gen_ai.tool.call.arguments", "value": { "stringValue": "{\"city\":\"Kyiv\"}" } },
+    { "key": "gen_ai.tool.call.result",    "value": { "stringValue": "{\"c\":21}" } }
   ]
 }`;
 
@@ -323,6 +345,20 @@ export default function ApiEndpoint() {
 												turn
 											</span>
 											. Spans are ordered by start time within it.
+										</li>
+										<li>
+											The answer comes from{" "}
+											<Badge variant="outline">gen_ai.output.messages</Badge>,
+											and a tool call from{" "}
+											<Badge variant="outline">
+												gen_ai.tool.call.arguments
+											</Badge>{" "}
+											and{" "}
+											<Badge variant="outline">gen_ai.tool.call.result</Badge>{" "}
+											on a span whose operation is{" "}
+											<Badge variant="outline">execute_tool</Badge>. Omit them
+											and the turn is stored with an empty answer and no
+											replayable tool call.
 										</li>
 										<li>
 											<Badge variant="outline">gen_ai.conversation.id</Badge>{" "}

@@ -42,7 +42,7 @@ export class OtlpController {
 			throw new HttpError(400, "Expected an OTLP/HTTP JSON body with `resourceSpans`");
 		}
 
-		const turnIndexByTrace = await this.numberTurns(
+		const { turnIndexByTrace, known } = await this.numberTurns(
 			payload,
 			project.organizationId,
 			project.id,
@@ -63,7 +63,11 @@ export class OtlpController {
 		}
 
 		await this.write(rows);
-		await this.announce(rows);
+		// Only traces the session did not already hold. A redelivery writes the same spans
+		// again (harmless -- the read collapses them on `(trace_id, span_id)`), but `logs`
+		// has no such collapse, so announcing one twice would put a second, identical entry
+		// in the logs list for a conversation the author already has.
+		await this.announce(rows, known);
 
 		res.status(200).json(
 			rejected === 0
@@ -91,9 +95,12 @@ export class OtlpController {
 		payload: OtlpPayload,
 		orgId: number,
 		projectId: number,
-	): Promise<Map<string, number>> {
+	): Promise<{ turnIndexByTrace: Map<string, number>; known: Set<string> }> {
 		const traces = tracesOf(payload);
 		const indices = new Map<string, number>();
+		// Traces this session already holds, so the caller can tell a redelivery from a new
+		// turn without a second read.
+		const known = new Set<string>();
 
 		const sessions = new Map<string, typeof traces>();
 		for (const trace of traces) {
@@ -108,12 +115,13 @@ export class OtlpController {
 
 		for (const [sessionId, group] of sessions) {
 			const stored = await getSessionTraceIds(sessionId, orgId, projectId);
+			for (const traceId of stored) known.add(traceId);
 			for (const [traceId, index] of assignTurnIndices(group, stored)) {
 				indices.set(traceId, index);
 			}
 		}
 
-		return indices;
+		return { turnIndexByTrace: indices, known };
 	}
 
 	/**
@@ -135,8 +143,8 @@ export class OtlpController {
 	 * batch already succeeded, so throwing here would make a collector resend traces we
 	 * hold. The cost is a session that is hard to find, not one that is lost.
 	 */
-	private async announce(rows: SpanRow[]): Promise<void> {
-		const seen = new Set<string>();
+	private async announce(rows: SpanRow[], known: Set<string>): Promise<void> {
+		const seen = new Set<string>(known);
 
 		for (const row of rows) {
 			if (seen.has(row.trace_id)) continue;
