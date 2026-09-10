@@ -399,6 +399,46 @@ function replyIn(spans: OtlpSpan[]): string | undefined {
 }
 
 /**
+ * The question a session opened with: the FIRST `user` entry of a chat span's
+ * `gen_ai.input.messages`.
+ *
+ * The opening question is not a step and never gets a span of its own -- `replyIn` reads
+ * the LAST user entry, which is the reply that provoked this turn, and deliberately
+ * ignores the first because turn 0 has no reply. So without this the question a session
+ * started from was stored nowhere usable, and a testcase pinned from that session got an
+ * empty input: a recorded conversation that cannot be replayed, because the thing that
+ * started it is missing.
+ *
+ * Read from any turn, not only turn 0. A turn's input messages carry the history as
+ * sent, so the first user entry of turn 3 is still the question the session opened with
+ * -- which means a session can be pinned from any of its turns without going back to
+ * fetch turn 0.
+ *
+ * Both message shapes are read, the same two `replyIn` handles.
+ */
+export function openingQuestion(raw: string | undefined): string {
+	if (!raw) return "";
+
+	let messages: unknown;
+	try {
+		messages = JSON.parse(raw);
+		// Unparseable is not an error here for the same reason it is not in `replyIn`:
+		// the attribute is optional, and the turn is worth storing without it.
+	} catch {
+		return "";
+	}
+	if (!Array.isArray(messages)) return "";
+
+	for (const message of messages) {
+		if ((message as { role?: string })?.role !== "user") continue;
+		const text = textOf(message as { content?: unknown; parts?: unknown });
+		if (text) return text;
+	}
+
+	return "";
+}
+
+/**
  * The model's answer, out of `gen_ai.output.messages`.
  *
  * The conventions carry it as a message array, in the same two shapes the input side

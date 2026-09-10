@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mapOtlpSpans, tracesOf } from "./mapSpans";
+import { mapOtlpSpans, openingQuestion, tracesOf } from "./mapSpans";
 import { formatClickHouseTimestamp } from "@/services/logger/mappers";
 import type { OtlpAttribute, OtlpPayload, OtlpSpan } from "./types";
 
@@ -479,5 +479,59 @@ describe("mapOtlpSpans", () => {
 			expect(rows.find((row) => row.trace_id === "t1")?.turn_index).toBe(1);
 			expect(rows.find((row) => row.span_type === "user")?.trace_id).toBe("t1");
 		});
+	});
+});
+
+describe("openingQuestion", () => {
+	it("reads the first user message, not the last", () => {
+		// `replyIn` reads the LAST user entry -- the reply that provoked this turn. The
+		// opening question is the other end of the same list, and nothing else stores it.
+		expect(
+			openingQuestion(
+				JSON.stringify([
+					{ role: "user", content: "What is the weather?" },
+					{ role: "assistant", content: "Where?" },
+					{ role: "user", content: "In Paris" },
+				]),
+			),
+		).toBe("What is the weather?");
+	});
+
+	it("reads the current conventions' parts shape", () => {
+		expect(
+			openingQuestion(
+				JSON.stringify([
+					{ role: "user", parts: [{ type: "text", content: "What is the weather?" }] },
+				]),
+			),
+		).toBe("What is the weather?");
+	});
+
+	it("skips a leading system message", () => {
+		expect(
+			openingQuestion(
+				JSON.stringify([
+					{ role: "system", content: "You are helpful" },
+					{ role: "user", content: "Hello" },
+				]),
+			),
+		).toBe("Hello");
+	});
+
+	it("keeps a long context block verbatim, because that is what makes a replay deterministic", () => {
+		const question = "Today is 2026-09-10.\nThe user is viewing doc 42.\n\nSummarise it.";
+		expect(openingQuestion(JSON.stringify([{ role: "user", content: question }]))).toBe(
+			question,
+		);
+	});
+
+	it("gives nothing rather than throwing on an unusable attribute", () => {
+		// The attribute is optional and the turn is worth storing without it, exactly as
+		// `replyIn` treats the same failure.
+		expect(openingQuestion(undefined)).toBe("");
+		expect(openingQuestion("")).toBe("");
+		expect(openingQuestion("not json")).toBe("");
+		expect(openingQuestion(JSON.stringify({ role: "user" }))).toBe("");
+		expect(openingQuestion(JSON.stringify([{ role: "assistant", content: "hi" }]))).toBe("");
 	});
 });

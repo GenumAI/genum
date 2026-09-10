@@ -291,6 +291,67 @@ describe("OtlpController.ingestTraces", () => {
 			expect(logUsage).not.toHaveBeenCalled();
 		});
 
+		it("stores the question the session opened with, so a pinned testcase has an input", async () => {
+			// Pinning a session as a testcase reads exactly this field. Left empty, the
+			// pin produced a recorded conversation that could never be replayed.
+			await controller.ingestTraces(
+				authorized(
+					body(
+						span({
+							attributes: [
+								...span().attributes,
+								{
+									key: "gen_ai.input.messages",
+									value: {
+										stringValue: JSON.stringify([
+											{ role: "user", content: "What is the weather?" },
+										]),
+									},
+								},
+							],
+						}),
+					),
+				),
+				response(),
+			);
+
+			expect(logUsage).toHaveBeenCalledWith(
+				expect.objectContaining({ in: "What is the weather?" }),
+			);
+		});
+
+		it("takes the opening question from a later turn's history too", async () => {
+			// A turn's input messages carry the history as sent, so turn 3's first user
+			// entry is still the question the session opened with -- which is what lets a
+			// session be pinned from any of its turns.
+			await controller.ingestTraces(
+				authorized(
+					body(
+						span({
+							attributes: [
+								...span().attributes,
+								{
+									key: "gen_ai.input.messages",
+									value: {
+										stringValue: JSON.stringify([
+											{ role: "user", content: "What is the weather?" },
+											{ role: "assistant", content: "Where?" },
+											{ role: "user", content: "In Paris" },
+										]),
+									},
+								},
+							],
+						}),
+					),
+				),
+				response(),
+			);
+
+			expect(logUsage).toHaveBeenCalledWith(
+				expect.objectContaining({ in: "What is the weather?" }),
+			);
+		});
+
 		it("writes nothing at all when the batch is refused", async () => {
 			await expect(
 				controller.ingestTraces(authorized(body(span({ attributes: [] }))), response()),

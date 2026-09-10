@@ -10,7 +10,7 @@ import {
 	SourceType,
 } from "@/services/logger";
 import type { SpanRow } from "@/services/logger";
-import { mapOtlpSpans, tracesOf } from "@/services/otlp/mapSpans";
+import { mapOtlpSpans, openingQuestion, tracesOf } from "@/services/otlp/mapSpans";
 import { assignTurnIndices } from "@/services/otlp/turnIndex";
 import type { OtlpPayload } from "@/services/otlp/types";
 import { HttpError } from "@/utils/errors";
@@ -145,6 +145,16 @@ export class OtlpController {
 	 */
 	private async announce(rows: SpanRow[], known: Set<string>): Promise<void> {
 		const seen = new Set<string>(known);
+		// Computed across the whole trace, not read off the announced row: the first row
+		// of a trace can be an `execute_tool` span, which carries no input messages at
+		// all. Any chat span of the trace will do -- each one's history begins with the
+		// same opening question.
+		const openingByTrace = new Map<string, string>();
+		for (const row of rows) {
+			if (openingByTrace.has(row.trace_id)) continue;
+			const question = openingQuestion(row.input);
+			if (question) openingByTrace.set(row.trace_id, question);
+		}
 
 		for (const row of rows) {
 			if (seen.has(row.trace_id)) continue;
@@ -166,7 +176,14 @@ export class OtlpController {
 				tokens_sum: 0,
 				cost: 0,
 				response_ms: 0,
-				in: "",
+				// The question the session opened with. Pinning a session as a testcase
+				// reads exactly this field for the testcase's `input`, so an empty one
+				// produced a recorded conversation that could never be replayed -- the
+				// thing that started it was stored nowhere the pin could reach. It may be
+				// long: a client-run agent usually puts a context block (the date, the
+				// document on screen) ahead of the question, and that block is stored
+				// verbatim because it is what makes the replay deterministic.
+				in: openingByTrace.get(row.trace_id) ?? "",
 				out: "",
 			});
 		}
