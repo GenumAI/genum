@@ -9,8 +9,8 @@ describe("getLogTypeDescription", () => {
 		// trace on all of them. The list here must stay in step with `LogType` in
 		// apps/core/src/services/logger/types.ts.
 		expect(getLogTypeDescription("prs")).toBe("Prompt run successfully");
-		expect(getLogTypeDescription("prt")).toBe("Agentic run turn");
-		expect(getLogTypeDescription("oti")).toBe("Ingested trace");
+		expect(getLogTypeDescription("prt")).toBe("Prompt run (follow-up)");
+		expect(getLogTypeDescription("oti")).toBe("OpenTelemetry trace");
 		expect(getLogTypeDescription("pre")).toBe("Prompt run error");
 		expect(getLogTypeDescription("ae")).toBe("AI Error");
 		expect(getLogTypeDescription("te")).toBe("Technical Error");

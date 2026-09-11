@@ -141,7 +141,7 @@ export function useAddTestcaseFromLog({
 					}
 					if (selections.drifted) {
 						notes.push(
-							"a later turn ran with different placeholders or tools, so turn 1's were pinned",
+							"later turns used different placeholders or tools; the first turn's were used",
 						);
 					}
 					if (unresolvedPlaceholders.length > 0) {

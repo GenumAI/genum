@@ -6,9 +6,9 @@ export function getLogTypeDescription(logType: string | undefined) {
 		// OTLP. Both are written by the server today; without these cases every such row's
 		// detail dialog reads "Unknown log type", which is most rows of any agentic session.
 		case "prt":
-			return "Agentic run turn";
+			return "Prompt run (follow-up)";
 		case "oti":
-			return "Ingested trace";
+			return "OpenTelemetry trace";
 		case "pre":
 			return "Prompt run error";
 		case "ae":

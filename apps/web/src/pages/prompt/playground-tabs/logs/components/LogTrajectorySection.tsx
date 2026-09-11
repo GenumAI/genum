@@ -36,7 +36,7 @@ export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
 	return (
 		<div>
 			<p className="mb-1 font-medium text-xs leading-none tracking-normal text-muted-foreground">
-				Trajectory
+				Steps
 			</p>
 			<div className="rounded-[6px] border p-4">
 				{/* An empty list and a failed read look identical if the failure is silent,
@@ -50,7 +50,7 @@ export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
 				{isError && (
 					<p className="text-sm text-destructive">
 						{data && data.steps.length > 0
-							? "The trace could not be re-read; these are the steps from the last successful read."
+							? "Couldn't refresh — showing the last loaded steps."
 							: "The recorded trace could not be loaded."}
 					</p>
 				)}

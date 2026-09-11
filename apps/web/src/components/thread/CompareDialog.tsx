@@ -44,9 +44,7 @@ export function CompareDialog({
 					 * this line the author reads that as the comparison having failed.
 					 */}
 					<p className="text-xs text-muted-foreground">
-						{produced === expected
-							? "These are identical — the run produced exactly what this turn expects."
-							: "What the run produced, against what this turn expects."}
+						{produced === expected ? "No differences." : "Actual vs expected."}
 					</p>
 				</div>
 

@@ -11,6 +11,7 @@ import type { Prompt } from "@/pages/prompt/utils/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import TableSortButton from "@/components/ui/TableSortButton";
 import type { TestCase, TestStatus } from "@/types/TestСase";
+import { enabledCount } from "@/lib/trajectoryEdits";
 
 /**
  * The recorded session did not run every turn the same way.
@@ -32,9 +33,8 @@ const SelectionDriftMark = () => (
 			</TooltipTrigger>
 			<TooltipContent className="max-w-xs">
 				<p>
-					A later turn of the recorded session ran with different placeholder values or a
-					different set of tools. This testcase pins the first turn's, so a run may differ
-					from the recording on the later turns.
+					Later turns used different placeholders or tools. This testcase uses the first
+					turn's.
 				</p>
 			</TooltipContent>
 		</Tooltip>
@@ -125,6 +125,10 @@ export const useTestcasesColumns = ({
 			cell: ({ row }) => {
 				const steps = row.original.expectedSteps;
 				const stepCount = Array.isArray(steps) ? steps.length : 0;
+				// The number shown is what a run CHECKS, not what the testcase stores: unticked
+				// steps ride along for context, and "5 steps checked" over a testcase that
+				// checks three would be the one number on the row that is wrong.
+				const checkedCount = Array.isArray(steps) ? enabledCount(steps) : 0;
 
 				// A text testcase keeps the bare span it has always had. Wrapping every row
 				// in a flex container to serve the few that carry a marker would change the
@@ -141,13 +145,13 @@ export const useTestcasesColumns = ({
 								<TooltipTrigger asChild>
 									<span className="flex items-center gap-1 text-xs text-muted-foreground">
 										<Wrench size={12} />
-										{stepCount}
+										{checkedCount}
 									</span>
 								</TooltipTrigger>
 								<TooltipContent>
 									<p>
-										Asserts a recorded trajectory of {stepCount}{" "}
-										{stepCount === 1 ? "step" : "steps"}
+										{checkedCount} {checkedCount === 1 ? "step" : "steps"}{" "}
+										checked
 									</p>
 								</TooltipContent>
 							</Tooltip>

@@ -78,12 +78,12 @@ export function TurnSection({
 					>
 						Turn {turnNumber} ·{" "}
 						{liveStepCount === null
-							? "not reached"
-							: `${liveStepCount} ${liveStepCount === 1 ? "step" : "steps"}${
-									liveStepCount === totalStepCount ? "" : ` of ${totalStepCount}`
-								}`}
-						{hasMismatch ? " · mismatch" : ""}
-						{isCutTurn ? " · ends here" : ""}
+							? "not run"
+							: liveStepCount === totalStepCount
+								? `${totalStepCount} ${totalStepCount === 1 ? "step" : "steps"}`
+								: `${liveStepCount}/${totalStepCount} steps`}
+						{hasMismatch ? " · failed" : ""}
+						{isCutTurn ? " · last turn" : ""}
 					</span>
 				</button>
 			</CollapsibleTrigger>

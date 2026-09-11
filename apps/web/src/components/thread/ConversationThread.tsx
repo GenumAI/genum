@@ -204,7 +204,7 @@ export function ConversationThread({
 				<Card>
 					<CardContent className="flex flex-col gap-2 p-3">
 						<div className="text-sm">
-							Result for <span className="font-medium">{live.pendingTool}</span>
+							Tool result · <span className="font-medium">{live.pendingTool}</span>
 						</div>
 						<Textarea
 							value={result}
@@ -251,7 +251,7 @@ export function ConversationThread({
 					 * against that turn's, so the order this asserts is the order WITHIN a
 					 * turn. Turns themselves are always in order.
 					 */}
-					<span className="text-sm">Steps must happen in this order within a turn</span>
+					<span className="text-sm">Check step order</span>
 				</div>
 			)}
 
@@ -262,7 +262,7 @@ export function ConversationThread({
 			 */}
 			{canReply && !replying && (
 				<Button variant="outline" className="w-full" onClick={() => setReplying(true)}>
-					+ Add message
+					+ Add user message
 				</Button>
 			)}
 
@@ -273,7 +273,7 @@ export function ConversationThread({
 							autoFocus
 							value={reply}
 							onChange={(event) => setReply(event.target.value)}
-							placeholder="Ask a follow-up..."
+							placeholder="User message..."
 						/>
 						<div className="flex justify-end gap-2">
 							<Button
@@ -297,7 +297,7 @@ export function ConversationThread({
 									setReplying(false);
 								}}
 							>
-								Continue
+								Send
 							</Button>
 						</div>
 					</CardContent>

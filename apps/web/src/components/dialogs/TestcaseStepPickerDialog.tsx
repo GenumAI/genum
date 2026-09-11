@@ -81,10 +81,9 @@ export function TestcaseStepPickerDialog({
 		<Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Which steps must stay correct?</DialogTitle>
+					<DialogTitle>Select steps to check</DialogTitle>
 					<DialogDescription>
-						Ticked steps are asserted on every run. Unticked ones stay on the testcase
-						for context but are never checked.
+						Unselected steps are kept but not checked.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -101,9 +100,7 @@ export function TestcaseStepPickerDialog({
 				</div>
 
 				{assertedCount === 0 && (
-					<p className="text-sm text-destructive">
-						Tick at least one step. A testcase that asserts nothing always passes.
-					</p>
+					<p className="text-sm text-destructive">Select at least one step.</p>
 				)}
 
 				<DialogFooter>

@@ -96,7 +96,7 @@ export function AnswerDiff({
 			 * two halves of the same row so they line up with the panes below.
 			 */}
 			<div className="flex text-xs font-medium text-muted-foreground">
-				<div className="w-1/2 min-w-0 pl-2">Produced</div>
+				<div className="w-1/2 min-w-0 pl-2">Actual</div>
 				<div className={cn("w-1/2 min-w-0 pl-2", mismatched && "text-destructive")}>
 					Expected
 				</div>

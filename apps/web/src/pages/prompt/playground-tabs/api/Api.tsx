@@ -219,7 +219,7 @@ export default function ApiEndpoint() {
 						<Tabs defaultValue="automation" className="w-full min-w-0">
 							<TabsList>
 								<TabsTrigger value="automation">Prompt Automation</TabsTrigger>
-								<TabsTrigger value="agentic">Agentic</TabsTrigger>
+								<TabsTrigger value="agentic">OpenTelemetry</TabsTrigger>
 							</TabsList>
 
 							<TabsContent value="automation" className="space-y-6 pt-4">

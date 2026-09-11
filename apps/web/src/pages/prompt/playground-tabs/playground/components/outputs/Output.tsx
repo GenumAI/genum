@@ -350,9 +350,8 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 			{confirmingRemoval && (
 				<div className="mt-3 flex flex-col gap-2 rounded-[6px] border border-destructive p-3">
 					<p className="text-sm">
-						That was the last checked step. A testcase that asserts nothing always
-						passes, so the trajectory has to go with it — the testcase stays, as a plain
-						text one.
+						That was the last checked step. Remove all steps and keep this as a text
+						testcase?
 					</p>
 					<div className="flex gap-2">
 						<Button
@@ -365,7 +364,7 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 									.catch(alreadyReported);
 							}}
 						>
-							Remove the trajectory
+							Remove steps
 						</Button>
 						<Button
 							variant="outline"

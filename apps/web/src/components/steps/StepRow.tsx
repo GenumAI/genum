@@ -78,10 +78,10 @@ export interface StepRowProps {
 }
 
 const OUTCOME_LABEL: Record<NonNullable<StepRowProps["outcome"]>, string> = {
-	matched: "matched",
-	mismatched: "did not match",
-	"not-asserted": "not checked",
-	"not-reached": "not reached",
+	matched: "passed",
+	mismatched: "failed",
+	"not-asserted": "ignored",
+	"not-reached": "not run",
 };
 
 /** `key: value` pairs joined by commas, for the tool call's collapsed one-liner. */
@@ -207,7 +207,7 @@ function ExpectedAnswer({
 						className={cn("shrink-0 transition-transform", open && "rotate-90")}
 						size={12}
 					/>
-					{expected ? "Expected answer" : "Type an expected answer instead"}
+					{expected ? "Expected answer" : "Add expected answer"}
 				</button>
 			</CollapsibleTrigger>
 			<CollapsibleContent>
@@ -300,8 +300,7 @@ export function StepRow({
 						</Collapsible>
 						{unreadableArgs && (
 							<p className="mt-1 text-xs text-destructive">
-								Recorded arguments could not be read -- shown as empty and ignored,
-								not a genuine no-args call.
+								Couldn't read the recorded arguments — they're ignored.
 							</p>
 						)}
 						{!readOnly && (
@@ -341,7 +340,7 @@ export function StepRow({
 				) : step.kind === "final" ? (
 					<>
 						<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-							<div className="font-medium text-sm">Turn's answer</div>
+							<div className="font-medium text-sm">Assistant</div>
 							{metrics && <StepMetrics metrics={metrics} />}
 						</div>
 						{produced === undefined ? (
@@ -429,7 +428,7 @@ export function StepRow({
 						 * whose words these are, and what unticking them does -- is left to
 						 * the reader to infer from the text itself.
 						 */}
-						<div className="font-medium text-sm">Your reply</div>
+						<div className="font-medium text-sm">User</div>
 						<div className="whitespace-pre-wrap text-sm">{step.text}</div>
 						{!readOnly && (
 							// This checkbox does not mean the same thing here as it does on a
@@ -455,7 +454,7 @@ export function StepRow({
 										onEnabledChange?.(checked === true)
 									}
 								/>
-								the session continues after this reply
+								Continue after this message
 							</label>
 						)}
 					</>
