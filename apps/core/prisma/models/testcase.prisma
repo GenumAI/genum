@@ -17,6 +17,45 @@ model TestCase {
     lastChainOfThoughts     String?
     status                  TestCaseStatus @default(NEED_RUN)
     assertionThoughts       String?        @default("")
+
+    // A trajectory testcase. Null means the text testcase this model has always been --
+    // no row is rewritten by the migration. `expectedSteps` is a copy of the recorded
+    // steps (results included), so the test outlives the ClickHouse retention window
+    // the trajectory itself lives under.
+    expectedSteps           Json?
+    lastSteps               Json?
+    stepsConfig             Json?
+
+    // The tools the recorded session's first turn was offered, as names. Null is "not
+    // recorded" -- every testcase pinned before this existed, and every session whose
+    // sender never said -- and a run with it null offers the prompt's whole tool list, the
+    // way it always has. An empty array is a real answer and means the model was offered
+    // none, so the two cannot be collapsed.
+    //
+    // Names, not definitions: the definitions belong to the prompt and are the thing under
+    // test. Pinning a copy of them would freeze a schema the author edits on the prompt and
+    // silently keep testing the old one.
+    offeredTools            Json?
+
+    // Turn 0's placeholder selection and tool subset are what a pin stores, because an
+    // external app that runs its own agent loop derives them from the user's role and holds
+    // them stable for the whole session. When a later turn disagreed, that assumption did
+    // not hold for this session and the pin is only part of the truth -- so the row says so
+    // and the UI warns, rather than the author reading a replay that silently differs from
+    // the recording on turns they cannot see.
+    pinnedSelectionDrift    Boolean        @default(false)
+
+    // What `compareSteps` returned on the last run: `StepMismatch[]`, indices into
+    // `expectedSteps`. Derived from a run, never sent by a client. Null when the testcase
+    // has no trajectory, or has one that has not been run since.
+    lastMismatches          Json?
+
+    // When a run last wrote a result here. Distinct from `updatedAt`, which every edit
+    // bumps: the verdict is deliberately NOT recomputed when expectations change, so the
+    // UI has to be able to say the verdict is older than the rules it is shown beside.
+    // Null means the testcase has never been run. Written by a run, never by a client.
+    lastRunAt               DateTime?      @db.Timestamp(6)
+
     createdAt               DateTime       @default(now()) @db.Timestamp(6)
     updatedAt               DateTime       @default(now()) @updatedAt @db.Timestamp(6)
 

@@ -92,3 +92,57 @@ describe("DeepSeek request mappers", () => {
 		});
 	});
 });
+
+describe("mapMessagesDeepSeek with a conversation", () => {
+	it("appends assistant tool calls and tool results after the question", () => {
+		const messages = mapMessagesDeepSeek(
+			request({
+				messages: [
+					{
+						role: "assistant",
+						content: "",
+						toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
+					},
+					{ role: "tool", toolCallId: "c1", name: "get_weather", content: '{"temp":12}' },
+				],
+			}),
+		);
+
+		expect(messages).toEqual([
+			{ role: "system", content: "You are helpful" },
+			{ role: "user", content: "Hello" },
+			{
+				role: "assistant",
+				content: "",
+				tool_calls: [
+					{
+						id: "c1",
+						type: "function",
+						function: { name: "get_weather", arguments: '{"city":"Berlin"}' },
+					},
+				],
+			},
+			{ role: "tool", tool_call_id: "c1", content: '{"temp":12}' },
+		]);
+	});
+
+	it("is unchanged when no messages are passed", () => {
+		expect(mapMessagesDeepSeek(request())).toEqual([
+			{ role: "system", content: "You are helpful" },
+			{ role: "user", content: "Hello" },
+		]);
+	});
+
+	it("maps a user reply to a user message, not an assistant one", () => {
+		const messages = mapMessagesDeepSeek(
+			request({
+				messages: [
+					{ role: "assistant", content: "one", toolCalls: [] },
+					{ role: "user", content: "and in London?" },
+				],
+			}),
+		);
+
+		expect(messages).toContainEqual({ role: "user", content: "and in London?" });
+	});
+});

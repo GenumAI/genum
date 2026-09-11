@@ -1,0 +1,541 @@
+import { describe, it, expect, vi } from "vitest";
+import { DEFAULT_MAX_STEPS, maxStepsForRecording, replayTrajectory } from "./replay";
+import type { ModelTurn } from "./replay";
+import type { ConversationMessage } from "@/ai/providers";
+import type { Step, ToolCallStep } from "./types";
+
+const recorded: ToolCallStep[] = [
+	{
+		kind: "tool_call",
+		name: "get_weather",
+		args: { city: "Berlin" },
+		recordedResult: '{"temp":12}',
+	},
+];
+
+describe("replayTrajectory", () => {
+	it("feeds the recorded result back and returns the trajectory", async () => {
+		const callModel = vi
+			.fn()
+			.mockResolvedValueOnce({
+				answer: "",
+				toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
+			})
+			.mockResolvedValueOnce({ answer: "It is 12°" });
+
+		const result = await replayTrajectory({ callModel, recorded });
+
+		expect(result.stopped).toBeUndefined();
+		// The step carries the result the loop fed back, so the trajectory is readable
+		// without the recording it was replayed from (spans, and the UI's diff of
+		// `lastSteps`, both depend on this).
+		expect(result.steps).toEqual([
+			{
+				kind: "tool_call",
+				name: "get_weather",
+				args: { city: "Berlin" },
+				recordedResult: '{"temp":12}',
+			},
+			{ kind: "final", text: "It is 12°" },
+		]);
+
+		// The second call must carry the tool result back to the model.
+		expect(callModel).toHaveBeenCalledTimes(2);
+		expect(callModel.mock.calls[1][0]).toEqual([
+			{
+				role: "assistant",
+				content: "",
+				toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
+			},
+			{ role: "tool", toolCallId: "c1", name: "get_weather", content: '{"temp":12}' },
+		]);
+	});
+
+	it("stops and names the tool when the recording has no result for it", async () => {
+		const callModel = vi.fn().mockResolvedValue({
+			answer: "",
+			toolCalls: [{ id: "c9", name: "send_mail", args: { to: "a@b.c" } }],
+		});
+
+		const result = await replayTrajectory({ callModel, recorded });
+
+		expect(result.stopped?.reason).toBe("missing_recording");
+		expect(result.stopped?.tool).toBe("send_mail");
+		expect(result.stopped?.message).toContain("send_mail");
+		expect(callModel).toHaveBeenCalledTimes(1);
+	});
+
+	it("returns a final step immediately when no tool is called", async () => {
+		const callModel = vi.fn().mockResolvedValue({ answer: "It is 12°" });
+
+		const result = await replayTrajectory({ callModel, recorded });
+
+		expect(result.steps).toEqual([{ kind: "final", text: "It is 12°" }]);
+	});
+
+	it("stops at the step limit", async () => {
+		// Enough recordings for every one of the maxSteps turns, so the loop runs out of
+		// steps before it could ever run out of recordings -- otherwise this would stop
+		// with "missing_recording" on the second turn instead of exercising the step
+		// limit, since the recording only had a single entry.
+		const manyRecordings: ToolCallStep[] = [
+			{ kind: "tool_call", name: "get_weather", recordedResult: "r1" },
+			{ kind: "tool_call", name: "get_weather", recordedResult: "r2" },
+			{ kind: "tool_call", name: "get_weather", recordedResult: "r3" },
+		];
+		const callModel = vi.fn().mockResolvedValue({
+			answer: "",
+			toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }],
+		});
+
+		const result = await replayTrajectory({
+			callModel,
+			recorded: manyRecordings,
+			maxSteps: 3,
+		});
+
+		expect(result.stopped?.reason).toBe("step_limit");
+		expect(callModel).toHaveBeenCalledTimes(3);
+	});
+
+	// A nine-tool-call trajectory is legitimately recordable (the playground caps a
+	// conversation at 100 messages, and nothing bounds what the picker can pin). Under the
+	// fixed default of 8 it stopped at `step_limit` and was written NOK on every run,
+	// forever -- a testcase that can never pass. The bound has to come from the recording.
+	it("replays a recording longer than the default step limit", async () => {
+		const nine: ToolCallStep[] = Array.from({ length: 9 }, (_, i) => ({
+			kind: "tool_call" as const,
+			name: "search",
+			recordedResult: `r${i}`,
+		}));
+		const callModel = vi.fn();
+		for (let i = 0; i < 9; i++) {
+			callModel.mockResolvedValueOnce({
+				answer: "",
+				toolCalls: [{ id: `c${i}`, name: "search", args: { page: i } }],
+			});
+		}
+		callModel.mockResolvedValueOnce({ answer: "done" });
+
+		const result = await replayTrajectory({
+			callModel,
+			recorded: nine,
+			maxSteps: maxStepsForRecording(nine),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		// Nine tool turns plus the final answer: one model call per turn, so the bound
+		// must be recorded.length + 1, not recorded.length.
+		expect(callModel).toHaveBeenCalledTimes(10);
+	});
+
+	it("derives a bound that still fires for a runaway loop", () => {
+		// Never below the default, and exactly one turn of headroom over a recording that
+		// calls one tool per turn -- so a model that keeps calling tools past the end of
+		// the recording still hits `step_limit`.
+		const callsOf = (n: number): Step[] =>
+			Array.from({ length: n }, () => ({
+				kind: "tool_call" as const,
+				name: "t",
+				recordedResult: "{}",
+			}));
+
+		expect(maxStepsForRecording(callsOf(0))).toBe(DEFAULT_MAX_STEPS);
+		expect(maxStepsForRecording(callsOf(3))).toBe(DEFAULT_MAX_STEPS);
+		expect(maxStepsForRecording(callsOf(9))).toBe(10);
+	});
+
+	it("still bounds a model that never stops calling tools", async () => {
+		// A model that keeps asking past the end of the recording is stopped -- by
+		// `missing_recording` on the turn after the last recorded call, which under a
+		// recording-derived bound always arrives before `step_limit` does (each turn
+		// consumes at least one recording, and the bound is recorded.length + 1). Both
+		// stops are NOK with a message; this one names the tool, which is the truer cause.
+		// `step_limit` stays as the backstop for a caller that passes its own maxSteps --
+		// the test above.
+		const many: ToolCallStep[] = Array.from({ length: 20 }, (_, i) => ({
+			kind: "tool_call" as const,
+			name: "search",
+			recordedResult: `r${i}`,
+		}));
+		const callModel = vi.fn().mockResolvedValue({
+			answer: "",
+			toolCalls: [{ id: "c", name: "search", args: {} }],
+		});
+
+		const result = await replayTrajectory({
+			callModel,
+			recorded: many,
+			maxSteps: maxStepsForRecording(many),
+		});
+
+		expect(result.stopped).toBeDefined();
+		expect(result.stopped?.reason).toBe("missing_recording");
+		// Never more turns than the derived bound allows.
+		expect(callModel.mock.calls.length).toBeLessThanOrEqual(maxStepsForRecording(many));
+	});
+
+	it("matches repeated calls to the same tool by their ordinal", async () => {
+		const twice: ToolCallStep[] = [
+			{ kind: "tool_call", name: "get_weather", recordedResult: "first" },
+			{ kind: "tool_call", name: "get_weather", recordedResult: "second" },
+		];
+		const callModel = vi
+			.fn()
+			.mockResolvedValueOnce({
+				answer: "",
+				toolCalls: [{ id: "c1", name: "get_weather", args: {} }],
+			})
+			.mockResolvedValueOnce({
+				answer: "",
+				toolCalls: [{ id: "c2", name: "get_weather", args: {} }],
+			})
+			.mockResolvedValueOnce({ answer: "done" });
+
+		const result = await replayTrajectory({ callModel, recorded: twice });
+
+		expect(callModel.mock.calls[2][0].at(-1)).toEqual({
+			role: "tool",
+			toolCallId: "c2",
+			name: "get_weather",
+			content: "second",
+		});
+		// Each step keeps its own result, so two calls to the same tool do not collapse
+		// into one -- that collapsing is the defect a name-keyed results map caused here
+		// once already, and the spans written from these steps would inherit it.
+		expect(
+			result.steps.flatMap((step) => (step.kind === "tool_call" ? [step.recordedResult] : [])),
+		).toEqual(["first", "second"]);
+	});
+
+	it("replays a second turn by feeding the recorded user reply", async () => {
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "get_weather", recordedResult: '{"t":21}' },
+			{ kind: "final", text: "21 in Paris" },
+			{ kind: "user", text: "and in London?" },
+			{ kind: "tool_call", name: "get_weather", recordedResult: '{"t":14}' },
+			{ kind: "final", text: "14 in London" },
+		];
+		const seen: ConversationMessage[][] = [];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "get_weather", args: { city: "Paris" } }] },
+			{ answer: "21 in Paris" },
+			{ answer: "", toolCalls: [{ id: "2", name: "get_weather", args: { city: "London" } }] },
+			{ answer: "14 in London" },
+		];
+		let turn = 0;
+		const result = await replayTrajectory({
+			callModel: async (messages) => {
+				seen.push([...messages]);
+				return answers[turn++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		expect(result.steps.filter((s) => s.kind === "final")).toHaveLength(2);
+		// The reply is emitted into the result, so `lastSteps` has the same turn structure
+		// as `expectedSteps` and the panel can group both.
+		expect(result.steps).toContainEqual({ kind: "user", text: "and in London?" });
+		// It also reached the model.
+		expect(seen[2]).toContainEqual({ role: "user", content: "and in London?" });
+	});
+
+	it("ends a turn that the recording ends on a tool call", async () => {
+		// Some agents stop a turn when a particular tool fires -- one that hands the user a
+		// UI card -- so the turn has tool steps and no text, and the user speaks next.
+		// Without this the loop asks the model for an answer the recording does not have,
+		// feeds it to the next turn as context the original session never carried, and
+		// charges for the call.
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "open_card", recordedResult: '{"shown":true}' },
+			{ kind: "user", text: "close it" },
+			{ kind: "tool_call", name: "close_card", recordedResult: '{"shown":false}' },
+			{ kind: "final", text: "Closed." },
+		];
+		const seen: ConversationMessage[][] = [];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "open_card", args: {} }] },
+			{ answer: "", toolCalls: [{ id: "2", name: "close_card", args: {} }] },
+			{ answer: "Closed." },
+		];
+		let call = 0;
+		const result = await replayTrajectory({
+			callModel: async (messages) => {
+				seen.push([...messages]);
+				return answers[call++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		// Exactly three model calls: one per tool round plus the closing answer. A fourth
+		// would be the invented answer this guards against.
+		expect(call).toBe(3);
+		expect(result.steps).toEqual([
+			{
+				kind: "tool_call",
+				name: "open_card",
+				args: {},
+				recordedResult: '{"shown":true}',
+			},
+			{ kind: "user", text: "close it" },
+			{
+				kind: "tool_call",
+				name: "close_card",
+				args: {},
+				recordedResult: '{"shown":false}',
+			},
+			{ kind: "final", text: "Closed." },
+		]);
+		// The reply reached the model, and no assistant answer was invented ahead of it.
+		expect(seen[1]).toContainEqual({ role: "user", content: "close it" });
+		expect(seen[1].some((message) => message.content === "Closed.")).toBe(false);
+	});
+
+	it("still asks for an answer when the recording merely stops after a tool call", async () => {
+		// The same shape with no next turn is the last turn still in flight, or an author
+		// who unticked the answer. The model is still owed its call there -- ending the
+		// replay on the tool result would drop the answer the run exists to produce.
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "get_weather", recordedResult: '{"t":21}' },
+		];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "get_weather", args: {} }] },
+			{ answer: "21 in Paris" },
+		];
+		let call = 0;
+		const result = await replayTrajectory({
+			callModel: async () => answers[call++],
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		expect(result.steps).toContainEqual({ kind: "final", text: "21 in Paris" });
+	});
+
+	it("does not end a turn while its recorded tool calls are still unanswered", async () => {
+		// A model that asks for its tools across two rounds is mid-turn after the first.
+		// Ending there would cut the turn short and skip a recorded call.
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "a", recordedResult: "1" },
+			{ kind: "tool_call", name: "b", recordedResult: "2" },
+			{ kind: "user", text: "next" },
+			{ kind: "final", text: "done" },
+		];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "a", args: {} }] },
+			{ answer: "", toolCalls: [{ id: "2", name: "b", args: {} }] },
+			{ answer: "done" },
+		];
+		let call = 0;
+		const result = await replayTrajectory({
+			callModel: async () => answers[call++],
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		expect(result.steps.filter((step) => step.kind === "tool_call")).toHaveLength(2);
+		expect(result.steps).toContainEqual({ kind: "user", text: "next" });
+	});
+
+	it("carries the model's own answer into the next turn's conversation", async () => {
+		// Record and replay must send the provider the SAME conversation. The playground
+		// client appends `{role:"assistant", content: answer}` before the next reply
+		// (`usePlaygroundPromptRun.ts`); a replay that pushes only the reply asks the model
+		// to answer a follow-up with no memory of what it just said, and the pinned final
+		// of turn 2 was produced in a context the replay never reproduces -- a correct
+		// agent goes NOK forever.
+		const recorded: Step[] = [
+			{ kind: "final", text: "It's 12 °C in Paris." },
+			{ kind: "user", text: "And London?" },
+			{ kind: "final", text: "It's 9 °C in London." },
+		];
+		const seen: ConversationMessage[][] = [];
+		const answers: ModelTurn[] = [
+			{ answer: "It's 12 °C in Paris." },
+			{ answer: "It's 9 °C in London." },
+		];
+		let turn = 0;
+		const result = await replayTrajectory({
+			callModel: async (messages) => {
+				seen.push([...messages]);
+				return answers[turn++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		// Order matters as much as presence: the answer precedes the reply it answered.
+		expect(seen[1]).toEqual([
+			{ role: "assistant", content: "It's 12 °C in Paris." },
+			{ role: "user", content: "And London?" },
+		]);
+	});
+
+	it("carries a tool turn's answer into the next turn's conversation too", async () => {
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "get_weather", recordedResult: '{"t":12}' },
+			{ kind: "final", text: "21 in Paris" },
+			{ kind: "user", text: "and in London?" },
+			{ kind: "final", text: "14 in London" },
+		];
+		const seen: ConversationMessage[][] = [];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "get_weather", args: { city: "Paris" } }] },
+			{ answer: "21 in Paris" },
+			{ answer: "14 in London" },
+		];
+		let turn = 0;
+		await replayTrajectory({
+			callModel: async (messages) => {
+				seen.push([...messages]);
+				return answers[turn++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(seen[2].slice(-2)).toEqual([
+			{ role: "assistant", content: "21 in Paris" },
+			{ role: "user", content: "and in London?" },
+		]);
+	});
+
+	it("takes the second turn's recording for the second turn's call of the same tool", async () => {
+		// Turn 1's recording holds TWO calls of `t` but the model only makes ONE of them,
+		// so a global, never-reset ordinal would leave it at 1 going into turn 2 and hand
+		// turn 2's single call turn 1's SECOND recording instead of turn 2's own first --
+		// a `missing_recording` stop under the global reading (turn 2's recording only has
+		// one entry, at ordinal 0) and a silent wrong-value swap under any reading that
+		// doesn't stop. The lookup has to be per turn for the same reason the comparison is.
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "t", recordedResult: "t1-a" },
+			{ kind: "tool_call", name: "t", recordedResult: "t1-b" },
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "again" },
+			{ kind: "tool_call", name: "t", recordedResult: "t2-a" },
+			{ kind: "final", text: "two" },
+		];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "t", args: {} }] },
+			{ answer: "one" },
+			{ answer: "", toolCalls: [{ id: "2", name: "t", args: {} }] },
+			{ answer: "two" },
+		];
+		let i = 0;
+		const result = await replayTrajectory({
+			callModel: async () => answers[i++],
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		const results = result.steps
+			.filter((s): s is ToolCallStep => s.kind === "tool_call")
+			.map((s) => s.recordedResult);
+		expect(results).toEqual(["t1-a", "t2-a"]);
+	});
+
+	it("stops the whole session at a divergence and names the turn", async () => {
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "known", recordedResult: "{}" },
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "again" },
+			{ kind: "tool_call", name: "known", recordedResult: "{}" },
+			{ kind: "final", text: "two" },
+		];
+		const answers: ModelTurn[] = [
+			{ answer: "", toolCalls: [{ id: "1", name: "known", args: {} }] },
+			{ answer: "one" },
+			{ answer: "", toolCalls: [{ id: "2", name: "surprise", args: {} }] },
+		];
+		let i = 0;
+		const result = await replayTrajectory({
+			callModel: async () => answers[i++],
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped?.reason).toBe("missing_recording");
+		expect(result.stopped?.tool).toBe("surprise");
+		// Turns are 1-based in the message the author reads.
+		expect(result.stopped?.turn).toBe(2);
+		expect(result.steps.some((s) => s.kind === "final" && s.text === "two")).toBe(false);
+	});
+
+	it("stops after the last enabled turn when the next reply was unticked", async () => {
+		// Truncation is decided in exactly one place, effectiveSteps -- this is the one
+		// place that rule is observable at runtime: the disabled reply is never emitted,
+		// never fed to the model, and turn 2's tool is never called at all.
+		const recorded: Step[] = [
+			{ kind: "tool_call", name: "t", recordedResult: "{}" },
+			{ kind: "final", text: "one" },
+			{ kind: "user", text: "dead", enabled: false },
+			{ kind: "tool_call", name: "t", recordedResult: "{}" },
+			{ kind: "final", text: "two" },
+		];
+		const callModel = vi
+			.fn()
+			.mockResolvedValueOnce({ answer: "", toolCalls: [{ id: "1", name: "t", args: {} }] })
+			.mockResolvedValueOnce({ answer: "one" });
+
+		const result = await replayTrajectory({
+			callModel,
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		expect(callModel).toHaveBeenCalledTimes(2);
+		expect(result.steps).toEqual([
+			{ kind: "tool_call", name: "t", args: {}, recordedResult: "{}" },
+			{ kind: "final", text: "one" },
+		]);
+	});
+
+	it("budgets one model call per turn, not one for the whole session", () => {
+		// Five turns with eight tool calls needs 8 + 5. The old `+ 1` was the single final
+		// answer; a five-turn session that gets 9 fails step_limit on every run, forever.
+		const recorded: Step[] = [];
+		for (let turn = 0; turn < 5; turn++) {
+			if (turn > 0) recorded.push({ kind: "user", text: `q${turn}` });
+			recorded.push({ kind: "tool_call", name: "t", recordedResult: "{}" });
+			if (turn < 3) recorded.push({ kind: "tool_call", name: "t", recordedResult: "{}" });
+			recorded.push({ kind: "final", text: `a${turn}` });
+		}
+		expect(recorded.filter((s) => s.kind === "tool_call")).toHaveLength(8);
+		expect(maxStepsForRecording(recorded)).toBe(13);
+	});
+
+	it("budgets a truncated session by what it actually runs, not what the full pin holds", () => {
+		// The effective session alone (3 turns, 9 tool calls -> 12) already clears
+		// DEFAULT_MAX_STEPS, and the dead tail past the disabled reply (4 more turns, 20
+		// more tool calls) is large enough that including it would give a very different
+		// number (36) -- so this only passes if maxStepsForRecording runs its count through
+		// effectiveSteps first, not the raw array. The vacuous version of this test let
+		// both readings clamp to the same DEFAULT_MAX_STEPS and passed either way.
+		const recorded: Step[] = [];
+		for (let turn = 0; turn < 3; turn++) {
+			if (turn > 0) recorded.push({ kind: "user", text: `q${turn}` });
+			for (let call = 0; call < 3; call++) {
+				recorded.push({ kind: "tool_call", name: "t", recordedResult: "{}" });
+			}
+			recorded.push({ kind: "final", text: `a${turn}` });
+		}
+		recorded.push({ kind: "user", text: "dead", enabled: false });
+		for (let turn = 0; turn < 4; turn++) {
+			recorded.push({ kind: "user", text: `dead-q${turn}` });
+			for (let call = 0; call < 5; call++) {
+				recorded.push({ kind: "tool_call", name: "t", recordedResult: "{}" });
+			}
+			recorded.push({ kind: "final", text: `dead-a${turn}` });
+		}
+		expect(maxStepsForRecording(recorded)).toBe(12);
+	});
+});

@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { useToast } from "@/hooks/useToast";
 import type { Log, LogDetail, PromptName } from "@/types/logs";
 import { getPromptName, isPromptDeleted } from "../utils/promptNames";
+import { LogTrajectorySection } from "./LogTrajectorySection";
 import {
 	getLogTypeDescription,
 	getSourceLabel,
@@ -299,6 +300,9 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 							</table>
 						</div>
 						<div className="mt-4 flex flex-col gap-4">
+							{selectedLog.trace_id && (
+								<LogTrajectorySection traceId={selectedLog.trace_id} />
+							)}
 							{isLoadingLogDetail && (
 								<p className="font-medium text-xs leading-none tracking-normal text-muted-foreground">
 									Loading input and output…

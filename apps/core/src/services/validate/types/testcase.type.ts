@@ -1,7 +1,29 @@
 import { TestCaseSchema as TestCaseSchemaGenerated, TestCaseStatusSchema } from "@/prisma-types";
 import { z } from "zod";
+import { hasEnabledStep, StepsConfigSchema, StepsSchema } from "@/ai/steps/schema";
 
 const nameSchema = z.string().trim().min(1).max(128);
+
+// `.min(1)` only bounds the array length. `compareSteps` (apps/core/src/ai/steps/compare.ts)
+// skips every step with `enabled === false` -- both the ordered and unordered paths -- so an
+// array of five all-unticked steps has length 5 and asserts nothing. `enabled` is optional and
+// absent means enabled (see ToolCallStep/FinalStep in apps/core/src/ai/steps/types.ts), so the
+// predicate has to be `!== false`, matching what compareSteps itself reads, not `=== true`.
+const EnabledStepsSchema = StepsSchema.min(1).refine(
+	hasEnabledStep,
+	"at least one step must be enabled",
+);
+// The tools the recorded session offered its model, by name. A `Json?` column, so the
+// generated schema types it `unknown` and would let any shape through to a place that
+// reads it as a tool filter -- a malformed value there silently offers the model nothing
+// and every replay stops at the first tool call.
+//
+// `null` is a real value and means "not recorded": a run with it offers the prompt's whole
+// tool list, the way every run did before this existed. An empty array is the opposite
+// answer -- the model was offered no tools -- so the two must stay distinguishable, which
+// is why this is `.nullable()` rather than merely optional.
+const OfferedToolsSchema = z.array(z.string().min(1).max(128)).max(200).nullable();
+
 const TestCaseSchema = TestCaseSchemaGenerated.extend({
 	name: nameSchema,
 });
@@ -11,6 +33,16 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 	status: true,
 	createdAt: true,
 	updatedAt: true,
+	// Written by a run, never by a client -- `.strict()` rejects it if one sends it.
+	lastSteps: true,
+	// Same boundary: derived from a run, never sent by a client. Omitting it also keeps
+	// it out of `TestcasesCreateType`, so `newTestcase` cannot leak an `unknown` into the
+	// `Json?` column Prisma expects `InputJsonValue | DbNull` for.
+	lastMismatches: true,
+	// Same boundary: when the last run happened is something the server observed, not
+	// something a client may claim. It is the one field that keeps a stale verdict honest
+	// against edited expectations, so a client that could set it could hide exactly that.
+	lastRunAt: true,
 })
 	.extend({
 		promptId: z.number(),
@@ -18,6 +50,23 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 		expectedChainOfThoughts: z.string().optional(),
 		lastChainOfThoughts: z.string().optional(),
 		placeholders: z.record(z.string(), z.string()).optional(),
+		// The generated schema types a `Json?` column as `unknown`, which would let any
+		// shape at all into the column and only surface at assertion time, where a
+		// malformed step silently asserts nothing. Validate the trajectory here instead.
+		// `lastSteps` is deliberately absent: it is written by a run, never by a client.
+		//
+		// An empty array is truthy, so it would take the trajectory path and then match
+		// everything; an array of unticked steps is non-empty but still matches everything,
+		// because `compareSteps` skips disabled steps. `EnabledStepsSchema` rejects both --
+		// a testcase that can never fail, which is the exact failure this feature exists to
+		// prevent. A testcase that pins nothing is a text testcase, and a text testcase
+		// leaves `expectedSteps` unset.
+		expectedSteps: EnabledStepsSchema.optional(),
+		stepsConfig: StepsConfigSchema.optional(),
+		offeredTools: OfferedToolsSchema.optional(),
+		// Derived by the pin from the recorded turns, like `expectedSteps` beside it: the
+		// client is the party holding the session's spans when it pins.
+		pinnedSelectionDrift: z.boolean().optional(),
 	})
 	.strict();
 
@@ -38,10 +87,34 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 	promptId: true,
 	createdAt: true,
 	updatedAt: true,
+	// Written by a run, never by a client -- `.strict()` rejects it if one sends it. The
+	// generated base schema carries it as a plain nullish `unknown` (it mirrors the `Json?`
+	// column with no boundary of its own), so it must be omitted explicitly here or
+	// `.strict()` would wave it through instead of rejecting it.
+	lastMismatches: true,
+	// Same boundary, and the same generated-schema caveat: written by a run, never sent
+	// by a client. An editable "last run" timestamp would let an edit pass itself off as
+	// a run, which is the deception this column exists to prevent.
+	lastRunAt: true,
 })
 	.extend({
 		status: TestCaseStatusSchema.optional(),
 		placeholders: z.record(z.string(), z.string()).optional(),
+		// Same boundary as create: an edited trajectory is validated, not trusted.
+		// `lastSteps` is writable here, as `lastOutput` always has been -- it is the
+		// last run's trajectory, and a run writes it through this same method. `lastSteps`
+		// is what a run recorded, not what an author asserts, so it is not put through
+		// `EnabledStepsSchema` -- an all-disabled `lastSteps` is just a run with nothing
+		// enabled at the time, not a boundary violation.
+		//
+		// `null` is how a client says "clear the trajectory": the testcase goes back to
+		// being the plain text one it was before any steps were pinned. The repository
+		// turns it into `Prisma.DbNull`. `undefined` still means "leave it alone".
+		expectedSteps: EnabledStepsSchema.nullable().optional(),
+		lastSteps: StepsSchema.optional(),
+		stepsConfig: StepsConfigSchema.nullable().optional(),
+		offeredTools: OfferedToolsSchema.optional(),
+		pinnedSelectionDrift: z.boolean().optional(),
 	})
 	.partial()
 	.strict();

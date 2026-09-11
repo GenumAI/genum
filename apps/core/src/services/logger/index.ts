@@ -6,19 +6,27 @@
 // Export all public functions
 export {
 	logUsage,
+	logSpans,
+	insertSpanRows,
+	getSessionTraceIds,
 	getPromptLogs,
 	getProjectUsageStats,
 	getProjectLogs,
 	getOrganizationDailyUsageStats,
 	getProjectUsageWithDailyStats,
+	getSessionSpans,
 	countRunsByDate,
 	clickhouseClient,
 	clickhouseUrl,
 	clickhouseDatabase,
 } from "./logger";
 
+export { deriveTurnTraceId } from "./spans";
+
 // Export types
 export type {
+	SpanBatch,
+	SpanRow,
 	LogDocument,
 	LogListEntry,
 	LogDetail,

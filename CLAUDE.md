@@ -11,7 +11,7 @@ An open-source platform to manage, test, and iterate on AI prompts across multip
 ```
 genum/
 ├── apps/core/    Node.js + Express + TypeScript + Prisma backend (port 3010)
-├── apps/web/     React + Vite + TypeScript frontend (port 3080)
+├── apps/web/     React + Vite + TypeScript frontend (port 3000)
 ├── docker/
 ├── .env          Single .env for ALL apps — never create .env in subfolders
 └── turbo.json

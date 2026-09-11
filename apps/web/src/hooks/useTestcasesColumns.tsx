@@ -2,6 +2,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 
 import { Trash2, Loader2 } from "lucide-react";
+import { Warning, Wrench } from "@phosphor-icons/react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import TestCaseStatus from "@/pages/prompt/playground-tabs/testcases/TestCaseStatus";
@@ -10,6 +11,35 @@ import type { Prompt } from "@/pages/prompt/utils/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import TableSortButton from "@/components/ui/TableSortButton";
 import type { TestCase, TestStatus } from "@/types/TestСase";
+import { enabledCount } from "@/lib/trajectoryEdits";
+
+/**
+ * The recorded session did not run every turn the same way.
+ *
+ * A pin takes turn 1's placeholder selection and tool subset for the whole testcase --
+ * they are held stable per session by the app that produced the recording, so a later turn
+ * disagreeing means that assumption did not hold here. The pin is then only part of the
+ * truth, and a replay silently differs from the recording on turns the author cannot see.
+ * Saying so on the row is the whole remedy: which turn's inputs are right is a judgement
+ * only the author can make.
+ */
+const SelectionDriftMark = () => (
+	<TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<span className="text-amber-600 dark:text-amber-400">
+					<Warning size={12} />
+				</span>
+			</TooltipTrigger>
+			<TooltipContent className="max-w-xs">
+				<p>
+					Later turns used different placeholders or tools. This testcase uses the first
+					turn's.
+				</p>
+			</TooltipContent>
+		</Tooltip>
+	</TooltipProvider>
+);
 
 export const useTestcasesColumns = ({
 	prompts,
@@ -92,7 +122,44 @@ export const useTestcasesColumns = ({
 		{
 			accessorKey: "name",
 			header: ({ column }) => <TableSortButton column={column} headerText="Testcase" />,
-			cell: ({ row }) => <span className="font-medium">{row.getValue("name")}</span>,
+			cell: ({ row }) => {
+				const steps = row.original.expectedSteps;
+				const stepCount = Array.isArray(steps) ? steps.length : 0;
+				// The number shown is what a run CHECKS, not what the testcase stores: unticked
+				// steps ride along for context, and "5 steps checked" over a testcase that
+				// checks three would be the one number on the row that is wrong.
+				const checkedCount = Array.isArray(steps) ? enabledCount(steps) : 0;
+
+				// A text testcase keeps the bare span it has always had. Wrapping every row
+				// in a flex container to serve the few that carry a marker would change the
+				// box every name in the table sits in.
+				if (stepCount === 0) {
+					return <span className="font-medium">{row.getValue("name")}</span>;
+				}
+
+				return (
+					<span className="flex items-center gap-2">
+						<span className="font-medium">{row.getValue("name")}</span>
+						<TooltipProvider>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex items-center gap-1 text-xs text-muted-foreground">
+										<Wrench size={12} />
+										{checkedCount}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent>
+									<p>
+										{checkedCount} {checkedCount === 1 ? "step" : "steps"}{" "}
+										checked
+									</p>
+								</TooltipContent>
+							</Tooltip>
+						</TooltipProvider>
+						{row.original.pinnedSelectionDrift ? <SelectionDriftMark /> : null}
+					</span>
+				);
+			},
 			enableSorting: true,
 		},
 		...(!hidePromptColumn ? [promptColumn] : []),

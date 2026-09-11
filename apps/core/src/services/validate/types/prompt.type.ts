@@ -1,6 +1,12 @@
-import { AssertionTypeSchema, PromptSchema as PromptSchemaGenerated } from "@/prisma-types";
+import {
+	AssertionTypeSchema,
+	InstructionFormatSchema,
+	PromptSchema as PromptSchemaGenerated,
+} from "@/prisma-types";
 import { LogLevel, SourceType } from "@/services/logger";
 import { FunctionCallSchema } from "@/ai/models/types";
+import { PromptPlaceholdersCreateSchema } from "./placeholder.type";
+import type { ConversationMessage } from "@/ai/providers";
 import { z } from "zod";
 
 const PromptSchema = PromptSchemaGenerated.extend({
@@ -34,6 +40,15 @@ export const PromptCreateSchema = PromptSchema.pick({
 	.extend({
 		languageModelName: z.string().min(1).optional(),
 		languageModelConfig: LanguageModelConfigSchema.optional(),
+		// Placeholder CRUD otherwise exists only on the JWT routes, so an API key could
+		// create a prompt full of `{{holes}}` and had no way to define any of them --
+		// leaving a prompt that renders its own placeholder syntax to the model.
+		placeholders: PromptPlaceholdersCreateSchema.optional(),
+		// Omitted means XML, which is what every prompt has always been sent as. Stated
+		// explicitly by a caller whose own agent loop sends the rendered text unshaped --
+		// without it, that caller's production traffic and a Lab replay of it run
+		// differently shaped instructions and the replay is not a replay.
+		instructionFormat: InstructionFormatSchema.optional(),
 	})
 	.strict();
 
@@ -47,6 +62,7 @@ export const PromptUpdateSchema = PromptSchema.pick({
 })
 	.extend({
 		assertionType: AssertionTypeSchema.optional(),
+		instructionFormat: InstructionFormatSchema.optional(),
 	})
 	.partial()
 	.strict();
@@ -63,15 +79,93 @@ export const PromptUpdateLLMConfigSchema = z
 
 export type PromptUpdateLLMConfigType = z.infer<typeof PromptUpdateLLMConfigSchema>;
 
+// Mirrors `ToolCall` / `ConversationMessage` in @/ai/providers. Boundary validation for
+// the conversation the playground accumulates while the author supplies tool results --
+// a tool is never executed by Genum, so this is the only place those results enter the
+// system, and arbitrary JSON here would reach the provider call unchecked.
+// Every turn of a trajectory is a billed provider call carrying the whole conversation
+// so far, so the conversation is capped here rather than left to grow without bound.
+const MAX_CONVERSATION_MESSAGES = 100;
+const MAX_MESSAGE_CONTENT = 32_000;
+
+const ToolCallSchema = z
+	.object({
+		id: z.string().min(1),
+		name: z.string().min(1),
+		args: z.record(z.string(), z.unknown()),
+	})
+	.strict();
+
+const ConversationMessageSchema = z.discriminatedUnion("role", [
+	z
+		.object({
+			role: z.literal("assistant"),
+			content: z.string().max(MAX_MESSAGE_CONTENT),
+			toolCalls: z.array(ToolCallSchema).optional(),
+		})
+		.strict(),
+	z
+		.object({
+			role: z.literal("tool"),
+			toolCallId: z.string().min(1),
+			name: z.string().min(1),
+			content: z.string().max(MAX_MESSAGE_CONTENT),
+		})
+		.strict(),
+	z
+		.object({
+			role: z.literal("user"),
+			content: z.string().min(1).max(MAX_MESSAGE_CONTENT),
+		})
+		.strict(),
+]);
+
 export const PromptRunSchema = z
 	.object({
 		question: z.string(),
 		files: z.array(z.string()).optional().default([]),
 		placeholders: z.record(z.string(), z.string()).optional(),
+		/**
+		 * Turns after the opening question, for an agentic run. Absent for a single-shot
+		 * run, which is every caller that existed before trajectory testcases.
+		 *
+		 * `min(1)`: an empty array is not a continuation of anything, and without this
+		 * floor `{ messages: [] }` would still classify as a tool continuation (its last
+		 * entry is not a user message) and log `prt` -- a real, billed run excluded from
+		 * every `RUN_COUNT` in `queries.ts`, which counts `log_type != 'prt'`.
+		 */
+		messages: z
+			.array(ConversationMessageSchema)
+			.min(1)
+			.max(MAX_CONVERSATION_MESSAGES)
+			.optional(),
+		/**
+		 * The session id, minted once (by whichever turn first needs one) and echoed back by
+		 * every continuation -- called `traceId` because that is the wire vocabulary this
+		 * field kept, not because a turn mints it: no turn mints this, the session does, once.
+		 * The playground's loop is client-side, so the server only learns that N requests are
+		 * one session because the client echoes this back; a client may not choose it.
+		 */
+		traceId: z.uuid().optional(),
 	})
-	.strict();
+	.strict()
+	// A continuation may arrive without a trace -- the server mints one, which is what
+	// lets a session that answered plainly on turn 1 still be recorded once it continues
+	// on turn 2. What stays refused is a trace with no conversation: it would log a root
+	// turn as a continuation of a trajectory that was never sent.
+	.refine((body) => !(body.traceId !== undefined && body.messages === undefined), {
+		message:
+			"traceId without messages is refused: a trace requires the conversation it continues",
+		path: ["traceId"],
+	});
 
 export type PromptRunType = z.infer<typeof PromptRunSchema>;
+
+// The schema and the hand-written provider type must not drift.
+type _ConversationMessageMatchesType =
+	z.infer<typeof ConversationMessageSchema> extends ConversationMessage ? true : never;
+const _assertion: _ConversationMessageMatchesType = true;
+void _assertion;
 
 export const PromptCommitSchema = z
 	.object({

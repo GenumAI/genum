@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import type { PromptResponse } from "@/api/prompt";
+import type { ConversationMessage, Step, ToolCall } from "@/types/steps";
 
 export type PlaceholderSelectionState = Record<string, string>;
 
@@ -25,12 +26,49 @@ type PlaygroundSessionDraft = {
 	status: string;
 };
 
+/** A tool call awaiting the author's typed-in result, paired with the step it renders as. */
+export type PendingToolCall = { call: ToolCall; stepIndex: number };
+
+/**
+ * A trajectory being authored in the playground: the steps shown to the author, the
+ * ConversationMessage turns sent back to the run endpoint, and the tool calls still
+ * waiting on a result. Never persisted -- it only reaches durable storage when the run
+ * becomes a testcase (a later feature).
+ */
+export type TrajectoryDraft = {
+	steps: Step[];
+	messages: ConversationMessage[];
+	pending: PendingToolCall[];
+	/**
+	 * The trace the server minted for this trajectory's first turn. Echoed back on every
+	 * continuation so N requests are logged as one run; null until a tool is called.
+	 */
+	traceId: string | null;
+	/**
+	 * The last continuation's round trip failed, with this message. `steps`/`messages`
+	 * already carry the tool result or reply that triggered it -- nothing here is rolled
+	 * back on failure -- so without this the pane has no pending tool, is not running, and
+	 * its last step is not a `final`: a dead end with no control of any kind. Cleared at the
+	 * start of every continuation attempt (including a retry) and on a successful one.
+	 */
+	error: string | null;
+};
+
+const EMPTY_TRAJECTORY: TrajectoryDraft = {
+	steps: [],
+	messages: [],
+	pending: [],
+	traceId: null,
+	error: null,
+};
+
 interface PlaygroundDraftData {
 	inputDrafts: Record<string, string>;
 	outputDrafts: Record<string, PromptResponse | null>;
 	expectedOutputDrafts: Record<string, PromptResponse | null>;
 	expectedThoughtsDrafts: Record<string, string>;
 	sessionDrafts: Record<string, PlaygroundSessionDraft>;
+	trajectoryDrafts: Record<string, TrajectoryDraft>;
 	selectedPlaceholders: PlaceholderSelectionState;
 	pageHeaderUi: PageHeaderUiState;
 }
@@ -58,6 +96,14 @@ interface PlaygroundDraftActions {
 	getExpectedThoughtsDraft: (promptId: ScopeParam, testcaseId: ScopeParam) => string;
 
 	clearOutputDrafts: (promptId: ScopeParam, testcaseId: ScopeParam) => void;
+
+	setTrajectoryDraft: (
+		promptId: ScopeParam,
+		testcaseId: ScopeParam,
+		updater: (prev: TrajectoryDraft) => TrajectoryDraft,
+	) => void;
+	getTrajectoryDraft: (promptId: ScopeParam, testcaseId: ScopeParam) => TrajectoryDraft;
+	clearTrajectoryDraft: (promptId: ScopeParam, testcaseId: ScopeParam) => void;
 
 	setSessionDraft: (
 		promptId: ScopeParam,
@@ -104,6 +150,7 @@ const initialState: PlaygroundDraftData = {
 	expectedOutputDrafts: {},
 	expectedThoughtsDrafts: {},
 	sessionDrafts: {},
+	trajectoryDrafts: {},
 	selectedPlaceholders: {},
 	pageHeaderUi: DEFAULT_PAGE_HEADER_UI,
 };
@@ -200,6 +247,35 @@ const usePlaygroundStore = create<PlaygroundState>()(
 					"clearOutputDrafts",
 				),
 
+			setTrajectoryDraft: (promptId, testcaseId, updater) =>
+				set(
+					(state) => {
+						const key = draftScopeKey(promptId, testcaseId);
+						const prev = state.trajectoryDrafts[key] ?? EMPTY_TRAJECTORY;
+						return {
+							trajectoryDrafts: {
+								...state.trajectoryDrafts,
+								[key]: updater(prev),
+							},
+						};
+					},
+					false,
+					"setTrajectoryDraft",
+				),
+			getTrajectoryDraft: (promptId, testcaseId) =>
+				get().trajectoryDrafts[draftScopeKey(promptId, testcaseId)] ?? EMPTY_TRAJECTORY,
+			clearTrajectoryDraft: (promptId, testcaseId) =>
+				set(
+					(state) => {
+						const key = draftScopeKey(promptId, testcaseId);
+						const next = { ...state.trajectoryDrafts };
+						delete next[key];
+						return { trajectoryDrafts: next };
+					},
+					false,
+					"clearTrajectoryDraft",
+				),
+
 			setSessionDraft: (promptId, testcaseId, updater) =>
 				set(
 					(state) => {
@@ -278,12 +354,17 @@ const usePlaygroundStore = create<PlaygroundState>()(
 						const sessionDrafts = { ...state.sessionDrafts };
 						delete sessionDrafts[sessionPromptScope];
 
+						const trajectoryDrafts = { ...state.trajectoryDrafts };
+						delete trajectoryDrafts[promptScope];
+						delete trajectoryDrafts[prevScope];
+
 						return {
 							inputDrafts,
 							outputDrafts,
 							expectedOutputDrafts,
 							expectedThoughtsDrafts,
 							sessionDrafts,
+							trajectoryDrafts,
 						};
 					},
 					false,
@@ -311,12 +392,16 @@ const usePlaygroundStore = create<PlaygroundState>()(
 						const sessionDrafts = { ...state.sessionDrafts };
 						delete sessionDrafts[sessionPromptScope];
 
+						const trajectoryDrafts = { ...state.trajectoryDrafts };
+						delete trajectoryDrafts[promptScope];
+
 						return {
 							inputDrafts,
 							outputDrafts,
 							expectedOutputDrafts,
 							expectedThoughtsDrafts,
 							sessionDrafts,
+							trajectoryDrafts,
 						};
 					},
 					false,
@@ -343,12 +428,16 @@ const usePlaygroundStore = create<PlaygroundState>()(
 						const sessionDrafts = { ...state.sessionDrafts };
 						delete sessionDrafts[scopeKey];
 
+						const trajectoryDrafts = { ...state.trajectoryDrafts };
+						delete trajectoryDrafts[scopeKey];
+
 						return {
 							inputDrafts,
 							outputDrafts,
 							expectedOutputDrafts,
 							expectedThoughtsDrafts,
 							sessionDrafts,
+							trajectoryDrafts,
 							// selectedPlaceholders is a flat, unscoped map (see its declaration
 							// above), so there is no per-prompt key to delete here — leaving a
 							// prompt clears the whole thing rather than let a stale key from

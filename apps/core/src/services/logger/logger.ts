@@ -22,6 +22,7 @@ import {
 	parseClickHouseTimestamp,
 	resolveLogPlaceholders,
 } from "./mappers";
+import { toSpanRows, type SpanBatch, type SpanRow } from "./spans";
 import type {
 	LogDocument,
 	LogListEntry,
@@ -40,6 +41,7 @@ import type {
 	OrganizationDetailedUsageStats,
 	ClickHouseLogListRow,
 	ClickHouseLogDetailRow,
+	ClickHouseSpanRow,
 	ClickHouseCountRow,
 	ClickHouseProjectStatsRow,
 	ClickHousePromptStatsRow,
@@ -57,6 +59,8 @@ import type {
 
 // Export types for external use
 export type {
+	SpanBatch,
+	SpanRow,
 	LogDocument,
 	LogListEntry,
 	LogDetail,
@@ -74,6 +78,7 @@ export type {
 	OrganizationDetailedUsageStats,
 	ClickHouseLogListRow,
 	ClickHouseLogDetailRow,
+	ClickHouseSpanRow,
 	ClickHouseCountRow,
 	ClickHouseProjectStatsRow,
 	ClickHousePromptStatsRow,
@@ -93,6 +98,7 @@ const clickhousePassword = env.CLICKHOUSE_PASSWORD;
 
 enum CLICKHOUSE_TABLES {
 	LOGS = "logs",
+	TRACE_SPANS = "trace_spans",
 }
 
 export const clickhouseClient = createClient({
@@ -177,6 +183,7 @@ function transformRowToLogListEntry(row: ClickHouseLogListRow): LogListEntry {
 		user_id: row.user_id || undefined,
 		api_key_id: row.api_key_id || undefined,
 		testcase_id: row.testcase_id || undefined,
+		trace_id: row.trace_id || undefined,
 		vendor: row.vendor,
 		model: row.model,
 		tokens_in: row.tokens_in,
@@ -221,6 +228,7 @@ export async function logUsage(document: LogDocument): Promise<void> {
 					user_id: document.user_id || null,
 					api_key_id: document.api_key_id || null,
 					testcase_id: document.testcase_id || null,
+					trace_id: document.trace_id ?? null,
 					vendor: document.vendor,
 					model: document.model,
 					tokens_in: document.tokens_in,
@@ -243,6 +251,50 @@ export async function logUsage(document: LogDocument): Promise<void> {
 		console.error("Ошибка записи лога в ClickHouse:", error);
 		captureSentryException(error, { error_type: "clickhouse_log_write" });
 	}
+}
+
+/**
+ * Writes the steps of an agentic run. The root of the trace is the `logs` row written by
+ * `logUsage`; this call adds its tool_call/final steps as rows in `trace_spans`.
+ *
+ * Deliberately diverges from `logUsage`, which propagates its insert error: by the time
+ * this runs, the run's `logs` row is already written and the run itself succeeded. Spans
+ * are supplementary detail -- letting a failed span insert throw away an otherwise
+ * successful run would be strictly worse than just not having the spans. Do not "fix" this
+ * back into consistency with `logUsage`.
+ */
+export async function logSpans(batch: SpanBatch): Promise<void> {
+	const rows = toSpanRows(batch);
+	if (rows.length === 0) {
+		return;
+	}
+
+	try {
+		await insertSpanRows(rows);
+	} catch (error) {
+		console.error("Ошибка записи span-ов в ClickHouse:", error);
+	}
+}
+
+/**
+ * Writes already-mapped span rows, and PROPAGATES a failure -- the opposite of `logSpans`
+ * above, on purpose.
+ *
+ * For our own runs a failed span insert is supplementary detail lost after the run already
+ * succeeded, so swallowing it is right. For ingest the spans ARE the request: a collector
+ * that receives 200 for a batch we did not store never sends it again, and the trace is
+ * gone. It must see the failure and retry, which read-side dedup makes safe.
+ */
+export async function insertSpanRows(rows: SpanRow[]): Promise<void> {
+	if (rows.length === 0) {
+		return;
+	}
+
+	await clickhouseClient.insert({
+		table: CLICKHOUSE_TABLES.TRACE_SPANS,
+		values: rows,
+		format: "JSONEachRow",
+	});
 }
 
 /**
@@ -755,6 +807,109 @@ export async function getProjectUsageWithDailyStats(
 		};
 	} catch (error) {
 		console.error("Error getting detailed project usage stats V2 from ClickHouse:", error);
+		throw error;
+	}
+}
+
+/**
+ * A session spans every turn of a conversation, so its span count is unbounded even
+ * though each turn's steps are capped and each turn is its own trace. Far more than this
+ * is a runaway session, not a session anyone is going to read.
+ */
+const MAX_TRACE_SPANS = 1000;
+
+/**
+ * Reads the spans of one session across all its turns, ordered by `turn_index` and then
+ * `span_index`. Scoped by org and project the same way every other logger query is -- a
+ * session_id from another org's run never matches.
+ */
+export async function getSessionSpans(
+	sessionId: string,
+	orgId: number,
+	projectId: number,
+): Promise<SpanRow[]> {
+	try {
+		const { where, params } = WhereBuilder.forOrg(orgId).projectId(projectId).build();
+
+		const result = await clickhouseClient.query({
+			query: QUERIES.GET_SPANS(CLICKHOUSE_TABLES.TRACE_SPANS, where),
+			query_params: { ...params, session: sessionId, limit: MAX_TRACE_SPANS },
+			format: "JSONEachRow",
+		});
+
+		const data = (await result.json()) as ClickHouseSpanRow[];
+
+		return data.map((row) => ({
+			timestamp: row.timestamp,
+			trace_id: row.trace_id,
+			session_id: row.session_id,
+			turn_index: Number(row.turn_index),
+			span_id: row.span_id,
+			parent_span_id: row.parent_span_id,
+			span_index: Number(row.span_index),
+			span_type: row.span_type as SpanRow["span_type"],
+			orgId: Number(row.orgId),
+			project_id: Number(row.project_id),
+			prompt_id: Number(row.prompt_id),
+			name: row.name,
+			input: row.input,
+			output: row.output,
+			tool_args: row.tool_args,
+			tool_result: row.tool_result,
+			tool_error: row.tool_error,
+			vendor: row.vendor,
+			model: row.model,
+			tokens_in: Number(row.tokens_in),
+			tokens_out: Number(row.tokens_out),
+			cost: Number(row.cost),
+			duration_ms: Number(row.duration_ms),
+			status: row.status,
+			// A row written before the column existed reads back as `genum`, which is what
+			// it is: everything predating OTLP ingest is our own run.
+			source: (row.source ?? "genum") as SpanRow["source"],
+			// Empty means the turn never recorded what it ran with, which is the only
+			// honest reading of a row written before these columns existed. Every consumer
+			// treats empty as "use what you would have used anyway" rather than as an
+			// instruction to run with nothing.
+			placeholders: row.placeholders ?? {},
+			tools_offered: row.tools_offered ?? [],
+			prompt_version: row.prompt_version ?? "",
+		}));
+	} catch (error) {
+		console.error("Error getting trace spans from ClickHouse:", error);
+		throw error;
+	}
+}
+
+/**
+ * The trace ids already stored for a session, in turn order.
+ *
+ * Read by OTLP ingest before it writes, so a trace new to the session takes the ordinal
+ * after these and a redelivered one keeps the place it has. Scoped by org and project like
+ * every other logger read: a conversation id from another org's traffic never matches.
+ *
+ * Unbounded on purpose -- one short string per turn, and a cap here would silently
+ * renumber every turn past it, in a table where `turn_index` cannot be corrected.
+ */
+export async function getSessionTraceIds(
+	sessionId: string,
+	orgId: number,
+	projectId: number,
+): Promise<string[]> {
+	try {
+		const { where, params } = WhereBuilder.forOrg(orgId).projectId(projectId).build();
+
+		const result = await clickhouseClient.query({
+			query: QUERIES.GET_SESSION_TRACE_IDS(CLICKHOUSE_TABLES.TRACE_SPANS, where),
+			query_params: { ...params, session: sessionId },
+			format: "JSONEachRow",
+		});
+
+		const data = (await result.json()) as { trace_id: string }[];
+
+		return data.map((row) => row.trace_id);
+	} catch (error) {
+		console.error("Error getting session trace ids from ClickHouse:", error);
 		throw error;
 	}
 }

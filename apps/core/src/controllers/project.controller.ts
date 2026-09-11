@@ -6,6 +6,7 @@ import {
 	getProjectUsageWithDailyStats,
 	getLogDetail,
 	getProjectLogs,
+	getSessionSpans,
 	type LogListEntry,
 	type PromptUsageStats,
 } from "../services/logger/logger";
@@ -14,6 +15,7 @@ import {
 	ProjectMemberCreateSchema,
 	ProjectMemberUpdateSchema,
 	stringSchema,
+	sessionIdSchema,
 	ProjectUsageStatsSchema,
 	ProjectLogsQuerySchema,
 	ProjectUpdateSchema,
@@ -243,6 +245,21 @@ export class ProjectController {
 			...logs,
 			promptNames,
 		});
+	}
+
+	// Named for the HTTP surface it serves, which kept the "trace" vocabulary; internally
+	// it fetches a SESSION's spans across all its turns.
+	public async getTraceSpans(req: Request, res: Response) {
+		const metadata = req.genumMeta.ids;
+		// NOT `uuidSchema`. Our own sessions are derived UUIDs, but an ingested one is
+		// identified by the sender's `gen_ai.conversation.id` (constrained in no way by the
+		// GenAI conventions) or, absent that, by a 32-hex OTLP trace id. Validated as a
+		// UUID, every ingested session 400s -- stored correctly and unreadable forever.
+		const traceId = sessionIdSchema.parse(req.params.traceId);
+
+		const spans = await getSessionSpans(traceId, metadata.orgID, metadata.projID);
+
+		res.status(200).json({ spans });
 	}
 
 	/**

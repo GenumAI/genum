@@ -1,10 +1,13 @@
 import {
+	type Content,
 	type ContentListUnion,
+	type FunctionDeclaration,
 	type GenerateContentConfig,
+	type Part,
 	ThinkingLevel,
-	Type,
 } from "@google/genai";
 import type { FunctionCall, REASONING_EFFORT } from "../../models/types";
+import { toGeminiParameters } from "./schema";
 import type { ProviderRequest } from "..";
 
 interface GeminiSchema {
@@ -50,62 +53,15 @@ function mapSchemaToGeminiFormat(schemaStr: string): GeminiSchema {
 	return mappedSchema;
 }
 
-function mapFunctionToGeminiFormat(func: FunctionCall): {
-	name: string;
-	description: string;
-	parameters: {
-		type: Type;
-		properties: Record<
-			string,
-			{
-				type: Type;
-				description?: string;
-			}
-		>;
-	};
-} {
+function mapFunctionToGeminiFormat(func: FunctionCall): FunctionDeclaration {
 	return {
 		name: func.name,
 		description: func.description || "",
-		parameters: {
-			type: Type.OBJECT,
-			properties: func.parameters.properties
-				? Object.entries(func.parameters.properties).reduce(
-						(acc, [key, value]) => {
-							acc[key] = {
-								type: mapTypeToGeminiType(value.type),
-								description: value.description || "",
-							};
-							return acc;
-						},
-						{} as Record<
-							string,
-							{
-								type: Type;
-								description: string;
-							}
-						>,
-					)
-				: {},
-		},
+		// The whole schema, converted -- see `./schema.ts`. This used to keep only `type`
+		// and `description` of each first-level property, so arrays reached the model with
+		// no `items`, nested objects arrived empty, and `enum` and `required` were gone.
+		parameters: toGeminiParameters(func.parameters),
 	};
-}
-
-function mapTypeToGeminiType(type: string): Type {
-	switch (type.toLowerCase()) {
-		case "string":
-			return Type.STRING;
-		case "number":
-			return Type.NUMBER;
-		case "boolean":
-			return Type.BOOLEAN;
-		case "object":
-			return Type.OBJECT;
-		case "array":
-			return Type.ARRAY;
-		default:
-			return Type.STRING;
-	}
 }
 
 export function mapConfigToGemini(request: ProviderRequest): GenerateContentConfig {
@@ -136,20 +92,68 @@ export function mapConfigToGemini(request: ProviderRequest): GenerateContentConf
 }
 
 export function mapContentsToGeminiFormat(request: ProviderRequest): ContentListUnion {
-	if (request.files && request.files.length > 0) {
-		const parts = request.files.map((file) => ({
-			inlineData: {
-				mimeType: file.contentType,
-				data: file.buffer.toString("base64"),
-			},
-		}));
+	const opening: ContentListUnion =
+		request.files && request.files.length > 0
+			? [
+					{ text: request.question },
+					...request.files.map((file) => ({
+						inlineData: {
+							mimeType: file.contentType,
+							data: file.buffer.toString("base64"),
+						},
+					})),
+				]
+			: request.question;
 
-		const contents = [{ text: request.question }, ...parts];
-
-		return contents;
-	} else {
-		return request.question;
+	if (!request.messages || request.messages.length === 0) {
+		return opening;
 	}
+
+	const contents: Content[] = [
+		{
+			role: "user",
+			parts: typeof opening === "string" ? [{ text: opening }] : (opening as Part[]),
+		},
+	];
+
+	for (const message of request.messages) {
+		if (message.role === "assistant") {
+			// `PromptRunSchema` permits an assistant message with no tool calls, and the
+			// text is meaningful even when there are: dropping it left `parts: []`, a
+			// payload Gemini rejects, so a valid request could only fail at the provider.
+			const parts: Part[] = [];
+			if (message.content) {
+				parts.push({ text: message.content });
+			}
+			for (const call of message.toolCalls ?? []) {
+				parts.push({ functionCall: { name: call.name, args: call.args } });
+			}
+			contents.push({
+				role: "model",
+				// An empty text part still beats an empty parts array.
+				parts: parts.length > 0 ? parts : [{ text: "" }],
+			});
+		} else if (message.role === "user") {
+			contents.push({
+				role: "user",
+				parts: [{ text: message.content }],
+			});
+		} else {
+			contents.push({
+				role: "user",
+				parts: [
+					{
+						functionResponse: {
+							name: message.name,
+							response: { result: message.content },
+						},
+					},
+				],
+			});
+		}
+	}
+
+	return contents;
 }
 
 function mapReasoningEffortToGeminiThinkingLevel(

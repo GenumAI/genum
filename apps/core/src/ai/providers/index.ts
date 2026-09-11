@@ -15,10 +15,36 @@ export type ProviderRequest = {
 	promptPrice: number;
 	completionPrice: number;
 	baseUrl?: string; // For custom OpenAI-compatible providers
+	messages?: ConversationMessage[];
 };
+
+/**
+ * One tool call, in the same shape for every vendor. Each provider returns tool calls
+ * differently -- OpenAI as `function_call` items, Anthropic as `tool_use` blocks,
+ * DeepSeek as `tool_calls`, Gemini as `functionCall` parts -- and each used to flatten
+ * them into `answer` as vendor-specific JSON, which is why an assertion on an argument
+ * was impossible.
+ */
+export type ToolCall = {
+	id: string;
+	name: string;
+	args: Record<string, unknown>;
+};
+
+/**
+ * Turns after the opening question. Absent for a single-shot run, which is every
+ * caller that existed before agentic replay.
+ */
+export type ConversationMessage =
+	| { role: "assistant"; content: string; toolCalls?: ToolCall[] }
+	| { role: "tool"; toolCallId: string; name: string; content: string }
+	/** A reply the human typed after the model answered -- the next turn's question. */
+	| { role: "user"; content: string };
 
 export type ProviderResponse = {
 	answer: string;
+	/** Present when the model asked for tools. `answer` keeps its legacy value regardless. */
+	toolCalls?: ToolCall[];
 	tokens: {
 		prompt: number;
 		completion: number;

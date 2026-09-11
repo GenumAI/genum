@@ -257,6 +257,9 @@ export class PromptsRepository {
 			data: {
 				name: data.name,
 				value: data.value,
+				// Omitted leaves the column's own default (XML), which is what every prompt
+				// that existed before this field has.
+				...(data.instructionFormat ? { instructionFormat: data.instructionFormat } : {}),
 				languageModelConfig,
 				languageModel: {
 					connect: {
@@ -273,6 +276,30 @@ export class PromptsRepository {
 						name: "master",
 					},
 				},
+				// Nested, so the prompt and its placeholders are one write. The caller
+				// commits immediately after this returns, and `commit()` snapshots the LIVE
+				// placeholder tables -- so a prompt that reached the commit without its
+				// placeholders would be committed with an empty snapshot, and every
+				// `productive=true` read of it would report a prompt with no definitions
+				// while its text is full of holes. Creating them afterwards cannot fix that
+				// without a second commit.
+				...(data.placeholders && data.placeholders.length > 0
+					? {
+							placeholders: {
+								create: data.placeholders.map((placeholder) => ({
+									key: placeholder.key,
+									description: placeholder.description ?? null,
+									values: {
+										create: placeholder.values.map((value) => ({
+											name: value.name,
+											content: value.content,
+											isDefault: value.isDefault ?? false,
+										})),
+									},
+								})),
+							},
+						}
+					: {}),
 			},
 		});
 	}
@@ -754,6 +781,14 @@ export class PromptsRepository {
 					name: "master",
 					promptId,
 				},
+			},
+			// The commit pins `languageModelId`, so the model it was committed with is a
+			// property of the commit, not of the prompt row. Without this include, a caller
+			// serving the committed text alongside the prompt's LIVE `languageModel` reports
+			// a text and a model that were never used together -- the prompt's model can be
+			// changed in the editor long after the commit was cut.
+			include: {
+				languageModel: true,
 			},
 			orderBy: {
 				id: "desc",

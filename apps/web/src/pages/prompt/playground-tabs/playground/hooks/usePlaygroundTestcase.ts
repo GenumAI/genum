@@ -3,8 +3,10 @@ import type { PromptResponse } from "@/api/prompt";
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import type { UpdateExpected } from "@/pages/prompt/playground-tabs/playground/components/outputs/Output";
 import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
+import { withFinalText } from "@/lib/trajectoryEdits";
 import type { TestCase } from "@/types/TestСase";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Step } from "@/types/steps";
+import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import usePlaygroundStore from "@/stores/playground.store";
 
@@ -120,6 +122,7 @@ export function usePlaygroundTestcaseController({
 		mutationFn: async (updateData: {
 			expectedOutput: string;
 			expectedChainOfThoughts: string;
+			expectedSteps?: Step[];
 		}) => {
 			if (!testcaseId) return;
 			return testcasesApi.updateTestcase(testcaseId, updateData);
@@ -145,6 +148,21 @@ export function usePlaygroundTestcaseController({
 		if (!testcaseId || !testcases.length) return null;
 		return testcases.find((tc) => tc.id === Number(testcaseId)) || null;
 	}, [testcases, testcaseId]);
+
+	// `testcase` comes from the query cache, which only learns about a trajectory edit once
+	// that edit's PUT resolves. Between the click and the response our copy of
+	// `expectedSteps` is known to be behind, so the expected-output save must not write it.
+	//
+	// Since the conversation thread replaced the two surfaces that each wrote the whole
+	// array, `expectedSaveFor` routes a trajectory testcase's expected answer to
+	// `setStepText` and a text testcase's to this handler, so the two writers are now
+	// mutually exclusive and the collision this guards against cannot occur. The guard
+	// stays: its cost is one boolean, and it is the only thing standing between a future
+	// caller that routes a trajectory save back through here and a silently reverted
+	// untick. A guard removed because "nothing calls it that way today" is a guard the
+	// next feature has to rediscover the hard way.
+	const trajectoryWriteInFlight =
+		useIsMutating({ mutationKey: testcaseKeys.updateTrajectory(testcaseId ?? undefined) }) > 0;
 
 	// The playground's placeholder chips are seeded from the selected testcase's pinned
 	// selection (Task 8) so the chips show -- and the run sends -- what will actually be
@@ -318,10 +336,40 @@ export function usePlaygroundTestcaseController({
 			}
 
 			try {
-				const updateData = {
+				const updateData: {
+					expectedOutput: string;
+					expectedChainOfThoughts: string;
+					expectedSteps?: Step[];
+				} = {
 					expectedOutput: newExpectedContent.answer,
 					expectedChainOfThoughts: currentExpectedThoughts || "",
 				};
+
+				// For a trajectory testcase the final step IS the expected answer -- and
+				// `withFinalText` targets the step the SERVER will read it back from (the
+				// last enabled final of the effective list), so on a truncated session the
+				// author's typing lands in the live turn instead of a dead one the server
+				// then recomputes over. The verdict itself comes from the step comparison
+				// and never reads expectedOutput.
+				// Writing only the field the author can see would change nothing the test
+				// checks. expectedOutput is written too, so the text testcase underneath
+				// is already correct if the trajectory is later removed.
+				// ...unless the TrajectoryPanel has a write of its own in flight. Both
+				// surfaces send the WHOLE array, so ours is a read-modify-write over a copy
+				// that the in-flight edit has already superseded: sending it would revert
+				// the step the author just unticked, and the later PUT wins. Skipping the
+				// step sync costs one stale final-step text, which the next save corrects;
+				// sending it silently undoes an explicit action, which nothing corrects.
+				const steps = trajectoryWriteInFlight ? undefined : testcase?.expectedSteps;
+				if (Array.isArray(steps) && steps.length > 0) {
+					const next = withFinalText(steps, newExpectedContent.answer);
+					// Identity means there was no final step to rewrite: a trajectory whose
+					// last turn still asked for a tool. Sending the unchanged array would
+					// be a pointless write.
+					if (next !== steps) {
+						updateData.expectedSteps = next;
+					}
+				}
 
 				await updateExpectedAsync(updateData);
 			} catch (error) {
@@ -332,7 +380,9 @@ export function usePlaygroundTestcaseController({
 			currentExpectedThoughts,
 			setExpectedOutput,
 			storeOutputContent,
+			testcase,
 			testcaseId,
+			trajectoryWriteInFlight,
 			updateExpectedAsync,
 		],
 	);

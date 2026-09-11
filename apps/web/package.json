@@ -12,7 +12,9 @@
     "preview": "vite preview",
     "deploy": "npx wrangler deploy --assets=./dist",
     "lint": "eslint . --ext .ts,.tsx",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix"
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "test:run": "vitest run",
+    "test": "vitest"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.16.2",
@@ -82,6 +84,7 @@
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.24.1",
     "vite": "^6.4.3",
-    "vite-plugin-svgr": "^4.3.0"
+    "vite-plugin-svgr": "^4.3.0",
+    "vitest": "^4.1.10"
   }
 }

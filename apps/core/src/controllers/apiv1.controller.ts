@@ -3,17 +3,22 @@ import {
 	GetPromptQuerySchema,
 	numberSchema,
 	PromptCreateSchema,
+	RenderPromptSchema,
 	RunPromptSchema,
 } from "@/services/validate";
 import { db } from "@/database/db";
 import { runPrompt } from "@/ai/runner/run";
 import { mergePlaceholderInput } from "@/ai/placeholders/merge-input";
+import { toPlaceholderDefinitions } from "@/ai/placeholders/definitions";
+import { placeholderCoverage } from "@/ai/placeholders/coverage";
+import { shapeInstruction } from "@/ai/runner/instruction";
+import { renderPlaceholders } from "@genum/placeholders";
 import { SourceType } from "@/services/logger";
 import { PromptService } from "@/services/prompt.service";
 import type { FileInput } from "@/services/file.service";
-import { extractBearerToken } from "@/utils/http";
 import { env } from "@/env";
 import { HttpError } from "@/utils/errors";
+import { resolveApiKey } from "@/auth/apiKey";
 import type { PlaceholderDefinition } from "@genum/placeholders";
 
 export class ApiV1Controller {
@@ -26,25 +31,9 @@ export class ApiV1Controller {
 	}
 
 	private async verifyRequest(req: Request) {
-		const apiKey = extractBearerToken(req.headers.authorization);
-		if (!apiKey) {
-			throw new HttpError(
-				401,
-				"Invalid or missing Authorization header. Expected: Bearer <token>",
-			);
-		}
-
-		const key = await db.project.getProjectApiKeyByToken(apiKey);
-		if (!key) {
-			throw new HttpError(401, "Invalid API key");
-		}
-
-		const project = await db.project.getProjectbyApiKeyById(key.id);
-		if (!project) {
-			throw new HttpError(404, "Project not found");
-		}
-
-		return { project, key };
+		// Moved to `@/auth/apiKey` so OTLP ingest authenticates through the same code
+		// rather than a second copy of it. Status codes and messages are unchanged.
+		return resolveApiKey(req.headers.authorization);
 	}
 
 	private parseApiFiles(files: { fileName: string; contentType: string; base64: string }[]) {
@@ -197,19 +186,116 @@ export class ApiV1Controller {
 			return res.status(404).json({ error: "Prompt not found" });
 		}
 
+		// Names the version the returned text came from, so a caller can stamp what it ran
+		// on its own records and a later replay can be told apart from it. `null` says the
+		// draft is being served -- which is a fact about this response, not a missing field,
+		// so it is reported rather than omitted.
+		let commitHash: string | null = null;
+		let placeholderDefinitions: PlaceholderDefinition[] | undefined;
+
 		if (productive) {
 			const promptWithCommit =
 				await this.promptService.getPromptWithProductiveCommit(userPrompt);
 			if (promptWithCommit) {
 				userPrompt = promptWithCommit;
+				commitHash = promptWithCommit.commitHash ?? null;
+				placeholderDefinitions = promptWithCommit.placeholderDefinitions;
 			}
+		}
+
+		// The draft case -- `productive=false`, or a prompt with no commit yet. The
+		// definitions are then whatever the placeholder tables hold now, which is exactly
+		// what a run of this prompt would render with. Omitting them made the response
+		// describe a prompt whose `{{placeholders}}` the caller had no way to resolve, and
+		// left it unable to tell a prompt with no placeholders from one it could not see.
+		if (placeholderDefinitions === undefined) {
+			placeholderDefinitions = toPlaceholderDefinitions(
+				await db.placeholders.getPlaceholdersByPromptID(userPrompt.id),
+			);
 		}
 
 		const { languageModel, ...prompt } = userPrompt;
 		const publicUrl = this.buildPromptPublicUrl(project.organizationId, project.id, prompt.id);
 
 		// return prompt with languageModel
-		res.status(200).json({ ...prompt, languageModel, publicUrl });
+		res.status(200).json({
+			...prompt,
+			languageModel,
+			placeholderDefinitions,
+			commitHash,
+			publicUrl,
+		});
+	}
+
+	/**
+	 * `POST /prompts/:id/render` -- the instruction Lab would send, without sending it.
+	 *
+	 * Exists because a caller running its own agent loop otherwise has to re-implement two
+	 * things to reach the same string: placeholder rendering, and the instruction transform
+	 * (`shapeInstruction`). Both were invisible from outside, so such a caller sent the raw
+	 * prompt text to its model while a Lab replay of that same session sent the transformed
+	 * version -- the replay was quietly running a differently shaped instruction than the
+	 * traffic it was meant to reproduce. Returning the exact string keeps the two identical
+	 * by construction rather than by two implementations agreeing.
+	 *
+	 * `commitHash` names the version rendered, so the caller can stamp it on its traces and
+	 * a later replay can be told whether it ran the same one.
+	 */
+	async renderPrompt(req: Request, res: Response) {
+		const { project } = await this.verifyRequest(req);
+
+		const id = numberSchema.parse(req.params.id);
+		const { placeholders, productive } = RenderPromptSchema.parse(req.body ?? {});
+
+		let prompt = await db.prompts.getPromptByIdSimpleFromProject(project.id, id);
+		if (!prompt) {
+			return res.status(404).json({ error: "Prompt not found" });
+		}
+
+		let commitHash: string | null = null;
+		let definitions: PlaceholderDefinition[] | undefined;
+
+		if (productive) {
+			const withCommit = await this.promptService.getPromptWithProductiveCommit(prompt);
+			if (withCommit) {
+				prompt = withCommit;
+				commitHash = withCommit.commitHash ?? null;
+				definitions = withCommit.placeholderDefinitions;
+			}
+		}
+
+		// Absent means the draft is being served -- the same fall-through `run.ts` does, so
+		// this endpoint renders with whatever a run of this prompt would render with.
+		if (definitions === undefined) {
+			definitions = toPlaceholderDefinitions(
+				await db.placeholders.getPlaceholdersByPromptID(prompt.id),
+			);
+		}
+
+		const render = renderPlaceholders(prompt.value, definitions, placeholders ?? {});
+
+		const { languageModel, ...rest } = prompt;
+
+		res.status(200).json({
+			// Exactly what the provider would receive. `systemPrompt` is deliberately not
+			// offered: it wraps the text in `<system_prompt>` for Lab's own internal
+			// prompts, and no API key can address one of those.
+			instruction: shapeInstruction(render.text, prompt.instructionFormat ?? "XML"),
+			instructionFormat: rest.instructionFormat,
+			languageModel,
+			languageModelConfig: rest.languageModelConfig,
+			commitHash,
+			placeholders: {
+				resolved: render.resolved,
+				// Reported, not silently dropped: `ignored` is a selection that named a
+				// value or a key this prompt does not have, and `undefinedKeys` is a hole
+				// nothing defines. Both still render -- the first falls back to the
+				// default, the second stays as literal `{{key}}` -- so neither fails the
+				// call, and neither is visible unless it is said here.
+				ignored: render.ignored,
+				undefinedKeys: render.undefinedKeys,
+			},
+		});
 	}
 
 	async createPrompt(req: Request, res: Response) {
@@ -218,6 +304,11 @@ export class ApiV1Controller {
 		const { languageModelName, languageModelConfig, ...promptData } = PromptCreateSchema.parse(
 			req.body,
 		);
+
+		// Computed before the write so a payload whose text and definitions disagree is
+		// reported alongside the prompt it created, not left for the caller to discover
+		// when the model reads a literal `{{key}}`.
+		const placeholders = placeholderCoverage(promptData.value, promptData.placeholders ?? []);
 
 		const resolvedModel = await this.promptService.resolvePromptModelOverride(
 			project.organizationId,
@@ -235,10 +326,12 @@ export class ApiV1Controller {
 		);
 
 		// An uncommitted prompt has no productive version, so the API could not run
-		// what it just created — commit immediately, as the seed does.
+		// what it just created — commit immediately, as the seed does. The placeholders
+		// were created with the prompt above, so this snapshots them; created after this
+		// line they would be absent from the snapshot every productive read serves.
 		await db.prompts.commit(prompt.id, "Initial commit", key.authorId);
 		const committed = await db.prompts.changePromptCommitStatus(prompt.id, true);
 
-		res.status(200).json({ prompt: committed });
+		res.status(200).json({ prompt: committed, placeholders });
 	}
 }

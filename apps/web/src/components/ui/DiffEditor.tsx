@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { DiffEditor, DiffEditorProps, DiffOnMount, useMonaco } from "@monaco-editor/react";
+import {
+	DiffEditor,
+	type DiffEditorProps,
+	type DiffOnMount,
+	useMonaco,
+} from "@monaco-editor/react";
 import { parseJson } from "@/lib/jsonUtils";
 import type { editor } from "monaco-editor";
 import { useTheme } from "@/components/theme/theme-provider";
@@ -17,6 +22,13 @@ type CompareDiffEditorProps = DiffEditorProps & {
 	onBlur?: (value: string) => void;
 	renderOverviewRuler?: boolean;
 	maxHeight?: number;
+	/**
+	 * Floor for the auto-grown height, paired with `maxHeight`. Without one, a one-line
+	 * diff sizes itself to a single line of content and the editor's own chrome -- ruler,
+	 * scrollbar, padding -- has nowhere to go, which reads as a broken box rather than a
+	 * short answer. Ignored unless `maxHeight` is set, since only then is the height ours.
+	 */
+	minHeight?: number;
 	surfaceToken?: DiffSurfaceToken;
 };
 
@@ -25,6 +37,7 @@ const LoadedCompareDiffEditor = ({
 	onBlur,
 	renderOverviewRuler = true,
 	maxHeight,
+	minHeight = 0,
 	loading,
 	surfaceToken = "--background",
 	...props
@@ -45,7 +58,14 @@ const LoadedCompareDiffEditor = ({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const onChangeRef = useRef(onChange);
 	const onBlurRef = useRef(onBlur);
-	const [editorHeight, setEditorHeight] = useState<number | string>("100%");
+	// `"100%"` fills whatever box the caller gave the editor -- the dialogs' behaviour, and
+	// the reason this default stays. Auto-grown instances (`maxHeight`) have no such box:
+	// their parent's height IS this number, so starting at `"100%"` would resolve against
+	// an auto-height parent, lay the editor out at zero, and leave nothing for the content
+	// listener to measure. They start at a real height instead and are corrected on mount.
+	const [editorHeight, setEditorHeight] = useState<number | string>(
+		maxHeight ? minHeight || maxHeight : "100%",
+	);
 
 	const original = useMemo(() => parseJson(props.original || ""), [props.original]);
 	const modified = useMemo(() => parseJson(props.modified || ""), [props.modified]);
@@ -103,7 +123,7 @@ const LoadedCompareDiffEditor = ({
 		const originalHeight = originalEditor.getContentHeight();
 		const modifiedHeight = modifiedEditor.getContentHeight();
 		const contentHeight = Math.max(originalHeight, modifiedHeight);
-		const calculatedHeight = Math.min(contentHeight, maxHeight);
+		const calculatedHeight = Math.min(Math.max(contentHeight, minHeight), maxHeight);
 
 		setEditorHeight((prevHeight) => {
 			if (calculatedHeight !== prevHeight) {
@@ -188,6 +208,11 @@ const LoadedCompareDiffEditor = ({
 			theme={monacoTheme}
 			height={typeof editorHeight === "number" ? `${editorHeight}px` : editorHeight}
 			loading={loading ?? null}
+			{...props}
+			// AFTER the spread, and merged rather than replaced. A caller passing `options`
+			// means "these few, on top of the house style"; taking the prop as-is would
+			// silently drop every default below -- word wrap, layout, the lot -- for
+			// whoever asked to turn off a minimap.
 			options={{
 				renderSideBySide: true,
 				enableSplitViewResizing: false,
@@ -217,8 +242,8 @@ const LoadedCompareDiffEditor = ({
 				},
 				padding: { top: 0, bottom: 0 },
 				lineHeight: 18,
+				...props.options,
 			}}
-			{...props}
 			original={original}
 			modified={modified}
 			onMount={handleEditorDidMount}

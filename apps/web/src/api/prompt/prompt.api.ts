@@ -3,6 +3,7 @@ import type { ApiRequestConfig } from "../client";
 import type { PromptSettings, TLanguageModel, TestcaseStatuses } from "@/types/Prompt";
 import type { TestCase } from "@/types/TestСase";
 import type { ResponseModelConfig } from "@/types/AIModel";
+import type { ConversationMessage, ToolCall } from "@/types/steps";
 import type { Log, LogDetail, LogsResponse } from "@/types/logs";
 
 export interface PromptResponse {
@@ -27,6 +28,14 @@ export interface PromptResponse {
 		ignored: string[];
 		undefinedKeys: string[];
 	};
+	/** Present when the model asked for tools instead of answering directly. */
+	toolCalls?: ToolCall[];
+	/**
+	 * The trace tying the turns of one trajectory together. Minted by the server on the
+	 * turn that first calls a tool; absent for a run that called none. Echo it back on
+	 * every continuation so the turns are logged as one run, not N.
+	 */
+	traceId?: string;
 }
 
 // ============================================================================
@@ -74,6 +83,13 @@ export interface RunPromptData {
 	question?: string;
 	files?: string[];
 	placeholders?: Record<string, string>;
+	/**
+	 * Turns after the opening question, for an agentic run: the tool calls the model made
+	 * and the results the author supplied for them. Absent for a single-shot run.
+	 */
+	messages?: ConversationMessage[];
+	/** Required whenever `messages` is sent: the trace the first turn returned. */
+	traceId?: string;
 }
 
 export interface AuditResponse {

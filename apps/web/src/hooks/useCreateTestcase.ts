@@ -1,6 +1,8 @@
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { useMutation } from "@tanstack/react-query";
 
+import type { Step, StepsConfig } from "@/types/steps";
+
 export interface TestcasePayload {
 	promptId: number;
 	input: string;
@@ -9,6 +11,17 @@ export interface TestcasePayload {
 	name?: string;
 	files?: string[];
 	placeholders?: Record<string, string>;
+	/**
+	 * The trajectory steps this testcase pins, copied out of a recorded trace. The
+	 * backend rejects an empty array (`StepsSchema.min(1)`) on purpose -- a trajectory
+	 * testcase that pins nothing can never fail -- so leave the field unset for a plain
+	 * text testcase rather than sending `[]`.
+	 */
+	expectedSteps?: Step[];
+	stepsConfig?: StepsConfig;
+	/** See `CreateTestcaseData.offeredTools`: unset means the recording never said. */
+	offeredTools?: string[];
+	pinnedSelectionDrift?: boolean;
 }
 
 export interface CreateTestcaseResult {

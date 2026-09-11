@@ -11,6 +11,7 @@ import { LogsTable } from "../prompt/playground-tabs/logs/components/LogsTable";
 import { LogsFilter } from "./components/LogsFilter";
 import { LogDetailsDialog } from "@/pages/prompt/playground-tabs/logs/components/LogDetailsDialog";
 import { useAddTestcaseFromLog } from "@/pages/prompt/playground-tabs/logs/hooks/useAddTestcaseFromLog";
+import { TestcaseStepPickerDialog } from "@/components/dialogs/TestcaseStepPickerDialog";
 import { useLogDetail } from "@/pages/prompt/playground-tabs/logs/hooks/useLogDetail";
 import { useLogsFilters } from "@/pages/prompt/playground-tabs/logs/hooks/useLogsFilters";
 import { useLogsPagination } from "@/pages/prompt/playground-tabs/logs/hooks/useLogsPagination";
@@ -47,7 +48,7 @@ export function LogsPage() {
 		enabled: isLogDetailsOpen,
 	});
 
-	const { handleAddTestcaseFromLog, creatingTestcase } = useAddTestcaseFromLog({
+	const { handleAddTestcaseFromLog, creatingTestcase, stepPicker } = useAddTestcaseFromLog({
 		promptId: selectedPromptId,
 		selectedLog,
 		logDetail,
@@ -171,6 +172,8 @@ export function LogsPage() {
 				promptNames={promptNames}
 				isSinglePromptPage={false}
 			/>
+
+			{stepPicker.open && <TestcaseStepPickerDialog {...stepPicker} />}
 		</div>
 	);
 }
