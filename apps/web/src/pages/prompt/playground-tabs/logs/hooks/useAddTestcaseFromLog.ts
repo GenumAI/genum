@@ -6,6 +6,8 @@ import { useCreateTestcase } from "@/hooks/useCreateTestcase";
 import { projectApi } from "@/api/project";
 import { promptApi } from "@/api/prompt/prompt.api";
 import { isSingleAnswer, spansToSteps } from "@/lib/spansToSteps";
+import { sessionSelections } from "@/lib/sessionSelections";
+import type { SessionSelections } from "@/lib/sessionSelections";
 import type { Log, LogDetail } from "@/types/logs";
 import type { Step } from "@/types/steps";
 import { logsKeys } from "@/query-keys/logs.keys";
@@ -15,6 +17,18 @@ import { testcaseKeys } from "@/query-keys/testcases.keys";
 const NO_STEPS: Step[] = [];
 /** Same reasoning as `NO_STEPS`, for the closed-picker default of `unreadableArgsIndices`. */
 const NO_UNREADABLE_ARGS: Set<number> = new Set();
+/**
+ * A session that recorded nothing about what it ran with -- which is every run that
+ * predates those attributes, and every log row with no trace behind it at all. The pin
+ * then falls back to the log row's own placeholders and leaves the tool subset unset, so
+ * the testcase runs with the prompt's whole list exactly as it always did.
+ */
+const NOTHING_RECORDED: SessionSelections = {
+	placeholders: {},
+	offeredTools: null,
+	promptVersion: "",
+	drifted: false,
+};
 
 interface UseAddTestcaseFromLogParams {
 	promptId?: number;
@@ -41,6 +55,8 @@ export function useAddTestcaseFromLog({
 		steps: Step[];
 		unreadableArgsIndices: Set<number>;
 		promptId: number;
+		/** What the recorded session was run with; see `sessionSelections`. */
+		selections: SessionSelections;
 		/**
 		 * The payload, captured at click time. A list row carries no `in`/`out` any more,
 		 * so the detail is what a testcase is actually made of -- and capturing it here
@@ -70,6 +86,11 @@ export function useAddTestcaseFromLog({
 		async (
 			detail: LogDetail,
 			targetPromptId: number,
+			// What the recording was run with. A session whose sender recorded its
+			// placeholder selection and tool subset pins THOSE: replaying a restricted
+			// session against the prompt's defaults and its whole tool list is a different
+			// run, and its differences read as prompt regressions the author never caused.
+			selections: SessionSelections,
 			expectedSteps?: Step[],
 			// Set when the log carried a trace_id but no steps ended up pinned -- the author
 			// asked for tool-call assertions and is about to get a plain text testcase
@@ -81,12 +102,25 @@ export function useAddTestcaseFromLog({
 			traceIssue?: "failed" | "no-turn",
 		) => {
 			try {
+				const recordedSelection =
+					Object.keys(selections.placeholders).length > 0
+						? selections.placeholders
+						: undefined;
+
 				const { ok, unresolvedPlaceholders } = await createTestcase({
 					promptId: targetPromptId,
 					input: detail.in || "",
 					expectedOutput: detail.out || "",
 					lastOutput: detail.out || "",
-					placeholders: detail.placeholders ?? {},
+					// The trace's own selection wins over the log row's when it has one:
+					// the log row records what OUR run resolved, while an ingested
+					// session's selection is the sender's and exists nowhere else.
+					placeholders: recordedSelection ?? detail.placeholders ?? {},
+					// Only sent when the recording said. Unset leaves the column null, and
+					// a run with it null offers the prompt's whole tool list -- which is
+					// what every recording that predates these attributes ran with.
+					...(selections.offeredTools ? { offeredTools: selections.offeredTools } : {}),
+					...(selections.drifted ? { pinnedSelectionDrift: true } : {}),
 					// Left unset for a text testcase: the backend rejects an empty array,
 					// and a testcase that pins no steps is a text testcase by definition.
 					...(expectedSteps && expectedSteps.length > 0
@@ -104,6 +138,11 @@ export function useAddTestcaseFromLog({
 						);
 					} else if (traceIssue === "no-turn") {
 						notes.push("this run recorded no steps, so no steps were pinned");
+					}
+					if (selections.drifted) {
+						notes.push(
+							"a later turn ran with different placeholders or tools, so turn 1's were pinned",
+						);
 					}
 					if (unresolvedPlaceholders.length > 0) {
 						notes.push(
@@ -154,6 +193,7 @@ export function useAddTestcaseFromLog({
 		if (selectedLog.trace_id) {
 			let steps: Step[] = [];
 			let unreadableArgsIndices: Set<number> = NO_UNREADABLE_ARGS;
+			let selections: SessionSelections = NOTHING_RECORDED;
 			let fetchFailed = false;
 			try {
 				const { spans } = await queryClient.fetchQuery({
@@ -161,6 +201,7 @@ export function useAddTestcaseFromLog({
 					queryFn: () => projectApi.getTraceSpans(selectedLog.trace_id as string),
 				});
 				({ steps, unreadableArgsIndices } = spansToSteps(spans));
+				selections = sessionSelections(spans);
 			} catch (error) {
 				// The trajectory is telemetry and ages out; the testcase is product data.
 				// A trace we cannot read is a reason to fall back to a text testcase, not
@@ -179,6 +220,7 @@ export function useAddTestcaseFromLog({
 					steps,
 					unreadableArgsIndices,
 					promptId: targetPromptId,
+					selections,
 					detail: logDetail,
 				});
 				return;
@@ -193,13 +235,16 @@ export function useAddTestcaseFromLog({
 			await submit(
 				logDetail,
 				targetPromptId,
+				selections,
 				undefined,
 				fetchFailed ? "failed" : steps.length === 0 ? "no-turn" : undefined,
 			);
 			return;
 		}
 
-		await submit(logDetail, targetPromptId);
+		// A log with no trace has no recording to read a selection off: the log row's own
+		// placeholders are the whole story, and `submit` falls back to them.
+		await submit(logDetail, targetPromptId, NOTHING_RECORDED);
 	}, [logDetail, promptId, queryClient, selectedLog, submit]);
 
 	const confirmSteps = useCallback(
@@ -207,7 +252,7 @@ export function useAddTestcaseFromLog({
 			if (!pending) return;
 			// Unticked steps ride along so the testcase still shows what was ignored;
 			// `compareSteps` skips them.
-			const ok = await submit(pending.detail, pending.promptId, steps);
+			const ok = await submit(pending.detail, pending.promptId, pending.selections, steps);
 			if (ok) setPending(null);
 		},
 		[pending, submit],

@@ -867,6 +867,13 @@ export async function getSessionSpans(
 			// A row written before the column existed reads back as `genum`, which is what
 			// it is: everything predating OTLP ingest is our own run.
 			source: (row.source ?? "genum") as SpanRow["source"],
+			// Empty means the turn never recorded what it ran with, which is the only
+			// honest reading of a row written before these columns existed. Every consumer
+			// treats empty as "use what you would have used anyway" rather than as an
+			// instruction to run with nothing.
+			placeholders: row.placeholders ?? {},
+			tools_offered: row.tools_offered ?? [],
+			prompt_version: row.prompt_version ?? "",
 		}));
 	} catch (error) {
 		console.error("Error getting trace spans from ClickHouse:", error);

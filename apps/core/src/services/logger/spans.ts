@@ -53,6 +53,24 @@ export type SpanRow = {
 	 * which, because this table is append-only.
 	 */
 	source: SpanSource;
+	/**
+	 * What this turn was run WITH, as its sender recorded it. Empty means "not recorded",
+	 * never "none" -- every row written before these columns existed, and every sender that
+	 * supplies no such attribute, reads back empty and must keep replaying the way it did
+	 * before rather than suddenly replay with no tools and default placeholder values.
+	 *
+	 * `placeholders` maps a key to the NAME of the value it resolved to, not to that
+	 * value's content: the content belongs to the prompt and can be edited afterwards,
+	 * while the selection is what the turn actually made. Same shape, same reasoning, as
+	 * the column of the same name on `logs`.
+	 *
+	 * `tools_offered` is names only. The definitions are the prompt's; a replay needs to
+	 * know which subset was on the table, not to rebuild them from the trace.
+	 */
+	placeholders: Record<string, string>;
+	tools_offered: string[];
+	/** `commitHash` of the prompt version this turn rendered from, when the sender said. */
+	prompt_version: string;
 };
 
 export type SpanSource = "genum" | "otlp";
@@ -157,5 +175,12 @@ export function toSpanRows(batch: SpanBatch): SpanRow[] {
 		duration_ms: 0,
 		status: "OK",
 		source: batch.source ?? "genum",
+		// Empty for our own runs. A Genum run's placeholder selection is already on its
+		// `logs` row and its tool list is the prompt's current one, so nothing here is
+		// lost by leaving these unset -- unlike an ingested turn, whose sender is the only
+		// party that ever knew what it ran with.
+		placeholders: {},
+		tools_offered: [],
+		prompt_version: "",
 	}));
 }

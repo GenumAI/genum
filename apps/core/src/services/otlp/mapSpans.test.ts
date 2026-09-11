@@ -580,3 +580,129 @@ describe("openingQuestion", () => {
 		expect(openingQuestion(JSON.stringify([{ role: "assistant", content: "hi" }]))).toBe("");
 	});
 });
+
+describe("what the turn was run with", () => {
+	function chatWith(pairs: Record<string, string>): OtlpSpan {
+		return { ...CHAT, attributes: [...(CHAT.attributes ?? []), ...attrs(pairs)] };
+	}
+
+	it("records the placeholder selections and the prompt version the turn used", () => {
+		const { rows } = mapOtlpSpans(
+			payload(
+				chatWith({
+					"genum.prompt.placeholders": JSON.stringify({
+						admin_role: "true",
+						tone: "formal",
+					}),
+					"genum.prompt.version": "c0ffee1",
+				}),
+			),
+			CONTEXT,
+		);
+
+		expect(rows[0].placeholders).toEqual({ admin_role: "true", tone: "formal" });
+		expect(rows[0].prompt_version).toBe("c0ffee1");
+	});
+
+	it("records nothing when the sender said nothing", () => {
+		// Empty is "not recorded", never "none": these rows must keep replaying the way
+		// every row written before these columns existed does.
+		const { rows } = mapOtlpSpans(payload(CHAT), CONTEXT);
+
+		expect(rows[0].placeholders).toEqual({});
+		expect(rows[0].tools_offered).toEqual([]);
+		expect(rows[0].prompt_version).toBe("");
+	});
+
+	it("drops a selection that is not an object of strings rather than storing half of it", () => {
+		// A half-read selection is worse than none: no selection falls back to the
+		// prompt's defaults visibly, a half-read one pins some keys and defaults the rest.
+		const broken = mapOtlpSpans(
+			payload(chatWith({ "genum.prompt.placeholders": "{not json" })),
+			CONTEXT,
+		);
+		expect(broken.rows[0].placeholders).toEqual({});
+
+		const mixed = mapOtlpSpans(
+			payload(
+				chatWith({
+					"genum.prompt.placeholders": JSON.stringify({ ok: "yes", bad: { a: 1 } }),
+				}),
+			),
+			CONTEXT,
+		);
+		expect(mixed.rows[0].placeholders).toEqual({ ok: "yes" });
+	});
+
+	it("takes the offered tools from the conventions' own attribute, in either encoding", () => {
+		// `gen_ai.tool.definitions` is the GenAI conventions' attribute for the tools
+		// available to the model, so a sender instrumented to the spec needs no
+		// Genum-specific attribute at all.
+		const definitions = mapOtlpSpans(
+			payload(
+				chatWith({
+					"gen_ai.tool.definitions": JSON.stringify([
+						{ type: "function", name: "search_mail", description: "..." },
+						{ type: "function", function: { name: "send_mail" } },
+					]),
+				}),
+			),
+			CONTEXT,
+		);
+		expect(definitions.rows[0].tools_offered).toEqual(["search_mail", "send_mail"]);
+
+		const native = mapOtlpSpans(
+			payload({
+				...CHAT,
+				attributes: [
+					...(CHAT.attributes ?? []),
+					{
+						key: "gen_ai.tool.definitions",
+						value: {
+							arrayValue: {
+								values: [
+									{ stringValue: "search_mail" },
+									{ stringValue: "send_mail" },
+								],
+							},
+						},
+					},
+				],
+			}),
+			CONTEXT,
+		);
+		expect(native.rows[0].tools_offered).toEqual(["search_mail", "send_mail"]);
+	});
+
+	it("falls back to the names-only attribute, which is all a replay needs", () => {
+		// The definitions belong to the prompt; the trace only has to say which subset of
+		// them was on the table.
+		const { rows } = mapOtlpSpans(
+			payload(chatWith({ "genum.tools.offered": JSON.stringify(["search_mail"]) })),
+			CONTEXT,
+		);
+
+		expect(rows[0].tools_offered).toEqual(["search_mail"]);
+	});
+
+	it("gives the derived user reply the selections of the turn it opens", () => {
+		// The reply is a row of the same turn, and a pin reads the turn's rows without
+		// caring which one carried the attribute.
+		const { rows } = mapOtlpSpans(
+			payload(
+				chatWith({
+					"genum.prompt.placeholders": JSON.stringify({ admin_role: "true" }),
+					"gen_ai.input.messages": JSON.stringify([
+						{ role: "user", content: "opening question" },
+						{ role: "assistant", content: "an answer" },
+						{ role: "user", content: "and then?" },
+					]),
+				}),
+			),
+			CONTEXT,
+		);
+
+		expect(rows[0].span_type).toBe("user");
+		expect(rows[0].placeholders).toEqual({ admin_role: "true" });
+	});
+});

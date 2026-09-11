@@ -15,6 +15,8 @@ import { db } from "@/database/db";
 import { callPromptModel, runPrompt } from "@/ai/runner/run";
 import { compareSteps, type StepMismatch } from "@/ai/steps/compare";
 import { maxStepsForRecording, replayTrajectory } from "@/ai/steps/replay";
+import { readOfferedTools, restrictTools } from "@/ai/runner/tools";
+import type { ModelConfigParameters } from "@/ai/models/types";
 import { effectiveSteps, lastEnabledFinal, turnsOf } from "@/ai/steps/session";
 import { hasEnabledStep, StepsSchema, StepsConfigSchema } from "@/ai/steps/schema";
 import { DEFAULT_STEPS_CONFIG, type Step, type StepsConfig } from "@/ai/steps/types";
@@ -213,8 +215,24 @@ export class TestcasesController {
 		}
 		const placeholders = requestPlaceholders ?? pinnedPlaceholders;
 
+		// The tools the recording's model was offered, not the prompt's current list. A
+		// session recorded under a restricted subset and replayed against everything the
+		// prompt defines is a different run: the model reaches for a tool the recording
+		// never had, the replay stops at a tool result it cannot supply, and the testcase
+		// is written NOK for a difference the author did not make. Null means the session
+		// never said, which is every testcase pinned before this existed -- those keep the
+		// whole list, exactly as they ran before.
+		const offeredTools = readOfferedTools(testcase.offeredTools);
 		const runParams = {
-			prompt: testcase.prompt,
+			prompt: offeredTools
+				? {
+						...testcase.prompt,
+						languageModelConfig: restrictTools(
+							testcase.prompt.languageModelConfig as ModelConfigParameters,
+							offeredTools,
+						) as typeof testcase.prompt.languageModelConfig,
+					}
+				: testcase.prompt,
 			question: testcase.input,
 			source: SourceType.testcase,
 			userProjectId: metadata.projID,

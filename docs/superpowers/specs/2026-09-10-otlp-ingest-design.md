@@ -145,7 +145,26 @@ Mapping, per span:
 | `gen_ai.usage.input_tokens` | `tokens_in` (displayed, never summed) |
 | `gen_ai.usage.output_tokens` | `tokens_out` |
 | `genum.prompt.id` attr, else the key's default | `prompt_id` |
+| `genum.prompt.placeholders` attr (JSON object) | `placeholders` |
+| `gen_ai.tool.definitions` attr, else `genum.tools.offered` | `tools_offered` (names only) |
+| `genum.prompt.version` attr | `prompt_version` |
 | — | `cost` = 0, `source` = `'otlp'` |
+
+The last three say what the turn was RUN WITH, and exist because a session pinned without
+them replays against the prompt's default placeholder values and its whole tool list —
+a different run, whose differences are then reported as prompt regressions the author never
+caused. `gen_ai.tool.definitions` is the conventions' own attribute for the tools available
+to the model, so a sender already instrumented to the spec needs no Genum-specific
+attribute; `genum.tools.offered` is the names-only fallback, which is all a replay needs
+since the definitions belong to the prompt and are the thing under test.
+
+**Empty means "not recorded", never "none".** Every row written before these columns
+existed reads back empty, as does every span from a sender that supplies no such attribute.
+Reading that as an empty tool subset would stop each of those replays at its first tool
+call. A pin takes turn 0's values for the whole testcase — the app producing these
+recordings derives them from the user's role and holds them stable per session — and a
+later turn that disagrees is recorded as drift on the testcase and shown, rather than
+merged into a combination no turn ever ran.
 
 An operation we do not model is stored with its own `span_type` and rendered inertly
 rather than refused — a span we cannot interpret is still a span the author may want to

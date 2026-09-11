@@ -2,7 +2,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 
 import { Trash2, Loader2 } from "lucide-react";
-import { Wrench } from "@phosphor-icons/react";
+import { Warning, Wrench } from "@phosphor-icons/react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import TestCaseStatus from "@/pages/prompt/playground-tabs/testcases/TestCaseStatus";
@@ -11,6 +11,35 @@ import type { Prompt } from "@/pages/prompt/utils/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import TableSortButton from "@/components/ui/TableSortButton";
 import type { TestCase, TestStatus } from "@/types/TestСase";
+
+/**
+ * The recorded session did not run every turn the same way.
+ *
+ * A pin takes turn 1's placeholder selection and tool subset for the whole testcase --
+ * they are held stable per session by the app that produced the recording, so a later turn
+ * disagreeing means that assumption did not hold here. The pin is then only part of the
+ * truth, and a replay silently differs from the recording on turns the author cannot see.
+ * Saying so on the row is the whole remedy: which turn's inputs are right is a judgement
+ * only the author can make.
+ */
+const SelectionDriftMark = () => (
+	<TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<span className="text-amber-600 dark:text-amber-400">
+					<Warning size={12} />
+				</span>
+			</TooltipTrigger>
+			<TooltipContent className="max-w-xs">
+				<p>
+					A later turn of the recorded session ran with different placeholder values or a
+					different set of tools. This testcase pins the first turn's, so a run may differ
+					from the recording on the later turns.
+				</p>
+			</TooltipContent>
+		</Tooltip>
+	</TooltipProvider>
+);
 
 export const useTestcasesColumns = ({
 	prompts,
@@ -123,6 +152,7 @@ export const useTestcasesColumns = ({
 								</TooltipContent>
 							</Tooltip>
 						</TooltipProvider>
+						{row.original.pinnedSelectionDrift ? <SelectionDriftMark /> : null}
 					</span>
 				);
 			},

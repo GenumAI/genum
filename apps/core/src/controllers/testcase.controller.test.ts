@@ -1231,3 +1231,86 @@ describe("TestcasesController.createTestcase with a recorded trajectory", () => 
 		expect(db.testcases.newTestcase).not.toHaveBeenCalled();
 	});
 });
+
+describe("TestcasesController.runTestcase tool subset", () => {
+	let controller: TestcasesController;
+
+	function withTools(offeredTools: unknown) {
+		return {
+			id: 5,
+			promptId: PROMPT,
+			input: "question",
+			expectedOutput: "expected",
+			files: [],
+			placeholderValues: [],
+			offeredTools,
+			prompt: {
+				id: PROMPT,
+				projectId: PROJECT,
+				value: "do this",
+				assertionType: "MANUAL",
+				assertionValue: null,
+				languageModelConfig: {
+					temperature: 0.2,
+					tools: [
+						{ name: "search_mail", parameters: { type: "object" } },
+						{ name: "send_mail", parameters: { type: "object" } },
+					],
+				},
+			},
+		} as never;
+	}
+
+	function toolsPassed(): string[] | undefined {
+		const params = vi.mocked(runPrompt).mock.calls[0][0] as {
+			prompt: { languageModelConfig?: { tools?: { name: string }[] } };
+		};
+		return params.prompt.languageModelConfig?.tools?.map((tool) => tool.name);
+	}
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		controller = new TestcasesController();
+		vi.mocked(db.testcases.updateTestcaseByID).mockResolvedValue({ id: 5 } as never);
+		vi.mocked(runPrompt).mockResolvedValue({
+			answer: "the answer",
+			chainOfThoughts: "",
+		} as never);
+	});
+
+	it("offers only the tools the recorded session was offered", async () => {
+		// Replaying a restricted session against the prompt's whole list is a different
+		// run: the model reaches for a tool the recording never had, and the difference
+		// is reported as a prompt regression the author never caused.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(withTools(["search_mail"]));
+		const { res } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(toolsPassed()).toEqual(["search_mail"]);
+	});
+
+	it("offers the prompt's whole list when the recording never said", async () => {
+		// Null is every testcase pinned before the session recorded what it ran with.
+		// Those must keep running the way they ran.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(withTools(null));
+		const { res } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(toolsPassed()).toEqual(["search_mail", "send_mail"]);
+	});
+
+	it("leaves the rest of the prompt's model configuration untouched", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(withTools(["send_mail"]));
+		const { res } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		const params = vi.mocked(runPrompt).mock.calls[0][0] as {
+			prompt: { value: string; languageModelConfig?: { temperature?: number } };
+		};
+		expect(params.prompt.value).toBe("do this");
+		expect(params.prompt.languageModelConfig?.temperature).toBe(0.2);
+	});
+});

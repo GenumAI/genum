@@ -13,6 +13,17 @@ const EnabledStepsSchema = StepsSchema.min(1).refine(
 	hasEnabledStep,
 	"at least one step must be enabled",
 );
+// The tools the recorded session offered its model, by name. A `Json?` column, so the
+// generated schema types it `unknown` and would let any shape through to a place that
+// reads it as a tool filter -- a malformed value there silently offers the model nothing
+// and every replay stops at the first tool call.
+//
+// `null` is a real value and means "not recorded": a run with it offers the prompt's whole
+// tool list, the way every run did before this existed. An empty array is the opposite
+// answer -- the model was offered no tools -- so the two must stay distinguishable, which
+// is why this is `.nullable()` rather than merely optional.
+const OfferedToolsSchema = z.array(z.string().min(1).max(128)).max(200).nullable();
+
 const TestCaseSchema = TestCaseSchemaGenerated.extend({
 	name: nameSchema,
 });
@@ -52,6 +63,10 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 		// leaves `expectedSteps` unset.
 		expectedSteps: EnabledStepsSchema.optional(),
 		stepsConfig: StepsConfigSchema.optional(),
+		offeredTools: OfferedToolsSchema.optional(),
+		// Derived by the pin from the recorded turns, like `expectedSteps` beside it: the
+		// client is the party holding the session's spans when it pins.
+		pinnedSelectionDrift: z.boolean().optional(),
 	})
 	.strict();
 
@@ -98,6 +113,8 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 		expectedSteps: EnabledStepsSchema.nullable().optional(),
 		lastSteps: StepsSchema.optional(),
 		stepsConfig: StepsConfigSchema.nullable().optional(),
+		offeredTools: OfferedToolsSchema.optional(),
+		pinnedSelectionDrift: z.boolean().optional(),
 	})
 	.partial()
 	.strict();

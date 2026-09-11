@@ -19,11 +19,13 @@ export function trajectoryColumns(data: {
 	lastSteps?: unknown;
 	stepsConfig?: unknown;
 	lastMismatches?: unknown;
+	offeredTools?: unknown;
 }): {
 	expectedSteps?: Prisma.InputJsonValue | typeof Prisma.DbNull;
 	lastSteps?: Prisma.InputJsonValue | typeof Prisma.DbNull;
 	stepsConfig?: Prisma.InputJsonValue | typeof Prisma.DbNull;
 	lastMismatches?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+	offeredTools?: Prisma.InputJsonValue | typeof Prisma.DbNull;
 } {
 	const column = (value: unknown) =>
 		value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
@@ -35,6 +37,10 @@ export function trajectoryColumns(data: {
 		...(data.lastMismatches !== undefined
 			? { lastMismatches: column(data.lastMismatches) }
 			: {}),
+		// Goes through the same three-way treatment as the trajectory columns beside it,
+		// and for the same reason: an explicit `null` is a client CLEARING the recorded
+		// tool subset, which Prisma spells `DbNull` and rejects as a plain `null`.
+		...(data.offeredTools !== undefined ? { offeredTools: column(data.offeredTools) } : {}),
 	};
 }
 
@@ -107,13 +113,14 @@ export class TestcasesRepository {
 			placeholders: _placeholders,
 			expectedSteps,
 			stepsConfig,
+			offeredTools,
 			...testcaseData
 		} = data;
 
 		const testcase = await this.prisma.testCase.create({
 			data: {
 				...testcaseData,
-				...trajectoryColumns({ expectedSteps, stepsConfig }),
+				...trajectoryColumns({ expectedSteps, stepsConfig, offeredTools }),
 			},
 		});
 
@@ -155,13 +162,20 @@ export class TestcasesRepository {
 			lastSteps,
 			stepsConfig,
 			lastMismatches,
+			offeredTools,
 			...testcaseData
 		} = data;
 		return await this.prisma.testCase.update({
 			where: { id },
 			data: {
 				...testcaseData,
-				...trajectoryColumns({ expectedSteps, lastSteps, stepsConfig, lastMismatches }),
+				...trajectoryColumns({
+					expectedSteps,
+					lastSteps,
+					stepsConfig,
+					lastMismatches,
+					offeredTools,
+				}),
 			},
 			include: {
 				placeholderValues: {

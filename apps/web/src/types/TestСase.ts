@@ -66,6 +66,18 @@ export interface TestCase {
 	lastSteps?: Step[] | null;
 	stepsConfig?: StepsConfig | null;
 	lastMismatches?: StepMismatch[] | null;
+	/**
+	 * The tools the recorded session offered its model, by name. `null`/absent means the
+	 * recording never said, and a run then offers the prompt's whole list -- which is what
+	 * every testcase pinned before this existed did. An empty array is the other answer:
+	 * the model was offered none.
+	 */
+	offeredTools?: string[] | null;
+	/**
+	 * A later turn of the recorded session ran with a different placeholder selection or a
+	 * different tool subset than the turn this testcase pinned. See `sessionSelections`.
+	 */
+	pinnedSelectionDrift?: boolean;
 	files?: TestCaseFile[];
 	placeholderValues?: TestCasePinnedPlaceholderValue[];
 }

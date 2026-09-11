@@ -31,6 +31,16 @@ export interface SpanRow {
 	cost: number;
 	duration_ms: number;
 	status: string;
+	/**
+	 * What the turn was run WITH, as its sender recorded it. Optional because a row
+	 * written before these columns existed carries none of them, and empty because a
+	 * sender that supplies no such attribute records none -- in both cases the meaning is
+	 * "not recorded", never "no tools" or "no selection". `sessionSelections` is the one
+	 * place that reads them; see the note there on why empty cannot mean none.
+	 */
+	placeholders?: Record<string, string>;
+	tools_offered?: string[];
+	prompt_version?: string;
 }
 
 export interface TraceSpansResponse {

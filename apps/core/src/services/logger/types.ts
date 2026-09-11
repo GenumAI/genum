@@ -309,6 +309,14 @@ export interface ClickHouseSpanRow {
 	 * those to `genum`, which is what they are.
 	 */
 	source?: string;
+	/**
+	 * Absent on every row written before these columns were added, and empty on every row
+	 * whose sender supplied no such attribute. The reader defaults them to empty, which
+	 * means "not recorded" -- never "none offered" or "no selection made".
+	 */
+	placeholders?: Record<string, string>;
+	tools_offered?: string[];
+	prompt_version?: string;
 }
 
 export interface ClickHouseProjectStatsRow {

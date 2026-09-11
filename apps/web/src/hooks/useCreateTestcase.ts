@@ -19,6 +19,9 @@ export interface TestcasePayload {
 	 */
 	expectedSteps?: Step[];
 	stepsConfig?: StepsConfig;
+	/** See `CreateTestcaseData.offeredTools`: unset means the recording never said. */
+	offeredTools?: string[];
+	pinnedSelectionDrift?: boolean;
 }
 
 export interface CreateTestcaseResult {

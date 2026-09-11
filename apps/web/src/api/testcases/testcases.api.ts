@@ -22,6 +22,15 @@ export interface CreateTestcaseData {
 	/** See `TestcasePayload.expectedSteps` -- the backend rejects an empty array. */
 	expectedSteps?: Step[];
 	stepsConfig?: StepsConfig;
+	/**
+	 * The tools the recorded session's model was offered, by name. Left unset when the
+	 * recording never said, which is what makes the run offer the prompt's whole list --
+	 * an empty array would mean the model was offered none, and the two must not be
+	 * conflated on the way in any more than they are in the column.
+	 */
+	offeredTools?: string[];
+	/** A later turn of the recording disagreed with turn 0; see `sessionSelections`. */
+	pinnedSelectionDrift?: boolean;
 }
 
 export interface UpdateTestcaseData {

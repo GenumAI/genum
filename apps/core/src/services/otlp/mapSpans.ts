@@ -143,7 +143,97 @@ function base(
 		duration_ms: durationOf(span),
 		status: span.status?.code === undefined ? "OK" : String(span.status.code),
 		source: "otlp",
+		// What the turn was run WITH. Stored per span rather than per trace because a span
+		// is the only row this table has -- and read back per turn, where turn 0 decides
+		// what a pinned testcase gets. Unread, a session pinned from a privileged user
+		// replayed with the prompt's default placeholder values and with every tool it
+		// defines: a different run, reported as a regression.
+		placeholders: selectionsIn(span),
+		tools_offered: toolsOffered(span),
+		prompt_version: attr(span, "genum.prompt.version") ?? "",
 	};
+}
+
+/**
+ * The placeholder selections this turn rendered with: `{ "<key>": "<valueName>" }`.
+ *
+ * Anything that is not an object of strings is dropped rather than stored partially. The
+ * column feeds a pinned testcase's selection, and a half-read selection is worse than no
+ * selection: no selection falls back to the prompt's defaults visibly, while a half-read
+ * one silently pins some keys and defaults the rest.
+ */
+function selectionsIn(span: OtlpSpan): Record<string, string> {
+	const raw = attr(span, "genum.prompt.placeholders");
+	if (!raw) return {};
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return {};
+	}
+	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+
+	const selections: Record<string, string> = {};
+	for (const [key, value] of Object.entries(parsed)) {
+		if (typeof value === "string") selections[key] = value;
+	}
+	return selections;
+}
+
+/**
+ * The names of the tools the model was offered this turn.
+ *
+ * `gen_ai.tool.definitions` first: the GenAI conventions define it ("the list of tool
+ * definitions available to the GenAI agent or model"), so a sender already instrumented to
+ * the spec needs no Genum-specific attribute at all, and we take names out of the
+ * definitions it sends. `genum.tools.offered` is the fallback, a plain JSON array of names,
+ * for a sender that has only the names to give -- which is all a replay needs, since the
+ * definitions themselves belong to the prompt.
+ *
+ * Both may also arrive as a native OTLP array of strings rather than a JSON string; a
+ * collector is free to encode it either way.
+ */
+function toolsOffered(span: OtlpSpan): string[] {
+	const definitions = namesFrom(span, "gen_ai.tool.definitions");
+	if (definitions.length > 0) return definitions;
+	return namesFrom(span, "genum.tools.offered");
+}
+
+function namesFrom(span: OtlpSpan, key: string): string[] {
+	const found = span.attributes?.find((attribute) => attribute.key === key);
+	if (!found?.value) return [];
+
+	const native = found.value.arrayValue?.values;
+	if (native) {
+		return native
+			.map((value) => scalar(value))
+			.filter((name): name is string => typeof name === "string" && name.length > 0);
+	}
+
+	const raw = scalar(found.value);
+	if (!raw) return [];
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return [];
+	}
+	if (!Array.isArray(parsed)) return [];
+
+	return parsed
+		.map((entry) => {
+			// A definitions list holds objects; a names list holds strings. Both are read
+			// here so the caller does not have to know which attribute it came from.
+			if (typeof entry === "string") return entry;
+			const name = (entry as { name?: unknown; function?: { name?: unknown } })?.name;
+			if (typeof name === "string") return name;
+			// The OpenAI-shaped definition, which nests the name under `function`.
+			const nested = (entry as { function?: { name?: unknown } })?.function?.name;
+			return typeof nested === "string" ? nested : undefined;
+		})
+		.filter((name): name is string => typeof name === "string" && name.length > 0);
 }
 
 /**
