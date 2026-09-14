@@ -128,7 +128,7 @@ function EditableFinalText({
 	}, [text]);
 
 	if (readOnly) {
-		return <div className="whitespace-pre-wrap text-sm">{text}</div>;
+		return <div className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{text}</div>;
 	}
 
 	return (
@@ -283,7 +283,7 @@ export function StepRow({
 								</button>
 							</CollapsibleTrigger>
 							<CollapsibleContent>
-								<pre className="mt-1 overflow-x-auto font-mono text-xs">
+								<pre className="mt-1 whitespace-pre-wrap font-mono text-xs [overflow-wrap:anywhere]">
 									{JSON.stringify(step.args ?? {}, null, 2)}
 								</pre>
 								{step.recordedResult !== undefined && (
@@ -291,7 +291,7 @@ export function StepRow({
 										<div className="mt-2 text-xs font-medium text-muted-foreground">
 											Result
 										</div>
-										<pre className="mt-1 overflow-x-auto font-mono text-xs">
+										<pre className="mt-1 whitespace-pre-wrap font-mono text-xs [overflow-wrap:anywhere]">
 											{step.recordedResult}
 										</pre>
 									</>
@@ -429,7 +429,9 @@ export function StepRow({
 						 * the reader to infer from the text itself.
 						 */}
 						<div className="font-medium text-sm">User</div>
-						<div className="whitespace-pre-wrap text-sm">{step.text}</div>
+						<div className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">
+							{step.text}
+						</div>
 						{!readOnly && (
 							// This checkbox does not mean the same thing here as it does on a
 							// tool call: unticking a reply cannot merely exclude it from
