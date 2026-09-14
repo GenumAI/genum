@@ -291,6 +291,8 @@ export function useAddTestcaseFromLog({
 		stepPicker: {
 			open: pending !== null,
 			trajectory: pending?.steps ?? NO_STEPS,
+			// The question the testcase will open with -- the same value `submit` sends.
+			input: pending ? pending.opening.input || pending.detail.in || undefined : undefined,
 			unreadableArgsIndices: pending?.unreadableArgsIndices ?? NO_UNREADABLE_ARGS,
 			saving: creatingTestcase,
 			onCancel: () => setPending(null),

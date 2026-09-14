@@ -182,6 +182,7 @@ export const useTestcaseActions = ({
 		stepPicker: {
 			open: pendingCreate !== null,
 			trajectory: pendingCreate?.steps ?? NO_STEPS,
+			input: pendingCreate?.input,
 			saving: createTestcaseMutation.isPending,
 			onCancel: () => setPendingCreate(null),
 			onConfirm: confirmSteps,

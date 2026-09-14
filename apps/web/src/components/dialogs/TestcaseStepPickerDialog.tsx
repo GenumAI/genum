@@ -17,6 +17,12 @@ interface TestcaseStepPickerDialogProps {
 	open: boolean;
 	trajectory: Step[];
 	/**
+	 * The question the testcase will open with. Shown above the steps so the author picks
+	 * from the conversation as it happened rather than from one that starts with an answer;
+	 * never part of `onConfirm`'s payload, because it is stored as the testcase's input.
+	 */
+	input?: string;
+	/**
 	 * Indices into `trajectory` whose recorded arguments could not be read (see
 	 * `spansToSteps`/`MappedTrajectory`). Display-only: it is never merged into a step and
 	 * never reaches `onConfirm`'s payload -- `steps` state below is built solely from
@@ -48,6 +54,7 @@ function withDefaults(trajectory: Step[]): Step[] {
 export function TestcaseStepPickerDialog({
 	open,
 	trajectory,
+	input,
 	unreadableArgsIndices,
 	saving = false,
 	onCancel,
@@ -76,6 +83,7 @@ export function TestcaseStepPickerDialog({
 	// through a dialog that told the author it asserted something. One statement of the
 	// rule per side, and this is web's.
 	const assertedCount = enabledCount(steps);
+	const showOpening = Boolean(input?.trim()) && steps[0]?.kind !== "user";
 
 	return (
 		<Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
@@ -88,6 +96,9 @@ export function TestcaseStepPickerDialog({
 				</DialogHeader>
 
 				<div className="flex max-h-96 flex-col gap-3 overflow-y-auto">
+					{showOpening && input && (
+						<StepRow step={{ kind: "user", text: input }} readOnly />
+					)}
 					{steps.map((step, index) => (
 						<StepRow
 							key={`${step.kind}-${index}`}

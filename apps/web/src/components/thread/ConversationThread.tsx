@@ -153,7 +153,10 @@ export function ConversationThread({
 									metrics={message.metrics}
 									outcome={message.outcome}
 									outcomeReason={message.outcomeReason}
-									readOnly={readOnly}
+									// The opening question is the testcase's input, not a step: there
+									// is nothing to tick, and ending the session before its own
+									// first question means nothing.
+									readOnly={readOnly || message.opening === true}
 									disabled={saving || message.outcome === "not-reached"}
 									onEnabledChange={
 										onEnabledChange &&

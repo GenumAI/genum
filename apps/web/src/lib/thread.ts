@@ -39,6 +39,27 @@ export interface ThreadMessage {
 	/** Absent means "nothing to report", not "passed". */
 	outcome?: ThreadOutcome;
 	outcomeReason?: string;
+	/**
+	 * The question the conversation opened with. Shown as the first message, and not a step:
+	 * it is stored as the testcase's `input` and sent as the provider's question, so it has
+	 * no flat index, no checkbox, and nothing to compare.
+	 */
+	opening?: true;
+}
+
+/**
+ * The conversation as it happened: the opening question first, then everything after it.
+ *
+ * A step list starts AFTER the opening question -- the question lives in `input` -- so a
+ * thread built from steps alone began with the model answering nothing, and a reader had
+ * to go looking for what was asked. Added only when the thread does not already start
+ * with a message of its own.
+ */
+export function withOpening(messages: ThreadMessage[], input: string | undefined): ThreadMessage[] {
+	if (!input?.trim() || messages.length === 0 || messages[0].step.kind === "user") {
+		return messages;
+	}
+	return [{ step: { kind: "user", text: input }, index: -1, opening: true }, ...messages];
 }
 
 /**

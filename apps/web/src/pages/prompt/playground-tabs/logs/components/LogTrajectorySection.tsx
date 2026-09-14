@@ -8,9 +8,15 @@ import { trajectoryQuery } from "@/lib/traceSpansQuery";
 
 interface LogTrajectorySectionProps {
 	traceId: string;
+	/**
+	 * The log row's own input. Only the fallback for the opening question: a session that
+	 * recorded its model calls' input says what it opened with itself, and a later turn's
+	 * row holds the question only as history kept it.
+	 */
+	logInput?: string;
 }
 
-export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
+export function LogTrajectorySection({ traceId, logInput }: LogTrajectorySectionProps) {
 	const { data, isLoading, isError } = useQuery(trajectoryQuery(traceId));
 
 	// Every run opens a session now, so almost every log row has a trace and this
@@ -25,6 +31,12 @@ export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
 	// about it.
 	if (isLoading || (data && !isError && data.steps.length > 0 && isSingleAnswer(data.steps)))
 		return null;
+
+	// The conversation starts with what was asked. The steps start after it -- the question
+	// is a testcase's input, not a step -- so without this the first turn opened on the
+	// model answering nothing.
+	const opening = data?.input || logInput;
+	const showOpening = Boolean(opening?.trim()) && data?.steps[0]?.kind !== "user";
 
 	return (
 		<div>
@@ -56,28 +68,37 @@ export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
 						    it is simply what happened -- so every turn is fully live and
 						    nothing here forces a turn open by default the way a mismatch or
 						    a live cut would in the panel. */}
-						{turnsOf(data.steps).map((turn, turnPosition) => (
-							<TurnSection
-								key={turn.start}
-								turnNumber={turnPosition + 1}
-								liveStepCount={turn.steps.length}
-								totalStepCount={turn.steps.length}
-							>
-								{turn.steps.map((step, position) => {
-									// The row's flat index -- what `unreadableArgsIndices`
-									// addresses it by.
-									const index = turn.start + position;
-									return (
-										<StepRow
-											key={`${step.kind}-${index}`}
-											step={step}
-											unreadableArgs={data.unreadableArgsIndices.has(index)}
-											readOnly
-										/>
-									);
-								})}
-							</TurnSection>
-						))}
+						{turnsOf(data.steps).map((turn, turnPosition) => {
+							const withOpening = turnPosition === 0 && showOpening;
+							const stepCount = turn.steps.length + (withOpening ? 1 : 0);
+							return (
+								<TurnSection
+									key={turn.start}
+									turnNumber={turnPosition + 1}
+									liveStepCount={stepCount}
+									totalStepCount={stepCount}
+								>
+									{withOpening && opening && (
+										<StepRow step={{ kind: "user", text: opening }} readOnly />
+									)}
+									{turn.steps.map((step, position) => {
+										// The row's flat index -- what `unreadableArgsIndices`
+										// addresses it by.
+										const index = turn.start + position;
+										return (
+											<StepRow
+												key={`${step.kind}-${index}`}
+												step={step}
+												unreadableArgs={data.unreadableArgsIndices.has(
+													index,
+												)}
+												readOnly
+											/>
+										);
+									})}
+								</TurnSection>
+							);
+						})}
 					</div>
 				)}
 			</div>

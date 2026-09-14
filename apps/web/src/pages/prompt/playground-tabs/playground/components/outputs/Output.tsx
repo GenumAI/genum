@@ -7,7 +7,13 @@ import type { ArgsMatch, Step } from "@/types/steps";
 import type { TestCase } from "@/types/TestСase";
 import { expectedSaveFor } from "@/lib/expectedSave";
 import { turnsOf } from "@/lib/session";
-import { liveThread, testcaseThread, type ThreadMessage, type ThreadMetrics } from "@/lib/thread";
+import {
+	liveThread,
+	testcaseThread,
+	type ThreadMessage,
+	type ThreadMetrics,
+	withOpening,
+} from "@/lib/thread";
 import { ConversationThread } from "@/components/thread/ConversationThread";
 import { CompareDialog } from "@/components/thread/CompareDialog";
 import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
@@ -168,12 +174,19 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		// A testcase with a pinned trajectory: the expectation IS the trajectory, and the
 		// last run's steps are what it is measured against.
 		if (pinned.hasTrajectory) {
-			return testcaseThread({
-				expectedSteps: pinned.steps,
-				lastSteps: Array.isArray(testcase?.lastSteps) ? (testcase.lastSteps as Step[]) : [],
-				mismatches: pinned.mismatchByIndex,
-				comparisonRecorded: pinned.comparisonRecorded,
-			});
+			// Opened with the question the replay sends, which is the testcase's own input --
+			// not the input box, which the author may be editing towards something else.
+			return withOpening(
+				testcaseThread({
+					expectedSteps: pinned.steps,
+					lastSteps: Array.isArray(testcase?.lastSteps)
+						? (testcase.lastSteps as Step[])
+						: [],
+					mismatches: pinned.mismatchByIndex,
+					comparisonRecorded: pinned.comparisonRecorded,
+				}),
+				testcase?.input ?? inputValue,
+			);
 		}
 
 		// A run in the playground. Only the LAST turn's metrics survive in `content` --
@@ -185,15 +198,19 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 				undefined,
 			);
 			if (runMetrics && turnCount > 0) metricsByTurn[turnCount - 1] = runMetrics;
-			return liveThread({
-				steps: trajectory.steps,
-				metricsByTurn,
-				// ONE source for the expectation, and it is `modifiedValue` -- the same
-				// value `saveModifiedValue` writes and the testcase persists. A second
-				// in-memory store here is exactly how "Save as expected" appeared to do
-				// nothing: it wrote one of them and the thread rendered the other.
-				expectedByIndex: lastFinalIndex === null ? {} : { [lastFinalIndex]: modifiedValue },
-			});
+			return withOpening(
+				liveThread({
+					steps: trajectory.steps,
+					metricsByTurn,
+					// ONE source for the expectation, and it is `modifiedValue` -- the same
+					// value `saveModifiedValue` writes and the testcase persists. A second
+					// in-memory store here is exactly how "Save as expected" appeared to do
+					// nothing: it wrote one of them and the thread rendered the other.
+					expectedByIndex:
+						lastFinalIndex === null ? {} : { [lastFinalIndex]: modifiedValue },
+				}),
+				inputValue,
+			);
 		}
 
 		// A text testcase, or a testcase selected but not yet run: a thread of one message
@@ -215,6 +232,8 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		pinned.mismatchByIndex,
 		pinned.comparisonRecorded,
 		testcase?.lastSteps,
+		testcase?.input,
+		inputValue,
 		trajectory.steps,
 		lastFinalIndex,
 		content?.answer,
@@ -271,7 +290,12 @@ const OutputBlock: React.FC<OutputBlockProps> = ({
 		compared === undefined
 			? 1
 			: messages.filter(
-					(message) => message.step.kind === "user" && message.index <= compared.index,
+					// The opening question is not a reply: counting it put every comparison
+					// one turn later than the turn it belongs to.
+					(message) =>
+						!message.opening &&
+						message.step.kind === "user" &&
+						message.index <= compared.index,
 				).length + 1;
 
 	return (

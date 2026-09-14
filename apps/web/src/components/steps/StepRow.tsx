@@ -222,6 +222,45 @@ function ExpectedAnswer({
 	);
 }
 
+/** Past either, a user message opens folded. */
+const LONG_TEXT_CHARS = 600;
+const LONG_TEXT_LINES = 8;
+
+/**
+ * A user message, folded when it is long.
+ *
+ * An app that runs its own agent loop can put a whole context block -- dates, rules,
+ * every page the user may open -- in front of what the user typed. Unfolded, one such
+ * message is a screen of boilerplate above the few words that were actually said, on
+ * every turn that carries it.
+ */
+function UserText({ text }: { text: string }) {
+	const [expanded, setExpanded] = useState(false);
+	const long = text.length > LONG_TEXT_CHARS || text.split("\n").length > LONG_TEXT_LINES;
+
+	return (
+		<>
+			<div
+				className={cn(
+					"whitespace-pre-wrap text-sm [overflow-wrap:anywhere]",
+					long && !expanded && "line-clamp-6",
+				)}
+			>
+				{text}
+			</div>
+			{long && (
+				<button
+					type="button"
+					className="mt-1 bg-transparent p-0 text-xs text-muted-foreground hover:underline"
+					onClick={() => setExpanded((value) => !value)}
+				>
+					{expanded ? "Show less" : "Show more"}
+				</button>
+			)}
+		</>
+	);
+}
+
 export function StepRow({
 	step,
 	unreadableArgs = false,
@@ -429,9 +468,7 @@ export function StepRow({
 						 * the reader to infer from the text itself.
 						 */}
 						<div className="font-medium text-sm">User</div>
-						<div className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">
-							{step.text}
-						</div>
+						<UserText text={step.text} />
 						{!readOnly && (
 							// This checkbox does not mean the same thing here as it does on a
 							// tool call: unticking a reply cannot merely exclude it from

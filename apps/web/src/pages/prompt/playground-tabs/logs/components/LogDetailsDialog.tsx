@@ -301,7 +301,10 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 						</div>
 						<div className="mt-4 flex flex-col gap-4">
 							{selectedLog.trace_id && (
-								<LogTrajectorySection traceId={selectedLog.trace_id} />
+								<LogTrajectorySection
+									traceId={selectedLog.trace_id}
+									logInput={logDetail?.in}
+								/>
 							)}
 							{isLoadingLogDetail && (
 								<p className="font-medium text-xs leading-none tracking-normal text-muted-foreground">
