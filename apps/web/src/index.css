@@ -47,7 +47,15 @@ body,
 
 html {
 	background-color: hsl(var(--background));
-	overflow-y: scroll;
+	/*
+	 * The gutter alone keeps the layout from shifting when a scrollbar comes and goes. Do not
+	 * add `overflow-y: scroll` back beside it: every Radix select, dialog and menu locks
+	 * scrolling with `body { overflow: hidden }`, which reaches the viewport only while
+	 * `html` leaves overflow alone. With `html` setting its own, the rule clipped `body` --
+	 * exactly one screen tall, from `height: 100%` below -- the document collapsed to that
+	 * height, and the page jumped to the top with the opened menu drawn off-screen beside a
+	 * trigger that had scrolled away.
+	 */
 	scrollbar-gutter: stable;
 }
 
