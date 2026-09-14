@@ -67,6 +67,7 @@ export const TestcasesCreateSchema = TestCaseSchema.omit({
 		// Derived by the pin from the recorded turns, like `expectedSteps` beside it: the
 		// client is the party holding the session's spans when it pins.
 		pinnedSelectionDrift: z.boolean().optional(),
+		inputHistoryText: z.string().min(1).nullable().optional(),
 	})
 	.strict();
 
@@ -115,6 +116,7 @@ export const TestcasesUpdateSchema = TestCaseSchema.omit({
 		stepsConfig: StepsConfigSchema.nullable().optional(),
 		offeredTools: OfferedToolsSchema.optional(),
 		pinnedSelectionDrift: z.boolean().optional(),
+		inputHistoryText: z.string().min(1).nullable().optional(),
 	})
 	.partial()
 	.strict();

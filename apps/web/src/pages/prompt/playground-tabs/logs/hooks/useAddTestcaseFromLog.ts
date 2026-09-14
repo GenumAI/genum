@@ -8,6 +8,7 @@ import { isSingleAnswer, spansToSteps } from "@/lib/spansToSteps";
 import { sessionSelections } from "@/lib/sessionSelections";
 import { traceSpansQuery } from "@/lib/traceSpansQuery";
 import type { SessionSelections } from "@/lib/sessionSelections";
+import type { MappedTrajectory } from "@/lib/spansToSteps";
 import type { Log, LogDetail } from "@/types/logs";
 import type { Step } from "@/types/steps";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
@@ -28,6 +29,10 @@ const NOTHING_RECORDED: SessionSelections = {
 	promptVersion: "",
 	drifted: false,
 };
+
+type SessionOpening = Pick<MappedTrajectory, "input" | "inputHistoryText">;
+/** A log with no readable session: the log row's own input is the whole story. */
+const NO_OPENING: SessionOpening = {};
 
 interface UseAddTestcaseFromLogParams {
 	promptId?: number;
@@ -62,6 +67,8 @@ export function useAddTestcaseFromLog({
 		 * means a selection change while the picker is open cannot move it.
 		 */
 		detail: LogDetail;
+		/** Where the session opened; see `MappedTrajectory.input`. */
+		opening: SessionOpening;
 	} | null>(null);
 
 	const refreshTestcases = useCallback(
@@ -90,6 +97,10 @@ export function useAddTestcaseFromLog({
 			// session against the prompt's defaults and its whole tool list is a different
 			// run, and its differences read as prompt regressions the author never caused.
 			selections: SessionSelections,
+			// Where the recorded session opened. Wins over the log row's input, which is
+			// the question as the pinned turn's history kept it -- not necessarily as the
+			// session asked it.
+			opening: SessionOpening,
 			expectedSteps?: Step[],
 			// Set when the log carried a trace_id but no steps ended up pinned -- the author
 			// asked for tool-call assertions and is about to get a plain text testcase
@@ -108,7 +119,10 @@ export function useAddTestcaseFromLog({
 
 				const { ok, unresolvedPlaceholders } = await createTestcase({
 					promptId: targetPromptId,
-					input: detail.in || "",
+					input: opening.input || detail.in || "",
+					...(opening.inputHistoryText
+						? { inputHistoryText: opening.inputHistoryText }
+						: {}),
 					expectedOutput: detail.out || "",
 					lastOutput: detail.out || "",
 					// The trace's own selection wins over the log row's when it has one:
@@ -193,12 +207,18 @@ export function useAddTestcaseFromLog({
 			let steps: Step[] = [];
 			let unreadableArgsIndices: Set<number> = NO_UNREADABLE_ARGS;
 			let selections: SessionSelections = NOTHING_RECORDED;
+			let opening: SessionOpening = NO_OPENING;
 			let fetchFailed = false;
 			try {
 				const { spans } = await queryClient.fetchQuery(
 					traceSpansQuery(selectedLog.trace_id),
 				);
-				({ steps, unreadableArgsIndices } = spansToSteps(spans));
+				const trajectory = spansToSteps(spans);
+				({ steps, unreadableArgsIndices } = trajectory);
+				opening = {
+					input: trajectory.input,
+					inputHistoryText: trajectory.inputHistoryText,
+				};
 				selections = sessionSelections(spans);
 			} catch (error) {
 				// The trajectory is telemetry and ages out; the testcase is product data.
@@ -220,6 +240,7 @@ export function useAddTestcaseFromLog({
 					promptId: targetPromptId,
 					selections,
 					detail: logDetail,
+					opening,
 				});
 				return;
 			}
@@ -234,6 +255,7 @@ export function useAddTestcaseFromLog({
 				logDetail,
 				targetPromptId,
 				selections,
+				opening,
 				undefined,
 				fetchFailed ? "failed" : steps.length === 0 ? "no-turn" : undefined,
 			);
@@ -242,7 +264,7 @@ export function useAddTestcaseFromLog({
 
 		// A log with no trace has no recording to read a selection off: the log row's own
 		// placeholders are the whole story, and `submit` falls back to them.
-		await submit(logDetail, targetPromptId, NOTHING_RECORDED);
+		await submit(logDetail, targetPromptId, NOTHING_RECORDED, NO_OPENING);
 	}, [logDetail, promptId, queryClient, selectedLog, submit]);
 
 	const confirmSteps = useCallback(
@@ -250,7 +272,13 @@ export function useAddTestcaseFromLog({
 			if (!pending) return;
 			// Unticked steps ride along so the testcase still shows what was ignored;
 			// `compareSteps` skips them.
-			const ok = await submit(pending.detail, pending.promptId, pending.selections, steps);
+			const ok = await submit(
+				pending.detail,
+				pending.promptId,
+				pending.selections,
+				pending.opening,
+				steps,
+			);
 			if (ok) setPending(null);
 		},
 		[pending, submit],

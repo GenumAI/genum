@@ -37,6 +37,12 @@ model TestCase {
     // silently keep testing the old one.
     offeredTools            Json?
 
+    // The opening question as the recorded app kept it in history, when that differs from
+    // `input` -- an app that attaches context to the message being answered and leaves it
+    // off older ones. A replay sends `input` for the first turn and this from the second
+    // on. Null sends `input` throughout, which is what every testcase did before this.
+    inputHistoryText        String?
+
     // Turn 0's placeholder selection and tool subset are what a pin stores, because an
     // external app that runs its own agent loop derives them from the user's role and holds
     // them stable for the whole session. When a later turn disagreed, that assumption did

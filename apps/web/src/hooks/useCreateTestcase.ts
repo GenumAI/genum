@@ -22,6 +22,7 @@ export interface TestcasePayload {
 	/** See `CreateTestcaseData.offeredTools`: unset means the recording never said. */
 	offeredTools?: string[];
 	pinnedSelectionDrift?: boolean;
+	inputHistoryText?: string;
 }
 
 export interface CreateTestcaseResult {

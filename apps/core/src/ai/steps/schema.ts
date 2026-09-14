@@ -35,6 +35,7 @@ export const UserStepSchema = z
 		// A blank reply would send an empty message to the provider and compare nothing.
 		text: z.string().min(1),
 		enabled: z.boolean().optional(),
+		historyText: z.string().min(1).optional(),
 	})
 	.strict();
 

@@ -89,7 +89,10 @@ export class TestcasesController {
 
 		const testcaseData: TestcasesCreateType & { files?: string[] } = {
 			...data,
-			name: data.name ?? `Testcase: ${name}`.slice(0, 230),
+			// The namer sometimes answers with the prefix already on, which named testcases
+			// "Testcase: Testcase: ...".
+			name:
+				data.name ?? `Testcase: ${name.replace(/^\s*testcase\s*:\s*/i, "")}`.slice(0, 230),
 			files: data.files,
 		};
 
@@ -264,14 +267,19 @@ export class TestcasesController {
 			// one whose answer the testcase records.
 			try {
 				replay = await replayTrajectory({
-					callModel: async (messages) => {
+					callModel: async (messages, question) => {
 						run = await callPromptModel(
-							{ ...runParams, collectUsage: (usage) => turns.push(usage) },
+							{
+								...runParams,
+								question: question ?? runParams.question,
+								collectUsage: (usage) => turns.push(usage),
+							},
 							messages,
 						);
 						return run;
 					},
 					recorded: expectedSteps,
+					inputHistoryText: testcase.inputHistoryText ?? undefined,
 					// The bound comes from what was recorded: a fixed default shorter than
 					// the trajectory stops it at `step_limit` and writes NOK on every run.
 					maxSteps: maxStepsForRecording(expectedSteps),
@@ -301,7 +309,10 @@ export class TestcasesController {
 		const assertionValue = testcase.prompt.assertionValue;
 
 		const updateData: Record<string, unknown> = {
-			lastOutput: run.answer,
+			// A replay's output is the last answer it produced. `run` is only its last model
+			// call, and a replay that stopped on a tool call left that call's tool-call JSON
+			// in `answer` -- shown to the author as if the model had said it.
+			lastOutput: replay ? (lastEnabledFinal(replay.steps)?.text ?? "") : run.answer,
 			lastChainOfThoughts: run.chainOfThoughts,
 			assertionThoughts: "",
 			// Set here, on the object every arm below writes through, so it lands on

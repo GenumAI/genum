@@ -1,6 +1,6 @@
 import type { ConversationMessage, ToolCall } from "@/ai/providers";
 import { effectiveSteps, turnsOf } from "./session";
-import type { Step, ToolCallStep } from "./types";
+import type { Step, ToolCallStep, UserStep } from "./types";
 
 export type ModelTurn = {
 	answer: string;
@@ -21,10 +21,18 @@ export type ReplayResult = {
 };
 
 export type ReplayParams = {
-	callModel: (messages: ConversationMessage[]) => Promise<ModelTurn>;
+	/**
+	 * `question` is the opening question to send in place of the testcase's input. It is
+	 * set once that question has been answered and the session was recorded keeping a
+	 * different form of it in history (`inputHistoryText`); until then it is undefined and
+	 * the input is sent as it is.
+	 */
+	callModel: (messages: ConversationMessage[], question?: string) => Promise<ModelTurn>;
 	/** The pinned session. Tool results are replayed from it; a tool is never executed. */
 	recorded: Step[];
 	maxSteps?: number;
+	/** The opening question as the recorded app kept it in history. See `UserStep.historyText`. */
+	inputHistoryText?: string;
 };
 
 /**
@@ -59,6 +67,7 @@ export async function replayTrajectory({
 	callModel,
 	recorded,
 	maxSteps = DEFAULT_MAX_STEPS,
+	inputHistoryText,
 }: ReplayParams): Promise<ReplayResult> {
 	const turns = turnsOf(effectiveSteps(recorded));
 	const messages: ConversationMessage[] = [];
@@ -67,9 +76,35 @@ export async function replayTrajectory({
 	// Per turn, not per session: a tool called in turns 1 and 3 must take turn 3's
 	// recording for turn 3, the same way the comparison matches within a turn.
 	let seen = new Map<string, number>();
+	// What the current turn is answering. Undefined in turn 0, which answers the opening
+	// question -- sent as the provider's question, never as a message.
+	let answering: { index: number; historyText?: string } | undefined;
+	let question: string | undefined;
+
+	const advanceTo = (reply: UserStep) => {
+		// The message the turn just ended was answering becomes history, and history is
+		// sent the way the recorded app kept it. An app that attaches context to the
+		// message being answered and leaves it off older ones sends each reply in full
+		// exactly once; replaying the full text in history instead sends every earlier
+		// context again on every turn, a conversation the recorded model never saw.
+		if (answering === undefined) {
+			if (inputHistoryText) question = inputHistoryText;
+		} else if (answering.historyText) {
+			messages[answering.index] = { role: "user", content: answering.historyText };
+		}
+
+		// The reply is emitted as a step as well as fed to the model: `lastSteps` has to
+		// carry the same turn structure as `expectedSteps`, or the panel can group the
+		// expectation and not the actual run.
+		steps.push({ kind: "user", text: reply.text });
+		messages.push({ role: "user", content: reply.text });
+		answering = { index: messages.length - 1, historyText: reply.historyText };
+		turnIndex += 1;
+		seen = new Map();
+	};
 
 	for (let step = 0; step < maxSteps; step++) {
-		const turn = await callModel(messages);
+		const turn = await callModel(messages, question);
 
 		if (!turn.toolCalls || turn.toolCalls.length === 0) {
 			steps.push({ kind: "final", text: turn.answer });
@@ -80,10 +115,6 @@ export async function replayTrajectory({
 				return { steps };
 			}
 
-			// The reply is emitted as a step as well as fed to the model: `lastSteps` has
-			// to carry the same turn structure as `expectedSteps`, or the panel can group
-			// the expectation and not the actual run.
-			steps.push({ kind: "user", text: reply.text });
 			// The model's own answer goes back into the conversation before the reply that
 			// answers it -- exactly what the playground client does when it records
 			// (`usePlaygroundPromptRun.ts`). Without it record and replay send the provider
@@ -91,9 +122,7 @@ export async function replayTrajectory({
 			// of what it just said, and turn 2's pinned final was produced in a context the
 			// replay cannot reproduce, so a correct agent is written NOK on every run.
 			messages.push({ role: "assistant", content: turn.answer });
-			messages.push({ role: "user", content: reply.text });
-			turnIndex += 1;
-			seen = new Map();
+			advanceTo(reply);
 			continue;
 		}
 
@@ -176,10 +205,7 @@ export async function replayTrajectory({
 		) {
 			// No assistant message: there was no answer to carry. Only the reply goes back
 			// -- the tool results this turn produced are already in `messages` above.
-			steps.push({ kind: "user", text: nextReply.text });
-			messages.push({ role: "user", content: nextReply.text });
-			turnIndex += 1;
-			seen = new Map();
+			advanceTo(nextReply);
 		}
 	}
 

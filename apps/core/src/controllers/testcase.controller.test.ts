@@ -826,6 +826,56 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 		expect(batches.every((batch) => batch.steps.length > 0)).toBe(true);
 	});
 
+	it("records the last answer as the output of a replay that stopped on a tool call", async () => {
+		// `run` is the last model call, and a call that asked for a tool carries the
+		// tool-call JSON in `answer`. Stored as the output, the author read that JSON as
+		// if the model had said it.
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({
+				expectedSteps: [
+					{ kind: "final", text: "It is 12°" },
+					{ kind: "user", text: "and tomorrow?" },
+					{ kind: "tool_call", name: "send_email", args: {}, recordedResult: "sent" },
+					{ kind: "final", text: "done" },
+				],
+			}),
+		);
+		modelTurn({ answer: "It is 12°" });
+		modelTurn({
+			answer: '[{"type":"function_call","name":"send_sms"}]',
+			toolCalls: [{ id: "c2", name: "send_sms", args: {} }],
+		});
+		const { res } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		expect(updatePayload().status).toBe("NOK");
+		expect(updatePayload().lastOutput).toBe("It is 12°");
+	});
+
+	it("sends the opening question as history kept it once the first turn is answered", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(
+			makeTrajectoryTestcase({
+				input: "<ctx>what is the weather",
+				inputHistoryText: "what is the weather",
+				expectedSteps: [
+					{ kind: "final", text: "It is 12°" },
+					{ kind: "user", text: "and tomorrow?" },
+					{ kind: "final", text: "It is 14°" },
+				],
+			}),
+		);
+		modelTurn({ answer: "It is 12°" });
+		modelTurn({ answer: "It is 14°" });
+		const { res } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		const questions = vi.mocked(callPromptModel).mock.calls.map(([data]) => data.question);
+		expect(questions).toEqual(["<ctx>what is the weather", "what is the weather"]);
+		expect(updatePayload().status).toBe("OK");
+	});
+
 	it("fails and names the tool when an argument changed", async () => {
 		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
 		modelTurn({
@@ -1115,6 +1165,22 @@ describe("TestcasesController.createTestcase with a recorded trajectory", () => 
 				expectedSteps: steps,
 				stepsConfig: { orderMatters: true },
 			}),
+		);
+	});
+
+	it("does not prefix a name the namer already prefixed", async () => {
+		vi.mocked(system_prompt.testcaseNamer).mockResolvedValueOnce({
+			answer: "Testcase: Weather in Berlin",
+		} as never);
+		const { res } = makeRes();
+
+		await controller.createTestcase(
+			makeReq({ promptId: PROMPT, input: "i", expectedOutput: "e", lastOutput: "" }),
+			res,
+		);
+
+		expect(db.testcases.newTestcase).toHaveBeenCalledWith(
+			expect.objectContaining({ name: "Testcase: Weather in Berlin" }),
 		);
 	});
 

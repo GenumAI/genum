@@ -31,6 +31,13 @@ export type UserStep = {
 	kind: "user";
 	text: string;
 	enabled?: boolean;
+	/**
+	 * The reply as the recorded app kept it in the conversation once it was answered, when
+	 * that differs from `text` -- an app that attaches context to the message being
+	 * answered and leaves it off the older ones. Replayed in place of `text` from the next
+	 * turn on. Unset, `text` stays in history as it is.
+	 */
+	historyText?: string;
 };
 
 export type Step = ToolCallStep | FinalStep | UserStep;

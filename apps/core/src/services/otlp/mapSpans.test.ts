@@ -705,4 +705,36 @@ describe("what the turn was run with", () => {
 		expect(rows[0].span_type).toBe("user");
 		expect(rows[0].placeholders).toEqual({ admin_role: "true" });
 	});
+
+	it("gives a derived user reply none of the tool call or usage of the span it came from", () => {
+		// The reply is spread from the turn's first span. A reply is something a human
+		// typed: it called no tool and used no tokens.
+		const { rows } = mapOtlpSpans(
+			payload(
+				chatWith({
+					"gen_ai.tool.call.arguments": '{"city":"Berlin"}',
+					"gen_ai.tool.call.result": '{"temp":12}',
+					"gen_ai.input.messages": JSON.stringify([
+						{ role: "user", content: "opening question" },
+						{ role: "assistant", content: "an answer" },
+						{ role: "user", content: "and then?" },
+					]),
+				}),
+			),
+			CONTEXT,
+		);
+
+		expect(rows[0]).toMatchObject({
+			span_type: "user",
+			output: "and then?",
+			tool_args: "",
+			tool_result: "",
+			tool_error: null,
+			tokens_in: 0,
+			tokens_out: 0,
+			duration_ms: 0,
+		});
+		// The span itself keeps what it measured.
+		expect(rows[1].tool_args).toBe('{"city":"Berlin"}');
+	});
 });

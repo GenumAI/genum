@@ -407,6 +407,95 @@ describe("replayTrajectory", () => {
 		]);
 	});
 
+	it("sends an answered reply in the form history kept it", async () => {
+		// An app that attaches context to the message being answered and leaves it off the
+		// older ones sends each context once. Replaying the full text in history instead
+		// sends every earlier context again on every turn -- a conversation the recorded
+		// model never saw.
+		const recorded: Step[] = [
+			{ kind: "final", text: "a0" },
+			{ kind: "user", text: "<ctx>q2", historyText: "q2" },
+			{ kind: "final", text: "a1" },
+			{ kind: "user", text: "<ctx>q3" },
+			{ kind: "final", text: "a2" },
+		];
+		const seen: ConversationMessage[][] = [];
+		const answers: ModelTurn[] = [{ answer: "a0" }, { answer: "a1" }, { answer: "a2" }];
+		let turn = 0;
+		const result = await replayTrajectory({
+			callModel: async (messages) => {
+				seen.push(structuredClone(messages));
+				return answers[turn++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(result.stopped).toBeUndefined();
+		// While it is being answered, the reply goes out as it was sent.
+		expect(seen[1].at(-1)).toEqual({ role: "user", content: "<ctx>q2" });
+		// Once answered, it is history.
+		expect(seen[2]).toEqual([
+			{ role: "assistant", content: "a0" },
+			{ role: "user", content: "q2" },
+			{ role: "assistant", content: "a1" },
+			{ role: "user", content: "<ctx>q3" },
+		]);
+		// The trajectory still records what was said, not how history kept it.
+		expect(result.steps).toContainEqual({ kind: "user", text: "<ctx>q2" });
+	});
+
+	it("keeps a reply that ended its turn on a tool call in its history form too", async () => {
+		const recorded: Step[] = [
+			{ kind: "final", text: "a0" },
+			{ kind: "user", text: "<ctx>show the card", historyText: "show the card" },
+			{ kind: "tool_call", name: "show_card", recordedResult: "{}" },
+			{ kind: "user", text: "<ctx>thanks" },
+			{ kind: "final", text: "you are welcome" },
+		];
+		const seen: ConversationMessage[][] = [];
+		const answers: ModelTurn[] = [
+			{ answer: "a0" },
+			{ answer: "", toolCalls: [{ id: "1", name: "show_card", args: {} }] },
+			{ answer: "you are welcome" },
+		];
+		let turn = 0;
+		await replayTrajectory({
+			callModel: async (messages) => {
+				seen.push(structuredClone(messages));
+				return answers[turn++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+		});
+
+		expect(seen[2]).toContainEqual({ role: "user", content: "show the card" });
+		expect(seen[2]).not.toContainEqual({ role: "user", content: "<ctx>show the card" });
+	});
+
+	it("sends the opening question in its history form once it is answered", async () => {
+		const recorded: Step[] = [
+			{ kind: "final", text: "a0" },
+			{ kind: "user", text: "and then?" },
+			{ kind: "final", text: "a1" },
+		];
+		const questions: (string | undefined)[] = [];
+		const answers: ModelTurn[] = [{ answer: "a0" }, { answer: "a1" }];
+		let turn = 0;
+		await replayTrajectory({
+			callModel: async (_messages, question) => {
+				questions.push(question);
+				return answers[turn++];
+			},
+			recorded,
+			maxSteps: maxStepsForRecording(recorded),
+			inputHistoryText: "the question",
+		});
+
+		// Undefined sends the testcase's input as it is: the first turn answers it in full.
+		expect(questions).toEqual([undefined, "the question"]);
+	});
+
 	it("takes the second turn's recording for the second turn's call of the same tool", async () => {
 		// Turn 1's recording holds TWO calls of `t` but the model only makes ONE of them,
 		// so a global, never-reset ordinal would leave it at 1 going into turn 2 and hand

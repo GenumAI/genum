@@ -78,6 +78,8 @@ export interface TestCase {
 	 * different tool subset than the turn this testcase pinned. See `sessionSelections`.
 	 */
 	pinnedSelectionDrift?: boolean;
+	/** The opening question as the recorded session kept it in history; see `sessionHistory`. */
+	inputHistoryText?: string | null;
 	files?: TestCaseFile[];
 	placeholderValues?: TestCasePinnedPlaceholderValue[];
 }

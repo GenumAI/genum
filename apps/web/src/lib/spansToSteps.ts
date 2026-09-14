@@ -1,5 +1,6 @@
 import type { SpanRow } from "@/types/spans";
 import type { Step, ToolCallStep } from "@/types/steps";
+import { applyHistoryTexts, sessionHistory } from "./sessionHistory";
 
 export interface MappedTrajectory {
 	steps: Step[];
@@ -14,6 +15,15 @@ export interface MappedTrajectory {
 	 * `createTestcase` payload, which is built only from the `steps` array.
 	 */
 	unreadableArgsIndices: Set<number>;
+	/**
+	 * The question the session opened with, as its first model call sent it. A testcase
+	 * pinned from the session starts from this rather than from the log row it was pinned
+	 * from: every turn has a log row, and a later turn's row holds the question only in the
+	 * form history kept it. Undefined when no model call recorded its input.
+	 */
+	input?: string;
+	/** See `SessionHistory.inputHistoryText`. */
+	inputHistoryText?: string;
 }
 
 /**
@@ -35,10 +45,14 @@ export interface MappedTrajectory {
  * `recordedResult` rides through untouched. It is what makes the resulting testcase
  * replayable after the ClickHouse rows age out -- the picked steps are COPIED into the
  * testcase, never referenced.
+ *
+ * The session's recorded history fills in what the rows cannot say: exchanges before the
+ * first turn that reached us, and each reply's history form (see `sessionHistory`).
  */
 export function spansToSteps(spans: SpanRow[]): MappedTrajectory {
 	const unreadableArgsIndices = new Set<number>();
-	const steps: Step[] = [];
+	const history = sessionHistory(spans);
+	const steps: Step[] = [...history.before];
 
 	for (const row of spans) {
 		if (row.span_type === "user") {
@@ -84,7 +98,14 @@ export function spansToSteps(spans: SpanRow[]): MappedTrajectory {
 		// embedding calls as expected answers.
 	}
 
-	return { steps, unreadableArgsIndices };
+	applyHistoryTexts(steps, history.replies);
+
+	return {
+		steps,
+		unreadableArgsIndices,
+		input: history.input,
+		inputHistoryText: history.inputHistoryText,
+	};
 }
 
 /**

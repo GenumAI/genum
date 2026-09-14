@@ -35,6 +35,8 @@ export type UserStep = {
 	kind: "user";
 	text: string;
 	enabled?: boolean;
+	/** The reply as the recorded app kept it in history. Mirrors core's `UserStep`. */
+	historyText?: string;
 };
 
 export type Step = ToolCallStep | FinalStep | UserStep;

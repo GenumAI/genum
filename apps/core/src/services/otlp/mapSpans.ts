@@ -65,6 +65,16 @@ export function mapOtlpSpans(payload: OtlpPayload, context: OtlpMapContext): Otl
 				span_type: "user",
 				name: "user reply",
 				output: reply,
+				// Spread from the turn's first span, the reply inherited whatever that span
+				// carried -- a tool call's arguments and result, its usage, its duration --
+				// and showed a message the human typed as if it had called a tool. A reply
+				// measured nothing; only who said what is its own.
+				tool_args: "",
+				tool_result: "",
+				tool_error: null,
+				tokens_in: 0,
+				tokens_out: 0,
+				duration_ms: 0,
 			});
 		}
 

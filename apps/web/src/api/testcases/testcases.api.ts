@@ -31,6 +31,8 @@ export interface CreateTestcaseData {
 	offeredTools?: string[];
 	/** A later turn of the recording disagreed with turn 0; see `sessionSelections`. */
 	pinnedSelectionDrift?: boolean;
+	/** The opening question as the recording kept it in history; see `sessionHistory`. */
+	inputHistoryText?: string;
 }
 
 export interface UpdateTestcaseData {
