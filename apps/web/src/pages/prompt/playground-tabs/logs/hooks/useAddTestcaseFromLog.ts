@@ -3,14 +3,13 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useToast } from "@/hooks/useToast";
 import { useCreateTestcase } from "@/hooks/useCreateTestcase";
-import { projectApi } from "@/api/project";
 import { promptApi } from "@/api/prompt/prompt.api";
 import { isSingleAnswer, spansToSteps } from "@/lib/spansToSteps";
 import { sessionSelections } from "@/lib/sessionSelections";
+import { traceSpansQuery } from "@/lib/traceSpansQuery";
 import type { SessionSelections } from "@/lib/sessionSelections";
 import type { Log, LogDetail } from "@/types/logs";
 import type { Step } from "@/types/steps";
-import { logsKeys } from "@/query-keys/logs.keys";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 /** Stable identity: a fresh `[]` here would re-fire the picker's reset effect forever. */
@@ -196,10 +195,9 @@ export function useAddTestcaseFromLog({
 			let selections: SessionSelections = NOTHING_RECORDED;
 			let fetchFailed = false;
 			try {
-				const { spans } = await queryClient.fetchQuery({
-					queryKey: logsKeys.traceSpans(selectedLog.trace_id),
-					queryFn: () => projectApi.getTraceSpans(selectedLog.trace_id as string),
-				});
+				const { spans } = await queryClient.fetchQuery(
+					traceSpansQuery(selectedLog.trace_id),
+				);
 				({ steps, unreadableArgsIndices } = spansToSteps(spans));
 				selections = sessionSelections(spans);
 			} catch (error) {

@@ -1,24 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { projectApi } from "@/api/project/project.api";
 import { StepRow } from "@/components/steps/StepRow";
 import { TurnSection } from "@/components/steps/TurnSection";
 import { turnsOf } from "@/lib/session";
-import { isSingleAnswer, spansToSteps } from "@/lib/spansToSteps";
-import { logsKeys } from "@/query-keys/logs.keys";
+import { isSingleAnswer } from "@/lib/spansToSteps";
+import { trajectoryQuery } from "@/lib/traceSpansQuery";
 
 interface LogTrajectorySectionProps {
 	traceId: string;
 }
 
 export function LogTrajectorySection({ traceId }: LogTrajectorySectionProps) {
-	const { data, isLoading, isError } = useQuery({
-		queryKey: logsKeys.traceSpans(traceId),
-		queryFn: async () => {
-			const response = await projectApi.getTraceSpans(traceId);
-			return spansToSteps(response.spans ?? []);
-		},
-	});
+	const { data, isLoading, isError } = useQuery(trajectoryQuery(traceId));
 
 	// Every run opens a session now, so almost every log row has a trace and this
 	// component mounts on almost every log. A session of one plain answer has nothing to
