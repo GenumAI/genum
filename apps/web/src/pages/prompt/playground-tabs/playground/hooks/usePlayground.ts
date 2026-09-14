@@ -10,6 +10,7 @@ import { usePlaygroundTestcaseController } from "@/pages/prompt/playground-tabs/
 import { usePlaygroundPromptRun } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundPromptRun";
 import { usePlaygroundInput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundInput";
 import { usePlaygroundOutput } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundOutput";
+import { usePlaygroundTrajectory } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundTrajectory";
 import { usePlaygroundAssertion } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundAssertion";
 import { usePlaygroundSession } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaygroundSession";
 import type { PlaygroundControllerReturn } from "@/pages/prompt/playground-tabs/playground/hooks/types";
@@ -55,6 +56,11 @@ export function usePlaygroundController({
 		promptId,
 		testcaseId,
 	});
+	const { trajectory, setTrajectory, clearTrajectory, trajectoryGeneration } =
+		usePlaygroundTrajectory({
+			promptId,
+			testcaseId,
+		});
 	const [isPromptChangedAfterAudit, setIsPromptChangedAfterAudit] = useState(false);
 	const {
 		status,
@@ -95,10 +101,18 @@ export function usePlaygroundController({
 	const resetPlaygroundState = useCallback(() => {
 		clearInputContent();
 		resetOutputState();
+		clearTrajectory();
 		setRunState({ loading: false, wasRun: false });
 		setTestcaseLoadState({ loaded: false });
 		setStatus("");
-	}, [clearInputContent, resetOutputState, setRunState, setTestcaseLoadState, setStatus]);
+	}, [
+		clearInputContent,
+		resetOutputState,
+		clearTrajectory,
+		setRunState,
+		setTestcaseLoadState,
+		setStatus,
+	]);
 
 	// Cleanup on unmount
 	useEffect(() => {
@@ -147,7 +161,7 @@ export function usePlaygroundController({
 		resetPlaygroundState,
 	});
 
-	const { handleRun } = usePlaygroundPromptRun({
+	const { handleRun, handleToolResult, handleReply, handleRetry } = usePlaygroundPromptRun({
 		promptId,
 		testcaseId,
 		testcase,
@@ -157,6 +171,10 @@ export function usePlaygroundController({
 		currentAssertionType,
 		promptSettings: prompt?.prompt,
 		selectedFiles,
+		trajectory,
+		setTrajectory,
+		clearTrajectory,
+		trajectoryGeneration,
 		setRunState,
 		setOutputContent,
 		setStatus,
@@ -246,6 +264,14 @@ export function usePlaygroundController({
 			},
 		},
 		models,
+		trajectory: {
+			steps: trajectory.steps,
+			pendingTool: trajectory.pending[0]?.call.name ?? null,
+			onToolResult: handleToolResult,
+			onReply: handleReply,
+			error: trajectory.error,
+			onRetry: handleRetry,
+		},
 		actions: {
 			prompt: {
 				update: updatePromptContent,

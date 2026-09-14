@@ -10,4 +10,6 @@ export const testcaseKeys = {
 	updateExpected: (testcaseId: ScopeParam) => ["testcase-update-expected", testcaseId] as const,
 	addFile: (testcaseId: ScopeParam) => ["testcase-add-file", testcaseId] as const,
 	removeFile: (testcaseId: ScopeParam) => ["testcase-remove-file", testcaseId] as const,
+	updateTrajectory: (testcaseId: ScopeParam) =>
+		["testcase-update-trajectory", testcaseId] as const,
 };

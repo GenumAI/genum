@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { ProviderRequest, ProviderResponse } from "..";
+import type { ProviderRequest, ProviderResponse, ToolCall } from "..";
 import { mapMessagesAnthropic, mapToolsAnthropic } from "./utils";
 
 export async function generateAnthropic(request: ProviderRequest): Promise<ProviderResponse> {
@@ -28,8 +28,17 @@ export async function generateAnthropic(request: ProviderRequest): Promise<Provi
 		throw new Error("No answer from Anthropic");
 	}
 
+	const toolCalls: ToolCall[] = response.content
+		.filter((block) => block.type === "tool_use")
+		.map((block) => ({
+			id: block.id,
+			name: block.name,
+			args: (block.input ?? {}) as Record<string, unknown>,
+		}));
+
 	const r: ProviderResponse = {
 		answer: result,
+		toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
 		tokens: {
 			prompt: response.usage.input_tokens,
 			completion: response.usage.output_tokens,

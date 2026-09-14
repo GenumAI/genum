@@ -1,11 +1,12 @@
 import { db } from "@/database/db";
 import { logUsage } from "../../services/logger/logger";
 import { AiVendor } from "@/prisma";
-import { mdToXml } from "@/utils/xml";
+import { shapeInstruction } from "./instruction";
 import { renderPlaceholders } from "@genum/placeholders";
 import { toPlaceholderDefinitions } from "../placeholders/definitions";
 import {
 	calculateCost,
+	type ConversationMessage,
 	generateDeepSeek,
 	generateGemini,
 	generateOpenAI,
@@ -118,7 +119,14 @@ async function runPromptWithProvider(provider: AiVendor, request: ProviderReques
 	}
 }
 
-export async function runPrompt(data: runPromptParams) {
+/**
+ * Everything a run needs before the provider is called: the model, the API key (custom
+ * providers included), the quota, and the rendered instruction. Extracted so the agentic
+ * replay path resolves a run exactly the way a plain run does -- two copies would drift,
+ * and a replay that ran against different placeholder definitions than the prompt does
+ * would invalidate every trajectory testcase without failing anything.
+ */
+async function resolvePromptRun(data: runPromptParams) {
 	const prompt = data.prompt;
 
 	let instruction = data.system_instructions ?? prompt.value;
@@ -180,13 +188,45 @@ export async function runPrompt(data: runPromptParams) {
 	const render = renderPlaceholders(instruction, definitions, data.placeholders ?? {});
 	instruction = render.text;
 
+	return {
+		model,
+		apiKey,
+		baseUrl,
+		quotaUsed,
+		instruction,
+		render,
+		runOrgId,
+		runProjectId,
+		runUserId,
+	};
+}
+
+export async function runPrompt(data: runPromptParams) {
+	const prompt = data.prompt;
+
+	const {
+		model,
+		apiKey,
+		baseUrl,
+		quotaUsed,
+		instruction,
+		render,
+		runOrgId,
+		runProjectId,
+		runUserId,
+	} = await resolvePromptRun(data);
+
 	try {
 		// run prompt
 		const completion = await runPromptWithProvider(model.vendor, {
 			apikey: apiKey.key,
-			instruction: data.systemPrompt
-				? `<system_prompt>${mdToXml(instruction)}</system_prompt>`
-				: mdToXml(instruction),
+			// One place, shared with the render endpoint -- see `./instruction.ts`. Inline
+			// here, this transform was invisible to a caller running its own agent loop,
+			// which sent the raw text while a replay of the same session sent the shaped
+			// one.
+			instruction: shapeInstruction(instruction, prompt.instructionFormat ?? "XML", {
+				systemPrompt: data.systemPrompt,
+			}),
 			question: data.question,
 			model: model.name,
 			parameters: prompt.languageModelConfig as ModelConfigParameters,
@@ -194,6 +234,9 @@ export async function runPrompt(data: runPromptParams) {
 			promptPrice: model.promptPrice,
 			completionPrice: model.completionPrice,
 			baseUrl, // Pass baseUrl for custom providers
+			// Absent for every caller that existed before agentic replay, which is what
+			// keeps a single-shot run byte-identical to what it sent before.
+			messages: data.messages,
 		});
 
 		const cost = calculateCost(
@@ -210,7 +253,7 @@ export async function runPrompt(data: runPromptParams) {
 			await db.organization.chargeQuota(data.userOrgId, cost.total);
 		}
 
-		recordUsage({
+		const usage: LogDocument = {
 			source: data.source,
 			log_type: LogType.PromptRunSuccess,
 			log_lvl: LogLevel.success,
@@ -230,7 +273,20 @@ export async function runPrompt(data: runPromptParams) {
 			placeholders: toLogPlaceholders(render.resolved),
 			testcase_id: data.testcase_id ? data.testcase_id : undefined,
 			api_key_id: data.api_key_id ? data.api_key_id : undefined,
-		});
+		};
+
+		// One turn of an agentic replay is not a run of the prompt: N turns logged as N
+		// rows would count one testcase run N times in every COUNT()/avg(cost) aggregate,
+		// and the intermediate turns -- an empty answer plus a tool request -- would read
+		// as ordinary completed runs. A caller that collects instead of logging is
+		// responsible for writing ONE root row summed across the turns (see
+		// TestcasesController.runTestcase). Quota is charged above either way: every turn
+		// is a real provider call with real tokens.
+		if (data.collectUsage) {
+			data.collectUsage(usage);
+		} else {
+			recordUsage(usage);
+		}
 
 		return {
 			...completion,
@@ -269,6 +325,21 @@ export async function runPrompt(data: runPromptParams) {
 
 		throw error;
 	}
+}
+
+/**
+ * One model turn of a trajectory replay: the same prompt, the same committed
+ * placeholders, plus the conversation so far.
+ *
+ * It delegates to `runPrompt` rather than resolving a run of its own. A replayed turn is
+ * a real call to the provider -- it costs money and belongs in the usage log -- so it
+ * must charge quota and log exactly like any other run, and the resolution it shares
+ * (`resolvePromptRun`) is the same one `runPrompt` uses. The result is the full run
+ * result, a superset of the `{ answer, toolCalls }` the replay loop needs, so the caller
+ * can also keep the last turn's cost and resolved placeholders for its response.
+ */
+export async function callPromptModel(data: runPromptParams, messages: ConversationMessage[]) {
+	return await runPrompt({ ...data, messages });
 }
 
 export async function transcribe(

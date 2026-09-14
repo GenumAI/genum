@@ -74,5 +74,14 @@ export function createProjectRouter(): Router {
 		asyncHandler(projectController.getProjectLogDetail.bind(projectController)),
 	);
 
+	// Trace spans (agentic run trajectories)
+	// `:traceId` is a session identifier -- the route keeps the "trace" name because it is
+	// called by the web client and by third parties, but it returns a whole session's
+	// spans across all its turns, not one trace's.
+	router.get(
+		"/traces/:traceId/spans",
+		asyncHandler(projectController.getTraceSpans.bind(projectController)),
+	);
+
 	return router;
 }

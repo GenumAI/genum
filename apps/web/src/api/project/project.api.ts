@@ -1,6 +1,7 @@
 import { apiClient, type ApiRequestConfig } from "../client";
 import type { OrganizationRole } from "../organization";
 import type { Log, LogDetail, LogsResponse, PromptName } from "@/types/logs";
+import type { TraceSpansResponse } from "@/types/spans";
 
 // ============================================================================
 // Enums
@@ -235,6 +236,27 @@ export const projectApi = {
 		const queryString = queryParams.toString();
 		const url = `/project/logs${queryString ? `?${queryString}` : ""}`;
 		const response = await apiClient.get<LogsResponse>(url, config);
+		return response.data;
+	},
+
+	/**
+	 * Get the spans of one recorded session across all of its turns, ordered by
+	 * `turn_index` then `span_index`. "Trace" in this name and endpoint means session --
+	 * the wire vocabulary was kept for this HTTP surface, but a session's turns are each
+	 * their own trace internally.
+	 *
+	 * The org and project scope is not passed here -- the axios interceptor injects it as
+	 * `lab-org-id` / `lab-proj-id`, and the backend re-applies it to the query, so a
+	 * trace_id from another org's run simply matches nothing.
+	 */
+	getTraceSpans: async (
+		traceId: string,
+		config?: ApiRequestConfig,
+	): Promise<TraceSpansResponse> => {
+		const response = await apiClient.get<TraceSpansResponse>(
+			`/project/traces/${encodeURIComponent(traceId)}/spans`,
+			config,
+		);
 		return response.data;
 	},
 

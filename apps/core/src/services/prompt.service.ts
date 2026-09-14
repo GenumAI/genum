@@ -7,7 +7,7 @@ import {
 } from "@/ai/placeholders/definitions";
 import type { Database } from "@/database/db";
 import type { NewPromptModelOverride } from "@/database/repositories/PromptsRepository";
-import type { AiVendor, Prompt } from "@/prisma";
+import type { AiVendor, LanguageModel, Prompt } from "@/prisma";
 import { commitHash } from "@/utils/hash";
 import type { PlaceholderDefinition } from "@genum/placeholders";
 
@@ -183,11 +183,24 @@ export class PromptService {
 	/**
 	 * Returns the prompt with the latest productive commit applied.
 	 * If requireCommit is true and no productive commit exists, returns null.
+	 *
+	 * `commitHash` names the version the returned text came from. A caller that hands this
+	 * text to something which later reports what it ran -- an external agent stamping
+	 * `genum.prompt.version` on its traces, a replay saying which version it replayed --
+	 * needs an identifier for it, and the prompt row carries none: it is mutable, and the
+	 * commit is the only stable thing here. Absent means the draft is being served.
 	 */
 	public async getPromptWithProductiveCommit<T extends ProductivePrompt>(
 		prompt: T,
 		options: { requireCommit?: boolean } = {},
-	): Promise<(T & { placeholderDefinitions?: PlaceholderDefinition[] }) | null> {
+	): Promise<
+		| (T & {
+				placeholderDefinitions?: PlaceholderDefinition[];
+				commitHash?: string;
+				languageModel?: LanguageModel;
+		  })
+		| null
+	> {
 		const productiveCommit = await this.db.prompts.getProductiveCommit(prompt.id);
 
 		if (!productiveCommit) {
@@ -205,6 +218,12 @@ export class PromptService {
 			value: productiveCommit.value,
 			languageModelConfig: productiveCommit.languageModelConfig,
 			languageModelId: productiveCommit.languageModelId,
+			// The committed model, not the prompt row's current one. `languageModelId` was
+			// already taken from the commit; leaving the joined object behind meant the two
+			// could name different models in the same response -- the id said what the
+			// commit pinned, the object said what the editor points at now.
+			languageModel: productiveCommit.languageModel,
+			commitHash: productiveCommit.commitHash,
 			placeholderDefinitions: parsePlaceholderSnapshot(productiveCommit.placeholders),
 		};
 	}

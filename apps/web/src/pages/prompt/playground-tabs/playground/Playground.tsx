@@ -39,7 +39,7 @@ export default function Playground() {
 		selectedFiles,
 	});
 
-	const { prompt, testcase, metrics, ui, models, actions } = controller;
+	const { prompt, testcase, metrics, ui, models, trajectory, actions } = controller;
 	const hasCurrentPromptData = prompt.data?.prompt?.id === promptId;
 	const isTestcaseReady = !testcase.loading;
 	const shouldShowTransitionSkeletonBase =
@@ -132,6 +132,18 @@ export default function Playground() {
 							</div>
 						</div>
 
+						{/*
+						 * The trajectory used to be two components above this one: a card
+						 * list for the live run and a step panel for the saved testcase,
+						 * with the output block's diff drawing the same answer a third
+						 * time. They had to sit ABOVE the output block rather than replace
+						 * it, because nothing but a new run cleared them and replacing it
+						 * hid "add test case" and "save as expected" for good.
+						 *
+						 * They are one component now, and it is inside the output block --
+						 * so that constraint holds by construction: the affordances cannot
+						 * be hidden by the thread, because they are part of it.
+						 */}
 						<OutputBlock
 							onSaveAsExpected={actions.testcase.saveAsExpected}
 							onTestcaseAdded={actions.testcase.onAdded}
@@ -141,6 +153,8 @@ export default function Playground() {
 							isRunning={ui.loading.run}
 							serverAssertionType={prompt.data?.prompt?.assertionType}
 							serverAssertionValue={prompt.data?.prompt?.assertionValue}
+							trajectory={trajectory}
+							testcase={testcase.data}
 						/>
 					</div>
 

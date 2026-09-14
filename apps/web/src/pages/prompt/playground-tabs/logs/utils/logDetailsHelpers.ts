@@ -2,6 +2,13 @@ export function getLogTypeDescription(logType: string | undefined) {
 	switch (logType) {
 		case "prs":
 			return "Prompt run successfully";
+		// A continuation turn of one agentic run, and a turn of a session ingested over
+		// OTLP. Both are written by the server today; without these cases every such row's
+		// detail dialog reads "Unknown log type", which is most rows of any agentic session.
+		case "prt":
+			return "Prompt run (follow-up)";
+		case "oti":
+			return "OpenTelemetry trace";
 		case "pre":
 			return "Prompt run error";
 		case "ae":
@@ -21,6 +28,8 @@ export function getSourceLabel(source: string | undefined) {
 			return "Testcase";
 		case "api":
 			return "API";
+		case "otlp":
+			return "OpenTelemetry";
 		default:
 			return source ? source.charAt(0).toUpperCase() + source.slice(1) : "-";
 	}

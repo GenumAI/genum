@@ -68,3 +68,12 @@ describe("createProjectRouter — project API key routes", () => {
 		expect(minRoleFor(createProjectRouter(), "post", "/members")).toBe(ProjectRole.ADMIN);
 	});
 });
+
+describe("createProjectRouter — trace spans route", () => {
+	it("registers GET /traces/:traceId/spans", () => {
+		// minRoleFor throws if the route is not registered.
+		expect(() =>
+			minRoleFor(createProjectRouter(), "get", "/traces/:traceId/spans"),
+		).not.toThrow();
+	});
+});

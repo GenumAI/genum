@@ -40,3 +40,19 @@ export const GetPromptQuerySchema = z
 	.strict();
 
 export type GetPromptQueryType = z.infer<typeof GetPromptQuerySchema>;
+
+/**
+ * `POST /prompts/:id/render` -- the same body a run takes, minus the run.
+ *
+ * `productive` defaults to true for the same reason it does on a run: an external caller
+ * wants the committed prompt, and getting the editor's uncommitted draft by default would
+ * ship someone's half-finished edit to production traffic.
+ */
+export const RenderPromptSchema = z
+	.object({
+		placeholders: z.record(z.string(), z.string()).optional(),
+		productive: z.coerce.boolean().optional().default(true),
+	})
+	.strict();
+
+export type RenderPromptType = z.infer<typeof RenderPromptSchema>;

@@ -21,7 +21,12 @@ vi.mock("@/database/db", () => ({
 	},
 }));
 
+vi.mock("../services/logger/logger", () => ({
+	getSessionSpans: vi.fn(),
+}));
+
 import { db } from "@/database/db";
+import { getSessionSpans } from "../services/logger/logger";
 import { ProjectController } from "./project.controller";
 
 const CALLER_ORG = 1;
@@ -122,5 +127,57 @@ describe("ProjectController.addProjectMember", () => {
 
 		expect(captured.statusCode).toBe(404);
 		expect(db.project.addMember).not.toHaveBeenCalled();
+	});
+});
+
+const TRACE_ID = "11111111-2222-4333-8444-555555555555";
+
+describe("ProjectController.getTraceSpans", () => {
+	let controller: ProjectController;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		controller = new ProjectController();
+		vi.mocked(getSessionSpans).mockResolvedValue([]);
+	});
+
+	it("scopes the read to the caller's org and project, not the request body or query", async () => {
+		// A trace_id from another org's run must never be readable by spoofing org/project
+		// through the request instead of req.genumMeta.ids.
+		const { res } = makeRes();
+		const req = makeReq({
+			params: { traceId: TRACE_ID },
+			body: { orgId: 999, project_id: 999 },
+			query: { orgId: 999, project_id: 999 },
+		});
+
+		await controller.getTraceSpans(req, res);
+
+		expect(getSessionSpans).toHaveBeenCalledWith(TRACE_ID, CALLER_ORG, CALLER_PROJECT);
+	});
+
+	// This route reads a SESSION, and a session id is not a uuid. Our own are, but an
+	// ingested session is identified by the sender's `gen_ai.conversation.id` -- which the
+	// GenAI conventions constrain in no way -- or by a 32-hex OTLP trace id. Guarded as a
+	// uuid, as it was, every ingested session 400s while its rows sit in the table
+	// unreadable, and the table is append-only.
+	it("reads a session whose id came from a customer's collector", async () => {
+		for (const sessionId of ["conv-1", "4bf92f3577b34da6a3ce929d0e0e4736"]) {
+			vi.mocked(getSessionSpans).mockClear();
+			const { res } = makeRes();
+
+			await controller.getTraceSpans(makeReq({ params: { traceId: sessionId } }), res);
+
+			expect(getSessionSpans).toHaveBeenCalledWith(sessionId, CALLER_ORG, CALLER_PROJECT);
+		}
+	});
+
+	it("still refuses an id that is empty or carries control characters", async () => {
+		const { res } = makeRes();
+
+		await expect(
+			controller.getTraceSpans(makeReq({ params: { traceId: "" } }), res),
+		).rejects.toThrow();
+		expect(getSessionSpans).not.toHaveBeenCalled();
 	});
 });

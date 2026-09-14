@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { useToast } from "@/hooks/useToast";
 import type { Log, LogDetail, PromptName } from "@/types/logs";
 import { getPromptName, isPromptDeleted } from "../utils/promptNames";
+import { LogTrajectorySection } from "./LogTrajectorySection";
 import {
 	getLogTypeDescription,
 	getSourceLabel,
@@ -105,7 +106,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-4xl max-h-[90vh] overflow-x-hidden overflow-y-auto">
+			<DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] overflow-x-hidden overflow-y-auto">
 				<div className="flex items-center justify-between">
 					<DialogTitle className="text-[18px] font-semibold">Log Details</DialogTitle>
 				</div>
@@ -299,6 +300,12 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 							</table>
 						</div>
 						<div className="mt-4 flex flex-col gap-4">
+							{selectedLog.trace_id && (
+								<LogTrajectorySection
+									traceId={selectedLog.trace_id}
+									logInput={logDetail?.in}
+								/>
+							)}
 							{isLoadingLogDetail && (
 								<p className="font-medium text-xs leading-none tracking-normal text-muted-foreground">
 									Loading input and output…
@@ -437,7 +444,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 
 			{/* Expanded Input Dialog */}
 			<Dialog open={isInputExpanded} onOpenChange={setIsInputExpanded}>
-				<DialogContent className="max-w-4xl h-[80vh] flex flex-col overflow-x-hidden py-6 px-4">
+				<DialogContent className="w-[95vw] max-w-6xl h-[80vh] flex flex-col overflow-x-hidden py-6 px-4">
 					<div className="flex h-full flex-col gap-2">
 						<div className="flex items-center gap-2">
 							<DialogTitle className="text-sm font-medium">Input</DialogTitle>
@@ -489,7 +496,7 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 
 			{/* Expanded Output Dialog */}
 			<Dialog open={isOutputExpanded} onOpenChange={setIsOutputExpanded}>
-				<DialogContent className="max-w-4xl h-[80vh] flex flex-col overflow-x-hidden py-6 px-4">
+				<DialogContent className="w-[95vw] max-w-6xl h-[80vh] flex flex-col overflow-x-hidden py-6 px-4">
 					<div className="flex h-full flex-col gap-2">
 						<div className="flex items-center gap-2">
 							<DialogTitle className="text-sm font-medium">Output</DialogTitle>

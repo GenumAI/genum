@@ -14,23 +14,48 @@ export const ParameterConstraintsSchema = z.object({
 
 export type ParameterConstraints = z.infer<typeof ParameterConstraintsSchema>;
 
-// Function call parameter property schema
-export const FunctionParameterPropertySchema = z.object({
-	type: z.string(),
-	description: z.string().optional(),
-	required: z.array(z.string()).optional(),
-	properties: z.record(z.string(), z.any()).optional(),
-	additionalProperties: z.boolean().optional(),
-	enum: z.array(z.string()).optional(),
-});
+/**
+ * A tool's `parameters`, kept as the JSON Schema the caller sent.
+ *
+ * This used to be a shaped `z.object`, which in zod means unknown keys are STRIPPED --
+ * silently, on the way into the database. Every keyword the shape did not list went with
+ * them: `items`, `format`, `minimum`, `maxItems`, `pattern`, `anyOf`. An array parameter
+ * lost its `items` and became `{"type":"array"}`, which several providers reject
+ * outright, and the author had no way to see why: the schema they typed and the schema
+ * we stored were different documents.
+ *
+ * So the structure is checked and the content is not. Only what every provider requires
+ * of a tool's root is asserted -- an object, with properties if it has any -- and
+ * everything below is stored verbatim and adapted at SEND time, per provider, where the
+ * differences between them actually live.
+ *
+ * The cap is a storage bound, not a schema opinion: this JSON is copied into every
+ * prompt version and every replayed testcase, so an unbounded one is unbounded many
+ * times over.
+ */
+export const MAX_TOOL_PARAMETERS_BYTES = 100_000;
 
-// Function call parameter schema
-export const FunctionParameterSchema = z.object({
-	type: z.string(),
-	required: z.array(z.string()).optional(),
-	properties: z.record(z.string(), FunctionParameterPropertySchema).optional(),
-	additionalProperties: z.boolean().optional(),
-});
+export const FunctionParameterSchema = z
+	.object({
+		// Case-insensitive because that is what arrives: some callers and some provider
+		// SDKs spell it "OBJECT". The value is stored as sent -- normalising it here would
+		// rewrite the caller's document, which is the habit this schema exists to break.
+		type: z.string().refine((value) => value.toLowerCase() === "object", {
+			message: 'A tool\'s parameters must be a JSON Schema of type "object".',
+		}),
+		// `z.json()`, not a shape: the value is a JSON Schema node and every keyword in it
+		// must survive to the provider. It still has to BE json -- this config is written
+		// to a Postgres json column and copied into every prompt version.
+		properties: z.record(z.string(), z.json()).optional(),
+		required: z.array(z.string()).optional(),
+		additionalProperties: z.boolean().optional(),
+	})
+	// Keeps unrecognised keywords instead of stripping them, and requires them to be json
+	// for the same reason as above. `$defs`, `anyOf` and `$ref` all land here.
+	.catchall(z.json())
+	.refine((parameters) => JSON.stringify(parameters).length <= MAX_TOOL_PARAMETERS_BYTES, {
+		message: `A tool's parameters must be at most ${MAX_TOOL_PARAMETERS_BYTES} bytes.`,
+	});
 
 // Function call schema
 export const FunctionCallSchema = z.object({

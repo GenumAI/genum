@@ -187,4 +187,61 @@ describe("getPromptWithProductiveCommit", () => {
 		expect(result).not.toBeNull();
 		expect(result?.placeholderDefinitions).toBeUndefined();
 	});
+
+	it("names the version the text came from", async () => {
+		// Without this, nothing in the response identifies the returned text. The prompt
+		// row is mutable, so an external caller recording "I ran prompt 1" records
+		// something that cannot be resolved back to what it actually ran.
+		vi.mocked((db as never as { prompts: { getProductiveCommit: ReturnType<typeof vi.fn> } })
+			.prompts.getProductiveCommit).mockResolvedValue({
+			value: "committed text",
+			languageModelConfig: {},
+			languageModelId: 2,
+			commitHash: "abc123",
+			placeholders: null,
+		} as never);
+
+		const result = await service.getPromptWithProductiveCommit({
+			id: 1,
+		} as unknown as ProductivePrompt);
+
+		expect(result?.commitHash).toBe("abc123");
+	});
+
+	it("takes the model from the same commit as the text, not from the live row", async () => {
+		// The prompt's model can be changed in the editor after the commit was cut. Taking
+		// `languageModelId` from the commit and the joined object from the live row made
+		// the two disagree inside one response.
+		vi.mocked((db as never as { prompts: { getProductiveCommit: ReturnType<typeof vi.fn> } })
+			.prompts.getProductiveCommit).mockResolvedValue({
+			value: "committed text",
+			languageModelConfig: {},
+			languageModelId: 2,
+			languageModel: { id: 2, name: "committed-model" },
+			commitHash: "abc123",
+			placeholders: null,
+		} as never);
+
+		const result = await service.getPromptWithProductiveCommit({
+			id: 1,
+			languageModelId: 1,
+			languageModel: { id: 1, name: "live-model" },
+		} as unknown as ProductivePrompt);
+
+		expect(result?.languageModelId).toBe(2);
+		expect(result?.languageModel).toEqual({ id: 2, name: "committed-model" });
+	});
+
+	it("gives an uncommitted prompt no commitHash", async () => {
+		// Absent means "this is the draft". A hash invented here would name a version that
+		// does not exist, which is worse than saying nothing.
+		vi.mocked((db as never as { prompts: { getProductiveCommit: ReturnType<typeof vi.fn> } })
+			.prompts.getProductiveCommit).mockResolvedValue(null as never);
+
+		const result = await service.getPromptWithProductiveCommit({
+			id: 1,
+		} as unknown as ProductivePrompt);
+
+		expect(result?.commitHash).toBeUndefined();
+	});
 });

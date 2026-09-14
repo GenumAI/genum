@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { ProviderRequest, ProviderResponse } from "..";
+import type { ProviderRequest, ProviderResponse, ToolCall } from "..";
 import { mapMessagesDeepSeek, mapToolsDeepSeek, responseFormatDeepSeek } from "./utils";
 
 /** DeepSeek exposes an OpenAI-compatible chat completions API at this host. */
@@ -50,8 +50,17 @@ export async function generateDeepSeek(request: ProviderRequest): Promise<Provid
 		throw new Error("No answer from DeepSeek");
 	}
 
+	const toolCalls: ToolCall[] = (message.tool_calls ?? [])
+		.filter((call) => call.type === "function")
+		.map((call) => ({
+			id: call.id,
+			name: call.function.name,
+			args: JSON.parse(call.function.arguments) as Record<string, unknown>,
+		}));
+
 	const result: ProviderResponse = {
 		answer,
+		toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
 		tokens: {
 			prompt: response.usage?.prompt_tokens ?? 0,
 			completion: response.usage?.completion_tokens ?? 0,

@@ -12,6 +12,10 @@ export function createApiV1Router(): Router {
 	router.post("/prompts", asyncHandler(controller.createPrompt.bind(controller)));
 	router.get("/prompts/:id", asyncHandler(controller.getPrompt.bind(controller)));
 	router.post("/prompts/run", asyncHandler(controller.runPrompt.bind(controller)));
+	// Before `/prompts/:id`-shaped routes would matter, but after `/prompts/run` for the
+	// same reason that one is where it is: Express matches in order, and `run` would
+	// otherwise be read as an id.
+	router.post("/prompts/:id/render", asyncHandler(controller.renderPrompt.bind(controller)));
 
 	return router;
 }

@@ -4,6 +4,22 @@ enum AssertionType {
     MANUAL
 }
 
+// How a prompt's rendered instruction is shaped before it reaches the model.
+//
+// XML is what every prompt has always got: markdown headers become tags, lines are
+// XML-escaped, blank and `---` lines are dropped, and the result is wrapped in
+// <instructions> (see utils/xml.ts). RAW sends the rendered text as written.
+//
+// The default is XML because changing the shape of an existing prompt's instruction
+// changes what its model sees, and therefore what it answers -- silently, for every
+// prompt at once. RAW exists for an author who wants the model to read their markdown as
+// markdown, and for a caller whose own agent loop sends the raw text: without it, that
+// caller's production traffic and a Lab replay of it run differently shaped instructions.
+enum InstructionFormat {
+    XML
+    RAW
+}
+
 model Prompt {
     id                  Int           @id @default(autoincrement())
     value               String
@@ -14,6 +30,8 @@ model Prompt {
 
     assertionType  AssertionType @default(STRICT)
     assertionValue String?       @default("")
+
+    instructionFormat InstructionFormat @default(XML)
 
     commited Boolean @default(false)
 

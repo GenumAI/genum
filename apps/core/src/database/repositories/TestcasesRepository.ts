@@ -1,5 +1,48 @@
+import { Prisma } from "@/prisma";
 import type { PrismaClient, TestCase } from "@/prisma";
 import type { TestcasesCreateType, TestcasesUpdateType } from "@/services/validate";
+
+/**
+ * `expectedSteps`, `lastSteps` and `stepsConfig` are `Json?` columns. Prisma needs three
+ * different things from us for three different intents, and conflating any two of them is
+ * the bug this function exists to prevent:
+ *
+ *   - absent (`undefined`)  -> leave the column alone
+ *   - a value               -> write it
+ *   - `null`                -> clear the column, which Prisma spells `Prisma.DbNull`
+ *
+ * A plain `null` cast to `InputJsonValue` is rejected at runtime, which is why clearing a
+ * trajectory was impossible through the API before this.
+ */
+export function trajectoryColumns(data: {
+	expectedSteps?: unknown;
+	lastSteps?: unknown;
+	stepsConfig?: unknown;
+	lastMismatches?: unknown;
+	offeredTools?: unknown;
+}): {
+	expectedSteps?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+	lastSteps?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+	stepsConfig?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+	lastMismatches?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+	offeredTools?: Prisma.InputJsonValue | typeof Prisma.DbNull;
+} {
+	const column = (value: unknown) =>
+		value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue);
+
+	return {
+		...(data.expectedSteps !== undefined ? { expectedSteps: column(data.expectedSteps) } : {}),
+		...(data.lastSteps !== undefined ? { lastSteps: column(data.lastSteps) } : {}),
+		...(data.stepsConfig !== undefined ? { stepsConfig: column(data.stepsConfig) } : {}),
+		...(data.lastMismatches !== undefined
+			? { lastMismatches: column(data.lastMismatches) }
+			: {}),
+		// Goes through the same three-way treatment as the trajectory columns beside it,
+		// and for the same reason: an explicit `null` is a client CLEARING the recorded
+		// tool subset, which Prisma spells `DbNull` and rejects as a plain `null`.
+		...(data.offeredTools !== undefined ? { offeredTools: column(data.offeredTools) } : {}),
+	};
+}
 
 export class TestcasesRepository {
 	private prisma: PrismaClient;
@@ -65,10 +108,20 @@ export class TestcasesRepository {
 	}
 
 	public async newTestcase(data: TestcasesCreateType & { files?: string[] }) {
-		const { files, placeholders: _placeholders, ...testcaseData } = data;
+		const {
+			files,
+			placeholders: _placeholders,
+			expectedSteps,
+			stepsConfig,
+			offeredTools,
+			...testcaseData
+		} = data;
 
 		const testcase = await this.prisma.testCase.create({
-			data: testcaseData,
+			data: {
+				...testcaseData,
+				...trajectoryColumns({ expectedSteps, stepsConfig, offeredTools }),
+			},
 		});
 
 		// Create file associations if files are provided
@@ -95,11 +148,35 @@ export class TestcasesRepository {
 	// must carry the same placeholderValues shape as that list -- an update response
 	// missing the relation would read in the cache as "no pin", clearing the chips even
 	// though nothing about the pin changed.
-	public async updateTestcaseByID(id: number, data: TestcasesUpdateType) {
-		const { placeholders: _placeholders, ...testcaseData } = data;
+	// `lastMismatches` is not part of `TestcasesUpdateType` -- the schema is `.strict()`
+	// and deliberately does not accept it from a client -- so the signature is widened
+	// here to accept it from a caller that derived it from a run (or from the update
+	// handler's own cascade), rather than smuggling it through the parsed request type.
+	public async updateTestcaseByID(
+		id: number,
+		data: TestcasesUpdateType & { lastMismatches?: unknown },
+	) {
+		const {
+			placeholders: _placeholders,
+			expectedSteps,
+			lastSteps,
+			stepsConfig,
+			lastMismatches,
+			offeredTools,
+			...testcaseData
+		} = data;
 		return await this.prisma.testCase.update({
 			where: { id },
-			data: testcaseData,
+			data: {
+				...testcaseData,
+				...trajectoryColumns({
+					expectedSteps,
+					lastSteps,
+					stepsConfig,
+					lastMismatches,
+					offeredTools,
+				}),
+			},
 			include: {
 				placeholderValues: {
 					include: { placeholderValue: { include: { placeholder: true } } },

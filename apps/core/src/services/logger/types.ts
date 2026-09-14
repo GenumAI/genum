@@ -6,6 +6,8 @@ export enum SourceType {
 	ui = "ui",
 	testcase = "testcase",
 	api = "api",
+	/** A trace a customer sent us over OTLP; we did not run it and did not bill it. */
+	otlp = "otlp",
 }
 
 export enum LogLevel {
@@ -17,6 +19,40 @@ export enum LogLevel {
 
 export enum LogType {
 	PromptRunSuccess = "prs",
+	/**
+	 * A continuation turn of a playground trajectory: turns 2..N of one authoring
+	 * session, sharing the `trace_id` that turn 1 (logged as `PromptRunSuccess`) minted.
+	 *
+	 * The split exists because the playground's agentic loop runs in the BROWSER -- the
+	 * author types each tool result in -- so the server sees N independent requests and
+	 * can never know which turn is the last. Every turn therefore writes its own row as
+	 * it happens (usage is never held back and so never lost when a trajectory is
+	 * abandoned), and this type keeps run COUNTs honest: one trajectory is one `prs`.
+	 *
+	 * COST IS CONSEQUENTLY SPLIT ACROSS TWO ROW TYPES. The full cost of a trajectory is
+	 * `sum(cost) WHERE log_type IN ('prs', 'prt') AND trace_id = ...`, never the `prs`
+	 * row alone.
+	 */
+	PromptRunTurn = "prt",
+	/**
+	 * One turn of a session a customer sent us over OTLP, rather than one we ran.
+	 *
+	 * It exists so an ingested session is REACHABLE: the logs list is the only entry point
+	 * to a trajectory, so a session with no row here is stored correctly and can never be
+	 * opened -- and `trace_spans` is append-only, so a row not written now cannot be
+	 * written later for traces already ingested.
+	 *
+	 * Its usage columns are deliberately ZERO. The sender's token counts live on the spans,
+	 * where they are displayed per step; summed into this table they would mix a
+	 * customer's own traffic into our billing totals, which the ingest design forbids.
+	 * Writing zeros is what makes every `sum(cost)` and `sum(tokens_*)` in `queries.ts`
+	 * correct without touching one of them -- and there are a dozen, each a chance to get
+	 * an exclusion subtly wrong.
+	 *
+	 * Excluded from run COUNTS alongside `prt` (see `RUN_COUNT`): an ingested session is
+	 * not a run of ours, and counting it would deflate every per-run average.
+	 */
+	TraceIngested = "oti",
 	PromptRunError = "pre",
 	AIError = "ae",
 	TechnicalError = "te",
@@ -39,6 +75,9 @@ export interface LogDocument {
 	user_id?: number;
 	api_key_id?: number;
 	testcase_id?: number;
+
+	// agentic run: set when this row is the root span of a trajectory
+	trace_id?: string;
 
 	// AI info
 	vendor: string;
@@ -216,6 +255,7 @@ export interface ClickHouseLogListRow {
 	user_id: number | null;
 	api_key_id: number | null;
 	testcase_id: number | null;
+	trace_id: string | null;
 	vendor: string;
 	model: string;
 	tokens_in: number;
@@ -236,6 +276,47 @@ export interface ClickHouseLogDetailRow {
 
 export interface ClickHouseCountRow {
 	total: number | string;
+}
+
+// Row shape returned by `SELECT * FROM trace_spans`
+export interface ClickHouseSpanRow {
+	timestamp: string;
+	trace_id: string;
+	session_id: string;
+	turn_index: number;
+	span_id: string;
+	parent_span_id: string | null;
+	span_index: number;
+	span_type: string;
+	orgId: number;
+	project_id: number;
+	prompt_id: number;
+	name: string;
+	input: string;
+	output: string;
+	tool_args: string;
+	tool_result: string;
+	tool_error: string | null;
+	vendor: string;
+	model: string;
+	tokens_in: number;
+	tokens_out: number;
+	cost: number;
+	duration_ms: number;
+	status: string;
+	/**
+	 * Absent on every row written before the column was added; the reader defaults
+	 * those to `genum`, which is what they are.
+	 */
+	source?: string;
+	/**
+	 * Absent on every row written before these columns were added, and empty on every row
+	 * whose sender supplied no such attribute. The reader defaults them to empty, which
+	 * means "not recorded" -- never "none offered" or "no selection made".
+	 */
+	placeholders?: Record<string, string>;
+	tools_offered?: string[];
+	prompt_version?: string;
 }
 
 export interface ClickHouseProjectStatsRow {
