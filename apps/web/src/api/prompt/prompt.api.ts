@@ -12,11 +12,17 @@ export interface PromptResponse {
 		prompt: number;
 		completion: number;
 		total: number;
+		cacheRead?: number;
+		cacheWrite?: number;
+		reasoning?: number;
 	};
 	cost: {
 		prompt: number;
 		completion: number;
 		total: number;
+		cacheRead?: number;
+		cacheWrite?: number;
+		reasoning?: number;
 	};
 	response_time_ms: number;
 	status: string;

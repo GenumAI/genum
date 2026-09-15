@@ -53,12 +53,18 @@ export interface PlaygroundMetricsGroup {
 		prompt: number;
 		completion: number;
 		total: number;
+		cacheRead?: number;
+		cacheWrite?: number;
+		reasoning?: number;
 	};
 	/** Cost statistics */
 	cost: {
 		prompt: number;
 		completion: number;
 		total: number;
+		cacheRead?: number;
+		cacheWrite?: number;
+		reasoning?: number;
 	};
 	/** Response time in milliseconds */
 	responseTime: number | null;

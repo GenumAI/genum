@@ -24,14 +24,16 @@ const MetricsRow = ({
 	icon,
 	title,
 	value,
+	nested = false,
 }: {
 	icon: ReactElement;
 	title: string;
 	value: number | string;
+	nested?: boolean;
 }) => {
 	return (
 		<li className="flex justify-between items-center text-foreground font-sans text-[10px] not-italic font-normal leading-[16px]">
-			<div className="flex items-center gap-2">
+			<div className={`flex items-center gap-2${nested ? " pl-4" : ""}`}>
 				{icon} {title}
 			</div>
 			<span>{value}</span>
@@ -65,13 +67,22 @@ export const RunMetrics = memo(
 			</div>
 		);
 	},
-	(prev, next) => isSameTimeParam(prev.tokens, next.tokens) && isSameTimeParam(prev.cost, next.cost),
+	(prev, next) =>
+		isSameTimeParam(prev.tokens, next.tokens) && isSameTimeParam(prev.cost, next.cost),
 );
 
 RunMetrics.displayName = "RunMetrics";
 
 export const ExecutionMetrics = memo(
-	({ responseTime, totalTokens, promptTokens, completionTokens }: ExecutionMetricsProps) => {
+	({
+		responseTime,
+		totalTokens,
+		promptTokens,
+		completionTokens,
+		cacheReadTokens,
+		cacheWriteTokens,
+		reasoningTokens,
+	}: ExecutionMetricsProps) => {
 		const hasData = responseTime != null || totalTokens || promptTokens || completionTokens;
 
 		if (!hasData) {
@@ -105,11 +116,35 @@ export const ExecutionMetrics = memo(
 							value={promptTokens}
 						/>
 					)}
+					{!!cacheReadTokens && (
+						<MetricsRow
+							nested
+							icon={<Ticket size={16} />}
+							title={"Cache read"}
+							value={cacheReadTokens}
+						/>
+					)}
+					{!!cacheWriteTokens && (
+						<MetricsRow
+							nested
+							icon={<Ticket size={16} />}
+							title={"Cache write"}
+							value={cacheWriteTokens}
+						/>
+					)}
 					{!!completionTokens && (
 						<MetricsRow
 							icon={<Ticket size={16} />}
 							title={"Completion tokens"}
 							value={completionTokens}
+						/>
+					)}
+					{!!reasoningTokens && (
+						<MetricsRow
+							nested
+							icon={<Ticket size={16} />}
+							title={"Reasoning"}
+							value={reasoningTokens}
 						/>
 					)}
 				</ul>
@@ -120,13 +155,23 @@ export const ExecutionMetrics = memo(
 		isSameValue(prev.responseTime, next.responseTime) &&
 		isSameValue(prev.totalTokens, next.totalTokens) &&
 		isSameValue(prev.promptTokens, next.promptTokens) &&
-		isSameValue(prev.completionTokens, next.completionTokens),
+		isSameValue(prev.completionTokens, next.completionTokens) &&
+		isSameValue(prev.cacheReadTokens, next.cacheReadTokens) &&
+		isSameValue(prev.cacheWriteTokens, next.cacheWriteTokens) &&
+		isSameValue(prev.reasoningTokens, next.reasoningTokens),
 );
 
 ExecutionMetrics.displayName = "ExecutionMetrics";
 
 export const CostBreakdownMetrics = memo(
-	({ promptCost, completionCost, totalCost }: CostBreakdownMetricsProps) => {
+	({
+		promptCost,
+		completionCost,
+		totalCost,
+		cacheReadCost,
+		cacheWriteCost,
+		reasoningCost,
+	}: CostBreakdownMetricsProps) => {
 		if (!promptCost && !completionCost && !totalCost) {
 			return null;
 		}
@@ -144,11 +189,35 @@ export const CostBreakdownMetrics = memo(
 							value={formatCost(promptCost)}
 						/>
 					)}
+					{!!cacheReadCost && (
+						<MetricsRow
+							nested
+							icon={<Coins size={16} />}
+							title={"Cache read"}
+							value={formatCost(cacheReadCost)}
+						/>
+					)}
+					{!!cacheWriteCost && (
+						<MetricsRow
+							nested
+							icon={<Coins size={16} />}
+							title={"Cache write"}
+							value={formatCost(cacheWriteCost)}
+						/>
+					)}
 					{!!completionCost && (
 						<MetricsRow
 							icon={<Coins size={16} />}
 							title={"Completion Cost"}
 							value={formatCost(completionCost)}
+						/>
+					)}
+					{!!reasoningCost && (
+						<MetricsRow
+							nested
+							icon={<Coins size={16} />}
+							title={"Reasoning"}
+							value={formatCost(reasoningCost)}
 						/>
 					)}
 					{!!totalCost && (
