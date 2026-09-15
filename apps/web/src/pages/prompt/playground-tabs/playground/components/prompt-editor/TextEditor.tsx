@@ -4,18 +4,11 @@ import PromptDiff from "@/components/dialogs/PromptDiffDialog";
 import MonacoEditor from "@/components/ui/MonacoEditor";
 import FullscreenEditorDialog from "./components/FullscreenEditorDialog";
 import { useTextEditor } from "./hooks/useTextEditor";
+import type { PlaygroundMetricsGroup } from "../../hooks/types";
 
 export interface EditorMetrics {
-	tokens: {
-		prompt: number;
-		completion: number;
-		total: number;
-	} | null;
-	cost: {
-		prompt: number;
-		completion: number;
-		total: number;
-	} | null;
+	tokens: PlaygroundMetricsGroup["tokens"] | null;
+	cost: PlaygroundMetricsGroup["cost"] | null;
 	responseTime: number | null;
 }
 
