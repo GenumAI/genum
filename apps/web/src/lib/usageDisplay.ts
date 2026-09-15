@@ -2,10 +2,15 @@ import type { Log } from "@/types/logs";
 
 /**
  * A price per 1M tokens, to as many decimals as a cache price needs. `toFixed(2)` would show
- * gpt-5-nano's $0.005 as $0.01 and a $0.025 cache price as $0.03.
+ * gpt-5-nano's $0.005 as $0.01 and a $0.025 cache price as $0.03. A sub-dollar price is shown to
+ * 3 decimals with trailing zeros trimmed, but never below the cent -- $0.50, not $0.500 or $0.5.
  */
 export function formatPricePerMillion(price: number): string {
-	return price.toFixed(price < 1 ? 3 : 2);
+	if (price >= 1) {
+		return price.toFixed(2);
+	}
+
+	return price.toFixed(3).replace(/(\.\d{2}\d*?)0+$/, "$1");
 }
 
 export type SplitLine = { label: string; value: number };

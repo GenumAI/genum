@@ -10,6 +10,18 @@ describe("formatPricePerMillion", () => {
 
 	it("shows a price of a dollar or more to the cent", () => {
 		expect(formatPricePerMillion(1.25)).toBe("1.25");
+		expect(formatPricePerMillion(2)).toBe("2.00");
+	});
+
+	it("trims trailing zeros of a sub-dollar price but never below the cent", () => {
+		expect(formatPricePerMillion(0.5)).toBe("0.50");
+		expect(formatPricePerMillion(0.3)).toBe("0.30");
+		expect(formatPricePerMillion(0.125)).toBe("0.125");
+		expect(formatPricePerMillion(0.025)).toBe("0.025");
+		expect(formatPricePerMillion(0.005)).toBe("0.005");
+		expect(formatPricePerMillion(0.075)).toBe("0.075");
+		expect(formatPricePerMillion(0.1)).toBe("0.10");
+		expect(formatPricePerMillion(0)).toBe("0.00");
 	});
 });
 
