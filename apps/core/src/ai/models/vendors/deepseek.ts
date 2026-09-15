@@ -1,7 +1,6 @@
 import { AiVendor } from "@/prisma";
 import { model } from "../builder";
-import type { BuiltModel, PriceModifier } from "../builder";
-import type { Prices } from "../pricing";
+import type { BuiltModel, ListedPrices, PriceModifier } from "../builder";
 
 /** DeepSeek defaults (all models share these) */
 const DEEPSEEK_RESPONSE_FORMAT = ["text", "json_object"] as const;
@@ -33,7 +32,7 @@ export function isDeepSeekPeak(at: Date): boolean {
 }
 
 /** Bills at `peak` during DeepSeek's peak windows and at `offPeak` the rest of the time. */
-function timeOfDayPricing(peak: Prices, offPeak: Prices): PriceModifier {
+function timeOfDayPricing(peak: ListedPrices, offPeak: ListedPrices): PriceModifier {
 	return () => (isDeepSeekPeak(new Date()) ? peak : offPeak);
 }
 
@@ -52,8 +51,7 @@ export const DEEPSEEK_MODELS: BuiltModel[] = [
 			"DeepSeek's cost-efficient model for high-volume workloads, with a 1M token context window. Off-peak runs are billed at half the listed price.",
 		)
 		.pricing(
-			0.44,
-			1.32,
+			{ prompt: 0.44, completion: 1.32 },
 			timeOfDayPricing(
 				{ prompt: 0.44, completion: 1.32 },
 				{ prompt: 0.22, completion: 0.66 },
@@ -73,11 +71,10 @@ export const DEEPSEEK_MODELS: BuiltModel[] = [
 			"DeepSeek's highest-capability model, with a 1M token context window. Off-peak runs are billed at half the listed price.",
 		)
 		.pricing(
-			1.32,
-			3.96,
+			{ prompt: 1.32, completion: 3.96, cacheRead: 0.044 },
 			timeOfDayPricing(
-				{ prompt: 1.32, completion: 3.96 },
-				{ prompt: 0.66, completion: 1.98 },
+				{ prompt: 1.32, completion: 3.96, cacheRead: 0.044 },
+				{ prompt: 0.66, completion: 1.98, cacheRead: 0.022 },
 			),
 		)
 		.limits(DEEPSEEK_CONTEXT_MAX, DEEPSEEK_COMPLETION_MAX)

@@ -246,7 +246,7 @@ export async function runPrompt(data: runPromptParams) {
 			},
 			// Most models bill at the price stored on the model; some (DeepSeek) vary it by
 			// time of day, so resolve the effective price at the moment the run is billed.
-			getEffectivePrices(model.vendor, model.name, model.promptPrice, model.completionPrice),
+			getEffectivePrices(model),
 		);
 
 		if (quotaUsed) {

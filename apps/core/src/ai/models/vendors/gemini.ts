@@ -18,7 +18,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.description(
 			"Delivers next-gen features and improved capabilities, including superior speed, native tool use, multimodal generation, and a 1M token context window.",
 		)
-		.pricing(0.1, 0.7)
+		.pricing({ prompt: 0.1, completion: 0.7 })
 		.limits(1_048_576, 8_192)
 		.temperature(...GEMINI_TEMPERATURE)
 		.maxTokens(1, 8_192)
@@ -29,7 +29,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 	model("gemini-2.0-flash-lite", AiVendor.GOOGLE)
 		.displayName("Gemini 2.0 Flash Lite")
 		.description("A Gemini 2.0 Flash model optimized for cost efficiency and low latency.")
-		.pricing(0.075, 0.3)
+		.pricing({ prompt: 0.075, completion: 0.3 })
 		.limits(1_048_576, 8_192)
 		.temperature(...GEMINI_TEMPERATURE)
 		.maxTokens(1, 8_192)
@@ -42,7 +42,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.description(
 			"Gemini 2.5 Flash is Google's best model in terms of price-performance, offering well-rounded capabilities.",
 		)
-		.pricing(0.3, 2.5)
+		.pricing({ prompt: 0.3, completion: 2.5, cacheRead: 0.03 })
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
 		.maxTokens(1, 65_536)
@@ -55,7 +55,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.description(
 			"Gemini 2.5 Pro is Google's state-of-the-art thinking model, capable of reasoning over complex problems in code, math, and STEM, as well as analyzing large datasets, codebases, and documents using long context.",
 		)
-		.pricing(1.25, 10)
+		.pricing({ prompt: 1.25, completion: 10, cacheRead: 0.125 })
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
 		.maxTokens(1, 65_536)
@@ -66,7 +66,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 	model("gemini-2.5-flash-lite", AiVendor.GOOGLE)
 		.displayName("Gemini 2.5 Flash Lite")
 		.description("A Gemini 2.5 Flash model optimized for cost efficiency and low latency.")
-		.pricing(0.1, 0.4)
+		.pricing({ prompt: 0.1, completion: 0.4, cacheRead: 0.01 })
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
 		.maxTokens(1, 65_536)
@@ -79,7 +79,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.description(
 			"Gemini 3 is our most intelligent model family to date, built on a foundation of state-of-the-art reasoning.",
 		)
-		.pricing(2, 12)
+		.pricing({ prompt: 2, completion: 12 })
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
 		.reasoningEffort(["low", "high"], "high")
@@ -93,7 +93,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.description(
 			"Gemini 3 Flash Preview is a Gemini 3 model optimized for cost efficiency and low latency.",
 		)
-		.pricing(0.5, 3)
+		.pricing({ prompt: 0.5, completion: 3, cacheRead: 0.05 })
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
 		.reasoningEffort(["minimal", "low", "medium", "high"], "medium")
@@ -107,7 +107,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.description(
 			"Frontier-class performance rivaling larger models at a fraction of the cost, optimized for low latency.",
 		)
-		.pricing(0.25, 1.5)
+		.pricing({ prompt: 0.25, completion: 1.5, cacheRead: 0.025 })
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
 		.maxTokens(1, 65_536)
@@ -120,7 +120,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.description(
 			"Advanced intelligence, complex problem-solving, and powerful agentic coding capabilities with a 1M token context window.",
 		)
-		.pricing(2, 12)
+		.pricing({ prompt: 2, completion: 12, cacheRead: 0.2 })
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
 		.maxTokens(1, 65_536)
