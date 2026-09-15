@@ -240,10 +240,7 @@ export async function runPrompt(data: runPromptParams) {
 		});
 
 		const cost = calculateCost(
-			{
-				prompt: completion.tokens.prompt,
-				completion: completion.tokens.completion,
-			},
+			completion.tokens,
 			// Most models bill at the price stored on the model; some (DeepSeek) vary it by
 			// time of day, so resolve the effective price at the moment the run is billed.
 			getEffectivePrices(model),

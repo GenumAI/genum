@@ -1,5 +1,6 @@
 import type { FileInput } from "@/services/file.service";
 import type { ModelConfigParameters } from "../models/types";
+import type { Prices } from "../models/pricing";
 
 export * from "./openai/generate";
 export * from "./gemini/generate";
@@ -70,19 +71,30 @@ export type ProviderResponse = {
 	status?: string;
 };
 
-export function calculateCost(
-	tokens: { prompt: number; completion: number },
-	prices: { prompt: number; completion: number },
-) {
-	const tokensPerUnit = 1_000_000; // 1M tokens
-	const promptCost = (tokens.prompt / tokensPerUnit) * prices.prompt;
-	const completionCost = (tokens.completion / tokensPerUnit) * prices.completion;
+/** USD for one run. `prompt` includes both cache parts and `completion` includes `reasoning`. */
+export type RunCost = {
+	prompt: number;
+	completion: number;
+	total: number;
+	cacheRead: number;
+	cacheWrite: number;
+	reasoning: number;
+};
 
-	return {
-		prompt: promptCost,
-		completion: completionCost,
-		total: promptCost + completionCost,
-	};
+const TOKENS_PER_UNIT = 1_000_000;
+
+export function calculateCost(tokens: TokenUsage, prices: Prices): RunCost {
+	// Clamped: a vendor that reports more cache tokens than input tokens must not produce a
+	// negative cost.
+	const uncached = Math.max(0, tokens.prompt - tokens.cacheRead - tokens.cacheWrite);
+	const cacheRead = (tokens.cacheRead / TOKENS_PER_UNIT) * prices.cacheRead;
+	const cacheWrite = (tokens.cacheWrite / TOKENS_PER_UNIT) * prices.cacheWrite;
+	const prompt = (uncached / TOKENS_PER_UNIT) * prices.prompt + cacheRead + cacheWrite;
+	const completion = (tokens.completion / TOKENS_PER_UNIT) * prices.completion;
+	// Every vendor bills reasoning at the output rate: this is its share, not an extra charge.
+	const reasoning = (tokens.reasoning / TOKENS_PER_UNIT) * prices.completion;
+
+	return { prompt, completion, total: prompt + completion, cacheRead, cacheWrite, reasoning };
 }
 
 // Function to handle JSON schema that might be stored as a string
