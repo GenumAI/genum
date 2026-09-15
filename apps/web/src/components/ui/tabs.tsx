@@ -38,7 +38,7 @@ const TabsList = forwardRef<
 					left: center,
 				});
 			}
-			};
+		};
 
 		updateActiveTabPosition();
 
@@ -51,10 +51,20 @@ const TabsList = forwardRef<
 			});
 		}
 
+		// A list mounted under `display: none` (the prompt workspace keeps every tab mounted
+		// and hides the inactive ones) measures the active tab as 0x0. Revealing it changes
+		// an ancestor's style, which neither the observer above nor a window resize sees —
+		// but the list's own size goes from zero to real, and that this does see.
+		const resizeObserver = new ResizeObserver(updateActiveTabPosition);
+		if (listRef.current) {
+			resizeObserver.observe(listRef.current);
+		}
+
 		window.addEventListener("resize", updateActiveTabPosition);
 
 		return () => {
 			observer.disconnect();
+			resizeObserver.disconnect();
 			window.removeEventListener("resize", updateActiveTabPosition);
 		};
 	}, []);
