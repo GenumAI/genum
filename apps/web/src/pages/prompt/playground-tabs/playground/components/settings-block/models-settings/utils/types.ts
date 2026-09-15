@@ -7,6 +7,9 @@ export type TimeParam = {
 	prompt: number;
 	completion: number;
 	total: number;
+	cacheRead?: number;
+	cacheWrite?: number;
+	reasoning?: number;
 };
 
 export interface SettingsBarProps {
@@ -31,12 +34,18 @@ export interface ExecutionMetricsProps {
 	totalTokens?: number;
 	promptTokens?: number;
 	completionTokens?: number;
+	cacheReadTokens?: number;
+	cacheWriteTokens?: number;
+	reasoningTokens?: number;
 }
 
 export interface CostBreakdownMetricsProps {
 	promptCost?: number;
 	completionCost?: number;
 	totalCost?: number;
+	cacheReadCost?: number;
+	cacheWriteCost?: number;
+	reasoningCost?: number;
 }
 
 export interface ModelSettingsFormValues {

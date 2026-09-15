@@ -78,11 +78,17 @@ export default function SettingsBar({
 								totalTokens={tokens?.total}
 								promptTokens={tokens?.prompt}
 								completionTokens={tokens?.completion}
+								cacheReadTokens={tokens?.cacheRead}
+								cacheWriteTokens={tokens?.cacheWrite}
+								reasoningTokens={tokens?.reasoning}
 							/>
 							<CostBreakdownMetrics
 								promptCost={cost?.prompt}
 								completionCost={cost?.completion}
 								totalCost={cost?.total}
+								cacheReadCost={cost?.cacheRead}
+								cacheWriteCost={cost?.cacheWrite}
+								reasoningCost={cost?.reasoning}
 							/>
 						</div>
 					</div>
