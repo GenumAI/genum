@@ -1,5 +1,6 @@
 import { ModelConfigService } from "@/ai/models/modelConfigService";
 import type { ModelConfigParameters } from "@/ai/models/types";
+import { withCachePrices } from "@/ai/models/pricing";
 import {
 	parsePlaceholderSnapshot,
 	placeholderFingerprint,
@@ -32,7 +33,8 @@ export class PromptService {
 
 	public async getModelsForOrganization(orgId: number) {
 		// Use getAvailableModels to filter out disabled models
-		return await this.db.organization.getAvailableModels(orgId);
+		const models = await this.db.organization.getAvailableModels(orgId);
+		return models.map(withCachePrices);
 	}
 
 	/**

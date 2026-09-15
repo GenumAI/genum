@@ -1,6 +1,7 @@
 import type { Database } from "@/database/db";
 import { ProjectService } from "@/services/project.service";
 import { ProjectRole, OrganizationRole } from "@/prisma";
+import { withCachePrices } from "@/ai/models/pricing";
 import { webhooks } from "./webhooks/webhooks";
 
 // Custom errors for provider operations
@@ -283,7 +284,8 @@ export class OrganizationService {
 	 * Get all models with enabled/disabled status for organization
 	 */
 	public async getOrganizationModels(orgId: number) {
-		return await this.db.organization.getAllModelsWithStatus(orgId);
+		const models = await this.db.organization.getAllModelsWithStatus(orgId);
+		return models.map(withCachePrices);
 	}
 
 	/**

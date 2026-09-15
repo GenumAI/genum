@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Brain } from "lucide-react";
 import type { Model } from "@/types/AIModel";
+import { formatPricePerMillion } from "@/lib/usageDisplay";
 import { isReasoningModel, formatPrice } from "../utils/helpers";
 
 interface ModelTooltipContentProps {
@@ -16,9 +17,7 @@ export const ModelTooltipContent = memo(({ model }: ModelTooltipContentProps) =>
 				{model.displayName || model.name}
 			</div>
 
-			{model.description && (
-				<div className="text-[12px] text-white">{model.description}</div>
-			)}
+			{model.description && <div className="text-[12px] text-white">{model.description}</div>}
 
 			<div className="text-[11px] flex flex-col gap-2.5">
 				<div className="flex justify-between mt-4 items-center">
@@ -47,6 +46,15 @@ export const ModelTooltipContent = memo(({ model }: ModelTooltipContentProps) =>
 					<span className="text-white/70">Completion:</span>
 					<span className="text-white">{formatPrice(model.completionPrice)} / 1M</span>
 				</div>
+
+				{model.cacheReadPrice != null && (
+					<div className="flex justify-between gap-4 items-center">
+						<span className="text-white/70">Cached input:</span>
+						<span className="text-white">
+							{formatPricePerMillion(model.cacheReadPrice)}$ / 1M
+						</span>
+					</div>
+				)}
 
 				{isReasoning && (
 					<div className="flex flex-row items-center gap-2 text-white text-center mt-2">
