@@ -16,8 +16,6 @@ function request(overrides: Partial<ProviderRequest> = {}): ProviderRequest {
 		question: "Hello",
 		model: "gpt-5",
 		parameters: {},
-		promptPrice: 0.44,
-		completionPrice: 1.32,
 		...overrides,
 	};
 }

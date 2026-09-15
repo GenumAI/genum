@@ -9,8 +9,6 @@ function request(overrides: Partial<ProviderRequest> = {}): ProviderRequest {
 		question: "Hello",
 		model: "deepseek-v4-flash",
 		parameters: {},
-		promptPrice: 0.44,
-		completionPrice: 1.32,
 		...overrides,
 	};
 }

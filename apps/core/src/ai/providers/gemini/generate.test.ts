@@ -21,8 +21,6 @@ function request(): ProviderRequest {
 		question: "weather in Berlin?",
 		model: "gemini-3-pro",
 		parameters: {},
-		promptPrice: 1,
-		completionPrice: 1,
 	};
 }
 

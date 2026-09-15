@@ -17,8 +17,6 @@ function request(): ProviderRequest {
 		question: "weather in Berlin?",
 		model: "claude-sonnet-5",
 		parameters: { max_tokens: 100 },
-		promptPrice: 1,
-		completionPrice: 1,
 	};
 }
 
