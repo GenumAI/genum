@@ -232,8 +232,6 @@ export async function runPrompt(data: runPromptParams) {
 			model: model.name,
 			parameters: prompt.languageModelConfig as ModelConfigParameters,
 			files: data.files,
-			promptPrice: model.promptPrice,
-			completionPrice: model.completionPrice,
 			baseUrl, // Pass baseUrl for custom providers
 			// Absent for every caller that existed before agentic replay, which is what
 			// keeps a single-shot run byte-identical to what it sent before.

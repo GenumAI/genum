@@ -10,6 +10,7 @@ import { formatUserLocalDateTime } from "@/lib/formatUserLocalDateTime";
 import AIPreview from "@/pages/prompt/playground-tabs/playground/components/input-textarea/components/AIPreview";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/useToast";
+import { logCostSplit, logTokenSplit } from "@/lib/usageDisplay";
 import type { Log, LogDetail, PromptName } from "@/types/logs";
 import { getPromptName, isPromptDeleted } from "../utils/promptNames";
 import { LogTrajectorySection } from "./LogTrajectorySection";
@@ -243,6 +244,16 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 															</div>
 														</div>
 													</div>
+													<div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground empty:hidden">
+														{logTokenSplit(selectedLog).map((line) => (
+															<span key={line.label}>
+																{line.label}:{" "}
+																<span className="font-medium text-foreground">
+																	{line.value}
+																</span>
+															</span>
+														))}
+													</div>
 												</div>
 												<div className="px-3 py-2 flex flex-col">
 													<div className="text-xs uppercase text-muted-foreground text-center">
@@ -271,10 +282,19 @@ const LogDetailsDialogComponent: FC<LogDetailsDialogProps> = ({
 													<div className="text-xs uppercase text-muted-foreground text-center">
 														Cost
 													</div>
-													<div className="flex-1 flex items-center justify-center">
+													<div className="flex-1 flex flex-col items-center justify-center">
 														<div className="font-medium text-center">
 															${selectedLog.cost?.toFixed?.(6) ?? 0}
 														</div>
+														{logCostSplit(selectedLog).map((line) => (
+															<div
+																key={line.label}
+																className="text-xs text-muted-foreground text-center"
+															>
+																{line.label} $
+																{line.value.toFixed(6)}
+															</div>
+														))}
 													</div>
 												</div>
 											</div>

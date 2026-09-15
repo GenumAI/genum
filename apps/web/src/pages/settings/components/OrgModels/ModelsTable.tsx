@@ -10,6 +10,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { formatPricePerMillion } from "@/lib/usageDisplay";
 import type { LanguageModel } from "../../hooks/useOrgModels";
 
 interface ModelsTableProps {
@@ -69,6 +70,11 @@ const ModelRow = memo(function ModelRow({ model, isPending, onToggle }: ModelRow
 			</TableCell>
 			<TableCell className="align-middle text-right p-4">
 				{formatPrice(model.completionPrice)}
+			</TableCell>
+			<TableCell className="align-middle text-right p-4">
+				{model.cacheReadPrice != null
+					? `$${formatPricePerMillion(model.cacheReadPrice)}`
+					: "-"}
 			</TableCell>
 			<TableCell className="align-middle text-right p-4">
 				{formatTokens(model.contextTokensMax)}
@@ -175,6 +181,12 @@ function ModelsTableComponent({ models, isLoading, pendingModelIds, onToggle }: 
 										/1M tokens
 									</div>
 								</TableHead>
+								<TableHead className="text-right p-4 w-[120px]">
+									Cached Price
+									<div className="text-xs font-normal text-muted-foreground">
+										/1M tokens
+									</div>
+								</TableHead>
 								<TableHead className="text-right p-4 w-[120px]">Context</TableHead>
 								<TableHead className="text-center p-4 w-[100px]">Enabled</TableHead>
 							</TableRow>
@@ -184,7 +196,7 @@ function ModelsTableComponent({ models, isLoading, pendingModelIds, onToggle }: 
 								<Fragment key={vendor}>
 									{/* Vendor Header Row */}
 									<TableRow className="bg-muted/50">
-										<TableCell colSpan={5} className="font-semibold py-2 px-4">
+										<TableCell colSpan={6} className="font-semibold py-2 px-4">
 											{VENDOR_NAMES[vendor] || vendor}
 										</TableCell>
 									</TableRow>

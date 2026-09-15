@@ -13,8 +13,6 @@ export type ProviderRequest = {
 	model: string;
 	parameters: ModelConfigParameters;
 	files?: FileInput[];
-	promptPrice: number;
-	completionPrice: number;
 	baseUrl?: string; // For custom OpenAI-compatible providers
 	messages?: ConversationMessage[];
 };
