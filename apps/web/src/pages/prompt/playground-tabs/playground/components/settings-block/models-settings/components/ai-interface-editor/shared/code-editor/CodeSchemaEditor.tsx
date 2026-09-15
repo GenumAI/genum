@@ -7,12 +7,7 @@ interface CodeSchemaEditorProps {
 	height?: string;
 }
 
-const CodeSchemaEditor = ({
-	code,
-	onChange,
-	onEditorMount,
-	height = "500px",
-}: CodeSchemaEditorProps) => {
+const CodeSchemaEditor = ({ code, onChange, onEditorMount, height = "500px" }: CodeSchemaEditorProps) => {
 	return (
 		<MonacoEditor
 			height={height}
