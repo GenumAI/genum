@@ -70,6 +70,18 @@ export interface LogUsage {
 	cost: number;
 	/** Summed too, deliberately -- see `logTrajectoryRun`. */
 	response_ms: number;
+	/** Input tokens the vendor served from its cache. A subset of `tokens_in`. */
+	tokens_in_cache_read: number;
+	/** Input tokens the vendor wrote to its cache. A subset of `tokens_in`. */
+	tokens_in_cache_write: number;
+	/** Output tokens spent on reasoning. A subset of `tokens_out`; 0 when the vendor does not report it. */
+	tokens_out_reasoning: number;
+	/** What `tokens_in_cache_read` cost. A part of `cost`. */
+	cost_in_cache_read: number;
+	/** What `tokens_in_cache_write` cost. A part of `cost`. */
+	cost_in_cache_write: number;
+	/** What `tokens_out_reasoning` cost, at the output price. A part of `cost`. */
+	cost_out_reasoning: number;
 }
 
 export interface LogDocument extends LogUsage {
@@ -272,6 +284,12 @@ export interface ClickHouseLogListRow {
 	tokens_sum: number;
 	cost: number;
 	response_ms: number;
+	tokens_in_cache_read: number;
+	tokens_in_cache_write: number;
+	tokens_out_reasoning: number;
+	cost_in_cache_read: number;
+	cost_in_cache_write: number;
+	cost_out_reasoning: number;
 }
 
 /** The payload columns, read for one row at a time and never for a list. */

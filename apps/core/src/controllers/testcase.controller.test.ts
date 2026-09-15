@@ -545,6 +545,12 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 				tokens_sum: 15,
 				cost: 0.25,
 				response_ms: 100,
+				tokens_in_cache_read: 0,
+				tokens_in_cache_write: 0,
+				tokens_out_reasoning: 0,
+				cost_in_cache_read: 0,
+				cost_in_cache_write: 0,
+				cost_out_reasoning: 0,
 				testcase_id: 5,
 				in: "what is the weather",
 				out: String(turn.answer ?? ""),
@@ -685,6 +691,37 @@ describe("TestcasesController.runTestcase with a recorded trajectory", () => {
 			},
 			{ kind: "final", text: "It is 12°" },
 		]);
+	});
+
+	it("sums the usage split across the turns instead of keeping the last turn's", async () => {
+		vi.mocked(checkTestcaseAccess).mockResolvedValue(makeTrajectoryTestcase());
+		modelTurn(
+			{ answer: "", toolCalls: [{ id: "c1", name: "get_weather", args: { city: "Berlin" } }] },
+			{
+				tokens_in_cache_read: 800,
+				tokens_out_reasoning: 40,
+				cost_in_cache_read: 0.001,
+				cost_out_reasoning: 0.004,
+			},
+		);
+		modelTurn(
+			{ answer: "It is 12°" },
+			{
+				tokens_in_cache_read: 900,
+				tokens_out_reasoning: 10,
+				cost_in_cache_read: 0.002,
+				cost_out_reasoning: 0.001,
+			},
+		);
+		const { res } = makeRes();
+
+		await controller.runTestcase(makeReq(undefined), res);
+
+		const root = vi.mocked(logUsage).mock.calls[0][0];
+		expect(root.tokens_in_cache_read).toBe(1700);
+		expect(root.tokens_out_reasoning).toBe(50);
+		expect(root.cost_in_cache_read).toBeCloseTo(0.003);
+		expect(root.cost_out_reasoning).toBeCloseTo(0.005);
 	});
 
 	it("writes one trace per replayed turn, sharing one session", async () => {

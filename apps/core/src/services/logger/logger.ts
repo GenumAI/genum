@@ -191,6 +191,12 @@ function transformRowToLogListEntry(row: ClickHouseLogListRow): LogListEntry {
 		tokens_sum: row.tokens_sum,
 		cost: row.cost,
 		response_ms: row.response_ms,
+		tokens_in_cache_read: row.tokens_in_cache_read,
+		tokens_in_cache_write: row.tokens_in_cache_write,
+		tokens_out_reasoning: row.tokens_out_reasoning,
+		cost_in_cache_read: row.cost_in_cache_read,
+		cost_in_cache_write: row.cost_in_cache_write,
+		cost_out_reasoning: row.cost_out_reasoning,
 	};
 }
 
@@ -236,6 +242,12 @@ export async function logUsage(document: LogDocument): Promise<void> {
 					tokens_sum: document.tokens_sum,
 					cost: document.cost,
 					response_ms: document.response_ms,
+					tokens_in_cache_read: document.tokens_in_cache_read,
+					tokens_in_cache_write: document.tokens_in_cache_write,
+					tokens_out_reasoning: document.tokens_out_reasoning,
+					cost_in_cache_read: document.cost_in_cache_read,
+					cost_in_cache_write: document.cost_in_cache_write,
+					cost_out_reasoning: document.cost_out_reasoning,
 					in: document.in,
 					out: document.out,
 					// Frozen: readable for rows written before `placeholders` existed, never

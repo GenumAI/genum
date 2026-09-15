@@ -14,6 +14,12 @@ export const ZERO_USAGE: Readonly<LogUsage> = {
 	tokens_sum: 0,
 	cost: 0,
 	response_ms: 0,
+	tokens_in_cache_read: 0,
+	tokens_in_cache_write: 0,
+	tokens_out_reasoning: 0,
+	cost_in_cache_read: 0,
+	cost_in_cache_write: 0,
+	cost_out_reasoning: 0,
 };
 
 const USAGE_FIELDS = Object.keys(ZERO_USAGE) as (keyof LogUsage)[];
