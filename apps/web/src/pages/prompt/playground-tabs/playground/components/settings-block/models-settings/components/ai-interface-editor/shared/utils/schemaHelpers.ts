@@ -120,7 +120,8 @@ export const hasDuplicates = (props: VisualProperty[]): boolean => {
 export const validateStrictMode = <T extends { strict: boolean; properties: VisualProperty[] }>(
 	schema: T,
 ): T => {
-	const allRequired = schema.properties.length > 0 && checkAllRequired(schema.properties);
+	const allRequired =
+		schema.properties.length > 0 && checkAllRequired(schema.properties);
 
 	if (schema.strict && !allRequired) {
 		return { ...schema, strict: false };
@@ -177,9 +178,12 @@ export const transformToVisualSchema = (schema: any): VisualSchema => {
 	const properties = schemaProperties
 		? Object.entries(schemaProperties)
 				.filter(
-					([key]) => key !== CHAIN_OF_THOUGHTS_PROPERTY && key !== PROMPT_STATUS_PROPERTY,
+					([key]) =>
+						key !== CHAIN_OF_THOUGHTS_PROPERTY && key !== PROMPT_STATUS_PROPERTY,
 				)
-				.map(([k, v]) => convertToVisualProperty(k, v as any, targetSchema.required || []))
+				.map(([k, v]) =>
+					convertToVisualProperty(k, v as any, targetSchema.required || []),
+				)
 		: [];
 
 	return {
