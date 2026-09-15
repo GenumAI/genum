@@ -17,8 +17,6 @@ function request(): ProviderRequest {
 		question: "weather in Berlin?",
 		model: "gpt-5",
 		parameters: {},
-		promptPrice: 1,
-		completionPrice: 1,
 	};
 }
 

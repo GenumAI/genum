@@ -17,8 +17,6 @@ function request(): ProviderRequest {
 		question: "weather in Berlin?",
 		model: "deepseek-v4-flash",
 		parameters: {},
-		promptPrice: 1,
-		completionPrice: 1,
 	};
 }
 
