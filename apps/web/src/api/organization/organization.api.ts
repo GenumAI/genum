@@ -194,6 +194,8 @@ export interface LanguageModel {
 	vendor: string;
 	promptPrice: number;
 	completionPrice: number;
+	/** USD per 1M cached input tokens, from the model registry. `null` where the vendor lists none. */
+	cacheReadPrice?: number | null;
 	contextTokensMax: number;
 	completionTokensMax: number;
 	description: string;

@@ -245,3 +245,24 @@ describe("getPromptWithProductiveCommit", () => {
 		expect(result?.commitHash).toBeUndefined();
 	});
 });
+
+describe("PromptService.getModelsForOrganization", () => {
+	it("attaches the registry's cache prices, and null for a custom model", async () => {
+		const mockDb = makeMockDb();
+		const custom = {
+			id: 9,
+			name: "my-model",
+			vendor: AiVendor.CUSTOM_OPENAI_COMPATIBLE,
+			parametersConfig: null,
+		};
+		mockDb.organization.getAvailableModels.mockResolvedValue([GPT_4O, custom]);
+		const service = new PromptService(mockDb as unknown as Database);
+
+		const models = await service.getModelsForOrganization(1);
+
+		expect(models).toEqual([
+			{ ...GPT_4O, cacheReadPrice: 1.25, cacheWritePrice: null },
+			{ ...custom, cacheReadPrice: null, cacheWritePrice: null },
+		]);
+	});
+});
