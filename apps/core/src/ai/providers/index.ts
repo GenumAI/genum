@@ -41,15 +41,30 @@ export type ConversationMessage =
 	/** A reply the human typed after the model answered -- the next turn's question. */
 	| { role: "user"; content: string };
 
+/**
+ * A run's token usage, the same shape for every vendor. Totals include their parts, as the
+ * OpenTelemetry GenAI conventions have it: a vendor that reports a part beside its total
+ * rather than inside it has that part added in by its adapter.
+ */
+export type TokenUsage = {
+	/** Every input token, cache read and cache write included. */
+	prompt: number;
+	/** Every output token, reasoning included. */
+	completion: number;
+	total: number;
+	/** Input tokens served from the vendor's cache. A subset of `prompt`. */
+	cacheRead: number;
+	/** Input tokens written to the vendor's cache. A subset of `prompt`. */
+	cacheWrite: number;
+	/** Output tokens spent on reasoning. A subset of `completion`; 0 when the vendor does not report it. */
+	reasoning: number;
+};
+
 export type ProviderResponse = {
 	answer: string;
 	/** Present when the model asked for tools. `answer` keeps its legacy value regardless. */
 	toolCalls?: ToolCall[];
-	tokens: {
-		prompt: number;
-		completion: number;
-		total: number;
-	};
+	tokens: TokenUsage;
 	response_time_ms: number;
 	chainOfThoughts?: string;
 	status?: string;

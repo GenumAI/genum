@@ -88,7 +88,7 @@ const MODEL = {
 
 const COMPLETION = {
 	answer: "4",
-	tokens: { prompt: 10, completion: 20, total: 30 },
+	tokens: { prompt: 10, completion: 20, total: 30, cacheRead: 0, cacheWrite: 0, reasoning: 0 },
 	response_time_ms: 640,
 };
 

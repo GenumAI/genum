@@ -38,13 +38,24 @@ export async function generateGemini(request: ProviderRequest) {
 			args: (part.functionCall?.args ?? {}) as Record<string, unknown>,
 		}));
 
+	const usage = response.usageMetadata;
+	const reasoning = usage?.thoughtsTokenCount ?? 0;
+	// Gemini reports thoughts beside candidatesTokenCount and tool-use input beside
+	// promptTokenCount; totalTokenCount is the sum of all four.
+	const prompt = (usage?.promptTokenCount ?? 0) + (usage?.toolUsePromptTokenCount ?? 0);
+	const completion = (usage?.candidatesTokenCount ?? 0) + reasoning;
+
 	const result: ProviderResponse = {
 		answer: answer,
 		toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
 		tokens: {
-			prompt: response.usageMetadata?.promptTokenCount ?? 0,
-			completion: response.usageMetadata?.candidatesTokenCount ?? 0,
-			total: response.usageMetadata?.totalTokenCount ?? 0,
+			prompt,
+			completion,
+			total: usage?.totalTokenCount ?? prompt + completion,
+			cacheRead: usage?.cachedContentTokenCount ?? 0,
+			// Implicit caching has no write fee; explicit caches are billed as storage.
+			cacheWrite: 0,
+			reasoning,
 		},
 		response_time_ms: Date.now() - start,
 	};

@@ -45,13 +45,21 @@ export async function generateOpenAI(request: ProviderRequest): Promise<Provider
 			args: JSON.parse(item.arguments) as Record<string, unknown>,
 		}));
 
+	const usage = response.usage;
+	const prompt = usage?.input_tokens ?? 0;
+	const completion = usage?.output_tokens ?? 0;
+
 	const result: ProviderResponse = {
 		answer: answerMapper(message),
 		toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
 		tokens: {
-			prompt: Number(response.usage?.input_tokens),
-			completion: Number(response.usage?.output_tokens),
-			total: Number(response.usage?.total_tokens),
+			prompt,
+			completion,
+			total: usage?.total_tokens ?? prompt + completion,
+			cacheRead: usage?.input_tokens_details?.cached_tokens ?? 0,
+			// OpenAI charges nothing to write its cache.
+			cacheWrite: 0,
+			reasoning: usage?.output_tokens_details?.reasoning_tokens ?? 0,
 		},
 		response_time_ms: Date.now() - start,
 	};
