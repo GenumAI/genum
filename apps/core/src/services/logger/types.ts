@@ -58,7 +58,21 @@ export enum LogType {
 	TechnicalError = "te",
 }
 
-export interface LogDocument {
+/**
+ * The usage half of a log row: every field a trajectory's root row must SUM across its turns
+ * rather than copy from the last one. `ZERO_USAGE` in `usage.ts` is the one place these fields
+ * are listed.
+ */
+export interface LogUsage {
+	tokens_in: number;
+	tokens_out: number;
+	tokens_sum: number;
+	cost: number;
+	/** Summed too, deliberately -- see `logTrajectoryRun`. */
+	response_ms: number;
+}
+
+export interface LogDocument extends LogUsage {
 	// metadata
 	timestamp?: Date;
 	source: SourceType;
@@ -82,11 +96,6 @@ export interface LogDocument {
 	// AI info
 	vendor: string;
 	model: string;
-	tokens_in: number;
-	tokens_out: number;
-	tokens_sum: number;
-	cost: number;
-	response_ms: number;
 
 	// payload
 	in: string;
