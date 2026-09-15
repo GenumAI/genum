@@ -23,6 +23,13 @@ export interface Log {
 	description?: string;
 	tokens_in?: number;
 	tokens_out?: number;
+	/** Parts of `tokens_in` / `tokens_out` / `cost` (see core `LogUsage`). Zero on rows written before they were recorded. */
+	tokens_in_cache_read?: number;
+	tokens_in_cache_write?: number;
+	tokens_out_reasoning?: number;
+	cost_in_cache_read?: number;
+	cost_in_cache_write?: number;
+	cost_out_reasoning?: number;
 	log_type?: string;
 	user_name?: string;
 	api?: string;
