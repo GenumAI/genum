@@ -1,3 +1,5 @@
+import type { Log } from "@/types/logs";
+
 /**
  * A price per 1M tokens, to as many decimals as a cache price needs. `toFixed(2)` would show
  * gpt-5-nano's $0.005 as $0.01 and a $0.025 cache price as $0.03.
@@ -17,4 +19,20 @@ export function splitLines(
 	parts: ReadonlyArray<{ label: string; value: number | undefined }>,
 ): SplitLine[] {
 	return parts.filter((part): part is SplitLine => part.value !== undefined && part.value > 0);
+}
+
+export function logTokenSplit(log: Log): SplitLine[] {
+	return splitLines([
+		{ label: "Cache read", value: log.tokens_in_cache_read },
+		{ label: "Cache write", value: log.tokens_in_cache_write },
+		{ label: "Reasoning", value: log.tokens_out_reasoning },
+	]);
+}
+
+export function logCostSplit(log: Log): SplitLine[] {
+	return splitLines([
+		{ label: "Cache read", value: log.cost_in_cache_read },
+		{ label: "Cache write", value: log.cost_in_cache_write },
+		{ label: "Reasoning", value: log.cost_out_reasoning },
+	]);
 }
