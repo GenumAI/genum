@@ -36,13 +36,23 @@ export async function generateAnthropic(request: ProviderRequest): Promise<Provi
 			args: (block.input ?? {}) as Record<string, unknown>,
 		}));
 
+	const { usage } = response;
+	const cacheRead = usage.cache_read_input_tokens ?? 0;
+	const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+	// Anthropic reports cache tokens beside input_tokens, not inside it.
+	const prompt = usage.input_tokens + cacheRead + cacheWrite;
+
 	const r: ProviderResponse = {
 		answer: result,
 		toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
 		tokens: {
-			prompt: response.usage.input_tokens,
-			completion: response.usage.output_tokens,
-			total: response.usage.input_tokens + response.usage.output_tokens,
+			prompt,
+			completion: usage.output_tokens,
+			total: prompt + usage.output_tokens,
+			cacheRead,
+			cacheWrite,
+			// Anthropic's usage carries no reasoning count; thinking is billed inside output_tokens.
+			reasoning: 0,
 		},
 		response_time_ms: Date.now() - start,
 	};

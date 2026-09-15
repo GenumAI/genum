@@ -1,9 +1,13 @@
 import OpenAI from "openai";
+import type { CompletionUsage } from "openai/resources/completions";
 import type { ProviderRequest, ProviderResponse, ToolCall } from "..";
 import { mapMessagesDeepSeek, mapToolsDeepSeek, responseFormatDeepSeek } from "./utils";
 
 /** DeepSeek exposes an OpenAI-compatible chat completions API at this host. */
 export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+
+/** DeepSeek extends OpenAI's usage with cache hit counts the SDK does not type. */
+type DeepSeekUsage = CompletionUsage & { prompt_cache_hit_tokens?: number };
 
 /**
  * DeepSeek speaks the OpenAI wire format, so it reuses the OpenAI SDK — but only the
@@ -58,13 +62,20 @@ export async function generateDeepSeek(request: ProviderRequest): Promise<Provid
 			args: JSON.parse(call.function.arguments) as Record<string, unknown>,
 		}));
 
+	const usage = response.usage as DeepSeekUsage | undefined;
+
 	const result: ProviderResponse = {
 		answer,
 		toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
 		tokens: {
-			prompt: response.usage?.prompt_tokens ?? 0,
-			completion: response.usage?.completion_tokens ?? 0,
-			total: response.usage?.total_tokens ?? 0,
+			prompt: usage?.prompt_tokens ?? 0,
+			completion: usage?.completion_tokens ?? 0,
+			total: usage?.total_tokens ?? 0,
+			cacheRead:
+				usage?.prompt_cache_hit_tokens ?? usage?.prompt_tokens_details?.cached_tokens ?? 0,
+			// DeepSeek charges nothing to write its cache.
+			cacheWrite: 0,
+			reasoning: usage?.completion_tokens_details?.reasoning_tokens ?? 0,
 		},
 		response_time_ms: Date.now() - start,
 		// Thinking-mode output, surfaced in the playground as chain of thoughts.

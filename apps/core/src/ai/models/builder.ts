@@ -14,18 +14,37 @@ export type SeedModelFields = {
 };
 
 /**
- * Returns the prices to bill a run at, in USD per 1M tokens, at the moment it is called.
- * Lets a vendor express pricing that the static `promptPrice`/`completionPrice` pair
- * cannot — DeepSeek, for example, halves both prices outside its peak hours.
+ * Prices as a vendor lists them, in USD per 1M tokens. A cache price is absent where the vendor
+ * publishes none for the model; `getEffectivePrices` then bills those tokens as ordinary input.
+ */
+export type ListedPrices = {
+	prompt: number;
+	completion: number;
+	cacheRead?: number;
+	cacheWrite?: number;
+};
+
+/**
+ * Returns the prices to bill a run at, at the moment it is called.
+ * Lets a vendor express pricing that the static prices cannot — DeepSeek, for example,
+ * halves every price outside its peak hours.
  * Code-side only: never seeded to the database.
  */
-export type PriceModifier = () => { prompt: number; completion: number };
+export type PriceModifier = () => ListedPrices;
 
 export type BuiltModel = SeedModelFields & {
 	/** API parameters schema for validation (ModelConfig.parameters) */
 	parameters: ModelParameters;
 	/** Resolves the effective prices at call time. Absent for flat-priced models. */
 	priceModifier?: PriceModifier;
+	/**
+	 * USD per 1M input tokens served from the vendor's cache. Code-side only, like
+	 * `priceModifier`: `seed:prod` rewrites every registry model's stored prices from this file
+	 * on each deploy, so a database copy would only be a mirror. Absent where none is published.
+	 */
+	cacheReadPrice?: number;
+	/** USD per 1M input tokens written to the vendor's cache. Code-side only. */
+	cacheWritePrice?: number;
 };
 
 type ModelBuilderState = {
@@ -39,6 +58,8 @@ type ModelBuilderState = {
 	completionTokensMax: number;
 	parameters: ModelParameters;
 	priceModifier?: PriceModifier;
+	cacheReadPrice?: number;
+	cacheWritePrice?: number;
 };
 
 function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
@@ -64,9 +85,11 @@ function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
 			return builder;
 		},
 
-		pricing(promptPrice: number, completionPrice: number, modifier?: PriceModifier) {
-			state.promptPrice = promptPrice;
-			state.completionPrice = completionPrice;
+		pricing(prices: ListedPrices, modifier?: PriceModifier) {
+			state.promptPrice = prices.prompt;
+			state.completionPrice = prices.completion;
+			state.cacheReadPrice = prices.cacheRead;
+			state.cacheWritePrice = prices.cacheWrite;
 			state.priceModifier = modifier;
 			return builder;
 		},
@@ -129,6 +152,8 @@ function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
 				description: state.description,
 				parameters: { ...state.parameters },
 				priceModifier: state.priceModifier,
+				cacheReadPrice: state.cacheReadPrice,
+				cacheWritePrice: state.cacheWritePrice,
 			};
 		},
 	};
@@ -139,7 +164,7 @@ function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
 export interface ModelBuilder {
 	displayName(value: string): ModelBuilder;
 	description(value: string): ModelBuilder;
-	pricing(promptPrice: number, completionPrice: number, modifier?: PriceModifier): ModelBuilder;
+	pricing(prices: ListedPrices, modifier?: PriceModifier): ModelBuilder;
 	limits(contextTokensMax: number, completionTokensMax: number): ModelBuilder;
 	temperature(min: number, max: number, defaultValue: number): ModelBuilder;
 	maxTokens(min: number, max: number, defaultValue?: number): ModelBuilder;

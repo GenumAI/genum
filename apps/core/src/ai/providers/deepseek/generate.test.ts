@@ -53,3 +53,49 @@ describe("generateDeepSeek tool call normalization", () => {
 		]);
 	});
 });
+
+describe("generateDeepSeek usage normalization", () => {
+	beforeEach(() => create.mockReset());
+
+	it("reads cache hits and reasoning out of their totals", async () => {
+		create.mockResolvedValue({
+			choices: [{ message: { content: "It is 12°" } }],
+			usage: {
+				prompt_tokens: 1000,
+				prompt_cache_hit_tokens: 900,
+				prompt_cache_miss_tokens: 100,
+				completion_tokens: 400,
+				completion_tokens_details: { reasoning_tokens: 350 },
+				total_tokens: 1400,
+			},
+		});
+
+		const result = await generateDeepSeek(request());
+
+		expect(result.tokens).toEqual({
+			prompt: 1000,
+			completion: 400,
+			total: 1400,
+			cacheRead: 900,
+			cacheWrite: 0,
+			reasoning: 350,
+		});
+	});
+
+	it("falls back to the OpenAI-shaped cached_tokens when hit tokens are absent", async () => {
+		create.mockResolvedValue({
+			choices: [{ message: { content: "It is 12°" } }],
+			usage: {
+				prompt_tokens: 1000,
+				prompt_tokens_details: { cached_tokens: 700 },
+				completion_tokens: 10,
+				total_tokens: 1010,
+			},
+		});
+
+		const result = await generateDeepSeek(request());
+
+		expect(result.tokens.cacheRead).toBe(700);
+		expect(result.tokens.reasoning).toBe(0);
+	});
+});

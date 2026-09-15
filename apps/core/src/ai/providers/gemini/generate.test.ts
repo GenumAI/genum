@@ -56,3 +56,32 @@ describe("generateGemini tool call normalization", () => {
 		]);
 	});
 });
+
+describe("generateGemini usage normalization", () => {
+	beforeEach(() => generateContent.mockReset());
+
+	it("adds thoughts into completion and tool-use input into prompt", async () => {
+		generateContent.mockResolvedValue({
+			candidates: [{ content: { parts: [{ text: "It is 12°" }] } }],
+			usageMetadata: {
+				promptTokenCount: 1000,
+				cachedContentTokenCount: 600,
+				toolUsePromptTokenCount: 40,
+				candidatesTokenCount: 200,
+				thoughtsTokenCount: 500,
+				totalTokenCount: 1740,
+			},
+		});
+
+		const result = await generateGemini(request());
+
+		expect(result.tokens).toEqual({
+			prompt: 1040,
+			completion: 700,
+			total: 1740,
+			cacheRead: 600,
+			cacheWrite: 0,
+			reasoning: 500,
+		});
+	});
+});

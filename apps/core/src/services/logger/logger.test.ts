@@ -73,6 +73,12 @@ const DOCUMENT: LogDocument = {
 	tokens_sum: 30,
 	cost: 0.0004,
 	response_ms: 640,
+	tokens_in_cache_read: 6,
+	tokens_in_cache_write: 1,
+	tokens_out_reasoning: 12,
+	cost_in_cache_read: 0.00001,
+	cost_in_cache_write: 0.000002,
+	cost_out_reasoning: 0.0003,
 	in: "how much is 2+2?",
 	out: "4",
 };
@@ -88,7 +94,7 @@ const MODEL = {
 
 const COMPLETION = {
 	answer: "4",
-	tokens: { prompt: 10, completion: 20, total: 30 },
+	tokens: { prompt: 10, completion: 20, total: 30, cacheRead: 0, cacheWrite: 0, reasoning: 0 },
 	response_time_ms: 640,
 };
 
@@ -143,6 +149,19 @@ describe("logUsage", () => {
 		expect(console.error).toHaveBeenCalled();
 		expect(captureSentryException).toHaveBeenCalledTimes(1);
 	});
+
+	it("writes the usage split alongside the totals it is part of", async () => {
+		await logUsage(DOCUMENT);
+
+		expect(clickhouse.insert.mock.calls[0][0].values[0]).toMatchObject({
+			tokens_in_cache_read: 6,
+			tokens_in_cache_write: 1,
+			tokens_out_reasoning: 12,
+			cost_in_cache_read: 0.00001,
+			cost_in_cache_write: 0.000002,
+			cost_out_reasoning: 0.0003,
+		});
+	});
 });
 
 describe("runPrompt analytics", () => {
@@ -192,5 +211,34 @@ describe("runPrompt analytics", () => {
 		clickhouse.insert.mockRejectedValue(new Error("connect ECONNREFUSED"));
 
 		await expect(runPrompt(runParams())).rejects.toThrow("provider is down");
+	});
+
+	it("records the split of the run's usage and what each part cost", async () => {
+		(generateOpenAI as Mock).mockResolvedValue({
+			...COMPLETION,
+			tokens: {
+				prompt: 1_000_000,
+				completion: 100_000,
+				total: 1_100_000,
+				cacheRead: 800_000,
+				cacheWrite: 0,
+				reasoning: 60_000,
+			},
+		});
+
+		await runPrompt(runParams());
+
+		const row = clickhouse.insert.mock.calls[0][0].values[0];
+		expect(row).toMatchObject({
+			tokens_in: 1_000_000,
+			tokens_in_cache_read: 800_000,
+			tokens_in_cache_write: 0,
+			tokens_out_reasoning: 60_000,
+		});
+		// gpt-4o: $2.50 input and $10 output from MODEL, $1.25 cached input from the registry.
+		expect(row.cost_in_cache_read).toBeCloseTo(1);
+		expect(row.cost_out_reasoning).toBeCloseTo(0.6);
+		// 200k × $2.50 + 800k × $1.25 + 100k × $10
+		expect(row.cost).toBeCloseTo(2.5);
 	});
 });

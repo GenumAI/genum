@@ -1,5 +1,6 @@
 import type { FileInput } from "@/services/file.service";
 import type { ModelConfigParameters } from "../models/types";
+import type { Prices } from "../models/pricing";
 
 export * from "./openai/generate";
 export * from "./gemini/generate";
@@ -41,33 +42,59 @@ export type ConversationMessage =
 	/** A reply the human typed after the model answered -- the next turn's question. */
 	| { role: "user"; content: string };
 
+/**
+ * A run's token usage, the same shape for every vendor. Totals include their parts, as the
+ * OpenTelemetry GenAI conventions have it: a vendor that reports a part beside its total
+ * rather than inside it has that part added in by its adapter.
+ */
+export type TokenUsage = {
+	/** Every input token, cache read and cache write included. */
+	prompt: number;
+	/** Every output token, reasoning included. */
+	completion: number;
+	total: number;
+	/** Input tokens served from the vendor's cache. A subset of `prompt`. */
+	cacheRead: number;
+	/** Input tokens written to the vendor's cache. A subset of `prompt`. */
+	cacheWrite: number;
+	/** Output tokens spent on reasoning. A subset of `completion`; 0 when the vendor does not report it. */
+	reasoning: number;
+};
+
 export type ProviderResponse = {
 	answer: string;
 	/** Present when the model asked for tools. `answer` keeps its legacy value regardless. */
 	toolCalls?: ToolCall[];
-	tokens: {
-		prompt: number;
-		completion: number;
-		total: number;
-	};
+	tokens: TokenUsage;
 	response_time_ms: number;
 	chainOfThoughts?: string;
 	status?: string;
 };
 
-export function calculateCost(
-	tokens: { prompt: number; completion: number },
-	prices: { prompt: number; completion: number },
-) {
-	const tokensPerUnit = 1_000_000; // 1M tokens
-	const promptCost = (tokens.prompt / tokensPerUnit) * prices.prompt;
-	const completionCost = (tokens.completion / tokensPerUnit) * prices.completion;
+/** USD for one run. `prompt` includes both cache parts and `completion` includes `reasoning`. */
+export type RunCost = {
+	prompt: number;
+	completion: number;
+	total: number;
+	cacheRead: number;
+	cacheWrite: number;
+	reasoning: number;
+};
 
-	return {
-		prompt: promptCost,
-		completion: completionCost,
-		total: promptCost + completionCost,
-	};
+const TOKENS_PER_UNIT = 1_000_000;
+
+export function calculateCost(tokens: TokenUsage, prices: Prices): RunCost {
+	// Clamped: a vendor that reports more cache tokens than input tokens must not produce a
+	// negative cost.
+	const uncached = Math.max(0, tokens.prompt - tokens.cacheRead - tokens.cacheWrite);
+	const cacheRead = (tokens.cacheRead / TOKENS_PER_UNIT) * prices.cacheRead;
+	const cacheWrite = (tokens.cacheWrite / TOKENS_PER_UNIT) * prices.cacheWrite;
+	const prompt = (uncached / TOKENS_PER_UNIT) * prices.prompt + cacheRead + cacheWrite;
+	const completion = (tokens.completion / TOKENS_PER_UNIT) * prices.completion;
+	// Every vendor bills reasoning at the output rate: this is its share, not an extra charge.
+	const reasoning = (tokens.reasoning / TOKENS_PER_UNIT) * prices.completion;
+
+	return { prompt, completion, total: prompt + completion, cacheRead, cacheWrite, reasoning };
 }
 
 // Function to handle JSON schema that might be stored as a string

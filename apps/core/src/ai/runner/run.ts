@@ -21,6 +21,7 @@ import type { runPromptParams, SystemPrompt } from "./types";
 import { getSystemPrompt, SYSTEM_PROMPTS } from "./system";
 import { type LogDocument, LogLevel, LogType, SourceType } from "@/services/logger";
 import { toLogPlaceholders } from "@/services/logger/mappers";
+import { ZERO_USAGE } from "@/services/logger/usage";
 import { captureSentryException } from "@/services/sentry/init";
 import { HttpError } from "@/utils/errors";
 
@@ -240,13 +241,10 @@ export async function runPrompt(data: runPromptParams) {
 		});
 
 		const cost = calculateCost(
-			{
-				prompt: completion.tokens.prompt,
-				completion: completion.tokens.completion,
-			},
+			completion.tokens,
 			// Most models bill at the price stored on the model; some (DeepSeek) vary it by
 			// time of day, so resolve the effective price at the moment the run is billed.
-			getEffectivePrices(model.vendor, model.name, model.promptPrice, model.completionPrice),
+			getEffectivePrices(model),
 		);
 
 		if (quotaUsed) {
@@ -268,6 +266,12 @@ export async function runPrompt(data: runPromptParams) {
 			tokens_sum: completion.tokens.total,
 			cost: cost.total,
 			response_ms: completion.response_time_ms,
+			tokens_in_cache_read: completion.tokens.cacheRead,
+			tokens_in_cache_write: completion.tokens.cacheWrite,
+			tokens_out_reasoning: completion.tokens.reasoning,
+			cost_in_cache_read: cost.cacheRead,
+			cost_in_cache_write: cost.cacheWrite,
+			cost_out_reasoning: cost.reasoning,
 			in: data.question,
 			out: completion.answer,
 			placeholders: toLogPlaceholders(render.resolved),
@@ -309,11 +313,7 @@ export async function runPrompt(data: runPromptParams) {
 			prompt_id: prompt.id,
 			vendor: model.vendor,
 			model: model.name,
-			tokens_in: 0,
-			tokens_out: 0,
-			tokens_sum: 0,
-			cost: 0,
-			response_ms: 0,
+			...ZERO_USAGE,
 			in: data.question,
 			out: "",
 			placeholders: toLogPlaceholders(render.resolved),
@@ -373,11 +373,7 @@ export async function transcribe(
 		user_id: undefined, // do not log user id for speech to text
 		vendor: "OPENAI",
 		model: "whisper-1",
-		tokens_in: 0,
-		tokens_out: 0,
-		tokens_sum: 0,
-		cost: 0,
-		response_ms: 0,
+		...ZERO_USAGE,
 		in: `**binary audio** from user ${user_email}(${user_id})`,
 		out: transcription,
 	});

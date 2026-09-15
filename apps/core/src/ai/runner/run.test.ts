@@ -61,7 +61,7 @@ function params(): runPromptParams {
 function completion(overrides: Record<string, unknown> = {}) {
 	return {
 		answer: "the answer",
-		tokens: { prompt: 10, completion: 5, total: 15 },
+		tokens: { prompt: 10, completion: 5, total: 15, cacheRead: 0, cacheWrite: 0, reasoning: 0 },
 		response_time_ms: 12,
 		...overrides,
 	};

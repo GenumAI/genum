@@ -35,6 +35,12 @@ const LIST_ROW: ClickHouseLogListRow = {
 	tokens_sum: 33,
 	cost: 0.0025,
 	response_ms: 1500,
+	tokens_in_cache_read: 0,
+	tokens_in_cache_write: 0,
+	tokens_out_reasoning: 0,
+	cost_in_cache_read: 0,
+	cost_in_cache_write: 0,
+	cost_out_reasoning: 0,
 };
 
 describe("GET_LOGS", () => {

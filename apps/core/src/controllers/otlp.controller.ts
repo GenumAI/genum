@@ -10,6 +10,7 @@ import {
 	SourceType,
 } from "@/services/logger";
 import type { SpanRow } from "@/services/logger";
+import { ZERO_USAGE } from "@/services/logger/usage";
 import { mapOtlpSpans, openingQuestion, tracesOf } from "@/services/otlp/mapSpans";
 import { assignTurnIndices } from "@/services/otlp/turnIndex";
 import type { OtlpPayload } from "@/services/otlp/types";
@@ -171,11 +172,7 @@ export class OtlpController {
 				trace_id: row.session_id || row.trace_id,
 				vendor: row.vendor,
 				model: row.model,
-				tokens_in: 0,
-				tokens_out: 0,
-				tokens_sum: 0,
-				cost: 0,
-				response_ms: 0,
+				...ZERO_USAGE,
 				// The question the session opened with. Pinning a session as a testcase
 				// reads exactly this field for the testcase's `input`, so an empty one
 				// produced a recorded conversation that could never be replayed -- the

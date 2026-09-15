@@ -30,6 +30,7 @@ import {
 	logUsage,
 	SourceType,
 } from "@/services/logger";
+import { sumUsage } from "@/services/logger/usage";
 import { type FileInput, fileService } from "@/services/file.service";
 import { normalize } from "@/utils/normalize";
 
@@ -485,11 +486,7 @@ async function logTrajectoryRun(
 				}
 			: {}),
 		trace_id: traceId,
-		tokens_in: turns.reduce((sum, turn) => sum + turn.tokens_in, 0),
-		tokens_out: turns.reduce((sum, turn) => sum + turn.tokens_out, 0),
-		tokens_sum: turns.reduce((sum, turn) => sum + turn.tokens_sum, 0),
-		cost: turns.reduce((sum, turn) => sum + turn.cost, 0),
-		response_ms: turns.reduce((sum, turn) => sum + turn.response_ms, 0),
+		...sumUsage(turns),
 	});
 
 	// One trace per turn, all under the session the run was logged against. `turnsOf`

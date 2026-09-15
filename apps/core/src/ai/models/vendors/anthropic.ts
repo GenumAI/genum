@@ -17,7 +17,7 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.description(
 			"First hybrid reasoning model on the market. Offers both quick responses and extended, step-by-step reasoning. Enhanced coding and front-end web development capabilities",
 		)
-		.pricing(3, 15)
+		.pricing({ prompt: 3, completion: 15 })
 		.limits(200_000, 64_000)
 		.temperature(...ANTHROPIC_TEMPERATURE)
 		.maxTokens(1, ANTHROPIC_MAX_TOKENS)
@@ -29,7 +29,7 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.description(
 			"Balances performance and efficiency for internal and external use cases, with enhanced steerability for greater control over implementations. While not matching Opus 4 in most domains, it delivers an optimal mix of capability and practicality.",
 		)
-		.pricing(3, 15)
+		.pricing({ prompt: 3, completion: 15, cacheRead: 0.3, cacheWrite: 3.75 })
 		.limits(200_000, 64_000)
 		.temperature(...ANTHROPIC_TEMPERATURE)
 		.maxTokens(1, ANTHROPIC_MAX_TOKENS)
@@ -39,7 +39,7 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 	model("claude-sonnet-4-5", AiVendor.ANTHROPIC)
 		.displayName("Claude Sonnet 4.5")
 		.description("Best model for complex agents and coding")
-		.pricing(3, 15)
+		.pricing({ prompt: 3, completion: 15, cacheRead: 0.3, cacheWrite: 3.75 })
 		.limits(200_000, 64_000)
 		.temperature(...ANTHROPIC_TEMPERATURE)
 		.maxTokens(1, ANTHROPIC_MAX_TOKENS)
@@ -51,7 +51,7 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.description(
 			"Claude Haiku is a model for fast, effective reasoning with exceptionally efficient performance in coding and visual tasks.",
 		)
-		.pricing(1, 5)
+		.pricing({ prompt: 1, completion: 5, cacheRead: 0.1, cacheWrite: 1.25 })
 		.limits(200_000, 64_000)
 		.temperature(...ANTHROPIC_TEMPERATURE)
 		.maxTokens(1, ANTHROPIC_MAX_TOKENS)
@@ -63,7 +63,7 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.description(
 			"The best combination of speed and intelligence with a 1M token context window.",
 		)
-		.pricing(3, 15)
+		.pricing({ prompt: 3, completion: 15, cacheRead: 0.3, cacheWrite: 3.75 })
 		.limits(1_000_000, 64_000)
 		.temperature(...ANTHROPIC_TEMPERATURE)
 		.maxTokens(1, 64_000)
@@ -75,7 +75,7 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.description(
 			"Our most capable generally available model for complex reasoning and agentic coding.",
 		)
-		.pricing(5, 25)
+		.pricing({ prompt: 5, completion: 25, cacheRead: 0.5, cacheWrite: 6.25 })
 		.limits(1_000_000, 128_000)
 		.temperature(...ANTHROPIC_TEMPERATURE)
 		.maxTokens(1, 128_000)

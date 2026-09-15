@@ -58,3 +58,48 @@ describe("generateOpenAI tool call normalization", () => {
 		expect(result.answer).toBe("It is 12°");
 	});
 });
+
+describe("generateOpenAI usage normalization", () => {
+	beforeEach(() => create.mockReset());
+
+	it("reports cached input inside prompt and reasoning inside completion", async () => {
+		create.mockResolvedValue({
+			output: [functionCall("get_weather", '{"city":"Berlin"}', "call_1")],
+			usage: {
+				input_tokens: 1000,
+				input_tokens_details: { cached_tokens: 800 },
+				output_tokens: 300,
+				output_tokens_details: { reasoning_tokens: 250 },
+				total_tokens: 1300,
+			},
+		});
+
+		const result = await generateOpenAI(request());
+
+		expect(result.tokens).toEqual({
+			prompt: 1000,
+			completion: 300,
+			total: 1300,
+			cacheRead: 800,
+			cacheWrite: 0,
+			reasoning: 250,
+		});
+	});
+
+	it("reports zeros, not NaN, when a compatible provider sends no usage", async () => {
+		create.mockResolvedValue({
+			output: [functionCall("get_weather", '{"city":"Berlin"}', "call_1")],
+		});
+
+		const result = await generateOpenAI(request());
+
+		expect(result.tokens).toEqual({
+			prompt: 0,
+			completion: 0,
+			total: 0,
+			cacheRead: 0,
+			cacheWrite: 0,
+			reasoning: 0,
+		});
+	});
+});

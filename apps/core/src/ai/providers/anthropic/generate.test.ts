@@ -54,3 +54,48 @@ describe("generateAnthropic tool call normalization", () => {
 		expect(result.answer).toBe("It is 12°");
 	});
 });
+
+describe("generateAnthropic usage normalization", () => {
+	beforeEach(() => create.mockReset());
+
+	it("adds the cache tokens Anthropic reports beside input_tokens into prompt", async () => {
+		create.mockResolvedValue({
+			content: [{ type: "text", text: "It is 12°" }],
+			usage: {
+				input_tokens: 100,
+				cache_read_input_tokens: 800,
+				cache_creation_input_tokens: 50,
+				output_tokens: 300,
+			},
+		});
+
+		const result = await generateAnthropic(request());
+
+		expect(result.tokens).toEqual({
+			prompt: 950,
+			completion: 300,
+			total: 1250,
+			cacheRead: 800,
+			cacheWrite: 50,
+			reasoning: 0,
+		});
+	});
+
+	it("treats absent cache counts as zero", async () => {
+		create.mockResolvedValue({
+			content: [{ type: "text", text: "It is 12°" }],
+			usage: { input_tokens: 1, output_tokens: 2 },
+		});
+
+		const result = await generateAnthropic(request());
+
+		expect(result.tokens).toEqual({
+			prompt: 1,
+			completion: 2,
+			total: 3,
+			cacheRead: 0,
+			cacheWrite: 0,
+			reasoning: 0,
+		});
+	});
+});

@@ -74,6 +74,12 @@ export const QUERIES = {
 		tokens_out,
 		tokens_sum,
 		cost,
+		tokens_in_cache_read,
+		tokens_in_cache_write,
+		tokens_out_reasoning,
+		cost_in_cache_read,
+		cost_in_cache_write,
+		cost_out_reasoning,
 		response_ms
 	`,
 
