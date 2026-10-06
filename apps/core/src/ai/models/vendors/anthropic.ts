@@ -13,6 +13,7 @@ const ANTHROPIC_MAX_TOKENS = 64_000; // default = max, omitted in builder
  */
 export const ANTHROPIC_MODELS: BuiltModel[] = [
 	model("claude-3-7-sonnet-latest", AiVendor.ANTHROPIC)
+		.retired("2026-02-19", "claude-sonnet-4-6")
 		.displayName("Claude Sonnet 3.7")
 		.description(
 			"First hybrid reasoning model on the market. Offers both quick responses and extended, step-by-step reasoning. Enhanced coding and front-end web development capabilities",
@@ -25,6 +26,7 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("claude-sonnet-4-0", AiVendor.ANTHROPIC)
+		.retired("2026-06-15", "claude-sonnet-4-6")
 		.displayName("Claude Sonnet 4.0")
 		.description(
 			"Balances performance and efficiency for internal and external use cases, with enhanced steerability for greater control over implementations. While not matching Opus 4 in most domains, it delivers an optimal mix of capability and practicality.",
@@ -37,6 +39,7 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("claude-sonnet-4-5", AiVendor.ANTHROPIC)
+		.deprecated("2026-11-30", "claude-sonnet-4-6")
 		.displayName("Claude Sonnet 4.5")
 		.description("Best model for complex agents and coding")
 		.pricing({ prompt: 3, completion: 15, cacheRead: 0.3, cacheWrite: 3.75 })
