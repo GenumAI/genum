@@ -1,6 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { AiVendor } from "@/prisma";
 import type { ProviderRequest, ProviderResponse, ToolCall } from "..";
+import { findRegistryModel } from "../../models/pricing";
 import { mapMessagesAnthropic, mapToolsAnthropic } from "./utils";
+
+/**
+ * Claude 4.7 and later answer 400 to any non-default temperature, so the registry declares none
+ * for them. The stored config is not enough to go by: a prompt saved while the model still
+ * declared one keeps it.
+ */
+function acceptsTemperature(model: string): boolean {
+	return findRegistryModel(AiVendor.ANTHROPIC, model)?.parameters.temperature !== undefined;
+}
 
 export async function generateAnthropic(request: ProviderRequest): Promise<ProviderResponse> {
 	const start = Date.now();
@@ -11,7 +22,7 @@ export async function generateAnthropic(request: ProviderRequest): Promise<Provi
 
 	const response = await anthropic.messages.create({
 		model: request.model,
-		temperature: request.parameters.temperature,
+		temperature: acceptsTemperature(request.model) ? request.parameters.temperature : undefined,
 		max_tokens: request.parameters.max_tokens as number,
 		system: request.instruction,
 		messages: mapMessagesAnthropic(request),

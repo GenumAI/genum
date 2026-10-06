@@ -97,3 +97,35 @@ describe("generateAnthropic usage normalization", () => {
 		});
 	});
 });
+
+describe("generateAnthropic sampling parameters", () => {
+	beforeEach(() => {
+		create.mockReset();
+		create.mockResolvedValue({
+			content: [{ type: "text", text: "ok" }],
+			usage: { input_tokens: 1, output_tokens: 1 },
+		});
+	});
+
+	it("sends temperature to a model that declares it", async () => {
+		await generateAnthropic({
+			...request(),
+			model: "claude-sonnet-4-6",
+			parameters: { max_tokens: 100, temperature: 0.5 },
+		});
+
+		expect(create.mock.calls[0][0].temperature).toBe(0.5);
+	});
+
+	// Claude 4.7 and later answer 400 to any non-default temperature. A prompt saved before the
+	// registry dropped the parameter still carries one in its stored config.
+	it("drops a stored temperature for a model that does not accept one", async () => {
+		await generateAnthropic({
+			...request(),
+			model: "claude-opus-4-7",
+			parameters: { max_tokens: 100, temperature: 0.5 },
+		});
+
+		expect(create.mock.calls[0][0].temperature).toBeUndefined();
+	});
+});
