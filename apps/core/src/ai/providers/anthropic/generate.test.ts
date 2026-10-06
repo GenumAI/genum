@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// `create` stands in for the final message of a streamed request. The adapter must stream:
+// without a stream the SDK refuses, before any network call, a max_tokens above ~21K, and every
+// registry model defaults max_tokens to its full output limit.
 const create = vi.fn();
 vi.mock("@anthropic-ai/sdk", () => ({
 	default: class {
-		messages = { create };
+		messages = {
+			stream: (body: unknown) => ({ finalMessage: () => create(body) }),
+		};
 	},
 }));
 

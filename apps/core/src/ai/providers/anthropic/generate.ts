@@ -20,14 +20,23 @@ export async function generateAnthropic(request: ProviderRequest): Promise<Provi
 		apiKey: request.apikey,
 	});
 
-	const response = await anthropic.messages.create({
-		model: request.model,
-		temperature: acceptsTemperature(request.model) ? request.parameters.temperature : undefined,
-		max_tokens: request.parameters.max_tokens as number,
-		system: request.instruction,
-		messages: mapMessagesAnthropic(request),
-		tools: request.parameters.tools ? mapToolsAnthropic(request.parameters.tools) : undefined,
-	});
+	// Streamed and then collected whole. Without a stream the SDK refuses, before sending
+	// anything, any max_tokens it estimates could run past ten minutes (above ~21K), and every
+	// registry model defaults max_tokens to its full output limit.
+	const response = await anthropic.messages
+		.stream({
+			model: request.model,
+			temperature: acceptsTemperature(request.model)
+				? request.parameters.temperature
+				: undefined,
+			max_tokens: request.parameters.max_tokens as number,
+			system: request.instruction,
+			messages: mapMessagesAnthropic(request),
+			tools: request.parameters.tools
+				? mapToolsAnthropic(request.parameters.tools)
+				: undefined,
+		})
+		.finalMessage();
 
 	let result = "";
 	const message = response.content[0];
