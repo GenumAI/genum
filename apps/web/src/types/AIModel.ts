@@ -15,7 +15,18 @@ export interface Model {
 	updatedAt: string;
 	/** True when the model is disabled for the current organization but still assigned to this prompt. */
 	isDisabled?: boolean;
+	/** The vendor's withdrawal of the model, from the registry. `null` while it is current. */
+	lifecycle?: ModelLifecycle | null;
 }
+
+/**
+ * `deprecated` still runs until the vendor shuts it down; `retired` no longer runs at all. The
+ * replacement is a suggestion only, never applied on the user's behalf.
+ */
+export type ModelLifecycle = (
+	| { status: "deprecated"; retiresOn: string }
+	| { status: "retired"; retiredOn: string }
+) & { replacement?: string; replacementDisplayName?: string };
 
 interface ModelParameter {
 	min?: number;
