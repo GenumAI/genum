@@ -1,11 +1,24 @@
 import { AiVendor } from "@/prisma";
 import { model } from "../builder";
-import type { BuiltModel } from "../builder";
+import type { BuiltModel, ListedPrices, PriceModifier } from "../builder";
 
 /** Gemini defaults (all models share these) */
 const GEMINI_RESPONSE_FORMAT = ["text", "json_schema"] as const;
 const DEFAULT_RESPONSE_FORMAT = "text" as const;
 const GEMINI_TEMPERATURE = [0, 2, 1] as const; // min, max, default
+
+/**
+ * Gemini 3.6, 3.7 and 3.8 Flash bill at half price through 2026-12-31 and at full price from
+ * 2027-01-01. The listed (and displayed) price is the one in force when the registry was synced;
+ * a run is billed at the one in force when it runs, so the switch needs no release.
+ */
+const FLASH_PROMO_ENDS = new Date("2027-01-01T00:00:00Z");
+const FLASH_PROMO: ListedPrices = { prompt: 0.75, completion: 3.75, cacheRead: 0.075 };
+const FLASH_STANDARD: ListedPrices = { prompt: 1.5, completion: 7.5, cacheRead: 0.15 };
+
+function untilThenAfter(at: Date, until: ListedPrices, after: ListedPrices): PriceModifier {
+	return () => (Date.now() < at.getTime() ? until : after);
+}
 
 /**
  * Google Gemini models. Single source of truth for both:
@@ -96,7 +109,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.pricing({ prompt: 0.5, completion: 3, cacheRead: 0.05 })
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
-		.reasoningEffort(["minimal", "low", "medium", "high"], "medium")
+		.reasoningEffort(["minimal", "low", "medium", "high"], "high")
 		.maxTokens(1, 65_536)
 		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
 		.tools()
@@ -123,6 +136,74 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.pricing({ prompt: 2, completion: 12, cacheRead: 0.2 })
 		.limits(1_048_576, 65_536)
 		.temperature(...GEMINI_TEMPERATURE)
+		.reasoningEffort(["low", "medium", "high"], "high")
+		.maxTokens(1, 65_536)
+		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gemini-3.5-flash-lite", AiVendor.GOOGLE)
+		.displayName("Gemini 3.5 Flash-Lite")
+		.description(
+			"Google's most cost-efficient current model, recommended for new projects and high-volume, low-latency work.",
+		)
+		.pricing({ prompt: 0.3, completion: 2.5, cacheRead: 0.03 })
+		.limits(1_048_576, 65_536)
+		.temperature(...GEMINI_TEMPERATURE)
+		.reasoningEffort(["minimal", "low", "medium", "high"], "minimal")
+		.maxTokens(1, 65_536)
+		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gemini-3.5-flash", AiVendor.GOOGLE)
+		.displayName("Gemini 3.5 Flash")
+		.description("A Gemini 3.5 model balancing intelligence, speed and cost.")
+		.pricing({ prompt: 1.5, completion: 9, cacheRead: 0.15 })
+		.limits(1_048_576, 65_536)
+		.temperature(...GEMINI_TEMPERATURE)
+		.reasoningEffort(["minimal", "low", "medium", "high"], "medium")
+		.maxTokens(1, 65_536)
+		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gemini-3.6-flash", AiVendor.GOOGLE)
+		.displayName("Gemini 3.6 Flash")
+		.description(
+			"Fast, capable Flash model; Google's replacement for Gemini 3 Flash Preview. Half price through 2026.",
+		)
+		.pricing(FLASH_PROMO, untilThenAfter(FLASH_PROMO_ENDS, FLASH_PROMO, FLASH_STANDARD))
+		.limits(1_048_576, 65_536)
+		.temperature(...GEMINI_TEMPERATURE)
+		.reasoningEffort(["minimal", "low", "medium", "high"], "medium")
+		.maxTokens(1, 65_536)
+		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gemini-3.7-flash", AiVendor.GOOGLE)
+		.displayName("Gemini 3.7 Flash")
+		.description("Fast, capable Flash model. Half price through 2026.")
+		.pricing(FLASH_PROMO, untilThenAfter(FLASH_PROMO_ENDS, FLASH_PROMO, FLASH_STANDARD))
+		.limits(1_048_576, 65_536)
+		.temperature(...GEMINI_TEMPERATURE)
+		// "minimal" is rejected with an error on 3.7 and 3.8 Flash.
+		.reasoningEffort(["low", "medium", "high"], "medium")
+		.maxTokens(1, 65_536)
+		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gemini-3.8-flash", AiVendor.GOOGLE)
+		.displayName("Gemini 3.8 Flash")
+		.description(
+			"Google's latest Flash model, recommended for new projects. Half price through 2026.",
+		)
+		.pricing(FLASH_PROMO, untilThenAfter(FLASH_PROMO_ENDS, FLASH_PROMO, FLASH_STANDARD))
+		.limits(1_048_576, 65_536)
+		.temperature(...GEMINI_TEMPERATURE)
+		.reasoningEffort(["low", "medium", "high"], "medium")
 		.maxTokens(1, 65_536)
 		.responseFormat(GEMINI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
 		.tools()
