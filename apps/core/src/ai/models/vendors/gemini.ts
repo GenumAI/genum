@@ -27,6 +27,7 @@ function untilThenAfter(at: Date, until: ListedPrices, after: ListedPrices): Pri
  */
 export const GEMINI_MODELS: BuiltModel[] = [
 	model("gemini-2.0-flash", AiVendor.GOOGLE)
+		.retired("2026-06-01", "gemini-3-flash-preview")
 		.displayName("Gemini 2.0 Flash")
 		.description(
 			"Delivers next-gen features and improved capabilities, including superior speed, native tool use, multimodal generation, and a 1M token context window.",
@@ -40,6 +41,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("gemini-2.0-flash-lite", AiVendor.GOOGLE)
+		.retired("2026-06-01", "gemini-3.1-flash-lite")
 		.displayName("Gemini 2.0 Flash Lite")
 		.description("A Gemini 2.0 Flash model optimized for cost efficiency and low latency.")
 		.pricing({ prompt: 0.075, completion: 0.3 })
@@ -88,6 +90,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("gemini-3-pro-preview", AiVendor.GOOGLE)
+		.retired("2026-03-09", "gemini-3.1-pro-preview")
 		.displayName("Gemini 3 Pro Preview")
 		.description(
 			"Gemini 3 is our most intelligent model family to date, built on a foundation of state-of-the-art reasoning.",
@@ -116,6 +119,7 @@ export const GEMINI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("gemini-3.1-flash-lite", AiVendor.GOOGLE)
+		.deprecated("2027-05-07")
 		.displayName("Gemini 3.1 Flash Lite")
 		.description(
 			"Frontier-class performance rivaling larger models at a fraction of the cost, optimized for low latency.",

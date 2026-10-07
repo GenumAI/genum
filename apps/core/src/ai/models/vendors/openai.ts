@@ -49,6 +49,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("gpt-4.1-nano", AiVendor.OPENAI)
+		.deprecated("2026-10-23")
 		.displayName("GPT-4.1 nano")
 		.description("GPT-4.1 nano is the fastest, most cost-effective GPT-4.1 model.")
 		.pricing({ prompt: 0.1, completion: 0.4, cacheRead: 0.025 })
@@ -73,6 +74,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("o3", AiVendor.OPENAI)
+		.deprecated("2026-12-11")
 		.displayName("o3")
 		.description(
 			"o3 is a well-rounded and powerful model across domains. It sets a new standard for math, science, coding, and visual reasoning tasks. It also excels at technical writing and instruction-following.",
@@ -85,6 +87,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("o3-pro", AiVendor.OPENAI)
+		.deprecated("2026-12-11")
 		.displayName("o3 pro")
 		.description(
 			"o3 pro is a more powerful version of o3. It is optimized for complex tasks and problem solving.",
@@ -97,6 +100,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("o3-mini", AiVendor.OPENAI)
+		.deprecated("2026-10-23")
 		.displayName("o3 mini")
 		.description(
 			"o3 mini is a smaller version of o3. It is optimized for fast, effective reasoning with exceptionally efficient performance in coding and visual tasks.",
@@ -109,6 +113,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("o4-mini", AiVendor.OPENAI)
+		.deprecated("2026-10-23")
 		.displayName("o4 mini")
 		.description(
 			"o4 mini is a smaller version of o4. It is optimized for fast, effective reasoning with exceptionally efficient performance in coding and visual tasks.",
@@ -121,6 +126,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("gpt-5", AiVendor.OPENAI)
+		.deprecated("2026-12-11")
 		.displayName("GPT-5")
 		.description(
 			"GPT-5 is a powerful model for coding and agentic tasks with configurable reasoning and non-reasoning effort.",
@@ -134,6 +140,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("gpt-5-mini", AiVendor.OPENAI)
+		.deprecated("2026-12-11")
 		.displayName("GPT-5 mini")
 		.description(
 			"GPT-5 mini is a smaller version of GPT-5. It is optimized for fast, effective reasoning with exceptionally efficient performance in coding and visual tasks.",
@@ -147,6 +154,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("gpt-5-nano", AiVendor.OPENAI)
+		.deprecated("2026-12-11")
 		.displayName("GPT-5 nano")
 		.description(
 			"GPT-5 nano is a smaller version of GPT-5. It is optimized for fast, effective reasoning with exceptionally efficient performance in coding and visual tasks.",
@@ -160,6 +168,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("gpt-5-pro", AiVendor.OPENAI)
+		.deprecated("2026-12-11")
 		.displayName("GPT-5 pro")
 		.description(
 			"GPT-5 pro is a more powerful version of GPT-5. It is optimized for complex tasks and problem solving.",
@@ -171,6 +180,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("gpt-5.1", AiVendor.OPENAI)
+		.deprecated("2027-04-01")
 		.displayName("GPT-5.1")
 		.description(
 			"GPT-5.1 is our flagship model for coding and agentic tasks with configurable reasoning and non-reasoning effort.",
@@ -217,6 +227,7 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.build(),
 
 	model("gpt-5.4-nano", AiVendor.OPENAI)
+		.deprecated("2027-04-01")
 		.displayName("GPT-5.4 nano")
 		.description("Our cheapest GPT-5.4-class model for simple high-volume tasks.")
 		.pricing({ prompt: 0.2, completion: 1.25, cacheRead: 0.02 })

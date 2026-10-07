@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { syncModels } from "./models";
-import { createSystemPromptsIfNotExists } from "./system-prompts";
+import { createSystemPromptsIfNotExists, DEFAULT_SYSTEM_PROMPTS_DATA } from "./system-prompts";
+import { migrateSystemPromptModels } from "./system-prompts/models";
+import { db } from "@/database/db";
 import {
 	addSystemUserToOrganization,
 	createLLMAPIKeysIfNotExists,
@@ -23,6 +25,7 @@ async function main() {
 	await addSystemUserToOrganization(systemUserId, systemOrganizationId);
 	await createLLMAPIKeysIfNotExists(systemOrganizationId);
 	await createSystemPromptsIfNotExists(systemUserId);
+	await migrateSystemPromptModels(db, systemUserId, DEFAULT_SYSTEM_PROMPTS_DATA);
 }
 
 main()

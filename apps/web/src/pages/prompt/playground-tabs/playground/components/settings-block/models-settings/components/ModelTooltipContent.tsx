@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Brain } from "lucide-react";
 import type { Model } from "@/types/AIModel";
 import { formatPricePerMillion } from "@/lib/usageDisplay";
+import { lifecycleNotice } from "@/lib/modelLifecycle";
 import { isReasoningModel, formatPrice } from "../utils/helpers";
 
 interface ModelTooltipContentProps {
@@ -18,6 +19,12 @@ export const ModelTooltipContent = memo(({ model }: ModelTooltipContentProps) =>
 			</div>
 
 			{model.description && <div className="text-[12px] text-white">{model.description}</div>}
+
+			{model.lifecycle?.status === "deprecated" && (
+				<div className="text-[12px] mt-2 text-amber-300">
+					{lifecycleNotice(model.lifecycle)}
+				</div>
+			)}
 
 			<div className="text-[11px] flex flex-col gap-2.5">
 				<div className="flex justify-between mt-4 items-center">

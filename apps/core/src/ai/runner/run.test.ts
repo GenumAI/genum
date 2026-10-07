@@ -181,4 +181,39 @@ describe("runPrompt / callPromptModel share one resolution", () => {
 		expect(vi.mocked(logUsage).mock.calls[0][0].description).toBe("provider down");
 		expect(db.organization.chargeQuota).not.toHaveBeenCalled();
 	});
+
+	// The vendor would refuse it too, but with an error that names neither a date nor a way out,
+	// and only after a key and quota were spent finding that out.
+	it("refuses a retired model before calling the vendor", async () => {
+		vi.mocked(db.prompts.getModelById).mockResolvedValue({
+			id: 3,
+			name: "claude-sonnet-4-0",
+			vendor: "ANTHROPIC",
+			promptPrice: 3,
+			completionPrice: 15,
+			apiKeyId: null,
+		} as never);
+
+		await expect(runPrompt(params())).rejects.toMatchObject({
+			statusCode: 400,
+			message: expect.stringContaining("Claude Sonnet 4.0 was shut down by Anthropic"),
+		});
+		expect(getApiKeyByQuota).not.toHaveBeenCalled();
+		expect(db.organization.chargeQuota).not.toHaveBeenCalled();
+	});
+
+	it("still runs a deprecated model", async () => {
+		vi.mocked(db.prompts.getModelById).mockResolvedValue({
+			id: 3,
+			name: "o4-mini",
+			vendor: "OPENAI",
+			promptPrice: 1.1,
+			completionPrice: 4.4,
+			apiKeyId: null,
+		} as never);
+
+		const run = await runPrompt(params());
+
+		expect(run.answer).toBe("the answer");
+	});
 });

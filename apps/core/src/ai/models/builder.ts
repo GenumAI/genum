@@ -45,7 +45,23 @@ export type BuiltModel = SeedModelFields & {
 	cacheReadPrice?: number;
 	/** USD per 1M input tokens written to the vendor's cache. Code-side only. */
 	cacheWritePrice?: number;
+	/** Where the vendor is in withdrawing the model. Absent while it is current. Code-side only. */
+	lifecycle?: ModelLifecycle;
 };
+
+/**
+ * A vendor's withdrawal of a model, as the registry records it.
+ *
+ * `deprecated` is a warning only: the model keeps working, and `retiresOn` passing changes
+ * nothing by itself, because vendors move those dates. A model is blocked only once it is marked
+ * `retired`, after the vendor has actually shut it down.
+ *
+ * `replacement` names another registry model of the same vendor. It is suggested to the user,
+ * never switched to on their behalf: a different model changes a prompt's answers and its cost.
+ */
+export type ModelLifecycle =
+	| { status: "deprecated"; retiresOn: string; replacement?: string }
+	| { status: "retired"; retiredOn: string; replacement?: string };
 
 type ModelBuilderState = {
 	name: string;
@@ -60,6 +76,7 @@ type ModelBuilderState = {
 	priceModifier?: PriceModifier;
 	cacheReadPrice?: number;
 	cacheWritePrice?: number;
+	lifecycle?: ModelLifecycle;
 };
 
 function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
@@ -140,6 +157,16 @@ function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
 			return builder;
 		},
 
+		deprecated(retiresOn: string, replacement?: string) {
+			state.lifecycle = { status: "deprecated", retiresOn, replacement };
+			return builder;
+		},
+
+		retired(retiredOn: string, replacement?: string) {
+			state.lifecycle = { status: "retired", retiredOn, replacement };
+			return builder;
+		},
+
 		build(): BuiltModel {
 			return {
 				name: state.name,
@@ -154,6 +181,7 @@ function createModelBuilder(name: string, vendor: AiVendor): ModelBuilder {
 				priceModifier: state.priceModifier,
 				cacheReadPrice: state.cacheReadPrice,
 				cacheWritePrice: state.cacheWritePrice,
+				lifecycle: state.lifecycle,
 			};
 		},
 	};
@@ -178,6 +206,10 @@ export interface ModelBuilder {
 		defaultValue: REASONING_EFFORT,
 	): ModelBuilder;
 	verbosity(allowed: readonly string[], defaultValue: string): ModelBuilder;
+	/** The vendor has announced a shutdown on `retiresOn` (YYYY-MM-DD). A warning only. */
+	deprecated(retiresOn: string, replacement?: string): ModelBuilder;
+	/** The vendor shut the model down on `retiredOn` (YYYY-MM-DD). Runs on it are refused. */
+	retired(retiredOn: string, replacement?: string): ModelBuilder;
 	build(): BuiltModel;
 }
 
