@@ -86,12 +86,14 @@ describe("registry lifecycle entries", () => {
 		expect(replacement?.lifecycle?.status).not.toBe("retired");
 	});
 
-	// A system prompt on a retired model fails every Genum feature built on it.
+	// A system prompt on a withdrawn model breaks the Genum feature built on it the day the vendor
+	// shuts it down. Marking a model deprecated fails here until its system prompts name another,
+	// which `migrateSystemPromptModels` then moves every install onto at deploy.
 	it.each(
 		DEFAULT_SYSTEM_PROMPTS_DATA.map((p) => [p.name, p.languageModelName] as const),
-	)("system prompt %s does not run on a retired model", (_, modelName) => {
+	)("system prompt %s runs on a model its vendor is not withdrawing", (_, modelName) => {
 		const m = ALL_MODELS.find((r) => r.name === modelName);
 		expect(m).toBeDefined();
-		expect(m?.lifecycle?.status).not.toBe("retired");
+		expect(m?.lifecycle).toBeUndefined();
 	});
 });
