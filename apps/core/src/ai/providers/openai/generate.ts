@@ -46,6 +46,11 @@ export async function generateOpenAI(request: ProviderRequest): Promise<Provider
 		}));
 
 	const usage = response.usage;
+	// The installed SDK's types predate cache_write_tokens. GPT-5.6 and later report it, inside
+	// input_tokens like cached_tokens; older models and compatible providers omit it.
+	const inputDetails = usage?.input_tokens_details as
+		| { cached_tokens?: number; cache_write_tokens?: number }
+		| undefined;
 	const prompt = usage?.input_tokens ?? 0;
 	const completion = usage?.output_tokens ?? 0;
 
@@ -56,9 +61,8 @@ export async function generateOpenAI(request: ProviderRequest): Promise<Provider
 			prompt,
 			completion,
 			total: usage?.total_tokens ?? prompt + completion,
-			cacheRead: usage?.input_tokens_details?.cached_tokens ?? 0,
-			// OpenAI charges nothing to write its cache.
-			cacheWrite: 0,
+			cacheRead: inputDetails?.cached_tokens ?? 0,
+			cacheWrite: inputDetails?.cache_write_tokens ?? 0,
 			reasoning: usage?.output_tokens_details?.reasoning_tokens ?? 0,
 		},
 		response_time_ms: Date.now() - start,

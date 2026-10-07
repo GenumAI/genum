@@ -84,6 +84,24 @@ describe("generateOpenAI usage normalization", () => {
 		});
 	});
 
+	// GPT-5.6 and later write the cache by default and bill those tokens at their own rate.
+	// Like cached_tokens, they are counted inside input_tokens.
+	it("reports cache-write tokens inside prompt", async () => {
+		create.mockResolvedValue({
+			output: [functionCall("get_weather", '{"city":"Berlin"}', "call_1")],
+			usage: {
+				input_tokens: 1000,
+				input_tokens_details: { cached_tokens: 200, cache_write_tokens: 700 },
+				output_tokens: 10,
+				total_tokens: 1010,
+			},
+		});
+
+		const result = await generateOpenAI(request());
+
+		expect(result.tokens).toMatchObject({ prompt: 1000, cacheRead: 200, cacheWrite: 700 });
+	});
+
 	it("reports zeros, not NaN, when a compatible provider sends no usage", async () => {
 		create.mockResolvedValue({
 			output: [functionCall("get_weather", '{"city":"Berlin"}', "call_1")],

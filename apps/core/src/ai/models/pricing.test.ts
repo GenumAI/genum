@@ -109,6 +109,21 @@ describe("DeepSeek time-of-day pricing", () => {
 			});
 		});
 
+		it("takes OpenAI's GPT-5.6 cache write price from the registry", () => {
+			expect(getEffectivePrices(row(AiVendor.OPENAI, "gpt-5.6-terra", 2, 12))).toEqual({
+				prompt: 2,
+				completion: 12,
+				cacheRead: 0.2,
+				cacheWrite: 2.5,
+			});
+			expect(getEffectivePrices(row(AiVendor.OPENAI, "gpt-5.6-luna", 0.2, 1.2))).toEqual({
+				prompt: 0.2,
+				completion: 1.2,
+				cacheRead: 0.02,
+				cacheWrite: 0.25,
+			});
+		});
+
 		it("bills cache tokens at the prompt price where the vendor publishes no cache price", () => {
 			expect(getEffectivePrices(row(AiVendor.OPENAI, "o3-pro", 20, 80))).toEqual({
 				prompt: 20,
