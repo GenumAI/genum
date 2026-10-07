@@ -77,7 +77,7 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		)
 		.pricing({ prompt: 5, completion: 25, cacheRead: 0.5, cacheWrite: 6.25 })
 		.limits(1_000_000, 128_000)
-		.temperature(...ANTHROPIC_TEMPERATURE)
+		// No temperature: Claude 4.7 and later answer 400 to any non-default sampling value.
 		.maxTokens(1, 128_000)
 		.tools()
 		.build(),

@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// `create` stands in for the final message of a streamed request. The adapter must stream:
+// without a stream the SDK refuses, before any network call, a max_tokens above ~21K, and every
+// registry model defaults max_tokens to its full output limit.
 const create = vi.fn();
 vi.mock("@anthropic-ai/sdk", () => ({
 	default: class {
-		messages = { create };
+		messages = {
+			stream: (body: unknown) => ({ finalMessage: () => create(body) }),
+		};
 	},
 }));
 
@@ -95,5 +100,37 @@ describe("generateAnthropic usage normalization", () => {
 			cacheWrite: 0,
 			reasoning: 0,
 		});
+	});
+});
+
+describe("generateAnthropic sampling parameters", () => {
+	beforeEach(() => {
+		create.mockReset();
+		create.mockResolvedValue({
+			content: [{ type: "text", text: "ok" }],
+			usage: { input_tokens: 1, output_tokens: 1 },
+		});
+	});
+
+	it("sends temperature to a model that declares it", async () => {
+		await generateAnthropic({
+			...request(),
+			model: "claude-sonnet-4-6",
+			parameters: { max_tokens: 100, temperature: 0.5 },
+		});
+
+		expect(create.mock.calls[0][0].temperature).toBe(0.5);
+	});
+
+	// Claude 4.7 and later answer 400 to any non-default temperature. A prompt saved before the
+	// registry dropped the parameter still carries one in its stored config.
+	it("drops a stored temperature for a model that does not accept one", async () => {
+		await generateAnthropic({
+			...request(),
+			model: "claude-opus-4-7",
+			parameters: { max_tokens: 100, temperature: 0.5 },
+		});
+
+		expect(create.mock.calls[0][0].temperature).toBeUndefined();
 	});
 });

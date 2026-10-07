@@ -1,6 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { AiVendor } from "@/prisma";
 import type { ProviderRequest, ProviderResponse, ToolCall } from "..";
+import { findRegistryModel } from "../../models/pricing";
 import { mapMessagesAnthropic, mapToolsAnthropic } from "./utils";
+
+/**
+ * Claude 4.7 and later answer 400 to any non-default temperature, so the registry declares none
+ * for them. The stored config is not enough to go by: a prompt saved while the model still
+ * declared one keeps it.
+ */
+function acceptsTemperature(model: string): boolean {
+	return findRegistryModel(AiVendor.ANTHROPIC, model)?.parameters.temperature !== undefined;
+}
 
 export async function generateAnthropic(request: ProviderRequest): Promise<ProviderResponse> {
 	const start = Date.now();
@@ -9,14 +20,23 @@ export async function generateAnthropic(request: ProviderRequest): Promise<Provi
 		apiKey: request.apikey,
 	});
 
-	const response = await anthropic.messages.create({
-		model: request.model,
-		temperature: request.parameters.temperature,
-		max_tokens: request.parameters.max_tokens as number,
-		system: request.instruction,
-		messages: mapMessagesAnthropic(request),
-		tools: request.parameters.tools ? mapToolsAnthropic(request.parameters.tools) : undefined,
-	});
+	// Streamed and then collected whole. Without a stream the SDK refuses, before sending
+	// anything, any max_tokens it estimates could run past ten minutes (above ~21K), and every
+	// registry model defaults max_tokens to its full output limit.
+	const response = await anthropic.messages
+		.stream({
+			model: request.model,
+			temperature: acceptsTemperature(request.model)
+				? request.parameters.temperature
+				: undefined,
+			max_tokens: request.parameters.max_tokens as number,
+			system: request.instruction,
+			messages: mapMessagesAnthropic(request),
+			tools: request.parameters.tools
+				? mapToolsAnthropic(request.parameters.tools)
+				: undefined,
+		})
+		.finalMessage();
 
 	let result = "";
 	const message = response.content[0];
