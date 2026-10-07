@@ -7,6 +7,14 @@ const ANTHROPIC_TEMPERATURE = [0, 1, 0.5] as const; // min, max, default
 const ANTHROPIC_MAX_TOKENS = 64_000; // default = max, omitted in builder
 
 /**
+ * Effort levels (`output_config.effort`) on Claude Opus 4.8 and the 5.x models. These models
+ * answer 400 to any non-default temperature, top_p or top_k, so they declare none; the adapter
+ * also turns adaptive thinking on for every model that declares effort.
+ */
+const CLAUDE_EFFORT = ["low", "medium", "high", "xhigh", "max"] as const;
+const CLAUDE_5_MAX_TOKENS = 128_000;
+
+/**
  * Anthropic models. Single source of truth for both:
  * - Seed/DB (pricing, limits, description)
  * - API parameters (temperature, max_tokens, tools)
@@ -79,6 +87,76 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.limits(1_000_000, 128_000)
 		// No temperature: Claude 4.7 and later answer 400 to any non-default sampling value.
 		.maxTokens(1, 128_000)
+		.tools()
+		.build(),
+
+	model("claude-opus-4-8", AiVendor.ANTHROPIC)
+		.displayName("Claude Opus 4.8")
+		.description("Previous-generation Opus for complex reasoning and agentic coding.")
+		.pricing({ prompt: 5, completion: 25, cacheRead: 0.5, cacheWrite: 6.25 })
+		.limits(1_000_000, CLAUDE_5_MAX_TOKENS)
+		.reasoningEffort(CLAUDE_EFFORT, "high")
+		.maxTokens(1, CLAUDE_5_MAX_TOKENS)
+		.tools()
+		.build(),
+
+	model("claude-sonnet-5", AiVendor.ANTHROPIC)
+		.displayName("Claude Sonnet 5")
+		.description("Previous Sonnet: strong intelligence at a low price, with adaptive thinking.")
+		.pricing({ prompt: 2, completion: 10, cacheRead: 0.2, cacheWrite: 2.5 })
+		.limits(1_000_000, CLAUDE_5_MAX_TOKENS)
+		.reasoningEffort(CLAUDE_EFFORT, "high")
+		.maxTokens(1, CLAUDE_5_MAX_TOKENS)
+		.tools()
+		.build(),
+
+	model("claude-opus-5", AiVendor.ANTHROPIC)
+		.displayName("Claude Opus 5")
+		.description("Previous Opus for complex reasoning and long-running agentic work.")
+		.pricing({ prompt: 5, completion: 25, cacheRead: 0.5, cacheWrite: 6.25 })
+		.limits(1_000_000, CLAUDE_5_MAX_TOKENS)
+		.reasoningEffort(CLAUDE_EFFORT, "high")
+		.maxTokens(1, CLAUDE_5_MAX_TOKENS)
+		.tools()
+		.build(),
+
+	model("claude-fable-5", AiVendor.ANTHROPIC)
+		.displayName("Claude Fable 5")
+		.description("Previous Fable, Anthropic's most capable tier, with thinking always on.")
+		.pricing({ prompt: 10, completion: 50, cacheRead: 1, cacheWrite: 12.5 })
+		.limits(1_000_000, CLAUDE_5_MAX_TOKENS)
+		.reasoningEffort(CLAUDE_EFFORT, "high")
+		.maxTokens(1, CLAUDE_5_MAX_TOKENS)
+		.tools()
+		.build(),
+
+	model("claude-sonnet-5-5", AiVendor.ANTHROPIC)
+		.displayName("Claude Sonnet 5.5")
+		.description("Anthropic's latest Sonnet: the best balance of speed, intelligence and cost.")
+		.pricing({ prompt: 2, completion: 10, cacheRead: 0.2, cacheWrite: 2.5 })
+		.limits(1_000_000, CLAUDE_5_MAX_TOKENS)
+		.reasoningEffort(CLAUDE_EFFORT, "high")
+		.maxTokens(1, CLAUDE_5_MAX_TOKENS)
+		.tools()
+		.build(),
+
+	model("claude-opus-5-5", AiVendor.ANTHROPIC)
+		.displayName("Claude Opus 5.5")
+		.description("Anthropic's latest Opus for complex reasoning and agentic coding.")
+		.pricing({ prompt: 4, completion: 20, cacheRead: 0.2, cacheWrite: 5 })
+		.limits(1_000_000, CLAUDE_5_MAX_TOKENS)
+		.reasoningEffort(CLAUDE_EFFORT, "medium")
+		.maxTokens(1, CLAUDE_5_MAX_TOKENS)
+		.tools()
+		.build(),
+
+	model("claude-fable-5-1", AiVendor.ANTHROPIC)
+		.displayName("Claude Fable 5.1")
+		.description("Anthropic's most capable model, with thinking always on.")
+		.pricing({ prompt: 10, completion: 50, cacheRead: 0.25, cacheWrite: 12.5 })
+		.limits(1_000_000, CLAUDE_5_MAX_TOKENS)
+		.reasoningEffort(CLAUDE_EFFORT, "high")
+		.maxTokens(1, CLAUDE_5_MAX_TOKENS)
 		.tools()
 		.build(),
 ];

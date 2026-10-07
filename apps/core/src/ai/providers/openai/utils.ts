@@ -33,8 +33,8 @@ export function responsesConfigMapper(request: ProviderRequest) {
 		max_output_tokens: request.parameters.max_tokens,
 		reasoning: request.parameters.reasoning_effort
 			? {
-					// REASONING_EFFORT spans every vendor; "max" is DeepSeek-only and no
-					// OpenAI model offers it, so it can never reach this call.
+					// The installed SDK's ReasoningEffort predates "xhigh" and "max", which
+					// GPT-5.6 and GPT-6 accept; the registry limits each model to its own levels.
 					effort: request.parameters.reasoning_effort as ReasoningEffort,
 				}
 			: undefined,

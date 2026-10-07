@@ -284,4 +284,38 @@ export const OPENAI_MODELS: BuiltModel[] = [
 		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
 		.tools()
 		.build(),
+
+	// GPT-6: prompts over 272K input tokens bill at 2x input and cache rates and 1.5x output.
+	// The registry holds one price per field, the short-context one. Verbosity is not
+	// documented for GPT-6, so none is declared.
+	model("gpt-6-astra", AiVendor.OPENAI)
+		.displayName("GPT-6 Astra")
+		.description("OpenAI's flagship model and its recommended starting point.")
+		.pricing({ prompt: 10, completion: 50, cacheRead: 1, cacheWrite: 12.5 })
+		.limits(1_050_000, 128_000)
+		// The model page lists these levels and no default; medium is OpenAI's usual one.
+		.reasoningEffort(["low", "medium", "high", "xhigh", "max"], "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gpt-6.1-sol", AiVendor.OPENAI)
+		.displayName("GPT-6.1 Sol")
+		.description("Balances GPT-6 intelligence against cost.")
+		.pricing({ prompt: 2, completion: 10, cacheRead: 0.1, cacheWrite: 2.5 })
+		.limits(1_050_000, 128_000)
+		.reasoningEffort(["low", "medium", "high", "xhigh", "max"], "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
+
+	model("gpt-6-luna", AiVendor.OPENAI)
+		.displayName("GPT-6 Luna")
+		.description("The cheapest GPT-6 model, for cost-sensitive high-volume workloads.")
+		.pricing({ prompt: 0.1, completion: 0.5, cacheRead: 0.01, cacheWrite: 0.125 })
+		.limits(1_050_000, 128_000)
+		.reasoningEffort(GPT_5_6_REASONING_EFFORT, "medium")
+		.responseFormat(OPENAI_RESPONSE_FORMAT, DEFAULT_RESPONSE_FORMAT)
+		.tools()
+		.build(),
 ];
