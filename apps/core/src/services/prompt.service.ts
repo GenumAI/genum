@@ -1,6 +1,7 @@
 import { ModelConfigService } from "@/ai/models/modelConfigService";
 import type { ModelConfigParameters } from "@/ai/models/types";
 import { withCachePrices } from "@/ai/models/pricing";
+import { retiredModelMessage, withLifecycle } from "@/ai/models/lifecycle";
 import {
 	parsePlaceholderSnapshot,
 	placeholderFingerprint,
@@ -34,7 +35,7 @@ export class PromptService {
 	public async getModelsForOrganization(orgId: number) {
 		// Use getAvailableModels to filter out disabled models
 		const models = await this.db.organization.getAvailableModels(orgId);
-		return models.map(withCachePrices);
+		return models.map((model) => withLifecycle(withCachePrices(model)));
 	}
 
 	/**
@@ -68,6 +69,10 @@ export class PromptService {
 			const match = availableModels.find((candidate) => candidate.name === languageModelName);
 			if (!match) {
 				return { ok: false, error: `Unknown model: ${languageModelName}` };
+			}
+			const retired = retiredModelMessage(match);
+			if (retired) {
+				return { ok: false, error: retired };
 			}
 			model = match;
 		} else {

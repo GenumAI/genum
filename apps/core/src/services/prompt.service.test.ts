@@ -261,8 +261,50 @@ describe("PromptService.getModelsForOrganization", () => {
 		const models = await service.getModelsForOrganization(1);
 
 		expect(models).toEqual([
-			{ ...GPT_4O, cacheReadPrice: 1.25, cacheWritePrice: null },
-			{ ...custom, cacheReadPrice: null, cacheWritePrice: null },
+			{ ...GPT_4O, cacheReadPrice: 1.25, cacheWritePrice: null, lifecycle: null },
+			{ ...custom, cacheReadPrice: null, cacheWritePrice: null, lifecycle: null },
 		]);
+	});
+
+	// Still listed: the playground shows a prompt's own retired model, unselectable, so the user
+	// sees what it is on and what to move it to.
+	it("lists a retired model with its lifecycle", async () => {
+		const mockDb = makeMockDb();
+		const retired = {
+			id: 6,
+			name: "claude-sonnet-4-0",
+			vendor: AiVendor.ANTHROPIC,
+			parametersConfig: null,
+		};
+		mockDb.organization.getAvailableModels.mockResolvedValue([retired]);
+		const service = new PromptService(mockDb as unknown as Database);
+
+		const [model] = await service.getModelsForOrganization(1);
+
+		expect(model.lifecycle).toEqual({
+			status: "retired",
+			retiredOn: "2026-06-15",
+			replacement: "claude-sonnet-4-6",
+			replacementDisplayName: "Claude Sonnet 4.6",
+		});
+	});
+});
+
+describe("PromptService.resolvePromptModelOverride on a retired model", () => {
+	it("refuses to create a prompt on it", async () => {
+		const mockDb = makeMockDb();
+		mockDb.organization.getAvailableModels.mockResolvedValue([
+			{ id: 6, name: "claude-sonnet-4-0", vendor: AiVendor.ANTHROPIC, parametersConfig: null },
+		]);
+		const service = new PromptService(mockDb as unknown as Database);
+
+		const result = await service.resolvePromptModelOverride(1, {
+			languageModelName: "claude-sonnet-4-0",
+		});
+
+		expect(result).toEqual({
+			ok: false,
+			error: expect.stringContaining("Claude Sonnet 4.0 was shut down by Anthropic"),
+		});
 	});
 });

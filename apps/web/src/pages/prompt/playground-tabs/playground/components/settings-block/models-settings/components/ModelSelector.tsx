@@ -4,6 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TooltipArrow } from "@radix-ui/react-tooltip";
 import { InputSelect, InputSelectTrigger } from "@/components/ui/InputSelect";
 import type { Model } from "@/types/AIModel";
+import { isRetired, lifecycleNotice, lifecycleTag } from "@/lib/modelLifecycle";
 import type { UseFormReturn } from "react-hook-form";
 import { formatVendorName } from "../utils/helpers";
 import { ModelTooltipContent } from "./ModelTooltipContent";
@@ -31,6 +32,7 @@ export const ModelSelector = memo(
 	}: ModelSelectorProps) => {
 		const selectedModel = models?.find((m) => m.name === selectedModelName);
 		const isSelectedDisabled = selectedModel?.isDisabled === true;
+		const selectedNotice = lifecycleNotice(selectedModel?.lifecycle);
 		const triggerOptions =
 			models?.map((model) => ({
 				value: model.name,
@@ -82,6 +84,11 @@ export const ModelSelector = memo(
 							renderOption={({ option, isSelected, onSelect }) => {
 								const model = models?.find((m) => m.name === option.value);
 								const isModelDisabled = model?.isDisabled === true;
+								const tag = isModelDisabled
+									? isRetired(model)
+										? "Retired"
+										: "Disabled"
+									: lifecycleTag(model?.lifecycle);
 								const label =
 									option.label && option.label.length > 40
 										? `${option.label.slice(0, 40)}…`
@@ -110,19 +117,24 @@ export const ModelSelector = memo(
 												tabIndex={isModelDisabled ? -1 : 0}
 											>
 												<span>{label}</span>
-												{isModelDisabled && (
+												{tag && (
 													<span className="ml-auto shrink-0 text-xs font-medium text-warning">
-														Disabled
+														{tag}
 													</span>
 												)}
 											</div>
 										</TooltipTrigger>
-										<TooltipContent side="right" align="start" className="text-white">
+										<TooltipContent
+											side="right"
+											align="start"
+											className="text-white"
+										>
 											<TooltipArrow />
 											{isModelDisabled ? (
 												<p className="text-xs max-w-[200px] text-white">
-													This model is disabled for your organization.
-													Please select a different model.
+													{isRetired(model)
+														? lifecycleNotice(model?.lifecycle)
+														: "This model is disabled for your organization. Please select a different model."}
 												</p>
 											) : (
 												model && <ModelTooltipContent model={model} />
@@ -133,16 +145,16 @@ export const ModelSelector = memo(
 							}}
 						>
 							{({ placeholder, disabled, selectedValue, setIsPopoverOpen }) => (
-							<InputSelectTrigger
-								options={triggerOptions}
-								placeholder={placeholder}
-								disabled={disabled}
-								selectedValue={selectedValue}
-								setIsPopoverOpen={setIsPopoverOpen}
-								className={`mt-1 h-9 !bg-background hover:!bg-background text-[14px] ${
-									showStatusState &&
-									(!selectedModelName || isSelectedDisabled)
-										? "border-amber-500"
+								<InputSelectTrigger
+									options={triggerOptions}
+									placeholder={placeholder}
+									disabled={disabled}
+									selectedValue={selectedValue}
+									setIsPopoverOpen={setIsPopoverOpen}
+									className={`mt-1 h-9 !bg-background hover:!bg-background text-[14px] ${
+										showStatusState &&
+										(!selectedModelName || isSelectedDisabled)
+											? "border-amber-500"
 											: ""
 									}`}
 								/>
@@ -154,11 +166,16 @@ export const ModelSelector = memo(
 								Please select a model before running the prompt
 							</p>
 						)}
-						{showStatusState && isSelectedDisabled && (
-							<p className="text-[12px] text-warning">
-								This model is disabled for your organization. Please select a
-								different model.
-							</p>
+						{showStatusState && selectedNotice ? (
+							<p className="text-[12px] text-warning">{selectedNotice}</p>
+						) : (
+							showStatusState &&
+							isSelectedDisabled && (
+								<p className="text-[12px] text-warning">
+									This model is disabled for your organization. Please select a
+									different model.
+								</p>
+							)
 						)}
 					</FormItem>
 				)}

@@ -14,6 +14,7 @@ import {
 } from "../providers";
 import type { ModelConfigParameters } from "../models/types";
 import { getEffectivePrices } from "../models/pricing";
+import { retiredModelMessage } from "../models/lifecycle";
 import { generateAnthropic } from "../providers/anthropic/generate";
 import { getApiKeyByQuota } from "@/services/access/AccessService";
 import { transcribeOpenAI } from "../providers/openai/speech";
@@ -147,6 +148,12 @@ async function resolvePromptRun(data: runPromptParams) {
 	const model = await db.prompts.getModelById(prompt.languageModelId);
 	if (model === null) {
 		throw new Error(`Model with id ${prompt.languageModelId} not found`);
+	}
+
+	// Before the key and quota are touched: the vendor would refuse it anyway.
+	const retired = retiredModelMessage(model);
+	if (retired) {
+		throw new HttpError(400, retired);
 	}
 
 	// Enforce org-level model restrictions for non-system runs

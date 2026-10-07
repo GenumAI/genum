@@ -13,6 +13,7 @@ import { modelsSettingsKeys } from "@/query-keys/models-settings.keys";
 import { useModelsSettingsActions, useModelsSettingsUI } from "@/stores/modelsSettings.store";
 import type { PromptSettings } from "@/types/Prompt";
 import type { Model, ResponseModelConfig } from "@/types/AIModel";
+import { isRetired, lifecycleNotice } from "@/lib/modelLifecycle";
 import { modelSettingsSchema } from "../utils/schema";
 import { buildModelSettingsPayload, getFormValuesFromPrompt } from "../utils/payload";
 import { groupModelsByVendor } from "../utils/helpers";
@@ -235,7 +236,12 @@ export function useModelsSettings({
 	const responseFormat = watch("responseFormat");
 
 	const effectiveModels = useMemo((): Model[] => {
-		const base = (models as Model[]) ?? [];
+		const promptModelId = prompt?.languageModel?.id;
+		// A retired model is offered to no one; it stays visible, unselectable, only on the
+		// prompt still assigned to it, so its owner sees what to move off.
+		const base = ((models as Model[]) ?? [])
+			.filter((m) => !isRetired(m) || m.id === promptModelId)
+			.map((m) => (isRetired(m) ? { ...m, isDisabled: true } : m));
 		if (!prompt?.languageModel) return base;
 		const alreadyPresent = base.some((m) => m.id === prompt.languageModel.id);
 		if (alreadyPresent) return base;
@@ -444,8 +450,9 @@ export function useModelsSettings({
 			}
 			if (model.isDisabled) {
 				toast({
-					title: "Model disabled",
+					title: isRetired(model) ? "Model retired" : "Model disabled",
 					description:
+						lifecycleNotice(model.lifecycle) ??
 						"This model is disabled for your organization. Please contact your administrator.",
 					variant: "destructive",
 				});

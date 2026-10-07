@@ -41,6 +41,7 @@ import type { CanvasAgentMessage, CanvasAgentParams, CanvasMessage } from "@/ai/
 import { system_prompt } from "@/ai/runner/system";
 import { runAgent } from "@/ai/runner/agent";
 import type { ModelConfigParameters } from "@/ai/models/types";
+import { retiredModelMessage } from "@/ai/models/lifecycle";
 import {
 	deriveTurnTraceId,
 	type LogDocument,
@@ -669,6 +670,12 @@ export class PromptsController {
 		const newModel = await db.prompts.getModelById(modelId);
 		if (!newModel) {
 			throw new Error("Model not found");
+		}
+
+		const retired = retiredModelMessage(newModel);
+		if (retired) {
+			res.status(400).json({ error: retired });
+			return;
 		}
 
 		// Get the current prompt's configuration (old configuration)
