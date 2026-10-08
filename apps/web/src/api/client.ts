@@ -28,7 +28,7 @@ export class ApiError extends Error {
  * Used to dynamically inject auth tokens and org/project IDs
  */
 export interface ApiClientContext {
-	getToken: () => Promise<string>;
+	getToken: () => Promise<string | undefined>;
 	getOrgId: () => string | undefined;
 	getProjectId: () => string | undefined;
 }
