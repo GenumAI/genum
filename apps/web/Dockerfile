@@ -14,19 +14,23 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY scripts ./scripts
 
-# Copy the workspace package manifest so --frozen-lockfile can resolve the
-# apps/web "@genum/placeholders": "workspace:*" link, then the app manifest.
+# Copy the workspace package manifests so --frozen-lockfile can resolve the
+# apps/web "@genum/placeholders" and "@genum/steps": "workspace:*" links, then the
+# app manifest.
 COPY packages/placeholders/package.json ./packages/placeholders/
+COPY packages/steps/package.json ./packages/steps/
 COPY apps/web/package.json ./apps/web/
 
 # Install all dependencies (including devDependencies for build)
 # Use --filter to install only web app dependencies
 RUN DOCKER_BUILD=true pnpm install --frozen-lockfile --filter web
 
-# Copy the placeholders package source and build it (dual CJS/ESM output) before
-# the app build, since apps/web resolves the package via its "import" condition.
+# Copy the workspace packages' source and build them (dual CJS/ESM output) before
+# the app build, since apps/web resolves each package via its "import" condition.
 COPY packages/placeholders/ ./packages/placeholders/
 RUN pnpm --filter @genum/placeholders run build
+COPY packages/steps/ ./packages/steps/
+RUN pnpm --filter @genum/steps run build
 
 # Copy source code and configuration files
 COPY apps/web/ ./apps/web/
