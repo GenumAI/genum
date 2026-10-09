@@ -3,10 +3,10 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/useToast";
 import { Button } from "@/components/ui/button";
 import type { PromptResponse } from "@/api/prompt";
-import type { ArgsMatch, Step } from "@/types/steps";
+import type { ArgsMatch, Step } from "@genum/steps";
 import type { TestCase } from "@/types/TestСase";
 import { expectedSaveFor } from "@/lib/expectedSave";
-import { turnsOf } from "@/lib/session";
+import { turnsOf } from "@genum/steps";
 import {
 	liveThread,
 	testcaseThread,

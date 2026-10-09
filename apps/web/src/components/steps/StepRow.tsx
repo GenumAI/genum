@@ -17,7 +17,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { ThreadMetrics } from "@/lib/thread";
-import type { ArgsMatch, Step } from "@/types/steps";
+import type { ArgsMatch, Step } from "@genum/steps";
 
 export interface StepRowProps {
 	step: Step;
