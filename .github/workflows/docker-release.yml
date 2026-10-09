@@ -97,9 +97,10 @@ jobs:
       # @genum/placeholders and @genum/steps resolves into its dist/, which a clean
       # checkout does not have. Calling vitest directly skips the task graph, so vite
       # cannot resolve the packages and every suite importing them errors out. That is
-      # how v1.10.0 shipped with no images.
-      - name: Run unit tests (core, web)
-        run: pnpm turbo run test:run --filter=core --filter=web
+      # how v1.10.0 shipped with no images. @genum/steps is named because the session
+      # cases this gate used to run inside core's and web's suites now live there.
+      - name: Run unit tests (core, web, steps)
+        run: pnpm turbo run test:run --filter=core --filter=web --filter=@genum/steps
 
       - name: Extract release version
         id: release_version

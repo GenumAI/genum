@@ -51,8 +51,11 @@ jobs:
       - name: Build (packages, core, web)
         run: pnpm build
 
-      - name: Type-check core
-        run: pnpm turbo run type-check --filter=core
+      # @genum/steps too: its tests are compile-time claims about the step shapes (they
+      # moved there from apps/web, whose `tsc -b` checked them), its build excludes test
+      # files, and vitest strips types -- so without this nothing type-checks them.
+      - name: Type-check (core, steps)
+        run: pnpm turbo run type-check --filter=core --filter=@genum/steps
 
       # Through turbo, not `pnpm --filter core test:run`: every entry point of
       # @genum/placeholders and @genum/steps resolves into its dist/, which a clean
