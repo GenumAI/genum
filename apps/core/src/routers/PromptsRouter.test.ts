@@ -8,6 +8,11 @@ vi.mock("@/env", () => ({
 vi.mock("@/database/db", () => ({ db: {} }));
 
 import { createPromptsRouter } from "./PromptsRouter";
+import { PromptsController } from "../controllers/prompt.controller";
+import { PromptVersionsController } from "../controllers/prompt-versions.controller";
+import { PlaceholdersController } from "../controllers/placeholder.controller";
+import { PromptModelsController } from "../controllers/prompt-models.controller";
+import { PromptAssistantController } from "../controllers/prompt-assistant.controller";
 
 type Layer = {
 	route?: {
@@ -133,5 +138,85 @@ describe("createPromptsRouter — guard chain", () => {
 			.map((route) => `${route.method.toUpperCase()} ${route.path}`);
 
 		expect(unwrapped).toEqual([]);
+	});
+});
+
+const CONTROLLERS = {
+	PromptsController,
+	PromptVersionsController,
+	PlaceholdersController,
+	PromptModelsController,
+	PromptAssistantController,
+};
+
+const EXPECTED_HANDLERS: Record<string, string> = {
+	"get /:id/agent": "PromptAssistantController.getChatMessages",
+	"post /:id/agent/message": "PromptAssistantController.agent",
+	"post /:id/agent/new-chat": "PromptAssistantController.newChatStart",
+	"post /:id/audit": "PromptAssistantController.auditPrompt",
+	"post /:id/assertion": "PromptAssistantController.editAssertion",
+	"post /:id/json-schema": "PromptAssistantController.editJsonSchema",
+	"post /:id/tool": "PromptAssistantController.editTool",
+	"post /:id/input": "PromptAssistantController.generateInput",
+	"get /models": "PromptModelsController.getModels",
+	"get /models/:id": "PromptModelsController.getModelConfig",
+	"put /:id/config": "PromptModelsController.saveModelConfig",
+	"patch /:id/model/:modelId": "PromptModelsController.changePromptModel",
+	"get /": "PromptsController.getProjectPrompts",
+	"post /": "PromptsController.createPrompt",
+	"get /:id/placeholders": "PlaceholdersController.getPlaceholdersByPromptId",
+	"post /:id/placeholders": "PlaceholdersController.createPlaceholder",
+	"get /:id/placeholders/:placeholderId": "PlaceholdersController.getPlaceholderById",
+	"put /:id/placeholders/:placeholderId": "PlaceholdersController.updatePlaceholder",
+	"delete /:id/placeholders/:placeholderId": "PlaceholdersController.deletePlaceholder",
+	"post /:id/placeholders/:placeholderId/values": "PlaceholdersController.createPlaceholderValue",
+	"put /:id/placeholders/:placeholderId/values/:valueId":
+		"PlaceholdersController.updatePlaceholderValue",
+	"delete /:id/placeholders/:placeholderId/values/:valueId":
+		"PlaceholdersController.deletePlaceholderValue",
+	"get /:id/logs": "PromptsController.getPromptLogs",
+	"get /:id/logs/detail": "PromptsController.getPromptLogDetail",
+	"post /:id/run": "PromptsController.runPrompt",
+	"post /:id/commit": "PromptVersionsController.commitPrompt",
+	"get /:id/commit/generate": "PromptVersionsController.generateCommit",
+	"get /:id/commit/:commitId": "PromptVersionsController.getCommit",
+	"post /:id/commit/:commitId/rollback": "PromptVersionsController.rollbackPrompt",
+	"get /:id/branches": "PromptVersionsController.getBranches",
+	"get /:id/branches/:branch/commits": "PromptVersionsController.getCommitsByBranch",
+	"get /:id/testcases": "PromptsController.getTestcasesByPromptId",
+	"get /:id": "PromptsController.getPromptById",
+	"put /:id": "PromptsController.updatePrompt",
+	"delete /:id": "PromptsController.deletePrompt",
+};
+
+describe("createPromptsRouter — handler binding", () => {
+	it("binds every route to its controller method, on that controller's instance", () => {
+		// Five controllers are bound by hand, and asyncHandler hides the bound method from
+		// the route table, so a route wired to the wrong controller or method would pass
+		// every test above. Spy on each prototype before the router binds it, then call
+		// every route once and record which method ran and whether `this` was its own
+		// controller ("?" if a method was bound to another controller's instance).
+		const calls: string[] = [];
+		for (const [name, controller] of Object.entries(CONTROLLERS)) {
+			const proto = controller.prototype as unknown as Record<string, () => unknown>;
+			for (const method of Object.getOwnPropertyNames(proto)) {
+				if (method === "constructor") continue;
+				vi.spyOn(proto, method).mockImplementation(function (this: unknown) {
+					calls.push(`${this instanceof controller ? name : "?"}.${method}`);
+				});
+			}
+		}
+
+		try {
+			const bound = routesOf(createPromptsRouter()).map((route) => {
+				calls.length = 0;
+				route.chain[0]({} as never, {} as never, () => {});
+				return [`${route.method} ${route.path}`, calls.join(", ")];
+			});
+
+			expect(Object.fromEntries(bound)).toEqual(EXPECTED_HANDLERS);
+		} finally {
+			vi.restoreAllMocks();
+		}
 	});
 });
