@@ -153,6 +153,21 @@ export const ANTHROPIC_MODELS: BuiltModel[] = [
 		.tools()
 		.build(),
 
+	model("claude-haiku-5-5", AiVendor.ANTHROPIC)
+		.displayName("Claude Haiku 5.5")
+		.description(
+			"Anthropic's fastest model, for high-volume, latency-sensitive tasks such as classification, extraction and routing.",
+		)
+		// Prices for prompts up to 100K tokens. A longer prompt bills at 5x these ($0.50 / $2.50,
+		// cache $0.05 / $0.625); a PriceModifier cannot see the prompt length, so that tier is
+		// not modelled, as with Gemini 2.5 Pro's long-context tier.
+		.pricing({ prompt: 0.1, completion: 0.5, cacheRead: 0.01, cacheWrite: 0.125 })
+		.limits(1_000_000, CLAUDE_5_MAX_TOKENS)
+		.reasoningEffort(CLAUDE_EFFORT, "medium")
+		.maxTokens(1, CLAUDE_5_MAX_TOKENS)
+		.tools()
+		.build(),
+
 	model("claude-fable-5-1", AiVendor.ANTHROPIC)
 		.displayName("Claude Fable 5.1")
 		.description("Anthropic's most capable model, with thinking always on.")

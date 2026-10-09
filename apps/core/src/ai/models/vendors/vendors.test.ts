@@ -13,6 +13,8 @@ const NEW_CLAUDE = [
 	{ name: "claude-sonnet-5", prices: [2, 10, 0.2, 2.5], effort: "high" },
 	{ name: "claude-fable-5", prices: [10, 50, 1, 12.5], effort: "high" },
 	{ name: "claude-opus-4-8", prices: [5, 25, 0.5, 6.25], effort: "high" },
+	// Retrieved 2026-10-09; the prices for prompts up to 100K tokens.
+	{ name: "claude-haiku-5-5", prices: [0.1, 0.5, 0.01, 0.125], effort: "medium" },
 ] as const;
 
 const NEW_GPT = [
