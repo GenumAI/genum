@@ -1,5 +1,5 @@
 import type { SpanRow } from "@/types/spans";
-import type { Step } from "@/types/steps";
+import type { Step } from "@genum/steps";
 
 /** One entry of a model call's `gen_ai.input.messages`, reduced to what a session needs. */
 interface HistoryMessage {

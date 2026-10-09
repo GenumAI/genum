@@ -1,5 +1,5 @@
 import type { SpanRow } from "@/types/spans";
-import type { Step, ToolCallStep } from "@/types/steps";
+import type { Step, ToolCallStep } from "@genum/steps";
 import { applyHistoryTexts, sessionHistory } from "./sessionHistory";
 
 export interface MappedTrajectory {

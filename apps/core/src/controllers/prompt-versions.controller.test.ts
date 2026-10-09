@@ -28,7 +28,7 @@ vi.mock("@/services/access/AccessService", () => ({
 }));
 
 import { db } from "@/database/db";
-import { PromptsController } from "./prompt.controller";
+import { PromptVersionsController } from "./prompt-versions.controller";
 
 const PROJECT = 7;
 const PROMPT = 1;
@@ -74,11 +74,11 @@ function makeRes() {
  * green while reintroducing the drift. That is what this file covers.
  */
 describe("rollbackPrompt", () => {
-	let controller: PromptsController;
+	let controller: PromptVersionsController;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		controller = new PromptsController();
+		controller = new PromptVersionsController();
 
 		vi.mocked(db.prompts.getPromptVersion).mockResolvedValue({
 			id: COMMIT,

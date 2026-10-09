@@ -3,8 +3,8 @@ import { QUERIES, QUOTE_64BIT_INTEGERS } from "./queries";
 import { WhereBuilder } from "./where.builder";
 import type { ClickHouseLogListRow } from "./types";
 
-// `trace_spans` mirrors `CLICKHOUSE_TABLES.TRACE_SPANS` from `./logger`, not imported
-// verbatim: importing `logger.ts` here would drag in `env.ts`'s Zod validation, which this
+// `trace_spans` mirrors `CLICKHOUSE_TABLES.TRACE_SPANS` from `./client`, not imported
+// verbatim: importing `client.ts` here would drag in `env.ts`'s Zod validation, which this
 // suite deliberately runs without an environment (see the other `describe` blocks, which
 // pass table names as string literals for the same reason).
 const TRACE_SPANS_TABLE = "trace_spans";

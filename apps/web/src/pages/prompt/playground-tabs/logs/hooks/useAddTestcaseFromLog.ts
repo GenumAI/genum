@@ -10,7 +10,7 @@ import { traceSpansQuery } from "@/lib/traceSpansQuery";
 import type { SessionSelections } from "@/lib/sessionSelections";
 import type { MappedTrajectory } from "@/lib/spansToSteps";
 import type { Log, LogDetail } from "@/types/logs";
-import type { Step } from "@/types/steps";
+import type { Step } from "@genum/steps";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 
 /** Stable identity: a fresh `[]` here would re-fire the picker's reset effect forever. */

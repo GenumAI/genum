@@ -1,4 +1,4 @@
-import type { Step, StepMismatch, StepsConfig } from "@/types/steps";
+import type { Step, StepMismatch, StepsConfig } from "@genum/steps";
 
 export type TestStatus = "OK" | "NOK" | "NEED_RUN";
 

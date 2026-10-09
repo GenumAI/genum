@@ -1,16 +1,12 @@
-import { type PrismaClient, type Prompt, AiVendor, Prisma, type PromptVersion } from "@/prisma";
+import { type PrismaClient, type Prompt, Prisma, type PromptVersion } from "@/prisma";
 import { commitHash } from "../../utils/hash";
-import { ModelConfigService } from "../../ai/models/modelConfigService";
 import type {
 	PromptCreateType,
 	PromptUpdateLLMConfigType,
 	PromptUpdateType,
 } from "@/services/validate";
-import type { StoredMessage } from "@langchain/core/messages";
-import type { LanguageModelData } from "../seed/models";
 import type { SystemRepository } from "./SystemRepository";
-import type { ModelConfigParameters } from "@/ai/models/types";
-import type { InputJsonValue } from "@prisma/client/runtime/client";
+import type { LanguageModelsRepository, NewPromptModelOverride } from "./LanguageModelsRepository";
 import type { PromptAuditResponse } from "@/ai/runner/types";
 import {
 	parsePlaceholderSnapshot,
@@ -18,114 +14,20 @@ import {
 	toPlaceholderDefinitions,
 } from "@/ai/placeholders/definitions";
 
-type DefaultLanguageModel = {
-	id: number;
-	name: string;
-	vendor: AiVendor;
-	config: ModelConfigParameters;
-};
-
-// Resolved override for prompt creation: an explicit model + already-sanitized
-// config, computed by the caller (see PromptService.resolvePromptModelOverride)
-// before newProjectPrompt is invoked.
-export type NewPromptModelOverride = {
-	languageModelId: number;
-	languageModelConfig: ModelConfigParameters;
-};
-
 export class PromptsRepository {
 	private prisma: PrismaClient;
 	private systemRepository: SystemRepository;
-	private modelConfigService = new ModelConfigService();
+	// owns the default-model cache; injected so the whole app shares one copy
+	private languageModels: LanguageModelsRepository;
 
-	// Кеш для дефолтной модели
-	private defaultLanguageModel: DefaultLanguageModel | null = null;
-
-	constructor(prisma: PrismaClient, systemRepository: SystemRepository) {
+	constructor(
+		prisma: PrismaClient,
+		systemRepository: SystemRepository,
+		languageModels: LanguageModelsRepository,
+	) {
 		this.prisma = prisma;
 		this.systemRepository = systemRepository;
-	}
-
-	// get default language model from database with caching
-	private async getDefaultLanguageModel(): Promise<DefaultLanguageModel> {
-		// return from cache if already loaded
-		if (this.defaultLanguageModel) {
-			return this.defaultLanguageModel;
-		}
-
-		// search model by ID=1 (default in Prisma schema)
-		// if not found, search by name and vendor as fallback
-		let model = await this.prisma.languageModel.findUnique({
-			where: { id: 1 },
-		});
-
-		// Fallback: search by name and vendor (in case ID changed)
-		if (!model) {
-			model = await this.prisma.languageModel.findFirst({
-				where: {
-					vendor: AiVendor.OPENAI,
-					name: "gpt-4o",
-					apiKeyId: null,
-				},
-			});
-		}
-
-		if (!model) {
-			throw new Error("Default language model not found in database");
-		}
-
-		// get default config for model
-		const config = this.modelConfigService.getDefaultValues(model.name, model.vendor);
-
-		// cache the result
-		this.defaultLanguageModel = {
-			id: model.id,
-			name: model.name,
-			vendor: model.vendor,
-			config,
-		};
-
-		return this.defaultLanguageModel;
-	}
-
-	/**
-	 * clear default language model cache.
-	 * useful for tests or when model was changed in database.
-	 */
-	public clearDefaultLanguageModelCache(): void {
-		this.defaultLanguageModel = null;
-	}
-
-	private async getDefaultModelOverride(): Promise<NewPromptModelOverride> {
-		const defaultModel = await this.getDefaultLanguageModel();
-		return { languageModelId: defaultModel.id, languageModelConfig: defaultModel.config };
-	}
-
-	// expose default language model config for callers that need a reset baseline
-	public async getDefaultLanguageModelForReset(): Promise<{
-		id: number;
-		config: ModelConfigParameters;
-	}> {
-		const defaultModel = await this.getDefaultLanguageModel();
-		return {
-			id: defaultModel.id,
-			config: defaultModel.config,
-		};
-	}
-
-	/**
-	 * Full row for the default language model — used when a caller supplies a
-	 * `languageModelConfig` to sanitize without naming a specific model.
-	 */
-	public async getDefaultLanguageModelRow() {
-		const defaultModel = await this.getDefaultLanguageModel();
-		const row = await this.prisma.languageModel.findUnique({
-			where: { id: defaultModel.id },
-		});
-		if (!row) {
-			throw new Error("Default language model not found in database");
-		}
-		return row;
+		this.languageModels = languageModels;
 	}
 
 	// get project prompts
@@ -212,25 +114,6 @@ export class PromptsRepository {
 		});
 	}
 
-	public async getPromptByIdFromProject(projectId: number, id: number): Promise<Prompt | null> {
-		return await this.prisma.prompt.findUnique({
-			where: { id: id, projectId: projectId },
-			include: {
-				branches: {
-					include: {
-						promptVersions: {
-							orderBy: {
-								createdAt: "desc",
-							},
-						},
-					},
-				},
-				languageModel: true,
-				audit: true,
-			},
-		});
-	}
-
 	public async getPromptByIdSimpleFromProject(projectId: number, id: number) {
 		return await this.prisma.prompt.findUnique({
 			where: { id: id, projectId: projectId },
@@ -251,7 +134,7 @@ export class PromptsRepository {
 		override?: NewPromptModelOverride,
 	): Promise<Prompt> {
 		const { languageModelId, languageModelConfig } =
-			override ?? (await this.getDefaultModelOverride());
+			override ?? (await this.languageModels.getDefaultModelOverride());
 
 		return await this.prisma.prompt.create({
 			data: {
@@ -342,18 +225,6 @@ export class PromptsRepository {
 		});
 	}
 
-	public async getModels() {
-		return await this.prisma.languageModel.findMany();
-	}
-
-	public async getModelsByOrganization(orgId: number) {
-		return await this.prisma.languageModel.findMany({
-			where: {
-				OR: [{ apiKeyId: null }, { apiKey: { organizationId: orgId } }],
-			},
-		});
-	}
-
 	public async getPromptsByModelId(orgId: number, modelId: number) {
 		return await this.prisma.prompt.findMany({
 			where: {
@@ -361,54 +232,6 @@ export class PromptsRepository {
 				project: { organizationId: orgId },
 			},
 		});
-	}
-
-	public async createModel(model: LanguageModelData) {
-		// todo: refactor
-		return await this.prisma.languageModel.create({
-			data: {
-				name: model.name,
-				displayName: model.displayName,
-				vendor: model.vendor,
-				promptPrice: model.promptPrice,
-				completionPrice: model.completionPrice,
-				contextTokensMax: model.contextTokensMax,
-				completionTokensMax: model.completionTokensMax,
-				description: model.description,
-			},
-		});
-	}
-
-	public async updateModel(model: LanguageModelData) {
-		return await this.prisma.languageModel.updateMany({
-			where: {
-				vendor: model.vendor,
-				name: model.name,
-				apiKeyId: null,
-			},
-			data: {
-				displayName: model.displayName,
-				promptPrice: model.promptPrice,
-				completionPrice: model.completionPrice,
-				contextTokensMax: model.contextTokensMax,
-				completionTokensMax: model.completionTokensMax,
-				description: model.description,
-			},
-		});
-	}
-
-	public async getModelConfig(name: string, vendor: AiVendor, dbParametersConfig?: unknown) {
-		const modelConfigService = new ModelConfigService();
-
-		// For custom providers, use database config if available
-		if (vendor === AiVendor.CUSTOM_OPENAI_COMPATIBLE) {
-			return modelConfigService.getCustomModelConfig(
-				name,
-				dbParametersConfig as Record<string, unknown> | null | undefined,
-			);
-		}
-
-		return modelConfigService.getLLMConfig(name, vendor);
 	}
 
 	public async getBranchesByPromptID(id: number) {
@@ -582,27 +405,6 @@ export class PromptsRepository {
 		});
 	}
 
-	public async getModelById(id: number) {
-		return await this.prisma.languageModel.findUnique({
-			where: { id },
-		});
-	}
-
-	public async getLastCommitHashByPromptID(promptId: number): Promise<string | null> {
-		const branch = await this.prisma.branch.findFirst({
-			where: { promptId },
-			include: {
-				promptVersions: {
-					orderBy: {
-						createdAt: "desc",
-					},
-					take: 1,
-				},
-			},
-		});
-		return branch?.promptVersions[0]?.commitHash || null;
-	}
-
 	public async getPromptVersion(promptId: number, id: number) {
 		const version = await this.prisma.promptVersion.findFirst({
 			where: {
@@ -636,65 +438,6 @@ export class PromptsRepository {
 			},
 		});
 		return version;
-	}
-
-	public async getPromptChatByPromptId(promptId: number, userId: number) {
-		return await this.prisma.promptChat.findUnique({
-			where: { userId_promptId: { promptId, userId } },
-		});
-	}
-
-	public async newPromptChat(promptId: number, userId: number) {
-		return await this.prisma.promptChat.create({
-			data: { promptId, userId },
-		});
-	}
-
-	public async updatePromptChatThreadId(id: number, threadId: string) {
-		return await this.prisma.promptChat.update({
-			where: { id },
-			data: { thread_id: threadId },
-		});
-	}
-
-	public async newChatStart(promptId: number, userId: number) {
-		// get promptChat
-		const promptChat = await this.prisma.promptChat.findUnique({
-			where: { userId_promptId: { promptId, userId } },
-		});
-		if (promptChat) {
-			await this.prisma.promptChatMessage.deleteMany({
-				where: { promptChatId: promptChat.id },
-			});
-		}
-
-		return await this.prisma.promptChat.upsert({
-			where: { userId_promptId: { promptId, userId } },
-			update: { thread_id: null },
-			create: {
-				promptId,
-				userId,
-				thread_id: null,
-			},
-		});
-	}
-
-	public async saveChatMessages(chatId: number, messages: StoredMessage[]) {
-		return await this.prisma.promptChatMessage.createMany({
-			data: messages.map((message) => ({
-				promptChatId: chatId,
-				message: message as unknown as InputJsonValue,
-			})),
-		});
-	}
-
-	public async getChatMessages(chatId: number) {
-		return await this.prisma.promptChatMessage.findMany({
-			where: { promptChatId: chatId },
-			orderBy: {
-				id: "asc",
-			},
-		});
 	}
 
 	public async updatePromptAudit(promptId: number, data: PromptAuditResponse) {
@@ -869,18 +612,5 @@ export class PromptsRepository {
 			select: { id: true },
 		});
 		return last?.id ?? 0;
-	}
-
-	public async getLanguageModelById(modelId: number) {
-		return await this.prisma.languageModel.findUnique({
-			where: { id: modelId },
-			include: {
-				apiKey: {
-					select: {
-						organizationId: true,
-					},
-				},
-			},
-		});
 	}
 }

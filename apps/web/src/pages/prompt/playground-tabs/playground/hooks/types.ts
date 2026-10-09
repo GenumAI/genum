@@ -3,7 +3,7 @@ import type { Options } from "@/hooks/usePrompt";
 import type { PromptSettings, TLanguageModel } from "@/types/Prompt";
 import type { TestCase } from "@/types/TestСase";
 import type { AuditData } from "@/types/audit";
-import type { Step } from "@/types/steps";
+import type { Step } from "@genum/steps";
 
 // ============================================================================
 // Grouped Data Types for Playground Controller

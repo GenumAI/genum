@@ -22,7 +22,7 @@ vi.mock("@/database/db", () => ({
 		placeholders: {
 			getPlaceholderByIDAndPromptId: vi.fn(),
 		},
-		organization: {
+		providerKeys: {
 			getOrganizationApiKey: vi.fn(),
 		},
 		system: {
@@ -147,21 +147,21 @@ describe("AccessService", () => {
 
 			it("should return user API key when balance is 0 or less", async () => {
 				const mockApiKey = { key: "user-key" };
-				vi.mocked(db.organization.getOrganizationApiKey).mockResolvedValue(
+				vi.mocked(db.providerKeys.getOrganizationApiKey).mockResolvedValue(
 					mockApiKey as any,
 				);
 
 				const result = await getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor);
 
 				expect(result).toEqual({ apiKey: mockApiKey, quotaUsed: false });
-				expect(db.organization.getOrganizationApiKey).toHaveBeenCalledWith(
+				expect(db.providerKeys.getOrganizationApiKey).toHaveBeenCalledWith(
 					mockOrgId,
 					mockVendor,
 				);
 			});
 
 			it("should throw error if user API key is not found when balance is 0", async () => {
-				vi.mocked(db.organization.getOrganizationApiKey).mockResolvedValue(null);
+				vi.mocked(db.providerKeys.getOrganizationApiKey).mockResolvedValue(null);
 
 				await expect(
 					getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor),
@@ -172,7 +172,7 @@ describe("AccessService", () => {
 				const mockSystemId = 1;
 				const mockSystemApiKey = { key: "system-key" };
 				vi.mocked(db.system.getSystemOrganizationId).mockResolvedValue(mockSystemId);
-				vi.mocked(db.organization.getOrganizationApiKey).mockResolvedValue(
+				vi.mocked(db.providerKeys.getOrganizationApiKey).mockResolvedValue(
 					mockSystemApiKey as any,
 				);
 
@@ -184,7 +184,7 @@ describe("AccessService", () => {
 
 				expect(result).toEqual({ apiKey: mockSystemApiKey, quotaUsed: true });
 				expect(db.system.getSystemOrganizationId).toHaveBeenCalled();
-				expect(db.organization.getOrganizationApiKey).toHaveBeenCalledWith(
+				expect(db.providerKeys.getOrganizationApiKey).toHaveBeenCalledWith(
 					mockSystemId,
 					mockVendor,
 				);
@@ -197,10 +197,10 @@ describe("AccessService", () => {
 			/** Serves a different key per organization, as the database would. */
 			function keysByOrg(keys: Record<number, { key: string } | null>) {
 				vi.mocked(db.system.getSystemOrganizationId).mockResolvedValue(SYSTEM_ORG_ID);
-				vi.mocked(db.organization.getOrganizationApiKey).mockImplementation(
+				vi.mocked(db.providerKeys.getOrganizationApiKey).mockImplementation(
 					async (orgId: number) =>
 						(keys[orgId] ?? null) as Awaited<
-							ReturnType<typeof db.organization.getOrganizationApiKey>
+							ReturnType<typeof db.providerKeys.getOrganizationApiKey>
 						>,
 				);
 			}
@@ -228,7 +228,7 @@ describe("AccessService", () => {
 
 				await getApiKeyByQuota(quotaOf(0), mockOrgId, mockVendor);
 
-				expect(db.organization.getOrganizationApiKey).not.toHaveBeenCalledWith(
+				expect(db.providerKeys.getOrganizationApiKey).not.toHaveBeenCalledWith(
 					SYSTEM_ORG_ID,
 					mockVendor,
 				);
@@ -266,7 +266,7 @@ describe("AccessService", () => {
 			});
 
 			it("should throw error if system organization ID is not found", async () => {
-				vi.mocked(db.organization.getOrganizationApiKey).mockResolvedValue(null);
+				vi.mocked(db.providerKeys.getOrganizationApiKey).mockResolvedValue(null);
 				vi.mocked(db.system.getSystemOrganizationId).mockResolvedValue(null);
 
 				await expect(

@@ -2,7 +2,8 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import type { PromptResponse } from "@/api/prompt";
-import type { ConversationMessage, Step, ToolCall } from "@/types/steps";
+import type { Step } from "@genum/steps";
+import type { ConversationMessage, ToolCall } from "@/types/steps";
 
 export type PlaceholderSelectionState = Record<string, string>;
 

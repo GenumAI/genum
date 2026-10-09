@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { StepRow } from "@/components/steps/StepRow";
 import { TurnSection } from "@/components/steps/TurnSection";
-import { turnsOf } from "@/lib/session";
+import { turnsOf } from "@genum/steps";
 import { isSingleAnswer } from "@/lib/spansToSteps";
 import { trajectoryQuery } from "@/lib/traceSpansQuery";
 

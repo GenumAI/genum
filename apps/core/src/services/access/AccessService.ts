@@ -55,7 +55,7 @@ async function getSystemApiKey(vendor: AiVendor) {
 	if (!systemId) {
 		throw new Error("System organization ID not found in database");
 	}
-	const systemApiKey = await db.organization.getOrganizationApiKey(systemId, vendor);
+	const systemApiKey = await db.providerKeys.getOrganizationApiKey(systemId, vendor);
 	if (!systemApiKey?.key) {
 		throw new Error(`System API key not found for ${vendor}`);
 	}
@@ -72,7 +72,7 @@ export async function getApiKeyByQuota(quota: OrganizationQuota, orgId: number, 
 		}
 
 		// Quota spent - the organization runs on its own key from here on.
-		const userApiKey = await db.organization.getOrganizationApiKey(orgId, vendor);
+		const userApiKey = await db.providerKeys.getOrganizationApiKey(orgId, vendor);
 		if (!userApiKey) {
 			throw new Error(`User API key not found for ${vendor}`);
 		}
@@ -82,7 +82,7 @@ export async function getApiKeyByQuota(quota: OrganizationQuota, orgId: number, 
 	// Self-hosted: there is no quota to spend and nobody to bill, so an organization's
 	// own key always wins. The system key is the fallback that keeps the documented
 	// .env setup working for organizations that never configured one.
-	const ownApiKey = await db.organization.getOrganizationApiKey(orgId, vendor);
+	const ownApiKey = await db.providerKeys.getOrganizationApiKey(orgId, vendor);
 	if (ownApiKey?.key) {
 		return { apiKey: ownApiKey, quotaUsed: false };
 	}
