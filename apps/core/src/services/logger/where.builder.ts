@@ -182,3 +182,46 @@ export class WhereBuilder {
 		return new WhereBuilder().orgId(orgId);
 	}
 }
+
+// Helper function to build WHERE conditions using WhereBuilder
+export function buildWhereConditions(
+	orgId: number,
+	projectId?: number,
+	promptId?: number,
+	fromDate?: Date,
+	toDate?: Date,
+	source?: SourceType,
+	logLevel?: LogLevel,
+	projectIds?: number[],
+	query?: string,
+) {
+	const builder = WhereBuilder.forOrg(orgId);
+
+	if (projectId !== undefined) {
+		builder.projectId(projectId);
+	}
+
+	if (promptId !== undefined) {
+		builder.promptId(promptId);
+	}
+
+	if (projectIds !== undefined && projectIds.length > 0) {
+		builder.projectIds(projectIds);
+	}
+
+	builder.dateRange(fromDate, toDate);
+
+	if (source) {
+		builder.source(source);
+	}
+
+	if (logLevel) {
+		builder.logLevel(logLevel);
+	}
+
+	if (query?.trim()) {
+		builder.textSearch(query);
+	}
+
+	return builder.build();
+}
