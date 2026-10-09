@@ -11,7 +11,7 @@ import {
 	resolveLogPlaceholders,
 } from "./mappers";
 import { QUERIES, QUOTE_64BIT_INTEGERS } from "./queries";
-import { buildWhereConditions, WhereBuilder } from "./where.builder";
+import { buildWhereConditions, WhereBuilder, type QueryParams } from "./where.builder";
 import type {
 	LogListEntry,
 	LogDetail,
@@ -58,6 +58,48 @@ function transformRowToLogListEntry(row: ClickHouseLogListRow): LogListEntry {
 }
 
 /**
+ * One page of a log list and the total behind it, for whatever filter the caller built.
+ * Rejects with ClickHouse's error as is: each caller reports it under its own message.
+ */
+async function queryLogPage(
+	where: string,
+	params: QueryParams["params"],
+	page: number,
+	pageSize: number,
+): Promise<LogSearchResult> {
+	const offset = (page - 1) * pageSize;
+	const queryParams = { ...params, limit: pageSize, offset };
+
+	// Get total count
+	const countResult = await clickhouseClient.query({
+		query: QUERIES.COUNT(CLICKHOUSE_TABLES.LOGS, where),
+		query_params: params,
+		format: "JSONEachRow",
+	});
+
+	const countData = (await countResult.json()) as ClickHouseCountRow[];
+	const total = countData[0]?.total || 0;
+
+	// Get logs with pagination
+	const logsResult = await clickhouseClient.query({
+		query: QUERIES.GET_LOGS(CLICKHOUSE_TABLES.LOGS, where),
+		query_params: queryParams,
+		clickhouse_settings: QUOTE_64BIT_INTEGERS,
+		format: "JSONEachRow",
+	});
+
+	const logsData = (await logsResult.json()) as ClickHouseLogListRow[];
+	const logs = logsData.map(transformRowToLogListEntry);
+
+	return {
+		logs,
+		total: Number(total),
+		page,
+		pageSize,
+	};
+}
+
+/**
  * `projectId` is not optional context -- it completes the sorting key.
  *
  * The key is (orgId, project_id, timestamp). With `project_id` left free this filter stops
@@ -97,36 +139,7 @@ export async function getPromptLogs(
 			query,
 		);
 
-		const offset = (page - 1) * pageSize;
-		const queryParams = { ...params, limit: pageSize, offset };
-
-		// Get total count
-		const countResult = await clickhouseClient.query({
-			query: QUERIES.COUNT(CLICKHOUSE_TABLES.LOGS, where),
-			query_params: params,
-			format: "JSONEachRow",
-		});
-
-		const countData = (await countResult.json()) as ClickHouseCountRow[];
-		const total = countData[0]?.total || 0;
-
-		// Get logs with pagination
-		const logsResult = await clickhouseClient.query({
-			query: QUERIES.GET_LOGS(CLICKHOUSE_TABLES.LOGS, where),
-			query_params: queryParams,
-			clickhouse_settings: QUOTE_64BIT_INTEGERS,
-			format: "JSONEachRow",
-		});
-
-		const logsData = (await logsResult.json()) as ClickHouseLogListRow[];
-		const logs = logsData.map(transformRowToLogListEntry);
-
-		return {
-			logs,
-			total: Number(total),
-			page,
-			pageSize,
-		};
+		return await queryLogPage(where, params, page, pageSize);
 	} catch (error) {
 		console.error("Error getting logs from ClickHouse:", error);
 		throw error;
@@ -213,36 +226,7 @@ export async function getProjectLogs(
 			filters?.query,
 		);
 
-		const offset = (page - 1) * pageSize;
-		const queryParams = { ...params, limit: pageSize, offset };
-
-		// Get total count
-		const countResult = await clickhouseClient.query({
-			query: QUERIES.COUNT(CLICKHOUSE_TABLES.LOGS, where),
-			query_params: params,
-			format: "JSONEachRow",
-		});
-
-		const countData = (await countResult.json()) as ClickHouseCountRow[];
-		const total = countData[0]?.total || 0;
-
-		// Get logs with pagination
-		const logsResult = await clickhouseClient.query({
-			query: QUERIES.GET_LOGS(CLICKHOUSE_TABLES.LOGS, where),
-			query_params: queryParams,
-			clickhouse_settings: QUOTE_64BIT_INTEGERS,
-			format: "JSONEachRow",
-		});
-
-		const logsData = (await logsResult.json()) as ClickHouseLogListRow[];
-		const logs = logsData.map(transformRowToLogListEntry);
-
-		return {
-			logs,
-			total: Number(total),
-			page,
-			pageSize,
-		};
+		return await queryLogPage(where, params, page, pageSize);
 	} catch (error) {
 		console.error("Error getting project logs from ClickHouse:", error);
 		throw error;
