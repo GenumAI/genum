@@ -90,13 +90,13 @@ export async function getSystemOrganization(_vendor: AiVendor, _userOrgId: numbe
 	// const ai_api_key = await getApiKeyByQuota(quota, userOrgId, vendor);
 
 	// todo use userOrgId to get ai_api_key
-	// const ai_api_key = await db.providerKeys.getApiKeyByVendor(userOrgId, AiVendor.OPENAI);
+	// const ai_api_key = await db.providerKeys.getOrganizationApiKey(userOrgId, AiVendor.OPENAI);
 	// if (ai_api_key === null) {
 	// 	throw new Error("AI API key not found");
 	// }
 
 	// todo remove org api keys
-	// const ai_api_key = await db.providerKeys.getApiKeyByVendor(config.org.id, vendor);
+	// const ai_api_key = await db.providerKeys.getOrganizationApiKey(config.org.id, vendor);
 	// if (ai_api_key === null) {
 	// 	throw new Error("AI API key not found");
 	// }

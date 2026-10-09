@@ -114,25 +114,6 @@ export class PromptsRepository {
 		});
 	}
 
-	public async getPromptByIdFromProject(projectId: number, id: number): Promise<Prompt | null> {
-		return await this.prisma.prompt.findUnique({
-			where: { id: id, projectId: projectId },
-			include: {
-				branches: {
-					include: {
-						promptVersions: {
-							orderBy: {
-								createdAt: "desc",
-							},
-						},
-					},
-				},
-				languageModel: true,
-				audit: true,
-			},
-		});
-	}
-
 	public async getPromptByIdSimpleFromProject(projectId: number, id: number) {
 		return await this.prisma.prompt.findUnique({
 			where: { id: id, projectId: projectId },
@@ -422,21 +403,6 @@ export class PromptsRepository {
 			where: { id: promptId },
 			data: { commited },
 		});
-	}
-
-	public async getLastCommitHashByPromptID(promptId: number): Promise<string | null> {
-		const branch = await this.prisma.branch.findFirst({
-			where: { promptId },
-			include: {
-				promptVersions: {
-					orderBy: {
-						createdAt: "desc",
-					},
-					take: 1,
-				},
-			},
-		});
-		return branch?.promptVersions[0]?.commitHash || null;
 	}
 
 	public async getPromptVersion(promptId: number, id: number) {

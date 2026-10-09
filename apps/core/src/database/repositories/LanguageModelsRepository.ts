@@ -72,14 +72,6 @@ export class LanguageModelsRepository {
 		return this.defaultLanguageModel;
 	}
 
-	/**
-	 * clear default language model cache.
-	 * useful for tests or when model was changed in database.
-	 */
-	public clearDefaultLanguageModelCache(): void {
-		this.defaultLanguageModel = null;
-	}
-
 	// PromptsRepository.newProjectPrompt falls back to this when the caller pins no model
 	public async getDefaultModelOverride(): Promise<NewPromptModelOverride> {
 		const defaultModel = await this.getDefaultLanguageModel();
@@ -115,14 +107,6 @@ export class LanguageModelsRepository {
 
 	public async getModels() {
 		return await this.prisma.languageModel.findMany();
-	}
-
-	public async getModelsByOrganization(orgId: number) {
-		return await this.prisma.languageModel.findMany({
-			where: {
-				OR: [{ apiKeyId: null }, { apiKey: { organizationId: orgId } }],
-			},
-		});
 	}
 
 	public async createModel(model: LanguageModelData) {
@@ -215,13 +199,6 @@ export class LanguageModelsRepository {
 	 */
 	public async createLanguageModel(data: Prisma.LanguageModelUncheckedCreateInput) {
 		return await this.prisma.languageModel.create({ data });
-	}
-
-	/**
-	 * Delete a language model by ID
-	 */
-	public async deleteLanguageModelById(modelId: number) {
-		return await this.prisma.languageModel.delete({ where: { id: modelId } });
 	}
 
 	public deleteLanguageModelsByApiKey(apiKeyId: number) {

@@ -69,17 +69,6 @@ export class ProviderKeysRepository {
 		});
 	}
 
-	public async getApiKeyByVendor(orgId: number, vendor: AiVendor) {
-		return await this.prisma.organizationApiKey.findUnique({
-			where: {
-				organizationId_vendor: {
-					organizationId: orgId,
-					vendor,
-				},
-			},
-		});
-	}
-
 	// ==================== Custom Provider Methods ====================
 
 	/**
@@ -174,30 +163,6 @@ export class ProviderKeysRepository {
 					orderBy: { name: "asc" },
 				},
 			},
-		});
-	}
-
-	/**
-	 * Get all custom provider API keys for an organization
-	 */
-	public async getCustomProviderApiKeys(orgId: number) {
-		return await this.prisma.organizationApiKey.findMany({
-			where: {
-				organizationId: orgId,
-				vendor: AiVendor.CUSTOM_OPENAI_COMPATIBLE,
-			},
-			select: {
-				id: true,
-				name: true,
-				baseUrl: true,
-				publicKey: true,
-				createdAt: true,
-				updatedAt: true,
-				_count: {
-					select: { languageModels: true },
-				},
-			},
-			orderBy: { createdAt: "desc" },
 		});
 	}
 }

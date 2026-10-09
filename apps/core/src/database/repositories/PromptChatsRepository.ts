@@ -21,13 +21,6 @@ export class PromptChatsRepository {
 		});
 	}
 
-	public async updatePromptChatThreadId(id: number, threadId: string) {
-		return await this.prisma.promptChat.update({
-			where: { id },
-			data: { thread_id: threadId },
-		});
-	}
-
 	public async newChatStart(promptId: number, userId: number) {
 		// get promptChat
 		const promptChat = await this.prisma.promptChat.findUnique({
