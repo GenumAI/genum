@@ -42,7 +42,7 @@ const DEFAULT_SYSTEM_PROMPTS_DATA = [
 
 // LLM API keys
 export async function createLLMAPIKeysIfNotExists(systemOrganizationId: number) {
-	const llmApiKeys = await db.organization.getOrganizationApiKeys(systemOrganizationId);
+	const llmApiKeys = await db.providerKeys.getOrganizationApiKeys(systemOrganizationId);
 
 	// compare llmApiKeys with DEFAULT_SYSTEM_PROMPTS_DATA
 	const keysToCreate = DEFAULT_SYSTEM_PROMPTS_DATA.filter(
@@ -55,7 +55,7 @@ export async function createLLMAPIKeysIfNotExists(systemOrganizationId: number) 
 
 	console.log(`Creating ${keysToCreate.length} LLM API keys...`);
 	for (const key of keysToCreate) {
-		await db.organization.addOrganizationApiKey(systemOrganizationId, key.vendor, key.key);
+		await db.providerKeys.addOrganizationApiKey(systemOrganizationId, key.vendor, key.key);
 		console.log(`LLM API key ${key.vendor} created`);
 	}
 

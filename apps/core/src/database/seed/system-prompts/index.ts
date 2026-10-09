@@ -207,7 +207,7 @@ export async function createSystemPromptsIfNotExists(systemUserId: number) {
 	}
 
 	console.log(`Creating ${promptsToCreate.length} system prompts...`);
-	const existingModels = await db.prompts.getModels();
+	const existingModels = await db.languageModels.getModels();
 
 	for (const prompt of promptsToCreate) {
 		// create prompt

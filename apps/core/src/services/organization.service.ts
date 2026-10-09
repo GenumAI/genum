@@ -65,7 +65,7 @@ export class OrganizationService {
 	}
 
 	private async getCustomProviderDeleteInfo(orgId: number) {
-		const provider = await this.db.organization.getCustomProvider(orgId);
+		const provider = await this.db.providerKeys.getCustomProvider(orgId);
 		if (!provider) {
 			return {
 				provider: null,
@@ -78,7 +78,7 @@ export class OrganizationService {
 			};
 		}
 
-		const modelIds = await this.db.organization.getCustomProviderModelIds(provider.id);
+		const modelIds = await this.db.providerKeys.getCustomProviderModelIds(provider.id);
 		const promptUsagePrompts = await this.db.prompts.getPromptsUsingLanguageModels(
 			orgId,
 			modelIds,
@@ -105,7 +105,7 @@ export class OrganizationService {
 	 * @throws ProviderNoBaseUrlError if provider has no baseUrl
 	 */
 	public async getValidatedCustomProvider(orgId: number): Promise<ValidatedProvider> {
-		const provider = await this.db.organization.getCustomProvider(orgId);
+		const provider = await this.db.providerKeys.getCustomProvider(orgId);
 
 		if (!provider) {
 			throw new ProviderNotConfiguredError();
@@ -137,7 +137,7 @@ export class OrganizationService {
 			);
 		}
 
-		const defaultModel = await this.db.prompts.getDefaultLanguageModelForReset();
+		const defaultModel = await this.db.languageModels.getDefaultLanguageModelForReset();
 
 		await this.db.organization.runTransaction([
 			this.db.organization.resetPromptsToDefaultModel(
@@ -150,8 +150,8 @@ export class OrganizationService {
 				defaultModel.id,
 				defaultModel.config,
 			),
-			this.db.organization.deleteLanguageModelsByApiKey(deleteInfo.provider.id),
-			this.db.organization.deleteOrganizationApiKeyById(deleteInfo.provider.id),
+			this.db.languageModels.deleteLanguageModelsByApiKey(deleteInfo.provider.id),
+			this.db.providerKeys.deleteOrganizationApiKeyById(deleteInfo.provider.id),
 		]);
 
 		return deleteInfo.provider;
@@ -181,7 +181,7 @@ export class OrganizationService {
 		apiKeyId: number,
 		models: ProviderModelInput[],
 	): Promise<SyncProviderModelsResult> {
-		const apiKey = await this.db.organization.getApiKeyWithModels(orgId, apiKeyId);
+		const apiKey = await this.db.providerKeys.getApiKeyWithModels(orgId, apiKeyId);
 
 		if (!apiKey) {
 			throw new Error("API key not found");
@@ -194,7 +194,7 @@ export class OrganizationService {
 
 		for (const model of models) {
 			if (!existingModelNames.has(model.name)) {
-				await this.db.organization.createLanguageModel({
+				await this.db.languageModels.createLanguageModel({
 					name: model.name,
 					displayName: model.displayName || model.name,
 					vendor: apiKey.vendor,
@@ -284,7 +284,7 @@ export class OrganizationService {
 	 * Get all models with enabled/disabled status for organization
 	 */
 	public async getOrganizationModels(orgId: number) {
-		const models = await this.db.organization.getAllModelsWithStatus(orgId);
+		const models = await this.db.languageModels.getAllModelsWithStatus(orgId);
 		return models.map(withCachePrices);
 	}
 
@@ -293,7 +293,7 @@ export class OrganizationService {
 	 */
 	public async toggleModel(orgId: number, modelId: number, enabled: boolean) {
 		// Check if model exists and is accessible to this organization
-		const model = await this.db.prompts.getLanguageModelById(modelId);
+		const model = await this.db.languageModels.getLanguageModelById(modelId);
 		if (!model) {
 			throw new Error("Model not found");
 		}
@@ -308,10 +308,10 @@ export class OrganizationService {
 
 		if (enabled) {
 			// Enable: remove from disabled list
-			await this.db.organization.enableModel(orgId, modelId);
+			await this.db.languageModels.enableModel(orgId, modelId);
 		} else {
 			// Disable: add to disabled list
-			await this.db.organization.disableModel(orgId, modelId);
+			await this.db.languageModels.disableModel(orgId, modelId);
 		}
 
 		return { success: true };
@@ -321,6 +321,6 @@ export class OrganizationService {
 	 * Get usage information for a model
 	 */
 	public async getModelUsage(orgId: number, modelId: number) {
-		return await this.db.organization.getModelUsageInfo(orgId, modelId);
+		return await this.db.languageModels.getModelUsageInfo(orgId, modelId);
 	}
 }

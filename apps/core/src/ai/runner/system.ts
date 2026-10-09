@@ -82,7 +82,7 @@ export async function getSystemPrompt(name: string, userOrgId: number) {
 		throw new Error(`Productive commit for system prompt ${name} not found`);
 	}
 
-	const model = await db.prompts.getModelById(prompt.languageModelId);
+	const model = await db.languageModels.getModelById(prompt.languageModelId);
 	if (model === null) {
 		throw new Error(`Model with id ${prompt.languageModelId} not found`);
 	}

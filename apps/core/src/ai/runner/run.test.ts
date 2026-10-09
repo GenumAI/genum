@@ -9,11 +9,10 @@ vi.mock("@/database/db", () => ({
 	db: {
 		organization: {
 			getQuotaByOrgId: vi.fn(),
-			isModelDisabled: vi.fn(),
-			getApiKeyById: vi.fn(),
 			chargeQuota: vi.fn(),
 		},
-		prompts: { getModelById: vi.fn() },
+		languageModels: { getModelById: vi.fn(), isModelDisabled: vi.fn() },
+		providerKeys: { getApiKeyById: vi.fn() },
 		placeholders: { getPlaceholdersByPromptID: vi.fn() },
 	},
 }));
@@ -71,8 +70,8 @@ describe("runPrompt / callPromptModel share one resolution", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(db.organization.getQuotaByOrgId).mockResolvedValue({ id: 1 } as never);
-		vi.mocked(db.organization.isModelDisabled).mockResolvedValue(false as never);
-		vi.mocked(db.prompts.getModelById).mockResolvedValue({
+		vi.mocked(db.languageModels.isModelDisabled).mockResolvedValue(false as never);
+		vi.mocked(db.languageModels.getModelById).mockResolvedValue({
 			id: 3,
 			name: "gpt-4o",
 			vendor: "OPENAI",
@@ -111,7 +110,7 @@ describe("runPrompt / callPromptModel share one resolution", () => {
 		// Same model, same key, same rendered instruction as the plain run above --
 		// a replayed turn that resolved differently would silently invalidate the test
 		// it is supposed to be asserting.
-		expect(db.prompts.getModelById).toHaveBeenCalledWith(PROMPT.languageModelId);
+		expect(db.languageModels.getModelById).toHaveBeenCalledWith(PROMPT.languageModelId);
 		expect(request.apikey).toBe("sk-test");
 		expect(request.model).toBe("gpt-4o");
 		expect(request.instruction).toContain("do this");
@@ -185,7 +184,7 @@ describe("runPrompt / callPromptModel share one resolution", () => {
 	// The vendor would refuse it too, but with an error that names neither a date nor a way out,
 	// and only after a key and quota were spent finding that out.
 	it("refuses a retired model before calling the vendor", async () => {
-		vi.mocked(db.prompts.getModelById).mockResolvedValue({
+		vi.mocked(db.languageModels.getModelById).mockResolvedValue({
 			id: 3,
 			name: "claude-sonnet-4-0",
 			vendor: "ANTHROPIC",
@@ -203,7 +202,7 @@ describe("runPrompt / callPromptModel share one resolution", () => {
 	});
 
 	it("still runs a deprecated model", async () => {
-		vi.mocked(db.prompts.getModelById).mockResolvedValue({
+		vi.mocked(db.languageModels.getModelById).mockResolvedValue({
 			id: 3,
 			name: "o4-mini",
 			vendor: "OPENAI",

@@ -205,14 +205,14 @@ export class PromptsController {
 
 	public async getModelConfig(req: Request, res: Response) {
 		const id = numberSchema.parse(req.params.id);
-		const model = await db.prompts.getModelById(id);
+		const model = await db.languageModels.getModelById(id);
 		if (!model) {
 			res.status(404).json({ error: `Model with id ${id} not found` });
 			return;
 		}
 
 		// Pass database parametersConfig for custom models
-		const config = await db.prompts.getModelConfig(
+		const config = await db.languageModels.getModelConfig(
 			model.name,
 			model.vendor,
 			model.parametersConfig, // Will be used for CUSTOM_OPENAI_COMPATIBLE
@@ -629,7 +629,7 @@ export class PromptsController {
 		const prompt = await checkPromptAccess(promptId, metadata.projID);
 
 		const modelId = prompt.languageModelId;
-		const model = await db.prompts.getModelById(modelId);
+		const model = await db.languageModels.getModelById(modelId);
 		if (!model) {
 			throw new Error("Model not found");
 		}
@@ -667,7 +667,7 @@ export class PromptsController {
 		}
 
 		// Get the new model
-		const newModel = await db.prompts.getModelById(modelId);
+		const newModel = await db.languageModels.getModelById(modelId);
 		if (!newModel) {
 			throw new Error("Model not found");
 		}
@@ -735,11 +735,11 @@ export class PromptsController {
 
 		let messages: CanvasAgentMessage[] = [];
 
-		const chat = await db.prompts.getPromptChatByPromptId(promptId, metadata.userID);
+		const chat = await db.promptChats.getPromptChatByPromptId(promptId, metadata.userID);
 		if (chat) {
-			// messages = (await db.prompts.getChatMessages(chat.id)).map(message => JSON.parse(message.message as string));
+			// messages = (await db.promptChats.getChatMessages(chat.id)).map(message => JSON.parse(message.message as string));
 
-			const raw_chat_messages = await db.prompts.getChatMessages(chat.id);
+			const raw_chat_messages = await db.promptChats.getChatMessages(chat.id);
 			const chat_messages = mapStoredMessagesToChatMessages(
 				raw_chat_messages.map((message) => message.message as unknown as StoredMessage),
 			);
@@ -758,17 +758,20 @@ export class PromptsController {
 
 		// check if chat exists
 		let chat: PromptChat;
-		const existingChat = await db.prompts.getPromptChatByPromptId(promptId, metadata.userID);
+		const existingChat = await db.promptChats.getPromptChatByPromptId(
+			promptId,
+			metadata.userID,
+		);
 
 		// check if chat exists. create new chat if it doesn't exist
 		if (!existingChat) {
-			const newChat = await db.prompts.newPromptChat(promptId, metadata.userID);
+			const newChat = await db.promptChats.newPromptChat(promptId, metadata.userID);
 			chat = newChat;
 		} else {
 			chat = existingChat;
 		}
 
-		const raw_chat_messages = await db.prompts.getChatMessages(chat.id);
+		const raw_chat_messages = await db.promptChats.getChatMessages(chat.id);
 		const chat_messages = mapStoredMessagesToChatMessages(
 			raw_chat_messages.map((message) => message.message as unknown as StoredMessage),
 		);
@@ -808,7 +811,7 @@ export class PromptsController {
 		);
 
 		// // write messages to db
-		await db.prompts.saveChatMessages(chat.id, stored);
+		await db.promptChats.saveChatMessages(chat.id, stored);
 
 		const humanMessages = chatMessagesToHuman(response);
 
@@ -823,7 +826,7 @@ export class PromptsController {
 
 		await checkPromptAccess(promptId, metadata.projID);
 
-		const newChat = await db.prompts.newChatStart(promptId, metadata.userID);
+		const newChat = await db.promptChats.newChatStart(promptId, metadata.userID);
 
 		res.status(200).json({ chat: newChat });
 	}
@@ -968,7 +971,7 @@ export class PromptsController {
 			};
 
 			diff = await findDiff(oldState, newState, async (modelId) => {
-				const model = await db.prompts.getModelById(modelId);
+				const model = await db.languageModels.getModelById(modelId);
 				if (!model) {
 					throw new Error("Model not found");
 				}
@@ -1116,7 +1119,7 @@ async function ensureModelEnabledForOrg(
 	res: Response,
 	customMessage?: string,
 ): Promise<boolean> {
-	const isAvailable = await db.organization.isModelAvailableForOrg(orgId, modelId);
+	const isAvailable = await db.languageModels.isModelAvailableForOrg(orgId, modelId);
 	if (!isAvailable) {
 		res.status(400).json({
 			error: customMessage ?? MODEL_DISABLED_MESSAGE,

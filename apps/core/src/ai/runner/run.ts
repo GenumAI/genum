@@ -90,13 +90,13 @@ export async function getSystemOrganization(_vendor: AiVendor, _userOrgId: numbe
 	// const ai_api_key = await getApiKeyByQuota(quota, userOrgId, vendor);
 
 	// todo use userOrgId to get ai_api_key
-	// const ai_api_key = await db.organization.getApiKeyByVendor(userOrgId, AiVendor.OPENAI);
+	// const ai_api_key = await db.providerKeys.getApiKeyByVendor(userOrgId, AiVendor.OPENAI);
 	// if (ai_api_key === null) {
 	// 	throw new Error("AI API key not found");
 	// }
 
 	// todo remove org api keys
-	// const ai_api_key = await db.organization.getApiKeyByVendor(config.org.id, vendor);
+	// const ai_api_key = await db.providerKeys.getApiKeyByVendor(config.org.id, vendor);
 	// if (ai_api_key === null) {
 	// 	throw new Error("AI API key not found");
 	// }
@@ -145,7 +145,7 @@ async function resolvePromptRun(data: runPromptParams) {
 	}
 
 	// get AI model
-	const model = await db.prompts.getModelById(prompt.languageModelId);
+	const model = await db.languageModels.getModelById(prompt.languageModelId);
 	if (model === null) {
 		throw new Error(`Model with id ${prompt.languageModelId} not found`);
 	}
@@ -157,7 +157,7 @@ async function resolvePromptRun(data: runPromptParams) {
 	}
 
 	// Enforce org-level model restrictions for non-system runs
-	const isDisabled = await db.organization.isModelDisabled(runOrgId, model.id);
+	const isDisabled = await db.languageModels.isModelDisabled(runOrgId, model.id);
 	if (isDisabled) {
 		throw new HttpError(
 			400,
@@ -172,7 +172,7 @@ async function resolvePromptRun(data: runPromptParams) {
 
 	if (model.apiKeyId) {
 		// Custom provider model - get API key directly from the model's linked key
-		const customApiKey = await db.organization.getApiKeyById(data.userOrgId, model.apiKeyId);
+		const customApiKey = await db.providerKeys.getApiKeyById(data.userOrgId, model.apiKeyId);
 		if (!customApiKey) {
 			throw new Error("Custom provider API key not found");
 		}

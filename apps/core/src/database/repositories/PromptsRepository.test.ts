@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PromptsRepository } from "./PromptsRepository";
 import type { SystemRepository } from "./SystemRepository";
+import { LanguageModelsRepository } from "./LanguageModelsRepository";
 import { AiVendor, Prisma, type PrismaClient } from "@/prisma";
 
 function makeMockPrisma() {
@@ -31,6 +32,7 @@ describe("PromptsRepository.newProjectPrompt", () => {
 		repo = new PromptsRepository(
 			mockPrisma as unknown as PrismaClient,
 			{} as unknown as SystemRepository,
+			new LanguageModelsRepository(mockPrisma as unknown as PrismaClient),
 		);
 	});
 
@@ -82,37 +84,6 @@ describe("PromptsRepository.newProjectPrompt", () => {
 	});
 });
 
-describe("PromptsRepository.getDefaultLanguageModelRow", () => {
-	let mockPrisma: ReturnType<typeof makeMockPrisma>;
-	let repo: PromptsRepository;
-
-	beforeEach(() => {
-		mockPrisma = makeMockPrisma();
-		repo = new PromptsRepository(
-			mockPrisma as unknown as PrismaClient,
-			{} as unknown as SystemRepository,
-		);
-	});
-
-	it("returns the full row for the default language model", async () => {
-		mockPrisma.languageModel.findUnique.mockResolvedValue(DEFAULT_MODEL_ROW);
-
-		const row = await repo.getDefaultLanguageModelRow();
-
-		expect(row).toEqual(DEFAULT_MODEL_ROW);
-	});
-
-	it("throws when the default model row has vanished between lookups", async () => {
-		mockPrisma.languageModel.findUnique
-			.mockResolvedValueOnce(DEFAULT_MODEL_ROW) // inside getDefaultLanguageModel()
-			.mockResolvedValueOnce(null); // the row-fetch in getDefaultLanguageModelRow()
-
-		await expect(repo.getDefaultLanguageModelRow()).rejects.toThrow(
-			"Default language model not found in database",
-		);
-	});
-});
-
 describe("PromptsRepository.rollbackPrompt", () => {
 	function makeTxPrisma() {
 		const tx = {
@@ -141,6 +112,7 @@ describe("PromptsRepository.rollbackPrompt", () => {
 		const repo = new PromptsRepository(
 			prisma as unknown as PrismaClient,
 			{} as unknown as SystemRepository,
+			{} as unknown as LanguageModelsRepository,
 		);
 
 		await repo.rollbackPrompt(12, VERSION as never, true);
@@ -158,6 +130,7 @@ describe("PromptsRepository.rollbackPrompt", () => {
 		const repo = new PromptsRepository(
 			prisma as unknown as PrismaClient,
 			{} as unknown as SystemRepository,
+			{} as unknown as LanguageModelsRepository,
 		);
 
 		await repo.rollbackPrompt(12, VERSION as never, false);
@@ -202,6 +175,7 @@ describe("PromptsRepository.commit", () => {
 		const repo = new PromptsRepository(
 			prisma as unknown as PrismaClient,
 			{} as unknown as SystemRepository,
+			{} as unknown as LanguageModelsRepository,
 		);
 
 		await repo.commit(5, "msg", 1);
@@ -220,6 +194,7 @@ describe("PromptsRepository.commit", () => {
 		const repo = new PromptsRepository(
 			prisma as unknown as PrismaClient,
 			{} as unknown as SystemRepository,
+			{} as unknown as LanguageModelsRepository,
 		);
 
 		const restoredSnapshot = [
@@ -244,6 +219,7 @@ describe("PromptsRepository.commit", () => {
 		const repo = new PromptsRepository(
 			prisma as unknown as PrismaClient,
 			{} as unknown as SystemRepository,
+			{} as unknown as LanguageModelsRepository,
 		);
 
 		await repo.commit(5, "Rollback to abcd1234", 1, null);
