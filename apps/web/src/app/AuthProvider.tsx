@@ -3,6 +3,7 @@ import { type AppState, Auth0Provider } from "@auth0/auth0-react";
 import { LocalAuthProvider } from "@/contexts/LocalAuthContext";
 import { isLocalAuth } from "@/lib/auth";
 import { runtimeConfig } from "@/lib/runtime-config";
+import { router } from "@/app/router/router";
 
 interface AuthProviderProps {
 	children: ReactNode;
@@ -20,8 +21,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		return <LocalAuthProvider>{children}</LocalAuthProvider>;
 	}
 
+	// The router is created at import time, so it already holds `/?code=…&state=…`. A bare
+	// history.replaceState would change the address bar without telling react-router, which would
+	// keep rendering `/` and send the user to the default workspace instead of their deep link.
 	const onRedirectCallback = (appState: AppState | undefined) => {
-		window.history.replaceState({}, document.title, appState?.returnTo || window.location.pathname);
+		void router.navigate(appState?.returnTo || window.location.pathname, { replace: true });
 	};
 
 	return (

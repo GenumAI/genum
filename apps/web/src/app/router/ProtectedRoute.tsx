@@ -10,12 +10,13 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
 	useEffect(() => {
 		if (!isLoading && !isAuthenticated) {
+			const currentPath = window.location.pathname + window.location.search;
 			if (isCloud) {
-				// Cloud mode: use Auth0 redirect
-				loginWithRedirect();
+				// Cloud mode: Auth0 always comes back to the origin, so the deep link travels in
+				// appState and AuthProvider's onRedirectCallback navigates to it.
+				loginWithRedirect({ appState: { returnTo: currentPath } });
 			} else {
 				// Self-hosted mode: redirect to login page
-				const currentPath = window.location.pathname + window.location.search;
 				navigate(`/login?returnTo=${encodeURIComponent(currentPath)}`);
 			}
 		}
