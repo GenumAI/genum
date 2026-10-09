@@ -7,7 +7,7 @@ const nameSchema = z.string().trim().min(1).max(128);
 // `.min(1)` only bounds the array length. `compareSteps` (apps/core/src/ai/steps/compare.ts)
 // skips every step with `enabled === false` -- both the ordered and unordered paths -- so an
 // array of five all-unticked steps has length 5 and asserts nothing. `enabled` is optional and
-// absent means enabled (see ToolCallStep/FinalStep in apps/core/src/ai/steps/types.ts), so the
+// absent means enabled (see ToolCallStep/FinalStep in packages/steps/src/types.ts), so the
 // predicate has to be `!== false`, matching what compareSteps itself reads, not `=== true`.
 const EnabledStepsSchema = StepsSchema.min(1).refine(
 	hasEnabledStep,
