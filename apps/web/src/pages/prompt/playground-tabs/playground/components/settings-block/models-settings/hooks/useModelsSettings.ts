@@ -18,6 +18,7 @@ import { modelSettingsSchema } from "../utils/schema";
 import { buildModelSettingsPayload, getFormValuesFromPrompt } from "../utils/payload";
 import { groupModelsByVendor } from "../utils/helpers";
 import type { ModelSettingsFormValues, ToolItem } from "../utils/types";
+import { useUiStateSetter } from "./useUiStateSetter";
 
 interface UseModelsSettingsProps {
 	prompt?: PromptSettings;
@@ -48,54 +49,22 @@ export function useModelsSettings({
 	const ui = useModelsSettingsUI(promptId);
 	const { setUiState, setDraft, getDraft, bumpForceRenderKey } = useModelsSettingsActions();
 
-	const setSchemaDialogOpen = useCallback(
-		(open: boolean) => setUiState(promptId, { schemaDialogOpen: open }),
-		[promptId, setUiState],
+	const setSchemaDialogOpen = useUiStateSetter(promptId, setUiState, "schemaDialogOpen");
+	const setToolsModalOpen = useUiStateSetter(promptId, setUiState, "toolsModalOpen");
+	const setIsUpdatingModel = useUiStateSetter(promptId, setUiState, "isUpdatingModel");
+	const setIsChangingModel = useUiStateSetter(promptId, setUiState, "isChangingModel");
+	const setCurrentJsonSchema = useUiStateSetter(promptId, setUiState, "currentJsonSchema");
+	const setCurrentResponseFormat = useUiStateSetter(
+		promptId,
+		setUiState,
+		"currentResponseFormat",
 	);
-	const setToolsModalOpen = useCallback(
-		(open: boolean) => setUiState(promptId, { toolsModalOpen: open }),
-		[promptId, setUiState],
-	);
-	const setIsUpdatingModel = useCallback(
-		(value: boolean) => setUiState(promptId, { isUpdatingModel: value }),
-		[promptId, setUiState],
-	);
-	const setIsChangingModel = useCallback(
-		(value: boolean) => setUiState(promptId, { isChangingModel: value }),
-		[promptId, setUiState],
-	);
-	const setCurrentJsonSchema = useCallback(
-		(value: string | null) => setUiState(promptId, { currentJsonSchema: value }),
-		[promptId, setUiState],
-	);
-	const setCurrentResponseFormat = useCallback(
-		(value: string) => setUiState(promptId, { currentResponseFormat: value }),
-		[promptId, setUiState],
-	);
-	const setIsSchemaCleared = useCallback(
-		(value: boolean) => setUiState(promptId, { isSchemaCleared: value }),
-		[promptId, setUiState],
-	);
-	const setSelectedModelName = useCallback(
-		(value: string) => setUiState(promptId, { selectedModelName: value }),
-		[promptId, setUiState],
-	);
-	const setSelectedModelId = useCallback(
-		(value: number | null) => setUiState(promptId, { selectedModelId: value }),
-		[promptId, setUiState],
-	);
-	const setTools = useCallback(
-		(value: ToolItem[]) => setUiState(promptId, { tools: value }),
-		[promptId, setUiState],
-	);
-	const setEditingToolIdx = useCallback(
-		(value: number | null) => setUiState(promptId, { editingToolIdx: value }),
-		[promptId, setUiState],
-	);
-	const setEditingTool = useCallback(
-		(value: ToolItem | null) => setUiState(promptId, { editingTool: value }),
-		[promptId, setUiState],
-	);
+	const setIsSchemaCleared = useUiStateSetter(promptId, setUiState, "isSchemaCleared");
+	const setSelectedModelName = useUiStateSetter(promptId, setUiState, "selectedModelName");
+	const setSelectedModelId = useUiStateSetter(promptId, setUiState, "selectedModelId");
+	const setTools = useUiStateSetter(promptId, setUiState, "tools");
+	const setEditingToolIdx = useUiStateSetter(promptId, setUiState, "editingToolIdx");
+	const setEditingTool = useUiStateSetter(promptId, setUiState, "editingTool");
 
 	const {
 		schemaDialogOpen,
