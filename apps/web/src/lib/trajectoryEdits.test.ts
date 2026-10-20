@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Step, StepMismatch } from "@/types/steps";
+import type { Step, StepMismatch } from "@genum/steps";
 import {
 	enabledCount,
 	hasStepComparison,

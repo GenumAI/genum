@@ -8,7 +8,7 @@ import {
 	toPlaceholderDefinitions,
 } from "@/ai/placeholders/definitions";
 import type { Database } from "@/database/db";
-import type { NewPromptModelOverride } from "@/database/repositories/PromptsRepository";
+import type { NewPromptModelOverride } from "@/database/repositories/LanguageModelsRepository";
 import type { AiVendor, LanguageModel, Prompt } from "@/prisma";
 import { commitHash } from "@/utils/hash";
 import type { PlaceholderDefinition } from "@genum/placeholders";
@@ -34,7 +34,7 @@ export class PromptService {
 
 	public async getModelsForOrganization(orgId: number) {
 		// Use getAvailableModels to filter out disabled models
-		const models = await this.db.organization.getAvailableModels(orgId);
+		const models = await this.db.languageModels.getAvailableModels(orgId);
 		return models.map((model) => withLifecycle(withCachePrices(model)));
 	}
 
@@ -76,7 +76,7 @@ export class PromptService {
 			}
 			model = match;
 		} else {
-			model = await this.db.prompts.getDefaultLanguageModelRow();
+			model = await this.db.languageModels.getDefaultLanguageModelRow();
 		}
 
 		const parametersConfig = model.parametersConfig as

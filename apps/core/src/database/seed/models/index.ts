@@ -31,7 +31,7 @@ function isModelDifferent(existing: DbModel, incoming: LanguageModelData): boole
  */
 export async function syncModels(): Promise<void> {
 	const models = ALL_MODELS.map(toLanguageModelData);
-	const existingModels = await db.prompts.getModels();
+	const existingModels = await db.languageModels.getModels();
 
 	const toCreate: LanguageModelData[] = [];
 	const toUpdate: LanguageModelData[] = [];
@@ -55,12 +55,12 @@ export async function syncModels(): Promise<void> {
 
 	if (toCreate.length > 0) {
 		console.log(`Creating ${toCreate.length} models...`);
-		await Promise.all(toCreate.map((model) => db.prompts.createModel(model)));
+		await Promise.all(toCreate.map((model) => db.languageModels.createModel(model)));
 	}
 
 	if (toUpdate.length > 0) {
 		console.log(`Updating ${toUpdate.length} models...`);
-		await Promise.all(toUpdate.map((model) => db.prompts.updateModel(model)));
+		await Promise.all(toUpdate.map((model) => db.languageModels.updateModel(model)));
 	}
 
 	console.log(

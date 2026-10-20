@@ -20,20 +20,24 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY scripts ./scripts
 
-# Copy the workspace package manifest so --frozen-lockfile can resolve the
-# apps/core "@genum/placeholders": "workspace:*" link, then the app manifest.
+# Copy the workspace package manifests so --frozen-lockfile can resolve the
+# apps/core "@genum/placeholders" and "@genum/steps": "workspace:*" links, then the
+# app manifest.
 COPY packages/placeholders/package.json ./packages/placeholders/
+COPY packages/steps/package.json ./packages/steps/
 COPY apps/core/package.json ./apps/core/
 
 # Install all dependencies (including devDependencies for build)
 # Use --filter to install only core app dependencies
 RUN DOCKER_BUILD=true pnpm install --frozen-lockfile --filter core
 
-# Copy the placeholders package source and build it (dual CJS/ESM output) before
-# the app build, since apps/core (tsc + tsc-alias, no bundling) resolves the
+# Copy the workspace packages' source and build them (dual CJS/ESM output) before
+# the app build, since apps/core (tsc + tsc-alias, no bundling) resolves each
 # package's "require" condition through node_modules at both compile and run time.
 COPY packages/placeholders/ ./packages/placeholders/
 RUN pnpm --filter @genum/placeholders run build
+COPY packages/steps/ ./packages/steps/
+RUN pnpm --filter @genum/steps run build
 
 # Copy source code and configuration files
 COPY apps/core/ ./apps/core/
@@ -67,20 +71,23 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY scripts ./scripts
 
-# Copy the workspace package manifest so --frozen-lockfile can resolve the
-# apps/core "@genum/placeholders": "workspace:*" link, then the app manifest.
+# Copy the workspace package manifests so --frozen-lockfile can resolve the
+# apps/core "@genum/placeholders" and "@genum/steps": "workspace:*" links, then the
+# app manifest.
 COPY packages/placeholders/package.json ./packages/placeholders/
+COPY packages/steps/package.json ./packages/steps/
 COPY apps/core/package.json ./apps/core/
 
 # Install only production dependencies
 RUN DOCKER_BUILD=true pnpm install --frozen-lockfile --prod --filter core
 
 # apps/core is not bundled (tsc + tsc-alias), so its compiled `require("@genum/
-# placeholders")` resolves through node_modules -> the pnpm workspace symlink ->
-# packages/placeholders at runtime. The install above only linked the manifest
-# copied above; bring in the built dist (produced in the builder stage) so that
-# symlink target actually has something to resolve.
+# placeholders")` and `require("@genum/steps")` resolve through node_modules -> the
+# pnpm workspace symlinks -> packages/* at runtime. The install above only linked the
+# manifests copied above; bring in each built dist (produced in the builder stage) so
+# those symlink targets actually have something to resolve.
 COPY --from=builder /app/packages/placeholders/dist ./packages/placeholders/dist
+COPY --from=builder /app/packages/steps/dist ./packages/steps/dist
 
 # Copy compiled JavaScript from builder stage
 COPY --from=builder /app/apps/core/dist ./apps/core/dist

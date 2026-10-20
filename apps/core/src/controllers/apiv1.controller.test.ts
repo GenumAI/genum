@@ -10,11 +10,13 @@ vi.mock("@/database/db", () => ({
 			updateProjectApiKeyLastUsed: vi.fn(),
 		},
 		organization: {
-			getAvailableModels: vi.fn(),
 			getOrganizationById: vi.fn(),
 		},
-		prompts: {
+		languageModels: {
+			getAvailableModels: vi.fn(),
 			getDefaultLanguageModelRow: vi.fn(),
+		},
+		prompts: {
 			newProjectPrompt: vi.fn(),
 			commit: vi.fn(),
 			changePromptCommitStatus: vi.fn(),
@@ -80,7 +82,7 @@ describe("ApiV1Controller.createPrompt", () => {
 	});
 
 	it("400s with a clear error for an unknown model name, and never creates the prompt", async () => {
-		(db.organization.getAvailableModels as ReturnType<typeof vi.fn>).mockResolvedValue([
+		(db.languageModels.getAvailableModels as ReturnType<typeof vi.fn>).mockResolvedValue([
 			GPT_4O,
 		]);
 		const { res, captured } = makeRes();
@@ -96,7 +98,7 @@ describe("ApiV1Controller.createPrompt", () => {
 	});
 
 	it("resolves languageModelName, sanitizes languageModelConfig, and persists both", async () => {
-		(db.organization.getAvailableModels as ReturnType<typeof vi.fn>).mockResolvedValue([
+		(db.languageModels.getAvailableModels as ReturnType<typeof vi.fn>).mockResolvedValue([
 			GPT_4O,
 		]);
 		(db.prompts.newProjectPrompt as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 1 });
@@ -223,7 +225,7 @@ describe("ApiV1Controller.createPrompt", () => {
 	});
 
 	it("does not commit when creation was rejected for an unknown model", async () => {
-		(db.organization.getAvailableModels as ReturnType<typeof vi.fn>).mockResolvedValue([
+		(db.languageModels.getAvailableModels as ReturnType<typeof vi.fn>).mockResolvedValue([
 			GPT_4O,
 		]);
 		const { res } = makeRes();
@@ -243,8 +245,8 @@ describe("ApiV1Controller.createPrompt", () => {
 
 		await controller.createPrompt(makeReq({ name: "p", value: "v" }), res);
 
-		expect(db.organization.getAvailableModels).not.toHaveBeenCalled();
-		expect(db.prompts.getDefaultLanguageModelRow).not.toHaveBeenCalled();
+		expect(db.languageModels.getAvailableModels).not.toHaveBeenCalled();
+		expect(db.languageModels.getDefaultLanguageModelRow).not.toHaveBeenCalled();
 		expect(db.prompts.newProjectPrompt).toHaveBeenCalledWith(
 			10,
 			{ name: "p", value: "v" },

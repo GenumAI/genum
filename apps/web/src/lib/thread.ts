@@ -1,5 +1,4 @@
-import { effectiveSteps, turnsOf } from "@/lib/session";
-import type { Step } from "@/types/steps";
+import { effectiveSteps, type Step, turnsOf } from "@genum/steps";
 
 /** Real, measured usage for one turn. Absent is meaningful -- see `ThreadMessage`. */
 export interface ThreadMetrics {

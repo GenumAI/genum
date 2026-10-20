@@ -36,7 +36,7 @@ vi.mock("@/services/access/AccessService", () => ({
 
 import { db } from "@/database/db";
 import { checkPlaceholderAccess, checkPromptAccess } from "@/services/access/AccessService";
-import { PromptsController } from "./prompt.controller";
+import { PlaceholdersController } from "./placeholder.controller";
 
 const PROJECT = 7;
 const PROMPT = 1;
@@ -66,11 +66,11 @@ function makeRes() {
 }
 
 describe("placeholder endpoints", () => {
-	let controller: PromptsController;
+	let controller: PlaceholdersController;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		controller = new PromptsController();
+		controller = new PlaceholdersController();
 		// vi.clearAllMocks() clears calls but keeps implementations, so a mockResolvedValue
 		// set by one test leaks into every later one. Re-stating the defaults here keeps
 		// the tests order-independent -- without it, a guard mocked without `key` in an
@@ -448,11 +448,11 @@ describe("placeholder endpoints", () => {
 // the productive commit kept serving the old snapshot. Each handler is listed by hand:
 // the point is that adding a seventh mutation and forgetting the call shows up here.
 describe("placeholder mutations re-evaluate the commit status", () => {
-	let controller: PromptsController;
+	let controller: PlaceholdersController;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		controller = new PromptsController();
+		controller = new PlaceholdersController();
 		vi.mocked(checkPromptAccess).mockResolvedValue({
 			id: PROMPT,
 			projectId: PROJECT,

@@ -1,12 +1,11 @@
+import type { StepMismatch } from "@genum/steps";
 import { normalize } from "@/utils/normalize";
 import { effectiveSteps, turnsOf } from "./session";
 import type { Step, StepsConfig, ToolCallStep } from "./types";
 
-export type StepMismatch = {
-	/** Index in the expected array, so the UI can point at the step the author picked. */
-	index: number;
-	reason: string;
-};
+// Defined in @genum/steps, which apps/web reads `lastMismatches` with; re-exported so
+// callers keep importing it from here, next to `compareSteps` that produces it.
+export type { StepMismatch };
 
 /**
  * Order-independent deep equality for objects, order-sensitive for arrays.

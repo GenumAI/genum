@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { OrganizationRepository } from "./OrganizationRepository";
-import type { PrismaClient } from "@/prisma";
+import { LanguageModelsRepository } from "./LanguageModelsRepository";
+import { AiVendor, type PrismaClient } from "@/prisma";
 
 function makeMockPrisma() {
 	return {
 		languageModel: {
+			findUnique: vi.fn(),
 			findFirst: vi.fn(),
 		},
 		organizationDisabledModel: {
@@ -16,13 +17,13 @@ function makeMockPrisma() {
 const ORG = 1;
 const MODEL = 57;
 
-describe("OrganizationRepository.isModelAvailableForOrg", () => {
+describe("LanguageModelsRepository.isModelAvailableForOrg", () => {
 	let mockPrisma: ReturnType<typeof makeMockPrisma>;
-	let repo: OrganizationRepository;
+	let repo: LanguageModelsRepository;
 
 	beforeEach(() => {
 		mockPrisma = makeMockPrisma();
-		repo = new OrganizationRepository(mockPrisma as unknown as PrismaClient);
+		repo = new LanguageModelsRepository(mockPrisma as unknown as PrismaClient);
 		mockPrisma.organizationDisabledModel.findUnique.mockResolvedValue(null);
 	});
 
@@ -61,5 +62,40 @@ describe("OrganizationRepository.isModelAvailableForOrg", () => {
 		mockPrisma.organizationDisabledModel.findUnique.mockResolvedValue({ modelId: MODEL });
 
 		expect(await repo.isModelAvailableForOrg(ORG, MODEL)).toBe(false);
+	});
+});
+
+const DEFAULT_MODEL_ROW = {
+	id: 1,
+	name: "gpt-4o",
+	vendor: AiVendor.OPENAI,
+	parametersConfig: null,
+};
+
+describe("LanguageModelsRepository.getDefaultLanguageModelRow", () => {
+	let mockPrisma: ReturnType<typeof makeMockPrisma>;
+	let repo: LanguageModelsRepository;
+
+	beforeEach(() => {
+		mockPrisma = makeMockPrisma();
+		repo = new LanguageModelsRepository(mockPrisma as unknown as PrismaClient);
+	});
+
+	it("returns the full row for the default language model", async () => {
+		mockPrisma.languageModel.findUnique.mockResolvedValue(DEFAULT_MODEL_ROW);
+
+		const row = await repo.getDefaultLanguageModelRow();
+
+		expect(row).toEqual(DEFAULT_MODEL_ROW);
+	});
+
+	it("throws when the default model row has vanished between lookups", async () => {
+		mockPrisma.languageModel.findUnique
+			.mockResolvedValueOnce(DEFAULT_MODEL_ROW) // inside getDefaultLanguageModel()
+			.mockResolvedValueOnce(null); // the row-fetch in getDefaultLanguageModelRow()
+
+		await expect(repo.getDefaultLanguageModelRow()).rejects.toThrow(
+			"Default language model not found in database",
+		);
 	});
 });

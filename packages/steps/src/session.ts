@@ -1,9 +1,4 @@
-// Restated from apps/core/src/ai/steps/session.ts, not imported -- apps/web does not
-// depend on apps/core, the same reason the step shapes are restated in `types/steps.ts`.
-// Bodies must stay identical to the original: a divergence here is a bug that no test in
-// either package would catch.
-
-import type { FinalStep, Step, Turn } from "@/types/steps";
+import type { FinalStep, Step, Turn } from "./types";
 
 /**
  * The session as it actually runs. Unticking a user reply ends the session there, so

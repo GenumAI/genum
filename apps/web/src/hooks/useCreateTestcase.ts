@@ -1,7 +1,7 @@
 import { testcasesApi } from "@/api/testcases/testcases.api";
 import { useMutation } from "@tanstack/react-query";
 
-import type { Step, StepsConfig } from "@/types/steps";
+import type { Step, StepsConfig } from "@genum/steps";
 
 export interface TestcasePayload {
 	promptId: number;

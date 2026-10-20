@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { canAddMessage, liveThread, testcaseThread } from "./thread";
-import type { Step } from "@/types/steps";
+import type { Step } from "@genum/steps";
 
 const TWO_TURNS: Step[] = [
 	{ kind: "final", text: "expected one" },

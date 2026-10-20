@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/useToast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePlaceholderSelection } from "@/pages/prompt/playground-tabs/playground/hooks/usePlaceholderSelection";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
-import type { Step } from "@/types/steps";
+import type { Step } from "@genum/steps";
 
 /** Stable identity: a fresh `[]` here would re-fire the picker dialog's reset effect forever. */
 const NO_STEPS: Step[] = [];

@@ -9,6 +9,9 @@ import { FileRepository } from "./repositories/FileRepository";
 import { prisma } from "@/database/prisma";
 import { SystemRepository } from "./repositories/SystemRepository";
 import { ErasureRepository } from "./repositories/ErasureRepository";
+import { LanguageModelsRepository } from "./repositories/LanguageModelsRepository";
+import { ProviderKeysRepository } from "./repositories/ProviderKeysRepository";
+import { PromptChatsRepository } from "./repositories/PromptChatsRepository";
 
 /**
  * centralized access to database repositories
@@ -33,11 +36,16 @@ class Database {
 	public readonly auth: AuthRepository;
 	public readonly file: FileRepository;
 	public readonly erasure: ErasureRepository;
+	public readonly languageModels: LanguageModelsRepository;
+	public readonly providerKeys: ProviderKeysRepository;
+	public readonly promptChats: PromptChatsRepository;
 
 	constructor() {
 		// all repositories use the same PrismaClient (singleton)
 		this.system = new SystemRepository(prisma);
-		this.prompts = new PromptsRepository(prisma, this.system);
+		// the only instance, so its default-model cache is shared by every caller
+		this.languageModels = new LanguageModelsRepository(prisma);
+		this.prompts = new PromptsRepository(prisma, this.system, this.languageModels);
 		this.testcases = new TestcasesRepository(prisma);
 		this.placeholders = new PlaceholdersRepository(prisma);
 		this.users = new UsersRepository(prisma);
@@ -46,6 +54,8 @@ class Database {
 		this.auth = new AuthRepository(prisma);
 		this.file = new FileRepository(prisma);
 		this.erasure = new ErasureRepository(prisma, this.system);
+		this.providerKeys = new ProviderKeysRepository(prisma);
+		this.promptChats = new PromptChatsRepository(prisma);
 	}
 }
 

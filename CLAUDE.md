@@ -55,9 +55,9 @@ pnpm format:check              # biome check (no write)
 pnpm test                            # turbo test (runs build first)
 pnpm turbo run test:run --filter=core # core tests only — no watch, no DB needed
 pnpm --filter core test:coverage
-# Go through turbo, NOT `pnpm --filter core test:run`. Every entry point of
-# @genum/placeholders resolves into its dist/, so on a tree that has never been built
-# vitest fails to resolve the package and three suites error out. Turbo builds it first.
+# Go through turbo, NOT `pnpm --filter core test:run`. Every entry point of the shared
+# packages (@genum/placeholders, @genum/steps) resolves into its dist/, so on a tree that
+# has never been built vitest fails to resolve them and suites error out. Turbo builds them first.
 # `web` has no tests and no type-check; `pnpm --filter web build` type-checks it.
 ```
 

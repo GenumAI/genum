@@ -46,19 +46,23 @@ jobs:
       # apps/web has no `type-check` script, so `turbo run type-check` skips it and
       # reports success without checking a single web file. Web types are checked by
       # `tsc -b` inside its own `build`, which is why this build is a gate here and
-      # not a smoke test. Also builds @genum/placeholders, which core and web both
-      # resolve into its dist/.
+      # not a smoke test. Also builds @genum/placeholders and @genum/steps, which core
+      # and web both resolve into their dist/.
       - name: Build (packages, core, web)
         run: pnpm build
 
-      - name: Type-check core
-        run: pnpm turbo run type-check --filter=core
+      # @genum/steps too: its tests are compile-time claims about the step shapes (they
+      # moved there from apps/web, whose `tsc -b` checked them), its build excludes test
+      # files, and vitest strips types -- so without this nothing type-checks them.
+      - name: Type-check (core, steps)
+        run: pnpm turbo run type-check --filter=core --filter=@genum/steps
 
       # Through turbo, not `pnpm --filter core test:run`: every entry point of
-      # @genum/placeholders resolves into its dist/, which a clean checkout does not
-      # have. Calling vitest directly skips the task graph, so vite cannot resolve the
-      # package and three suites error out. No database is needed by either package.
-      - name: Run unit tests (core, placeholders)
+      # @genum/placeholders and @genum/steps resolves into its dist/, which a clean
+      # checkout does not have. Calling vitest directly skips the task graph, so vite
+      # cannot resolve the packages and every suite importing them errors out. No
+      # database is needed by any of these packages.
+      - name: Run unit tests (core, placeholders, steps)
         run: pnpm turbo run test:run
 
       # Informational, never a gate: lint and format are already red on main (core 35

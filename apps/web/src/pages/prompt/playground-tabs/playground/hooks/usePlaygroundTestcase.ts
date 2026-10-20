@@ -5,7 +5,7 @@ import type { UpdateExpected } from "@/pages/prompt/playground-tabs/playground/c
 import { formatTestcaseOutput } from "@/lib/formatTestcaseOutput";
 import { withFinalText } from "@/lib/trajectoryEdits";
 import type { TestCase } from "@/types/TestСase";
-import type { Step } from "@/types/steps";
+import type { Step } from "@genum/steps";
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import usePlaygroundStore from "@/stores/playground.store";

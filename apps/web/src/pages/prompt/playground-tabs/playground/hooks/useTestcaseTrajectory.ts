@@ -11,7 +11,7 @@ import {
 } from "@/lib/trajectoryEdits";
 import { testcaseKeys } from "@/query-keys/testcases.keys";
 import type { TestCase } from "@/types/TestСase";
-import type { ArgsMatch, Step, StepsConfig } from "@/types/steps";
+import type { ArgsMatch, Step, StepsConfig } from "@genum/steps";
 
 interface UseTestcaseTrajectoryParams {
 	testcaseId?: string | number | null;

@@ -26,12 +26,14 @@ vi.mock("@/database/db", () => ({
 	db: {
 		organization: {
 			getQuotaByOrgId: vi.fn(),
-			isModelDisabled: vi.fn(),
-			getApiKeyById: vi.fn(),
 			chargeQuota: vi.fn(),
 		},
-		prompts: {
+		languageModels: {
 			getModelById: vi.fn(),
+			isModelDisabled: vi.fn(),
+		},
+		providerKeys: {
+			getApiKeyById: vi.fn(),
 		},
 		placeholders: {
 			getPlaceholdersByPromptID: vi.fn(),
@@ -170,9 +172,9 @@ describe("runPrompt analytics", () => {
 		vi.spyOn(console, "error").mockImplementation(() => {});
 		clickhouse.insert.mockResolvedValue(undefined);
 		(db.organization.getQuotaByOrgId as Mock).mockResolvedValue({ id: 1 });
-		(db.organization.isModelDisabled as Mock).mockResolvedValue(false);
+		(db.languageModels.isModelDisabled as Mock).mockResolvedValue(false);
 		(db.organization.chargeQuota as Mock).mockResolvedValue(undefined);
-		(db.prompts.getModelById as Mock).mockResolvedValue(MODEL);
+		(db.languageModels.getModelById as Mock).mockResolvedValue(MODEL);
 		(getApiKeyByQuota as Mock).mockResolvedValue({
 			apiKey: { key: "sk-test" },
 			quotaUsed: true,
