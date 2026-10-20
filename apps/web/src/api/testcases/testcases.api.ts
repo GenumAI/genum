@@ -1,7 +1,7 @@
 import { apiClient } from "../client";
 import type { ApiRequestConfig } from "../client";
 import type { TestCase, TestCaseResponse } from "@/types/TestСase";
-import type { Step, StepsConfig } from "@/types/steps";
+import type { Step, StepsConfig } from "@genum/steps";
 
 // ============================================================================
 // Types

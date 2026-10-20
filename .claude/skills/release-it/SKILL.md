@@ -60,8 +60,8 @@ pnpm --filter web build                   # the only type-check web has
 ```
 
 **Run the gates against a tree with no built workspace packages.** Every entry point of
-`@genum/placeholders` resolves into its `dist/`, and CI checks out clean and never builds
-it. A developer's tree almost always has a warm `dist/` from an earlier `pnpm build`, so
+`@genum/placeholders` and `@genum/steps` resolves into its `dist/`, and CI checks out clean
+and never builds them. A developer's tree almost always has a warm `dist/` from an earlier `pnpm build`, so
 the gates pass locally and the same commit fails in CI. This is not hypothetical: v1.10.0
 was published this way, three suites failed in `test-and-lint`, and no images were built.
 Delete `packages/*/dist` first, and go through turbo so the build actually happens —

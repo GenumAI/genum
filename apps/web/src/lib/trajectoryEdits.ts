@@ -1,5 +1,10 @@
-import { effectiveSteps, lastEnabledFinal } from "@/lib/session";
-import type { Step, StepMismatch, ToolCallStep } from "@/types/steps";
+import {
+	effectiveSteps,
+	lastEnabledFinal,
+	type Step,
+	type StepMismatch,
+	type ToolCallStep,
+} from "@genum/steps";
 
 /** A patch an author can apply to one step from the panel. */
 export type StepPatch = Partial<Pick<ToolCallStep, "enabled" | "argsMatch">>;
@@ -31,9 +36,8 @@ export function enabledCount(steps: Step[]): number {
  * trajectory testcase IS the expected answer: the editor beside the panel shows the
  * session's answer, the answer to the last question the session actually asks.
  *
- * That step is `lastEnabledFinal`'s -- the mirror of the server's own derivation
- * (`lastEnabledFinal` in apps/core/src/ai/steps/session.ts), which is what
- * `expectedOutput` follows. It has to be the same step: the client sends both this array
+ * That step is `lastEnabledFinal`'s -- the same function (from @genum/steps) the server
+ * derives `expectedOutput` from. It has to be the same step: the client sends both this array
  * and `expectedOutput`, and the server recomputes `expectedOutput` from the array
  * afterwards. Writing the author's new answer into the literal last final instead put it
  * in a turn the session never reaches, the server recomputed the old text back over it,

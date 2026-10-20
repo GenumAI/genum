@@ -30,7 +30,7 @@ export async function migrateSystemPromptModels(
 	systemUserId: number,
 	seeds: readonly SystemPromptModel[],
 ): Promise<void> {
-	const models = await database.prompts.getModels();
+	const models = await database.languageModels.getModels();
 	const modelConfigService = new ModelConfigService();
 	let moved = 0;
 

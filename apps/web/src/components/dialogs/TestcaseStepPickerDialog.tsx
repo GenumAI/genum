@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { StepRow } from "@/components/steps/StepRow";
 import { enabledCount } from "@/lib/trajectoryEdits";
-import type { Step } from "@/types/steps";
+import type { Step } from "@genum/steps";
 
 interface TestcaseStepPickerDialogProps {
 	open: boolean;

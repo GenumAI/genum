@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { canAddMessage, type ThreadMessage } from "@/lib/thread";
-import type { ArgsMatch } from "@/types/steps";
+import type { ArgsMatch } from "@genum/steps";
 
 /** The live run's controls. Absent on a saved testcase and in a read-only rendering. */
 export interface ThreadLiveControls {

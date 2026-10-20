@@ -14,8 +14,10 @@ const MODELS = [
 function makeDb(commits: Record<string, { languageModelId: number; config?: object } | null>) {
 	const prompts = Object.keys(commits).map((name, i) => ({ id: 100 + i, name }));
 	return {
-		prompts: {
+		languageModels: {
 			getModels: vi.fn(async () => MODELS),
+		},
+		prompts: {
 			getSystemPromptByName: vi.fn(async (name: string) =>
 				prompts.find((p) => p.name === name) ?? null,
 			),

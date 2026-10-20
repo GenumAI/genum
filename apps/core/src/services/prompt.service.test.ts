@@ -5,10 +5,8 @@ import { AiVendor } from "@/prisma";
 
 function makeMockDb() {
 	return {
-		organization: {
+		languageModels: {
 			getAvailableModels: vi.fn(),
-		},
-		prompts: {
 			getDefaultLanguageModelRow: vi.fn(),
 		},
 	};
@@ -29,12 +27,12 @@ describe("PromptService.resolvePromptModelOverride", () => {
 		const result = await service.resolvePromptModelOverride(1, {});
 
 		expect(result).toEqual({ ok: true, override: null });
-		expect(mockDb.organization.getAvailableModels).not.toHaveBeenCalled();
-		expect(mockDb.prompts.getDefaultLanguageModelRow).not.toHaveBeenCalled();
+		expect(mockDb.languageModels.getAvailableModels).not.toHaveBeenCalled();
+		expect(mockDb.languageModels.getDefaultLanguageModelRow).not.toHaveBeenCalled();
 	});
 
 	it("returns a 400-shaped error for an unknown model name", async () => {
-		mockDb.organization.getAvailableModels.mockResolvedValue([GPT_4O]);
+		mockDb.languageModels.getAvailableModels.mockResolvedValue([GPT_4O]);
 
 		const result = await service.resolvePromptModelOverride(1, {
 			languageModelName: "not-a-real-model",
@@ -44,7 +42,7 @@ describe("PromptService.resolvePromptModelOverride", () => {
 	});
 
 	it("resolves by name (scoped to the org's available models) and sanitizes the given config against it", async () => {
-		mockDb.organization.getAvailableModels.mockResolvedValue([GPT_4O]);
+		mockDb.languageModels.getAvailableModels.mockResolvedValue([GPT_4O]);
 
 		const result = await service.resolvePromptModelOverride(1, {
 			languageModelName: "gpt-4o",
@@ -56,7 +54,7 @@ describe("PromptService.resolvePromptModelOverride", () => {
 			},
 		});
 
-		expect(mockDb.organization.getAvailableModels).toHaveBeenCalledWith(1);
+		expect(mockDb.languageModels.getAvailableModels).toHaveBeenCalledWith(1);
 		expect(result).toEqual({
 			ok: true,
 			override: {
@@ -73,7 +71,7 @@ describe("PromptService.resolvePromptModelOverride", () => {
 	});
 
 	it("uses the resolved model's own defaults when only languageModelName is given", async () => {
-		mockDb.organization.getAvailableModels.mockResolvedValue([GPT_4O]);
+		mockDb.languageModels.getAvailableModels.mockResolvedValue([GPT_4O]);
 
 		const result = await service.resolvePromptModelOverride(1, {
 			languageModelName: "gpt-4o",
@@ -94,14 +92,14 @@ describe("PromptService.resolvePromptModelOverride", () => {
 	});
 
 	it("sanitizes a config-only request against the instance default model, without listing the org's models", async () => {
-		mockDb.prompts.getDefaultLanguageModelRow.mockResolvedValue(GPT_4O);
+		mockDb.languageModels.getDefaultLanguageModelRow.mockResolvedValue(GPT_4O);
 
 		const result = await service.resolvePromptModelOverride(1, {
 			languageModelConfig: { response_format: "json_object" },
 		});
 
-		expect(mockDb.organization.getAvailableModels).not.toHaveBeenCalled();
-		expect(mockDb.prompts.getDefaultLanguageModelRow).toHaveBeenCalledOnce();
+		expect(mockDb.languageModels.getAvailableModels).not.toHaveBeenCalled();
+		expect(mockDb.languageModels.getDefaultLanguageModelRow).toHaveBeenCalledOnce();
 		expect(result).toEqual({
 			ok: true,
 			override: {
@@ -255,7 +253,7 @@ describe("PromptService.getModelsForOrganization", () => {
 			vendor: AiVendor.CUSTOM_OPENAI_COMPATIBLE,
 			parametersConfig: null,
 		};
-		mockDb.organization.getAvailableModels.mockResolvedValue([GPT_4O, custom]);
+		mockDb.languageModels.getAvailableModels.mockResolvedValue([GPT_4O, custom]);
 		const service = new PromptService(mockDb as unknown as Database);
 
 		const models = await service.getModelsForOrganization(1);
@@ -276,7 +274,7 @@ describe("PromptService.getModelsForOrganization", () => {
 			vendor: AiVendor.ANTHROPIC,
 			parametersConfig: null,
 		};
-		mockDb.organization.getAvailableModels.mockResolvedValue([retired]);
+		mockDb.languageModels.getAvailableModels.mockResolvedValue([retired]);
 		const service = new PromptService(mockDb as unknown as Database);
 
 		const [model] = await service.getModelsForOrganization(1);
@@ -293,7 +291,7 @@ describe("PromptService.getModelsForOrganization", () => {
 describe("PromptService.resolvePromptModelOverride on a retired model", () => {
 	it("refuses to create a prompt on it", async () => {
 		const mockDb = makeMockDb();
-		mockDb.organization.getAvailableModels.mockResolvedValue([
+		mockDb.languageModels.getAvailableModels.mockResolvedValue([
 			{ id: 6, name: "claude-sonnet-4-0", vendor: AiVendor.ANTHROPIC, parametersConfig: null },
 		]);
 		const service = new PromptService(mockDb as unknown as Database);

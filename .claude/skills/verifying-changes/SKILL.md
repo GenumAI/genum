@@ -75,7 +75,7 @@ If `type-check` reports missing or stale members on Prisma types, you are type-c
 
 ## Minimum bar before opening a PR
 
-- Touched `apps/core` → `pnpm turbo run type-check --filter=core` **and** `pnpm turbo run test:run --filter=core`. Go through turbo: both resolve `@genum/placeholders` through its `dist/`, which a never-built tree lacks.
+- Touched `apps/core` → `pnpm turbo run type-check --filter=core` **and** `pnpm turbo run test:run --filter=core`. Go through turbo: both resolve `@genum/placeholders` and `@genum/steps` through their `dist/`, which a never-built tree lacks. The turbo cache is shared across worktrees, so a `FULL TURBO` replay may not have checked your tree — add `--force` when in doubt.
 - Touched `apps/web` → `pnpm --filter web build`.
 - Always → `biome check` and `eslint` on your changed files only.
 - Behaviour a command cannot prove (UI, provider calls, ClickHouse data) → say so under **## Not verified** in the PR. **REQUIRED SUB-SKILL:** `creating-pull-requests`.

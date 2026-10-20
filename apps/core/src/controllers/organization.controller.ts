@@ -228,7 +228,7 @@ export class OrganizationController {
 	public async getOrganizationApiKeys(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 
-		const keys = await db.organization.getOrganizationApiKeys(metadata.orgID);
+		const keys = await db.providerKeys.getOrganizationApiKeys(metadata.orgID);
 
 		res.status(200).json({
 			keys,
@@ -239,7 +239,7 @@ export class OrganizationController {
 		const metadata = req.genumMeta.ids;
 		const { vendor, key } = OrganizationApiKeyCreateSchema.parse(req.body);
 
-		const apiKey = await db.organization.addOrganizationApiKey(metadata.orgID, vendor, key);
+		const apiKey = await db.providerKeys.addOrganizationApiKey(metadata.orgID, vendor, key);
 
 		res.status(200).json({
 			id: apiKey.id,
@@ -254,7 +254,7 @@ export class OrganizationController {
 		const metadata = req.genumMeta.ids;
 		const id = numberSchema.parse(req.params.id);
 
-		await db.organization.deleteOrganizationApiKey(metadata.orgID, id);
+		await db.providerKeys.deleteOrganizationApiKey(metadata.orgID, id);
 
 		res.status(200).json({
 			message: "API key deleted successfully",
@@ -362,7 +362,7 @@ export class OrganizationController {
 			return;
 		}
 
-		const provider = await db.organization.upsertCustomProvider(metadata.orgID, data);
+		const provider = await db.providerKeys.upsertCustomProvider(metadata.orgID, data);
 
 		await this.organizationService.syncProviderModels(
 			metadata.orgID,
@@ -392,7 +392,7 @@ export class OrganizationController {
 	public async getCustomProvider(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 
-		const provider = await db.organization.getCustomProvider(metadata.orgID);
+		const provider = await db.providerKeys.getCustomProvider(metadata.orgID);
 
 		res.status(200).json({ provider });
 	}
@@ -495,13 +495,13 @@ export class OrganizationController {
 	public async getProviderModels(req: Request, res: Response) {
 		const metadata = req.genumMeta.ids;
 
-		const provider = await db.organization.getCustomProvider(metadata.orgID);
+		const provider = await db.providerKeys.getCustomProvider(metadata.orgID);
 		if (!provider) {
 			res.status(404).json({ error: "Custom provider not configured" });
 			return;
 		}
 
-		const providerWithModels = await db.organization.getApiKeyWithModels(
+		const providerWithModels = await db.providerKeys.getApiKeyWithModels(
 			metadata.orgID,
 			provider.id,
 		);
@@ -526,7 +526,7 @@ export class OrganizationController {
 		const data = UpdateCustomModelSchema.parse(req.body);
 
 		// Check if model exists and belongs to this organization
-		const existingModel = await db.organization.getCustomModelById(metadata.orgID, modelId);
+		const existingModel = await db.languageModels.getCustomModelById(metadata.orgID, modelId);
 		if (!existingModel) {
 			res.status(404).json({ error: "Model not found or not a custom model" });
 			return;
