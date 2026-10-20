@@ -170,8 +170,6 @@ export async function runAgent(params: CanvasAgentParams): Promise<CanvasMessage
 			},
 		);
 
-		console.log("result", result);
-
 		// detect new messages from agent
 		// result.messages includes all messages, including history and new messages
 		const allMessagesAfterInvoke = result.messages as CanvasMessage[];
