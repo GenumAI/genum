@@ -1,6 +1,6 @@
 ---
 name: writing-update-notifications
-description: Use when writing, drafting or publishing a Genum product update / "what's new" post for users (the in-app notification and the community.genum.ai forum post) about new features, new models or a release, or when asked to send a post to ARTICLE_URL or the n8n articles-crosspost webhook, in any language.
+description: Use when writing, drafting or publishing a Genum product update / "what's new" post for users (the in-app notification and the community.genum.ai forum post) about new features, new models or a release, when a genum release has just been published and the user wants it announced, or when asked to send a post to ARTICLE_URL or the n8n articles-crosspost webhook, in any language.
 ---
 
 # Writing update notifications (genum)
@@ -13,10 +13,10 @@ One post is one Markdown file: **the file name is the title, the file body is th
 
 ## Workflow
 
-1. **Collect what shipped.** Use the user's list, or what changed since the last post: `gh release list`, `gh release view <tag>`, `git log --no-merges --oneline <since>..`. The newest `createdAt` in `published-posts.json` is the last post this skill knows about. Keep only changes a user can see or use.
+1. **Collect what shipped.** Use the user's list, or what changed since the last post: `gh release list`, `gh release view <tag>`, `git log --no-merges --oneline <since>..`. Right after a release, the source is that release's notes, plus any earlier release that was never announced. The newest `createdAt` in `published-posts.json` is the last post this skill knows about. Keep only changes a user can see or use.
 2. **Check every claim in the code** (model registry, specs, migrations, UI labels). If the brief and the code disagree, write what the code does and tell the user. No prices, no dates and no specs the code doesn't confirm.
 3. **Write** `tmp/notifications/<Title>.md` under the repo root (`tmp/` is gitignored), following the template and style contract below.
-4. **Show it.** Your reply contains the path, the full file verbatim in a fenced block, the commit or PR behind each row, and the question "Send?" in the user's language. Then stop.
+4. **Show it and ask.** Your reply contains the path, the full file verbatim in a fenced block, the commit or PR behind each row, and one question in the user's language asking whether they like the text and whether to send it («Нравится текст? Отправляем?» / "Do you like the text? Send it?"). Then stop.
 5. **Send only after an explicit yes** to that exact version: `bash .claude/skills/writing-update-notifications/send.sh "tmp/notifications/<Title>.md"`. If anything changed after the yes, go back to step 4.
 6. **Report** `discourse_url`, `genum_id_prod` and `genum_id_dev` from the response. On an error, show the output and ask. **Never retry on your own:** n8n runs the three targets in parallel, so some of them may already have published.
 
