@@ -65,9 +65,22 @@ echo "to:     $url"
 
 # n8n's "webhook payload" node takes body.title first, then a leading "# H1" (stripped from
 # the content), then the file name. Sending the title explicitly pins it to the file name.
-curl -sS --fail-with-body -X POST \
+body=$(mktemp)
+trap 'rm -f "$body"' EXIT
+status=$(curl -sS -X POST \
 	-H "$header" \
 	--form-string "title=${name%.md}" \
 	-F "file=@\"$path\";filename=\"$name\";type=text/markdown" \
-	-w '\nHTTP %{http_code}\n' \
-	"$url"
+	-o "$body" -w '%{http_code}' \
+	"$url") || status=000
+cat "$body"
+echo
+echo "HTTP $status"
+
+# Only the flow's "respond" node answers {"ok": true, ...}, after all three targets succeeded.
+# A 200 without it (e.g. an empty body) means the run stopped part-way: some targets may
+# have published, so this is not a success and must not be retried blindly.
+if [[ $status != 2* ]] || ! grep -Eq '"ok"[[:space:]]*:[[:space:]]*true' "$body"; then
+	echo "NOT CONFIRMED: check the run in n8n Executions before sending again" >&2
+	exit 3
+fi

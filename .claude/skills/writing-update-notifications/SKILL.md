@@ -18,7 +18,7 @@ One post is one Markdown file: **the file name is the title, the file body is th
 3. **Write** `tmp/notifications/<Title>.md` under the repo root (`tmp/` is gitignored), following the template and style contract below.
 4. **Show it and ask.** Your reply contains the path, the full file verbatim in a fenced block, the commit or PR behind each row, and one question in the user's language asking whether they like the text and whether to send it («Нравится текст? Отправляем?» / "Do you like the text? Send it?"). Then stop.
 5. **Send only after an explicit yes** to that exact version: `bash .claude/skills/writing-update-notifications/send.sh "tmp/notifications/<Title>.md"`. If anything changed after the yes, go back to step 4.
-6. **Report** `discourse_url`, `genum_id_prod` and `genum_id_dev` from the response. On an error, show the output and ask. **Never retry on your own:** n8n runs the three targets in parallel, so some of them may already have published.
+6. **Report** `discourse_url`, `genum_id_prod` and `genum_id_dev` from the response. `send.sh` exits 0 only when the flow answers `"ok": true`. Exit 3 (`NOT CONFIRMED`) covers an HTTP error and also a 200 with an empty body, which means the run stopped part-way. In either case, show the output and ask the user to check the run in n8n Executions. **Never retry on your own:** some targets may already have published. A 403 `Authorization data is wrong!` is the exception: it is rejected before the flow starts, so nothing was published.
 
 ## The file
 
