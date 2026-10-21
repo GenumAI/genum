@@ -167,6 +167,10 @@ Confirm the new tag, and give the user the draft release URL to review and publi
 
 **Publishing is what starts the deploy.** `docker-release.yml` fires on `release: published`, not on the tag, so nothing is built while the release is a draft. Once published it builds and pushes `core` and `web` images for `linux/amd64` and `linux/arm64` to Docker Hub, tagging `latest` too unless the release is marked pre-release, and creates the Sentry releases. Watch it with `gh run watch` or `gh run list --workflow=docker-release.yml --limit 1`.
 
+### 5. Offer an update post
+
+Once the user says the release is published, ask whether to write an update post for users about it. The post goes to the community forum and the in-app notifications. If it has user-visible changes, it is worth announcing, so say what they are. If they say yes, **REQUIRED SUB-SKILL:** `writing-update-notifications`, with the published release notes as the source. That skill shows the text and waits for the user's go-ahead before anything is sent. An offer is all this step does: no draft before a yes.
+
 ## Failure modes
 
 | Symptom | Cause | Fix |
