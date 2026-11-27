@@ -16,6 +16,7 @@ import {
 	testcaseChartConfig,
 } from "@/pages/dashboard/utils/testcaseStats";
 import { TweenNumber } from "./TweenNumber";
+import { formatCount } from "@/pages/dashboard/utils/formatNumber";
 
 type HoveredBar = { promptId: number; dataKey: "passed" | "failed" } | null;
 
@@ -250,7 +251,7 @@ export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: P
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
 								<TweenNumber
 									value={totalStats.passed}
-									formatValue={(value) => `${Math.round(value)}`}
+									formatValue={formatCount}
 								/>
 							</div>
 						</div>
@@ -262,7 +263,7 @@ export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: P
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
 								<TweenNumber
 									value={totalStats.failed}
-									formatValue={(value) => `${Math.round(value)}`}
+									formatValue={formatCount}
 								/>
 							</div>
 						</div>
@@ -274,7 +275,7 @@ export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: P
 							<div className="text-[24px] leading-[32px] font-bold text-foreground">
 								<TweenNumber
 									value={totalStats.needRun}
-									formatValue={(value) => `${Math.round(value)}`}
+									formatValue={formatCount}
 								/>
 							</div>
 						</div>
@@ -289,7 +290,7 @@ export function TestcaseStats({ prompts, isLoading: isForcedLoading = false }: P
 							<div className="text-[30px] font-semibold leading-[22px] text-foreground">
 								<TweenNumber
 									value={totalStats.total}
-									formatValue={(value) => `${Math.round(value)}`}
+									formatValue={formatCount}
 								/>
 							</div>
 						</div>

@@ -14,6 +14,15 @@ interface Props {
 	label?: string;
 }
 
+/**
+ * Axis ticks are grouped like the headline number but never rounded: this axis also plots
+ * cost, whose ticks are fractions (0.65, 1.3). Same format as `leftMargin` measures, so
+ * the reserved width fits the widest tick.
+ */
+function formatTick(value: number): string {
+	return value.toLocaleString(undefined, { maximumFractionDigits: 5 });
+}
+
 function getTextWidth(text: string, font = "12px Arial") {
 	const canvas = document.createElement("canvas");
 	const context = canvas.getContext("2d");
@@ -42,7 +51,7 @@ export function StatsCardWithLineChart({
 
 	const leftMargin = useMemo(() => {
 		const maxValue = Math.max(...data.map((d) => d.value));
-		const maxValueFormatted = maxValue.toLocaleString(undefined, { maximumFractionDigits: 5 });
+		const maxValueFormatted = formatTick(maxValue);
 		return getTextWidth(maxValueFormatted) + 12;
 	}, [data]);
 	const chartAnimationKey = `${title}-${data.length}-${data[data.length - 1]?.value ?? 0}`;
@@ -80,6 +89,7 @@ export function StatsCardWithLineChart({
 								tickLine={false}
 								axisLine={false}
 								tickMargin={8}
+								tickFormatter={formatTick}
 							/>
 							<XAxis
 								dataKey="date"

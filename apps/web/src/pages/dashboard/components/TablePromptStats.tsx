@@ -26,6 +26,7 @@ import {
 	formatPromptLastUsed,
 } from "@/pages/dashboard/utils/promptStatsTable";
 import { TweenNumber } from "./TweenNumber";
+import { formatCount } from "@/pages/dashboard/utils/formatNumber";
 
 interface Props {
 	prompts: PromptStats[];
@@ -78,7 +79,7 @@ export function TablePromptStats({ prompts, promptNames, isLoading = false }: Pr
 					<TweenNumber
 						value={getValue() as number}
 						className="tabular-nums text-foreground"
-						formatValue={(value) => `${Math.round(value)}`}
+						formatValue={formatCount}
 					/>
 				),
 			},
@@ -89,7 +90,7 @@ export function TablePromptStats({ prompts, promptNames, isLoading = false }: Pr
 					<TweenNumber
 						value={getValue() as number}
 						className="tabular-nums text-foreground"
-						formatValue={(value) => `${Math.round(value)}`}
+						formatValue={formatCount}
 					/>
 				),
 			},
@@ -100,7 +101,7 @@ export function TablePromptStats({ prompts, promptNames, isLoading = false }: Pr
 					<TweenNumber
 						value={getValue() as number}
 						className="tabular-nums text-foreground"
-						formatValue={(value) => `${Math.round(value)}`}
+						formatValue={formatCount}
 					/>
 				),
 			},
@@ -111,7 +112,7 @@ export function TablePromptStats({ prompts, promptNames, isLoading = false }: Pr
 					<TweenNumber
 						value={getValue() as number}
 						className="tabular-nums text-foreground"
-						formatValue={(value) => `${Math.round(value)}`}
+						formatValue={formatCount}
 					/>
 				),
 			},

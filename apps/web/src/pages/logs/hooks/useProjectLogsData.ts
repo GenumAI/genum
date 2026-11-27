@@ -4,6 +4,7 @@ import { projectApi } from "@/api/project";
 import type { LogsFilterState } from "@/pages/logs/components/LogsFilter";
 import type { LogsResponse } from "@/types/logs";
 import { logsKeys } from "@/query-keys/logs.keys";
+import { toRequestDateRange } from "@/pages/logs/utils/logsFilterUtils";
 
 interface UseProjectLogsDataParams {
 	page: number;
@@ -12,8 +13,7 @@ interface UseProjectLogsDataParams {
 }
 
 export function useProjectLogsData({ page, pageSize, logsFilter }: UseProjectLogsDataParams) {
-	const fromDate = logsFilter.dateRange?.from?.toISOString();
-	const toDate = logsFilter.dateRange?.to?.toISOString();
+	const { fromDate, toDate } = toRequestDateRange(logsFilter.dateRange);
 	const logLevel =
 		logsFilter.logLevel && logsFilter.logLevel !== "all" ? logsFilter.logLevel : undefined;
 	const model = logsFilter.model && logsFilter.model !== "all" ? logsFilter.model : undefined;

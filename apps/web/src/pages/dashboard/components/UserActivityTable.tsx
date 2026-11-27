@@ -18,6 +18,7 @@ import {
 	formatUserCost,
 } from "@/pages/dashboard/utils/promptStatsTable";
 import { TweenNumber } from "./TweenNumber";
+import { formatCount } from "@/pages/dashboard/utils/formatNumber";
 
 interface User {
 	user_id: number;
@@ -51,7 +52,7 @@ export function UserActivityTable({ users, isLoading = false }: Props) {
 				<TweenNumber
 					value={info.getValue() as number}
 					className="tabular-nums"
-					formatValue={(value) => `${Math.round(value)}`}
+					formatValue={formatCount}
 				/>
 			),
 		},
@@ -62,7 +63,7 @@ export function UserActivityTable({ users, isLoading = false }: Props) {
 				<TweenNumber
 					value={info.getValue() as number}
 					className="tabular-nums"
-					formatValue={(value) => `${Math.round(value)}`}
+					formatValue={formatCount}
 				/>
 			),
 		},

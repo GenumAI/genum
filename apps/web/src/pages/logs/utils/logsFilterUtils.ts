@@ -1,5 +1,5 @@
 import type { DateRange } from "react-day-picker";
-import { addDays, isSameDay } from "date-fns";
+import { addDays, endOfDay, isSameDay } from "date-fns";
 
 export type RangeTab = "day" | "week" | "month" | "custom";
 
@@ -54,4 +54,19 @@ export function getTabByRange(range: DateRange | undefined, presets: DatePresets
 	)
 		return "month";
 	return "custom";
+}
+
+/**
+ * The window a date range asks the server for, as instants.
+ *
+ * The server filters `timestamp <= toDate` exactly, so `to` is widened to the end of its
+ * day: the calendar hands back the local midnight that STARTS the last picked day, and a
+ * preset's `to` is the moment the page opened. Sent as is, the first drops the whole last
+ * day and the second drops every run made after the page was opened.
+ */
+export function toRequestDateRange(range?: DateRange) {
+	return {
+		fromDate: range?.from?.toISOString(),
+		toDate: range?.to ? endOfDay(range.to).toISOString() : undefined,
+	};
 }

@@ -15,6 +15,7 @@ import { EmptyState } from "@/pages/info-pages/EmptyState";
 import SortIcon from "@/components/ui/icons-tsx/SortIcon";
 import { formatModelCost } from "@/pages/dashboard/utils/promptStatsTable";
 import { TweenNumber } from "./TweenNumber";
+import { formatCount } from "@/pages/dashboard/utils/formatNumber";
 
 interface ModelStats {
 	model: string;
@@ -54,7 +55,7 @@ export function TableModelStats({ models, isLoading = false }: Props) {
 				<TweenNumber
 					value={info.getValue() as number}
 					className="tabular-nums"
-					formatValue={(value) => `${Math.round(value)}`}
+					formatValue={formatCount}
 				/>
 			),
 		},
@@ -65,7 +66,7 @@ export function TableModelStats({ models, isLoading = false }: Props) {
 				<TweenNumber
 					value={info.getValue() as number}
 					className="tabular-nums"
-					formatValue={(value) => `${Math.round(value)}`}
+					formatValue={formatCount}
 				/>
 			),
 		},
@@ -76,7 +77,7 @@ export function TableModelStats({ models, isLoading = false }: Props) {
 				<TweenNumber
 					value={info.getValue() as number}
 					className="tabular-nums"
-					formatValue={(value) => `${Math.round(value)}`}
+					formatValue={formatCount}
 				/>
 			),
 		},
@@ -87,7 +88,7 @@ export function TableModelStats({ models, isLoading = false }: Props) {
 				<TweenNumber
 					value={info.getValue() as number}
 					className="tabular-nums"
-					formatValue={(value) => `${Math.round(value)}`}
+					formatValue={formatCount}
 				/>
 			),
 		},

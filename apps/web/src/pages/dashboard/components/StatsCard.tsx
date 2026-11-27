@@ -5,6 +5,7 @@ import type {
 } from "@/api/project/project.api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatsCardWithLineChart } from "./StatsCardWithLineChart";
+import { formatCount } from "@/pages/dashboard/utils/formatNumber";
 
 interface Props {
 	data?: UsageData;
@@ -46,7 +47,7 @@ export function StatsCards({ data, isLoading = false }: Props) {
 				title="Total Requests"
 				label="Requests"
 				value={data.total_requests}
-				formatValue={(value) => Math.round(value).toLocaleString()}
+				formatValue={formatCount}
 				subtitle="Runs made"
 				data={requestsChartData}
 			/>
@@ -54,7 +55,7 @@ export function StatsCards({ data, isLoading = false }: Props) {
 				title="Total Tokens"
 				label="Tokens"
 				value={data.total_tokens_sum}
-				formatValue={(value) => Math.round(value).toLocaleString()}
+				formatValue={formatCount}
 				subtitle="Tokens used"
 				data={tokensChartData}
 			/>
