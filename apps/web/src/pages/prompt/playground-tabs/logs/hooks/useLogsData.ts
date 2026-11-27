@@ -5,6 +5,7 @@ import { promptApi } from "@/api/prompt";
 import type { LogsFilterState } from "@/pages/logs/components/LogsFilter";
 import type { LogsResponse } from "@/types/logs";
 import { logsKeys } from "@/query-keys/logs.keys";
+import { toRequestDateRange } from "@/pages/logs/utils/logsFilterUtils";
 
 interface UseLogsDataParams {
 	promptId?: number;
@@ -21,8 +22,7 @@ export function useLogsData({
 	logsFilter,
 	isActive = true,
 }: UseLogsDataParams) {
-	const fromDate = logsFilter.dateRange?.from?.toISOString();
-	const toDate = logsFilter.dateRange?.to?.toISOString();
+	const { fromDate, toDate } = toRequestDateRange(logsFilter.dateRange);
 	const logLevel = logsFilter.logLevel || undefined;
 	const model = logsFilter.model || undefined;
 	const source = logsFilter.source || undefined;

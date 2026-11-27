@@ -1,5 +1,6 @@
-import { addDays, format } from "date-fns";
+import { addDays } from "date-fns";
 import type { LogsFilterState } from "@/pages/logs/components/LogsFilter";
+import { toRequestDateRange } from "@/pages/logs/utils/logsFilterUtils";
 
 const DEFAULT_DASHBOARD_RANGE_DAYS = 30;
 
@@ -11,13 +12,16 @@ export function getDefaultDashboardDateRange() {
 	};
 }
 
+/**
+ * Instants, not `yyyy-MM-dd`. The server reads a bare day as UTC midnight and filters
+ * `timestamp <= toDate` exactly, so a day string for today cut every run made today.
+ */
 export function getUsageDateParams(filter: LogsFilterState) {
 	const defaultRange = getDefaultDashboardDateRange();
-	const from = filter.dateRange?.from ?? defaultRange.from;
-	const to = filter.dateRange?.to ?? defaultRange.to;
+	const { fromDate, toDate } = toRequestDateRange({
+		from: filter.dateRange?.from ?? defaultRange.from,
+		to: filter.dateRange?.to ?? defaultRange.to,
+	});
 
-	return {
-		fromDate: format(from, "yyyy-MM-dd"),
-		toDate: format(to, "yyyy-MM-dd"),
-	};
+	return { fromDate: fromDate ?? "", toDate: toDate ?? "" };
 }

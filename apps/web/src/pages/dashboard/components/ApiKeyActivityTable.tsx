@@ -20,6 +20,7 @@ import { EmptyState } from "@/pages/info-pages/EmptyState";
 import SortIcon from "@/components/ui/icons-tsx/SortIcon";
 import { formatUserActivityDate, formatUserCost } from "@/pages/dashboard/utils/promptStatsTable";
 import { TweenNumber } from "./TweenNumber";
+import { formatCount } from "@/pages/dashboard/utils/formatNumber";
 
 interface ApiKey {
 	api_key_id: number;
@@ -53,7 +54,7 @@ export function ApiKeyActivityTable({ apiKeys, isLoading = false }: Props) {
 				<TweenNumber
 					value={info.getValue() as number}
 					className="tabular-nums"
-					formatValue={(value) => `${Math.round(value)}`}
+					formatValue={formatCount}
 				/>
 			),
 		},
@@ -64,7 +65,7 @@ export function ApiKeyActivityTable({ apiKeys, isLoading = false }: Props) {
 				<TweenNumber
 					value={info.getValue() as number}
 					className="tabular-nums"
-					formatValue={(value) => `${Math.round(value)}`}
+					formatValue={formatCount}
 				/>
 			),
 		},

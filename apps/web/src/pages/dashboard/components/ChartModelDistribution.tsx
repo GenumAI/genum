@@ -8,6 +8,7 @@ import {
 	type DistributionModelInput,
 } from "@/pages/dashboard/utils/chartDistribution";
 import { TweenNumber } from "./TweenNumber";
+import { formatCount } from "@/pages/dashboard/utils/formatNumber";
 
 interface Props {
 	models: DistributionModelInput[];
@@ -103,7 +104,7 @@ export function ChartModelDistribution({ models, isLoading = false }: Props) {
 						<TweenNumber
 							value={total}
 							className="text-2xl font-bold text-foreground"
-							formatValue={(value) => `${Math.round(value)}`}
+							formatValue={formatCount}
 						/>
 					</div>
 				</div>
@@ -124,7 +125,7 @@ export function ChartModelDistribution({ models, isLoading = false }: Props) {
 								<TweenNumber
 									value={entry.value}
 									className="ml-auto font-semibold bg-muted text-foreground/90 px-[3px] min-w-[23px] text-center rounded-md text-[10px]"
-									formatValue={(value) => `${Math.round(value)}`}
+									formatValue={formatCount}
 								/>
 							</div>
 						))
